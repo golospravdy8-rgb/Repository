@@ -1,0 +1,15 @@
+{
+  "features": [
+    "trigger-dev-workers",
+    "openai-whisper",
+    "tailwind-ui",
+    "stripe-billing",
+    "subscription-management",
+    "usage-tracking",
+    "admin-panel"
+  ],
+  "changelog": {
+    "1.0.0": "Initial release as worker-saas",
+    "1.0.1": "Updated UI, new sign-up and log-in system, and system defender improvements"
+  }
+}
