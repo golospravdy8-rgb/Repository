@@ -1,0 +1,203 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Season {
+  id        Int        @id @default(autoincrement())
+  name      String
+  isActive  Boolean    @default(true)
+  ageGroup  String     @default("younger")
+  games     Game[]
+  standings Standing[]
+  teams     Team[]
+}
+
+model Team {
+  id        Int        @id @default(autoincrement())
+  name      String
+  shortName String
+  logoUrl   String?
+  seasonId  Int
+  ageGroup  String     @default("younger")
+  boxScores BoxScore[]
+  awayGames Game[]     @relation("AwayTeam")
+  homeGames Game[]     @relation("HomeTeam")
+  players   Player[]
+  standing  Standing?
+  season    Season     @relation(fields: [seasonId], references: [id])
+}
+
+model Player {
+  id         Int         @id @default(autoincrement())
+  number     Int
+  firstName  String
+  lastName   String
+  position   String?
+  teamId     Int
+  photoUrl   String?
+  boxScores  BoxScore[]
+  gameEvents GameEvent[]
+  team       Team        @relation(fields: [teamId], references: [id])
+}
+
+model Game {
+  id          Int         @id @default(autoincrement())
+  seasonId    Int
+  homeTeamId  Int
+  awayTeamId  Int
+  scheduledAt DateTime
+  status      String      @default("SCHEDULED")
+  quarter     Int         @default(1)
+  homeScore   Int         @default(0)
+  awayScore   Int         @default(0)
+  boxScores   BoxScore[]
+  awayTeam    Team        @relation("AwayTeam", fields: [awayTeamId], references: [id])
+  homeTeam    Team        @relation("HomeTeam", fields: [homeTeamId], references: [id])
+  season      Season      @relation(fields: [seasonId], references: [id])
+  events      GameEvent[]
+}
+
+model GameEvent {
+  id        Int      @id @default(autoincrement())
+  gameId    Int
+  playerId  Int?
+  teamId    Int
+  type      String
+  points    Int?
+  quarter   Int
+  createdAt DateTime @default(now())
+  player    Player?  @relation(fields: [playerId], references: [id])
+  game      Game     @relation(fields: [gameId], references: [id])
+}
+
+model BoxScore {
+  id       Int    @id @default(autoincrement())
+  gameId   Int
+  playerId Int
+  teamId   Int
+  points   Int    @default(0)
+  rebounds Int    @default(0)
+  assists  Int    @default(0)
+  steals   Int    @default(0)
+  blocks   Int    @default(0)
+  fouls    Int    @default(0)
+  minutes  Int    @default(0)
+  team     Team   @relation(fields: [teamId], references: [id])
+  player   Player @relation(fields: [playerId], references: [id])
+  game     Game   @relation(fields: [gameId], references: [id])
+}
+
+model Standing {
+  id            Int    @id @default(autoincrement())
+  teamId        Int    @unique
+  seasonId      Int
+  wins          Int    @default(0)
+  losses        Int    @default(0)
+  pointsFor     Int    @default(0)
+  pointsAgainst Int    @default(0)
+  gamesPlayed   Int    @default(0)
+  rank          Int?
+  season        Season @relation(fields: [seasonId], references: [id])
+  team          Team   @relation(fields: [teamId], references: [id])
+}
+
+model News {
+  id          Int      @id @default(autoincrement())
+  title       String
+  slug        String   @unique
+  content     String
+  imageUrl    String?
+  publishedAt DateTime @default(now())
+  isPublished Boolean  @default(true)
+  category    String?
+}
+
+model AdminUser {
+  id       Int    @id @default(autoincrement())
+  email    String @unique
+  password String
+  name     String
+}
+
+model SiteSettings {
+  id        Int      @id @default(autoincrement())
+  key       String   @unique
+  value     String
+  updatedAt DateTime @updatedAt
+}
+
+model Video {
+  id          Int      @id @default(autoincrement())
+  title       String
+  url         String
+  thumbnail   String?
+  type        String   @default("highlights")
+  publishedAt DateTime @default(now())
+  isPublished Boolean  @default(true)
+}
+
+model Review {
+  id        Int      @id @default(autoincrement())
+  author    String
+  text      String
+  createdAt DateTime @default(now())
+}
+
+model GuestContact {
+  id        Int      @id @default(autoincrement())
+  phone     String   @unique
+  firstName String
+  lastName  String
+  refCode   String?
+  hp        Int      @default(25)
+  createdAt DateTime @default(now())
+}
+
+model MvpVote {
+  id         Int      @id @default(autoincrement())
+  voterPhone String
+  playerName String
+  createdAt  DateTime @default(now())
+}
+
+model ShopOrder {
+  id           Int      @id @default(autoincrement())
+  orderNumber  String   @unique
+  firstName    String
+  lastName     String
+  phone        String
+  email        String   @default("")
+  city         String
+  deliveryType String   @default("nova_poshta")
+  postOffice   String
+  paymentType  String   @default("card")
+  items        String
+  totalAmount  Int
+  status       String   @default("new")
+  comment      String   @default("")
+  createdAt    DateTime @default(now())
+}
+
+model ShopProduct {
+  id           Int      @id @default(autoincrement())
+  name         String
+  description  String   @default("")
+  price        Int
+  oldPrice     Int?
+  category     String
+  emoji        String   @default("🏀")
+  badge        String?
+  imageUrl     String?
+  sizes        String?
+  inStock      Boolean  @default(true)
+  sortOrder    Int      @default(0)
+  showInChat   Boolean  @default(false)
+  chatPriority Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
