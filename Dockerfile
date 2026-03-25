@@ -1,0 +1,42 @@
+# ====== STAGE 1: Build ======
+FROM node:20-alpine AS builder
+WORKDIR /app
+
+# Копіюємо package files і prisma схему
+COPY package*.json ./
+COPY prisma ./prisma/
+
+RUN npm ci
+
+COPY . .
+
+# Генеруємо Prisma client і білдимо Next.js
+RUN npx prisma generate
+RUN npm run build
+
+# ====== STAGE 2: Run ======
+FROM node:20-alpine AS runner
+WORKDIR /app
+
+# Безпека: запускаємо НЕ від root
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+
+# Копіюємо standalone build
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+
+# Скрипт запуску з міграцією
+COPY --from=builder /app/start.sh ./start.sh
+RUN chmod +x ./start.sh
+
+USER appuser
+
+EXPOSE 3000
+
+HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
+  CMD wget -qO- http://localhost:3000/api/health || exit 1
+
+CMD ["./start.sh"]

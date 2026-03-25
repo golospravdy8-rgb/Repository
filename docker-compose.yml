@@ -1,0 +1,212 @@
+version: "3.9"
+
+networks:
+  basket-net:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  uploads_data:
+
+services:
+  # ─── PostgreSQL ───────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: basket-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: basket_lviv
+      POSTGRES_USER: basket_user
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - basket-net
+    # НЕ відкриваємо порт назовні — тільки через internal network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U basket_user -d basket_lviv"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ─── Головний сайт (3006 → 3000 внутрішній) ──────────────────
+  main:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: basket-main
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: postgresql://basket_user:${POSTGRES_PASSWORD}@postgres:5432/basket_lviv
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
+      NEXTAUTH_URL: ${NEXTAUTH_URL_MAIN}
+    volumes:
+      - uploads_data:/app/public/uploads
+    networks:
+      - basket-net
+    depends_on:
+      postgres:
+        condition: service_healthy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.main.rule=Host(`${DOMAIN}`) || Host(`www.${DOMAIN}`) || Host(`191.96.94.187`)"
+      - "traefik.http.routers.main.entrypoints=web,websecure"
+      - "traefik.http.services.main.loadbalancer.server.port=3000"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ─── Барахолка (3007) ─────────────────────────────────────────
+  marketplace:
+    build:
+      context: ./apps/marketplace
+      dockerfile: Dockerfile
+    container_name: basket-marketplace
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3007
+      DATABASE_URL: postgresql://basket_user:${POSTGRES_PASSWORD}@postgres:5432/basket_lviv
+      AUTH_SERVER_URL: http://auth:3012
+    networks:
+      - basket-net
+    depends_on:
+      postgres:
+        condition: service_healthy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.marketplace.rule=Host(`market.${DOMAIN}`)"
+      - "traefik.http.routers.marketplace.entrypoints=web,websecure"
+      - "traefik.http.services.marketplace.loadbalancer.server.port=3007"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ─── Курси (3008) ─────────────────────────────────────────────
+  courses:
+    build:
+      context: ./apps/courses
+      dockerfile: Dockerfile
+    container_name: basket-courses
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3008
+    networks:
+      - basket-net
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.courses.rule=Host(`courses.${DOMAIN}`)"
+      - "traefik.http.routers.courses.entrypoints=web,websecure"
+      - "traefik.http.services.courses.loadbalancer.server.port=3008"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ─── Магазин (3009) ───────────────────────────────────────────
+  shop:
+    build:
+      context: ./apps/shop
+      dockerfile: Dockerfile
+    container_name: basket-shop
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3009
+      DATABASE_URL: postgresql://basket_user:${POSTGRES_PASSWORD}@postgres:5432/basket_lviv
+    networks:
+      - basket-net
+    depends_on:
+      postgres:
+        condition: service_healthy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.shop.rule=Host(`shop.${DOMAIN}`)"
+      - "traefik.http.routers.shop.entrypoints=web,websecure"
+      - "traefik.http.services.shop.loadbalancer.server.port=3009"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ─── Новини (3010) ────────────────────────────────────────────
+  news:
+    build:
+      context: ./apps/news
+      dockerfile: Dockerfile
+    container_name: basket-news
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3010
+    networks:
+      - basket-net
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.news.rule=Host(`news.${DOMAIN}`)"
+      - "traefik.http.routers.news.entrypoints=web,websecure"
+      - "traefik.http.services.news.loadbalancer.server.port=3010"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ─── Чат (3011) ───────────────────────────────────────────────
+  chat:
+    build:
+      context: ./apps/chat
+      dockerfile: Dockerfile
+    container_name: basket-chat
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3011
+      JWT_SECRET: ${JWT_SECRET}
+      AUTH_SERVER_URL: http://auth:3012
+    networks:
+      - basket-net
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.chat.rule=Host(`chat.${DOMAIN}`)"
+      - "traefik.http.routers.chat.entrypoints=web,websecure"
+      - "traefik.http.services.chat.loadbalancer.server.port=3011"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ─── Auth сервер (3012) ───────────────────────────────────────
+  auth:
+    build:
+      context: ./packages/auth
+      dockerfile: Dockerfile
+    container_name: basket-auth
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3012
+      JWT_SECRET: ${JWT_SECRET}
+    networks:
+      - basket-net
+    # Auth — тільки внутрішній, не виставляємо через Traefik
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
