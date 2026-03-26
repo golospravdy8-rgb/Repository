@@ -44,7 +44,7 @@ USER appuser
 
 EXPOSE 3000
 
-HEALTHCHECK --interval=30s --timeout=30s --retries=5 --start-period=30s \
+HEALTHCHECK --interval=15s --timeout=10s --retries=5 --start-period=60s \
   CMD wget -qO- http://localhost:3000/api/health || exit 1
 
 CMD ["./start.sh"]
