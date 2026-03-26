@@ -35,7 +35,7 @@ COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 
 # Скрипт запуску з міграцією
 COPY --from=builder /app/start.sh ./start.sh
-RUN chmod +x ./start.sh
+RUN chmod +x ./start.sh && chown -R appuser:appgroup /app
 
 USER appuser
 
