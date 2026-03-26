@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { getSettings } from "@/lib/site-settings";
 import HeaderWrapper from "@/components/layout/HeaderWrapper";
 import FooterWrapper from "@/components/layout/FooterWrapper";
