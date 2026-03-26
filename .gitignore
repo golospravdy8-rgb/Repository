@@ -57,9 +57,9 @@ packages/**/node_modules/
 # local data files (not part of source)
 backup_*.json
 import_data.sql
-gallery.data.json
-highlights.data.json
-sponsors.data.json
+/gallery.data.json
+/highlights.data.json
+/sponsors.data.json
 
 # uploaded files (user content, not source)
 public/uploads/

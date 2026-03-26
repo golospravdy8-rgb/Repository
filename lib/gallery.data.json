@@ -1,0 +1,46 @@
+{
+  "albums": [
+    {
+      "gameId": 1,
+      "photos": [
+        "/uploads/gallery-1-1774214910189.jpg",
+        "/uploads/gallery-1-1774214910219.jpg",
+        "/uploads/gallery-1-1774214910242.jpg",
+        "/uploads/gallery-1-1774214910264.jpg",
+        "/uploads/gallery-1-1774214910288.jpg"
+      ],
+      "coverPhoto": "/uploads/gallery-1-1774214910189.jpg",
+      "createdAt": "2026-02-28"
+    },
+    {
+      "gameId": 2,
+      "photos": [],
+      "coverPhoto": null,
+      "createdAt": "2026-02-28"
+    },
+    {
+      "gameId": 3,
+      "photos": [],
+      "coverPhoto": null,
+      "createdAt": "2026-03-07"
+    },
+    {
+      "gameId": 4,
+      "photos": [],
+      "coverPhoto": null,
+      "createdAt": "2026-03-07"
+    },
+    {
+      "gameId": 5,
+      "photos": [],
+      "coverPhoto": null,
+      "createdAt": "2026-03-14"
+    },
+    {
+      "gameId": 6,
+      "photos": [],
+      "coverPhoto": null,
+      "createdAt": "2026-03-14"
+    }
+  ]
+}
