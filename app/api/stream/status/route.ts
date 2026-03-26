@@ -23,7 +23,7 @@ async function getChannelHandle(channelId: string): Promise<string | null> {
     });
     if (!res.ok) return null;
     const html = await res.text();
-    const handles = [...html.matchAll(/"(@[a-zA-Z0-9_.-]+)"/g)].map(m => m[1]);
+    const handles = Array.from(html.matchAll(/"(@[a-zA-Z0-9_.-]+)"/g)).map(m => m[1]);
     const handle = handles.find(h => h !== "@youtube" && h !== "@YouTube" && h.length > 3);
     if (handle) {
       cachedHandle = { handle, channelId, fetchedAt: now };
