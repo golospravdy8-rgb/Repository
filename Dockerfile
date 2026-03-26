@@ -28,6 +28,11 @@ COPY --from=builder /app/public ./public
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 
+# Копіюємо prisma CLI для migrate deploy
+COPY --from=builder /app/node_modules/.bin/prisma ./node_modules/.bin/prisma
+COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
+COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
+
 # Скрипт запуску з міграцією
 COPY --from=builder /app/start.sh ./start.sh
 RUN chmod +x ./start.sh
@@ -36,7 +41,7 @@ USER appuser
 
 EXPOSE 3000
 
-HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=30s --retries=5 --start-period=30s \
   CMD wget -qO- http://localhost:3000/api/health || exit 1
 
 CMD ["./start.sh"]
