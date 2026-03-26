@@ -18,6 +18,9 @@ RUN NODE_OPTIONS="--max-old-space-size=1024" npm run build
 FROM node:20-alpine AS runner
 WORKDIR /app
 
+# Встановлюємо OpenSSL для Prisma engine
+RUN apk add --no-cache openssl
+
 # Безпека: запускаємо НЕ від root
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 
