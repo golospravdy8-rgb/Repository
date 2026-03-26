@@ -1,0 +1,25 @@
+{
+  "name": "ldbl-marketplace",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 3007",
+    "build": "next build",
+    "start": "next start -p 3007"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.22.0",
+    "jsonwebtoken": "^9.0.3",
+    "next": "14.2.0",
+    "prisma": "^5.22.0",
+    "react": "^18",
+    "react-dom": "^18"
+  },
+  "devDependencies": {
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/node": "^20",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "typescript": "^5"
+  }
+}

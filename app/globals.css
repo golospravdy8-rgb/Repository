@@ -1,0 +1,29 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+@layer base {
+  :root {
+    /* Ліга ESCULAB brand colors */
+    --brand-navy: #1a2744;
+    --brand-orange: #f97316;
+    --brand-blue: #3b82f6;
+    --brand-red: #ef4444;
+    --brand-bg: #f1f5f9;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  body {
+    background-color: #f1f5f9;
+    font-family: Inter, system-ui, -apple-system, sans-serif;
+  }
+}

@@ -1,0 +1,51 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Listing {
+  id          Int      @id @default(autoincrement())
+  title       String
+  description String   @default("")
+  price       Float
+  category    String
+  condition   String
+  seller      String
+  phone       String   @default("")
+  imageUrl    String   @default("")
+  emoji       String   @default("🏀")
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model AuctionItem {
+  id          Int      @id @default(autoincrement())
+  title       String
+  description String   @default("")
+  category    String
+  seller      String
+  phone       String   @default("")
+  imageUrl    String   @default("")
+  emoji       String   @default("🏀")
+  startPrice  Float
+  currentBid  Float
+  minStep     Float    @default(50)
+  endsAt      DateTime
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  bids        Bid[]
+}
+
+model Bid {
+  id        Int         @id @default(autoincrement())
+  amount    Float
+  bidder    String
+  createdAt DateTime    @default(now())
+  auction   AuctionItem @relation(fields: [auctionId], references: [id])
+  auctionId Int
+}
