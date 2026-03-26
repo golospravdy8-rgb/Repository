@@ -12,7 +12,7 @@ COPY . .
 
 # Генеруємо Prisma client і білдимо Next.js
 RUN npx prisma generate
-RUN npm run build
+RUN NODE_OPTIONS="--max-old-space-size=1024" npm run build
 
 # ====== STAGE 2: Run ======
 FROM node:20-alpine AS runner
