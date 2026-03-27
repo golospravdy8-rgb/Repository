@@ -1,12 +1,9 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
 import "./globals.css";
 
-const inter = Inter({ subsets: ["latin", "cyrillic"], variable: "--font-inter" });
-
 export const metadata: Metadata = {
-  title: "Ліга ESCULAB — Баскетбол Львів",
-  description: "Офіційний сайт баскетбольної ліги ESCULAB у Львові. Розклад матчів, таблиця, лідери сезону.",
+  title: "Федерація Баскетболу Львова",
+  description: "Матчі, турнірні таблиці, статистика та актуальні новини дитячого баскетболу Львова.",
 };
 
 export default function RootLayout({
@@ -15,7 +12,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="uk" className={inter.variable}>
+    <html lang="uk">
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link href="https://fonts.googleapis.com/css2?family=Play:wght@400;700&family=Exo+2:wght@400;600;700;800&family=Oswald:wght@400;500;600;700&display=swap" rel="stylesheet" />
+      </head>
       <body className="antialiased">{children}</body>
     </html>
   );
