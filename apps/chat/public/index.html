@@ -326,7 +326,7 @@
 <body>
   <header>
     <div class="header-left">
-      <a href="http://localhost:3006" class="back-link">← ЛДБЛ</a>
+      <a href="https://basketball.lviv.ua" class="back-link">← ЛДБЛ</a>
       <span style="color:rgba(255,255,255,0.3)">|</span>
       <span class="header-title">💬 Балачка</span>
     </div>
@@ -992,7 +992,7 @@
         }
         card.onclick = (e) => {
           if (e.target === document.getElementById('widget-close')) return;
-          const url = (product.productPageUrl || 'http://localhost:3009') + '?product=' + product.id;
+          const url = (product.productPageUrl || 'https://shop.basketball.lviv.ua') + '?product=' + product.id;
           window.open(url, '_blank');
         };
         card.classList.add('visible');
@@ -1331,7 +1331,7 @@
         const isOnline = online.includes(g.name);
         const div = document.createElement('div');
         div.className = 'guest-item' + (isMe ? ' me' : '') + (isOnline && !isMe ? ' online' : '');
-        const refLink = `http://localhost:3011?ref=${g.refCode}`;
+        const refLink = `https://chat.basketball.lviv.ua?ref=${g.refCode}`;
         const BADGE_LABELS = { msg10:'⭐', msg50:'🔥', msg100:'💯', streak7:'🗓', daily:'🌅' };
         const badgeStr = (g.badges || []).map(b => BADGE_LABELS[b] || (b.startsWith('daily_') ? '🌅' : '')).filter(Boolean).join('');
         const modTag = g.isMod ? '<span class="guest-mod-tag">🛡 Мод</span>' : '';
