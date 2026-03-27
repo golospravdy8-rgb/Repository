@@ -41,7 +41,7 @@ export default function LoginPage() {
             БЛ
           </div>
           <h1 className="text-2xl font-black" style={{ color: "#1a2744" }}>
-            ESCULAB Admin
+            ЛДБЛ Admin
           </h1>
           <p className="text-gray-500 text-sm mt-1">Увійдіть для управління лігою</p>
         </div>
