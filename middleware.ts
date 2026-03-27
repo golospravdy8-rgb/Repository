@@ -33,9 +33,17 @@ export default async function middleware(req: NextRequest) {
   const isAdminRoute = pathname.startsWith("/admin");
 
   if (isAdminRoute) {
+    const secret = process.env.NEXTAUTH_SECRET ?? process.env.AUTH_SECRET;
+    const isProd = process.env.NODE_ENV === "production";
+    const cookieName = isProd
+      ? "__Secure-next-auth.session-token"
+      : "next-auth.session-token";
+
     const token = await getToken({
       req,
-      secret: process.env.NEXTAUTH_SECRET ?? process.env.AUTH_SECRET,
+      secret,
+      cookieName,
+      raw: false,
     });
 
     if (!token) {

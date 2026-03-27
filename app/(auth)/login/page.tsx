@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
@@ -15,18 +14,29 @@ export default function LoginPage() {
     setPending(true);
 
     const formData = new FormData(e.currentTarget);
-    const result = await signIn("credentials", {
-      email: formData.get("email"),
-      password: formData.get("password"),
-      redirect: false,
-    });
 
-    setPending(false);
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: formData.get("email"),
+          password: formData.get("password"),
+        }),
+      });
 
-    if (result?.error) {
-      setError("Невірний email або пароль");
-    } else {
-      router.push("/admin/dashboard");
+      const data = await res.json();
+
+      if (!res.ok || data.error) {
+        setError("Невірний email або пароль");
+      } else {
+        router.push("/admin/dashboard");
+        router.refresh();
+      }
+    } catch {
+      setError("Помилка з'єднання. Спробуйте ще раз.");
+    } finally {
+      setPending(false);
     }
   };
 
