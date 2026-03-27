@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const CHAT_URL = "http://localhost:3011";
+const CHAT_URL = process.env.CHAT_URL || "https://chat.basketball.lviv.ua";
 const ADMIN_SECRET = process.env.CHAT_ADMIN_SECRET || "ldbl_admin_2025";
 
 export async function GET(req: NextRequest) {
