@@ -1,5 +1,21 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Exclude sub-apps from webpack compilation
+  webpack: (config) => {
+    config.watchOptions = {
+      ...config.watchOptions,
+      ignored: [/node_modules/, /apps\//, /packages\//],
+    };
+    return config;
+  },
+  typescript: {
+    // Sub-apps have their own tsconfigs — ignore them in root build
+    ignoreBuildErrors: false,
+  },
+  eslint: {
+    ignoreDuringBuilds: false,
+    dirs: ["app", "lib", "src", "actions", "components", "types"],
+  },
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "**" },

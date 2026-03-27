@@ -1,0 +1,6 @@
+# Sub-applications — deployed separately, not part of main Next.js build
+apps/
+packages/auth/
+scripts/
+*.sql
+*.data.json
