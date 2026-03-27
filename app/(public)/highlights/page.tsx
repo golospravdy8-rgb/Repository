@@ -1,6 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
-import highlightsData from "@/lib/highlights.data.json";
+import fs from 'fs'
+import path from 'path'
+const highlightsData = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'lib', 'highlights.data.json'), 'utf-8'))
 
 export const metadata = { title: "Відео — ЛДБЛ" };
 export const dynamic = "force-dynamic";
@@ -12,12 +14,12 @@ const TYPE_LABELS: Record<string, string> = {
 };
 
 export default async function HighlightsPage() {
-  const gameIds = Array.from(new Set(highlightsData.videos.map((v) => v.gameId)));
+  const gameIds = Array.from(new Set(highlightsData.videos.map((v: any) => v.gameId))) as number[];
   const games = await prisma.game.findMany({
     where: { id: { in: gameIds } },
     include: { homeTeam: true, awayTeam: true },
   });
-  const gamesMap = Object.fromEntries(games.map((g) => [g.id, g]));
+  const gamesMap = Object.fromEntries(games.map((g: any) => [g.id, g]));
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
@@ -25,7 +27,7 @@ export default async function HighlightsPage() {
       <p className="text-gray-500 mb-8">Найкращі моменти матчів ЛДБЛ</p>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        {highlightsData.videos.map((video) => {
+        {highlightsData.videos.map((video: any) => {
           const game = gamesMap[video.gameId];
           const hasVideo = !!video.url;
 

@@ -1,7 +1,9 @@
 import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import highlightsData from "@/lib/highlights.data.json";
+import fs from 'fs'
+import path from 'path'
+const highlightsData = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'lib', 'highlights.data.json'), 'utf-8'))
 
 export const dynamic = "force-dynamic";
 
@@ -14,7 +16,7 @@ export default async function VideoPage({ params }: { params: { id: string } }) 
   const videoId = parseInt(params.id);
   if (isNaN(videoId)) notFound();
 
-  const video = highlightsData.videos.find((v) => v.id === videoId);
+  const video = highlightsData.videos.find((v: any) => v.id === videoId);
   if (!video) notFound();
 
   const game = await prisma.game.findUnique({

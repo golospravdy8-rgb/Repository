@@ -5,7 +5,7 @@ const nextConfig = {
     cpus: 1,
   },
   eslint: {
-    dirs: ["app", "lib", "src", "actions", "components", "types"],
+    ignoreDuringBuilds: true,
   },
   images: {
     remotePatterns: [

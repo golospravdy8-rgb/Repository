@@ -1,17 +1,19 @@
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
-import galleryData from "@/lib/gallery.data.json";
+import fs from 'fs'
+import path from 'path'
+const galleryData = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'lib', 'gallery.data.json'), 'utf-8'))
 
 export const metadata = { title: "Галерея — ЛДБЛ" };
 export const dynamic = "force-dynamic";
 
 export default async function GalleryPage() {
-  const gameIds = galleryData.albums.map((a) => a.gameId);
+  const gameIds = galleryData.albums.map((a: any) => a.gameId) as number[];
   const games = await prisma.game.findMany({
     where: { id: { in: gameIds } },
     include: { homeTeam: true, awayTeam: true },
   });
-  const gamesMap = Object.fromEntries(games.map((g) => [g.id, g]));
+  const gamesMap = Object.fromEntries(games.map((g: any) => [g.id, g]));
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
@@ -19,7 +21,7 @@ export default async function GalleryPage() {
       <p className="text-gray-500 mb-8">Фотоальбоми всіх матчів сезону</p>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        {galleryData.albums.map((album) => {
+        {galleryData.albums.map((album: any) => {
           const game = gamesMap[album.gameId];
           const hasPhotos = album.photos.length > 0;
           return (

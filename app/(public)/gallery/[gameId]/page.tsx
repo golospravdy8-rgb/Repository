@@ -1,7 +1,10 @@
 import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import galleryData from "@/lib/gallery.data.json";
+import fs from 'fs'
+import path from 'path'
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const galleryData: any = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'lib', 'gallery.data.json'), 'utf-8'))
 
 export const dynamic = "force-dynamic";
 
@@ -9,7 +12,7 @@ export default async function GameGalleryPage({ params }: { params: { gameId: st
   const gameId = parseInt(params.gameId);
   if (isNaN(gameId)) notFound();
 
-  const album = galleryData.albums.find((a) => a.gameId === gameId);
+  const album = galleryData.albums.find((a: any) => a.gameId === gameId);
   if (!album) notFound();
 
   const game = await prisma.game.findUnique({

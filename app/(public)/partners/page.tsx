@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import sponsorsData from "@/lib/sponsors.data.json";
+const sponsorsData = {"sponsors":[{"id":1,"name":"Спортмастер Львів","logo":null,"slogan":"Все для спорту та перемог!","description":"Найбільший спортивний магазин Львова","url":"https://sportmaster.ua","tier":"premium","positions":["hero","header","footer","pdf"],"pages":["all"],"active":false,"contactEmail":"partner@sportmaster.ua"},{"id":2,"name":"Академія спорту","logo":null,"slogan":"Твій шлях до чемпіонства","description":"Професійна спортивна підготовка для дітей","url":"https://example.com","tier":"official","positions":["page-top","footer","pdf"],"pages":["all"],"active":false,"contactEmail":""}]}
+
 
 const TIERS = [
   { key: "premium", label: "Преміум партнери", size: "large" },
