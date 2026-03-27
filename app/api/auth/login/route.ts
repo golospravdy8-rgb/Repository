@@ -2,10 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { SignJWT } from "jose";
-
-const secret = new TextEncoder().encode(
-  process.env.NEXTAUTH_SECRET ?? process.env.AUTH_SECRET ?? "fallback-secret"
-);
+import { getJwtSecret } from "@/lib/auth-secret";
 
 export async function POST(req: NextRequest) {
   try {
@@ -25,7 +22,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
     }
 
-    // Create JWT token compatible with NextAuth
+    const secret = getJwtSecret();
+
+    // Create JWT token
     const token = await new SignJWT({
       sub: String(user.id),
       id: String(user.id),
