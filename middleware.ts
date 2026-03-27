@@ -35,7 +35,7 @@ export default async function middleware(req: NextRequest) {
   if (isAdminRoute) {
     const token = await getToken({
       req,
-      secret: process.env.NEXTAUTH_SECRET,
+      secret: process.env.NEXTAUTH_SECRET ?? process.env.AUTH_SECRET,
     });
 
     if (!token) {
