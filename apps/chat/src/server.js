@@ -9,13 +9,13 @@ const Database = require("better-sqlite3");
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
-  cors: { origin: ["http://localhost:3006", "http://localhost:3011"], credentials: true },
+  cors: { origin: process.env.CORS_ORIGINS ? process.env.CORS_ORIGINS.split(",") : ["https://basketball.lviv.ua", "https://chat.basketball.lviv.ua"], credentials: true },
   maxHttpBufferSize: 10 * 1024 * 1024,
 });
 
 const PORT = process.env.CHAT_PORT || 3011;
 const JWT_SECRET = process.env.JWT_SECRET || "ldbl_super_secret_2025";
-const MAIN_SITE = "http://localhost:3006";
+const MAIN_SITE = process.env.MAIN_SITE || "https://basketball.lviv.ua";
 
 // ── SQLite DB ──
 const DB_PATH = path.join(__dirname, "../db/chat.db");
@@ -133,7 +133,7 @@ try {
 
 const cors = require("cors");
 app.use(cors({
-  origin: ["http://localhost:3006", "http://localhost:3011"],
+  origin: process.env.CORS_ORIGINS ? process.env.CORS_ORIGINS.split(",") : ["https://basketball.lviv.ua", "https://chat.basketball.lviv.ua"],
   credentials: true,
 }));
 app.use(cookieParser());
@@ -296,7 +296,7 @@ app.post("/api/chat/register", (req, res) => {
   const { guest, isNew } = getOrCreateGuest(cleaned, firstName, lastName, refCode);
   const token = signGuestToken(guest);
   res.cookie("ldbl_chat_token", token, {
-    httpOnly: true, sameSite: "lax", domain: "localhost",
+    httpOnly: true, sameSite: "none", secure: process.env.NODE_ENV === "production", domain: process.env.COOKIE_DOMAIN || undefined,
     maxAge: 30 * 24 * 60 * 60 * 1000,
   });
   res.json({
@@ -925,7 +925,7 @@ function getReactionsForMsg(msgId) {
 }
 
 // ─── Widget ──────────────────────────────────────────────────────────────────
-const SHOP_URL = process.env.SHOP_URL || "http://localhost:3009";
+const SHOP_URL = process.env.SHOP_URL || "https://shop.basketball.lviv.ua";
 const WIDGET_ADMIN_SECRET = process.env.CHAT_ADMIN_SECRET || "ldbl_admin_2025";
 
 let widgetProducts = [];
