@@ -79,21 +79,16 @@ export default async function PublicLayout({ children }: { children: React.React
   };
 
   return (
-    <>
-      {fontUrls.map((url) => (
-        <link key={url} rel="stylesheet" href={url} />
-      ))}
-      <div className="min-h-screen flex flex-col" style={{ backgroundColor: bgColor, ...cssVars, zoom: siteZoom }}>
-        <HeaderWrapper />
+    <div className="min-h-screen flex flex-col" style={{ backgroundColor: bgColor, ...cssVars, zoom: siteZoom }}>
+      <HeaderWrapper />
 
-        <AdBanner slot="top" />
+      <AdBanner slot="top" />
 
-        <main className="flex-1">{children}</main>
+      <main className="flex-1">{children}</main>
 
-        <AdBanner slot="bottom" />
+      <AdBanner slot="bottom" />
 
-        <FooterWrapper />
-      </div>
-    </>
+      <FooterWrapper />
+    </div>
   );
 }
