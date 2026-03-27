@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev -p 3006",
     "build": "prisma generate && next build",
+    "build:vercel": "prisma generate && NODE_OPTIONS='--max-old-space-size=512' next build",
     "start": "next start",
     "lint": "next lint",
     "db:push": "prisma db push",
