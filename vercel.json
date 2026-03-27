@@ -1,0 +1,5 @@
+{
+  "buildCommand": "prisma db push --accept-data-loss && npm run build:vercel",
+  "installCommand": "npm install",
+  "framework": "nextjs"
+}
