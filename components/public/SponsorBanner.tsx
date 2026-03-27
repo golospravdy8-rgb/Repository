@@ -1,13 +1,14 @@
-import sponsorsData from "@/lib/sponsors.data.json";
 
+import fs from 'fs'
+import path from 'path'
+const sponsorsData: any = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'lib', 'sponsors.data.json'), 'utf-8'))
 interface SponsorBannerProps {
   position: "hero" | "page-top" | "sidebar" | "footer";
   pageType?: string;
 }
 
 export default function SponsorBanner({ position, pageType = "main" }: SponsorBannerProps) {
-  const sponsors = sponsorsData.sponsors.filter(
-    (s) =>
+  const sponsors = sponsorsData.sponsors.filter((s: any) =>
       s.active &&
       s.positions.includes(position) &&
       (s.pages.includes("all") || s.pages.includes(pageType))
