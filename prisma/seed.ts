@@ -298,7 +298,7 @@ async function main() {
     { key: "hero.title", value: "ЛІГА ESCULAB" },
     { key: "hero.subtitle", value: "Офіційний сайт баскетбольної ліги Львова. Матчі, статистика та новини." },
     { key: "hero.ctaPrimary", value: "Переглянути розклад" },
-    { key: "hero.ctaSecondary", value: "Таблиця standings" },
+    { key: "hero.ctaSecondary", value: "Таблиця змагань" },
     { key: "footer.about", value: "Баскетбольна ліга Львова. Сезон 2025-2026." },
     { key: "footer.copyright", value: "Ліга ESCULAB. Усі права захищено." },
     { key: "colors.navy", value: "#1a2744" },
