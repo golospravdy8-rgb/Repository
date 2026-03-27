@@ -120,7 +120,7 @@ export default async function HomePage({ searchParams }: { searchParams: { ag?: 
               href={`/standings?ag=${ag}`}
               className="px-6 py-3 rounded-lg font-bold text-2xl border-2 border-white/30 hover:border-white transition-colors"
             >
-              {settings["hero.ctaSecondary"] || "Таблиця standings"}
+              {settings["hero.ctaSecondary"] || "Таблиця змагань"}
             </Link>
           </div>
           <HeroButtons />
