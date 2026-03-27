@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
-import highlightsData from "@/lib/highlights.data.json";
+import highlightsData from "../../../lib/highlights.data.json";
 
 export const metadata = { title: "Відео — ЛДБЛ" };
 export const dynamic = "force-dynamic";
