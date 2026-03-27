@@ -64,5 +64,3 @@ import_data.sql
 # uploaded files (user content, not source)
 public/uploads/
 
-# src duplicate (accidental)
-src/app/api/health/
