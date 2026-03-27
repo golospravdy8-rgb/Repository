@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getToken } from "next-auth/jwt";
+import { jwtVerify } from "jose";
 
-// Case-insensitive path corrections
 const LOWERCASE_PATHS: Record<string, string> = {
   "/Media": "/media",
   "/Reviews": "/reviews",
@@ -33,20 +32,26 @@ export default async function middleware(req: NextRequest) {
   const isAdminRoute = pathname.startsWith("/admin");
 
   if (isAdminRoute) {
-    const secret = process.env.NEXTAUTH_SECRET ?? process.env.AUTH_SECRET;
     const isProd = process.env.NODE_ENV === "production";
     const cookieName = isProd
       ? "__Secure-next-auth.session-token"
       : "next-auth.session-token";
 
-    const token = await getToken({
-      req,
-      secret,
-      cookieName,
-      raw: false,
-    });
+    const token = req.cookies.get(cookieName)?.value;
 
     if (!token) {
+      const loginUrl = new URL("/login", req.nextUrl.origin);
+      loginUrl.searchParams.set("callbackUrl", "/admin/dashboard");
+      return NextResponse.redirect(loginUrl);
+    }
+
+    try {
+      const secret = new TextEncoder().encode(
+        process.env.NEXTAUTH_SECRET ?? process.env.AUTH_SECRET ?? ""
+      );
+      await jwtVerify(token, secret);
+      return NextResponse.next();
+    } catch {
       const loginUrl = new URL("/login", req.nextUrl.origin);
       loginUrl.searchParams.set("callbackUrl", "/admin/dashboard");
       return NextResponse.redirect(loginUrl);
