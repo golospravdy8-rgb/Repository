@@ -1,13 +1,12 @@
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
-import fs from 'fs'
-import path from 'path'
-const galleryData = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'lib', 'gallery.data.json'), 'utf-8'))
 
 export const metadata = { title: "Галерея — ЛДБЛ" };
 export const dynamic = "force-dynamic";
 
 export default async function GalleryPage() {
+  const galleryData: any = JSON.parse(require('fs').readFileSync(require('path').join(process.cwd(), 'lib', 'gallery.data.json'), 'utf-8'));
+
   const gameIds = galleryData.albums.map((a: any) => a.gameId) as number[];
   const games = await prisma.game.findMany({
     where: { id: { in: gameIds } },

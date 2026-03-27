@@ -1,9 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import fs from 'fs'
-import path from 'path'
-const highlightsData = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'lib', 'highlights.data.json'), 'utf-8'))
 
 export const dynamic = "force-dynamic";
 
@@ -13,6 +10,7 @@ function getYouTubeId(url: string) {
 }
 
 export default async function VideoPage({ params }: { params: { id: string } }) {
+  const highlightsData: any = JSON.parse(require('fs').readFileSync(require('path').join(process.cwd(), 'lib', 'highlights.data.json'), 'utf-8'));
   const videoId = parseInt(params.id);
   if (isNaN(videoId)) notFound();
 

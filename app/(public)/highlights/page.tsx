@@ -1,8 +1,5 @@
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
-import fs from 'fs'
-import path from 'path'
-const highlightsData = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'lib', 'highlights.data.json'), 'utf-8'))
 
 export const metadata = { title: "Відео — ЛДБЛ" };
 export const dynamic = "force-dynamic";
@@ -14,6 +11,8 @@ const TYPE_LABELS: Record<string, string> = {
 };
 
 export default async function HighlightsPage() {
+  const highlightsData: any = JSON.parse(require('fs').readFileSync(require('path').join(process.cwd(), 'lib', 'highlights.data.json'), 'utf-8'));
+
   const gameIds = Array.from(new Set(highlightsData.videos.map((v: any) => v.gameId))) as number[];
   const games = await prisma.game.findMany({
     where: { id: { in: gameIds } },
