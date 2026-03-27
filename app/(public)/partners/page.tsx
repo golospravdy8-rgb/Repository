@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import sponsorsData from "../../../lib/sponsors.data.json";
+import sponsorsData from "@/lib/sponsors.data.json";
 
 const TIERS = [
   { key: "premium", label: "Преміум партнери", size: "large" },

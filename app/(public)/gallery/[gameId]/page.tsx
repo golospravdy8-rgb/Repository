@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import galleryData from "../../../../lib/gallery.data.json";
+import galleryData from "@/lib/gallery.data.json";
 
 export const dynamic = "force-dynamic";
 
