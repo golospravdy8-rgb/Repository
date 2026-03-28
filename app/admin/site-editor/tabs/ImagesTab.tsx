@@ -77,7 +77,8 @@ function ImageUploadRow({
     });
   };
 
-  const isDataUrl = url.startsWith("data:");
+  const isPlaceholder = url === "[base64]";
+  const isDataUrl = url.startsWith("data:") || isPlaceholder;
 
   return (
     <div className="flex items-start gap-4 py-4 border-b last:border-0">
@@ -87,7 +88,7 @@ function ImageUploadRow({
         {url && (
           <div className="mt-2 flex items-center gap-2">
             <span className="text-xs text-green-600 font-mono">
-              {isDataUrl ? `[base64, ${Math.round(url.length / 1024)}KB]` : url}
+              {isPlaceholder ? "[base64 — завантажено]" : isDataUrl ? `[base64, ${Math.round(url.length / 1024)}KB]` : url}
             </span>
             <button onClick={handleClear} disabled={pending} className="text-xs text-red-500 hover:text-red-700">
               Видалити
@@ -98,7 +99,7 @@ function ImageUploadRow({
         {saved && <div className="mt-1 text-xs text-green-600 font-medium">✓ Збережено!</div>}
       </div>
       <div className="flex flex-col items-end gap-2">
-        {url && config.type !== "ogImage" && (
+        {url && url !== "[base64]" && config.type !== "ogImage" && (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={url}
@@ -106,6 +107,9 @@ function ImageUploadRow({
             className="w-16 h-16 object-contain rounded-lg border bg-gray-50"
             onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
           />
+        )}
+        {isPlaceholder && config.type !== "ogImage" && (
+          <div className="w-16 h-16 rounded-lg border bg-gray-50 flex items-center justify-center text-xs text-gray-400 text-center">збережено</div>
         )}
         <label className="cursor-pointer px-4 py-2 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50">
           {uploading ? "Завантаження..." : pending ? "Зберігається..." : url ? "Змінити" : "Завантажити"}
