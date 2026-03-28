@@ -32,6 +32,10 @@ export default async function HomePage({ searchParams }: { searchParams: { ag?: 
       "colors.heroSubtitle",
       "colors.heroButtonBg",
       "colors.heroButtonText",
+      "colors.btnHero",
+      "colors.btnChat",
+      "colors.btnDonate",
+      "colors.btnSchedule",
       "colors.tableBg",
       "colors.tableHeaderText",
       "colors.tableRowOdd",
@@ -64,12 +68,15 @@ export default async function HomePage({ searchParams }: { searchParams: { ag?: 
   const navy = settings["colors.text.heading"] || settings["colors.navy"] || "#1a2744";
   const orange = settings["colors.text.accent"] || settings["colors.orange"] || "#f97316";
   const heroBg = settings["images.heroBg"] || "";
-  const heroBgColor = settings["colors.heroBg"] || "#3b82f6";
-  const heroTextColor = settings["colors.heroText"] || "#ffffff";
-  const heroTitleColor = settings["colors.heroTitle"] || heroTextColor;
-  const heroSubtitleColor = settings["colors.heroSubtitle"] || heroTextColor;
-  const heroButtonBg = settings["colors.heroButtonBg"] || orange;
+  const heroBgColor = settings["colors.heroBg"] || "#f1f5f9";
+  const heroTextColor = settings["colors.heroText"] || "#1e293b";
+  const heroTitleColor = settings["colors.heroTitle"] || orange;
+  const heroSubtitleColor = settings["colors.heroSubtitle"] || "#64748b";
+  const heroButtonBg = settings["colors.btnHero"] || settings["colors.heroButtonBg"] || orange;
   const heroButtonText = settings["colors.heroButtonText"] || "#ffffff";
+  const btnSchedule = settings["colors.btnSchedule"] || "#3b82f6";
+  const btnDonate = settings["colors.btnDonate"] || orange;
+  const btnChat = settings["colors.btnChat"] || "#1e293b";
   const tableBg = settings["colors.tableBg"] || navy;
   const tableHeaderText = settings["colors.tableHeaderText"] || "#ffffff";
   const tableRowOdd = settings["colors.tableRowOdd"] || "";
@@ -132,7 +139,7 @@ export default async function HomePage({ searchParams }: { searchParams: { ag?: 
             <Link
               href={`/schedule?ag=${ag}`}
               className="px-6 py-3 rounded-lg font-bold text-2xl transition-colors"
-              style={{ backgroundColor: orange, color: "white" }}
+              style={{ backgroundColor: btnSchedule, color: "white" }}
             >
               {settings["hero.ctaPrimary"] || "Переглянути розклад"}
             </Link>
@@ -143,13 +150,14 @@ export default async function HomePage({ searchParams }: { searchParams: { ag?: 
               {settings["hero.ctaSecondary"] || "Таблиця змагань"}
             </Link>
           </div>
-          <HeroButtons buttonBg={heroButtonBg} buttonText={heroButtonText} />
+          <HeroButtons buttonBg={heroButtonBg} buttonText={heroButtonText} chatBg={btnChat} donateBg={btnDonate} />
           <div className="mt-4 flex justify-center">
             <DonateButton
               cardNumber={settings["donate.cardNumber"] ?? ""}
               cardName={settings["donate.cardName"] ?? ""}
               cardBank={settings["donate.cardBank"] ?? ""}
               donateLabel={settings["donate.label"] ?? "Допомогти клубу Donate"}
+              buttonBg={btnDonate}
             />
           </div>
         </div>

@@ -8,9 +8,13 @@ interface Props {
   teamId: number;
   playerId: number | null;
   disabled?: boolean;
+  btnBlue?: string;
+  btnOrange?: string;
+  btnNavy?: string;
+  btnRed?: string;
 }
 
-export default function ActionButtons({ gameId, teamId, playerId, disabled }: Props) {
+export default function ActionButtons({ gameId, teamId, playerId, disabled, btnBlue = "#3b82f6", btnOrange = "#f97316", btnNavy = "#1a2744", btnRed = "#ef4444" }: Props) {
   const [pending, startTransition] = useTransition();
 
   const isDisabled = disabled || pending || !playerId;
@@ -67,14 +71,14 @@ export default function ActionButtons({ gameId, teamId, playerId, disabled }: Pr
       <div>
         <div className="text-xs text-gray-500 uppercase tracking-wider mb-2 font-semibold">Очки</div>
         <div className="grid grid-cols-2 gap-3">
-          {btn("+1 Штрафний", () => handleScore(1), "#3b82f6")}
-          {btn("+2 Двоочковий", () => handleScore(2), "#f97316")}
+          {btn("+1 Штрафний", () => handleScore(1), btnBlue)}
+          {btn("+2 Двоочковий", () => handleScore(2), btnOrange)}
         </div>
         <div className="mt-3">
-          {btn("+3 Триочковий", () => handleScore(3), "#1a2744", true)}
+          {btn("+3 Триочковий", () => handleScore(3), btnNavy, true)}
         </div>
         <div className="mt-3">
-          {btn("Фол", handleFoul, "#ef4444", true)}
+          {btn("Фол", handleFoul, btnRed, true)}
         </div>
       </div>
 

@@ -3,9 +3,11 @@
 interface HeroButtonsProps {
   buttonBg?: string;
   buttonText?: string;
+  chatBg?: string;
+  donateBg?: string;
 }
 
-export default function HeroButtons({ buttonBg = "#f46f10", buttonText = "#ffffff" }: HeroButtonsProps) {
+export default function HeroButtons({ buttonBg = "#f97316", buttonText = "#ffffff", chatBg = "#1e293b", donateBg }: HeroButtonsProps) {
   const btnStyle = {
     display: "inline-flex",
     alignItems: "center",
@@ -25,9 +27,9 @@ export default function HeroButtons({ buttonBg = "#f46f10", buttonText = "#fffff
 
   const darkBtn = {
     ...btnStyle,
-    backgroundColor: "#1e2a4a",
+    backgroundColor: chatBg,
     color: "#ffffff",
-    border: `2px solid ${buttonBg}`,
+    border: `2px solid ${donateBg || buttonBg}`,
   } as React.CSSProperties;
 
   return (

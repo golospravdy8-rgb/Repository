@@ -7,9 +7,10 @@ interface DonateButtonProps {
   cardName: string;
   cardBank: string;
   donateLabel: string;
+  buttonBg?: string;
 }
 
-export default function DonateButton({ cardNumber, cardName, cardBank, donateLabel }: DonateButtonProps) {
+export default function DonateButton({ cardNumber, cardName, cardBank, donateLabel, buttonBg }: DonateButtonProps) {
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -40,14 +41,14 @@ export default function DonateButton({ cardNumber, cardName, cardBank, donateLab
           gap: "8px",
           padding: "12px 24px",
           borderRadius: "12px",
-          background: "linear-gradient(135deg, #f59e0b, #f46f10)",
+          background: buttonBg ? buttonBg : "linear-gradient(135deg, #f59e0b, #f46f10)",
           color: "white",
           border: "none",
           fontFamily: "inherit",
           fontWeight: 800,
           fontSize: "30px",
           cursor: "pointer",
-          boxShadow: "0 4px 20px rgba(244,111,16,0.4)",
+          boxShadow: `0 4px 20px ${buttonBg ? buttonBg + "66" : "rgba(244,111,16,0.4)"}`,
           letterSpacing: "0.01em",
         }}
       >

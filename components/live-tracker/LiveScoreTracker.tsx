@@ -22,7 +22,13 @@ function formatTime(seconds: number) {
   return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
-export default function LiveScoreTracker({ game }: { game: GameWithAll }) {
+export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, btnRed }: {
+  game: GameWithAll;
+  btnBlue?: string;
+  btnOrange?: string;
+  btnNavy?: string;
+  btnRed?: string;
+}) {
   const [activeTeamId, setActiveTeamId] = useState<number>(game.homeTeamId);
   const [selectedPlayerId, setSelectedPlayerId] = useState<number | null>(null);
   const [pending, startTransition] = useTransition();
@@ -240,6 +246,10 @@ export default function LiveScoreTracker({ game }: { game: GameWithAll }) {
             teamId={activeTeamId}
             playerId={selectedPlayerId}
             disabled={pending}
+            btnBlue={btnBlue}
+            btnOrange={btnOrange}
+            btnNavy={btnNavy}
+            btnRed={btnRed}
           />
 
           {/* Undo button */}
