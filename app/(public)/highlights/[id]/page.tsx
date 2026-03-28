@@ -20,7 +20,7 @@ export default async function VideoPage({ params }: { params: { id: string } }) 
   const game = await prisma.game.findUnique({
     where: { id: video.gameId },
     include: { homeTeam: true, awayTeam: true },
-  });
+  }).catch(() => null);
 
   const youtubeId = video.url ? getYouTubeId(video.url) : null;
 

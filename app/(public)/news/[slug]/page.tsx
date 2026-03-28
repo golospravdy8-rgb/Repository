@@ -11,7 +11,7 @@ export async function generateMetadata({
 }: {
   params: { slug: string };
 }): Promise<Metadata> {
-  const news = await prisma.news.findUnique({ where: { slug: params.slug } });
+  const news = await prisma.news.findUnique({ where: { slug: params.slug } }).catch(() => null);
   if (!news) return { title: "Новину не знайдено" };
   return { title: `${news.title} — Ліга ESCULAB` };
 }
@@ -23,7 +23,7 @@ export default async function NewsSlugPage({
 }) {
   const news = await prisma.news.findUnique({
     where: { slug: params.slug, isPublished: true },
-  });
+  }).catch(() => null);
 
   if (!news) notFound();
 

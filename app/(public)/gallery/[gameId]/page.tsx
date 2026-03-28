@@ -15,7 +15,7 @@ export default async function GameGalleryPage({ params }: { params: { gameId: st
   const game = await prisma.game.findUnique({
     where: { id: gameId },
     include: { homeTeam: true, awayTeam: true },
-  });
+  }).catch(() => null);
 
   const title = game
     ? `${game.homeTeam.name} vs ${game.awayTeam.name}`

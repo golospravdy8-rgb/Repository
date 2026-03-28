@@ -18,7 +18,7 @@ export default async function StandingsTable({
   tableRowEven = "",
 }: StandingsTableProps) {
   const ag = ageGroup || "younger";
-  const season = await prisma.season.findFirst({ where: { isActive: true, ageGroup: ag } });
+  const season = await prisma.season.findFirst({ where: { isActive: true, ageGroup: ag } }).catch(() => null);
 
   if (!season) {
     return (
@@ -33,7 +33,7 @@ export default async function StandingsTable({
     include: { team: true },
     orderBy: [{ wins: "desc" }, { pointsFor: "desc" }],
     take: limit,
-  });
+  }).catch(() => []);
 
   return (
     <div className="bg-white rounded-xl shadow overflow-hidden">

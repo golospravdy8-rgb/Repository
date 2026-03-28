@@ -15,7 +15,7 @@ export const dynamic = "force-dynamic";
 export default async function HomePage({ searchParams }: { searchParams: { ag?: string } }) {
   const ag = searchParams.ag === "older" ? "older" : "younger";
   const [season, settings] = await Promise.all([
-    prisma.season.findFirst({ where: { isActive: true, ageGroup: ag } }),
+    prisma.season.findFirst({ where: { isActive: true, ageGroup: ag } }).catch(() => null),
     getSettings([
       "hero.badge",
       "hero.title",
@@ -90,7 +90,7 @@ export default async function HomePage({ searchParams }: { searchParams: { ag?: 
         include: { homeTeam: true, awayTeam: true },
         orderBy: { scheduledAt: "asc" },
         take: liveLimit,
-      })
+      }).catch(() => [])
     : [];
 
   const news = showNews
@@ -98,7 +98,7 @@ export default async function HomePage({ searchParams }: { searchParams: { ag?: 
         where: { isPublished: true },
         orderBy: { publishedAt: "desc" },
         take: newsLimit,
-      })
+      }).catch(() => [])
     : [];
 
   const heroStyle: React.CSSProperties = heroBg

@@ -37,7 +37,7 @@ export default async function PlayersPage({
   searchParams: { team?: string; position?: string; ag?: string };
 }) {
   const ag = searchParams.ag === "older" ? "older" : "younger";
-  const season = await prisma.season.findFirst({ where: { isActive: true, ageGroup: ag } });
+  const season = await prisma.season.findFirst({ where: { isActive: true, ageGroup: ag } }).catch(() => null);
 
   const [players, allTeams] = await Promise.all([
     season
@@ -48,14 +48,14 @@ export default async function PlayersPage({
             boxScores: { select: { points: true, rebounds: true, assists: true, steals: true, blocks: true } },
           },
           orderBy: [{ lastName: "asc" }],
-        })
+        }).catch(() => [])
       : Promise.resolve([]),
     season
       ? prisma.team.findMany({
           where: { seasonId: season.id },
           select: { name: true },
           orderBy: { name: "asc" },
-        })
+        }).catch(() => [])
       : Promise.resolve([]),
   ]);
 

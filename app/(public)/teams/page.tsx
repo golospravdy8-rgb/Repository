@@ -7,7 +7,7 @@ export default async function TeamsPage({ searchParams }: { searchParams: { ag?:
   const ag = searchParams.ag === "older" ? "older" : "younger";
   const label = ag === "older" ? "U-16" : "U-14";
 
-  const season = await prisma.season.findFirst({ where: { isActive: true, ageGroup: ag } });
+  const season = await prisma.season.findFirst({ where: { isActive: true, ageGroup: ag } }).catch(() => null);
 
   const teams = season
     ? await prisma.team.findMany({
@@ -17,7 +17,7 @@ export default async function TeamsPage({ searchParams }: { searchParams: { ag?:
           standing: true,
         },
         orderBy: { name: "asc" },
-      })
+      }).catch(() => [])
     : [];
 
   return (

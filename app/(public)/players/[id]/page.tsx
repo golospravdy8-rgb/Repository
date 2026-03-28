@@ -54,7 +54,7 @@ export default async function PlayerProfilePage({ params }: { params: { id: stri
         orderBy: { game: { scheduledAt: "asc" } },
       },
     },
-  });
+  }).catch(() => null);
 
   if (!player) notFound();
 

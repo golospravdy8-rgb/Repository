@@ -3,7 +3,7 @@ import Link from "next/link";
 
 export default async function ScheduleTable({ ageGroup }: { ageGroup?: string }) {
   const ag = ageGroup || "younger";
-  const season = await prisma.season.findFirst({ where: { isActive: true, ageGroup: ag } });
+  const season = await prisma.season.findFirst({ where: { isActive: true, ageGroup: ag } }).catch(() => null);
 
   if (!season) {
     return (
@@ -17,7 +17,7 @@ export default async function ScheduleTable({ ageGroup }: { ageGroup?: string })
     where: { seasonId: season.id },
     include: { homeTeam: true, awayTeam: true },
     orderBy: { scheduledAt: "asc" },
-  });
+  }).catch(() => []);
 
   return (
     <div className="bg-white rounded-xl shadow overflow-hidden">

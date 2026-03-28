@@ -11,7 +11,7 @@ export default async function GalleryPage() {
   const games = await prisma.game.findMany({
     where: { id: { in: gameIds } },
     include: { homeTeam: true, awayTeam: true },
-  });
+  }).catch(() => []);
   const gamesMap = Object.fromEntries(games.map((g: any) => [g.id, g]));
 
   return (

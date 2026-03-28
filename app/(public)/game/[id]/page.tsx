@@ -22,7 +22,7 @@ export default async function GamePage({ params }: { params: { id: string } }) {
         orderBy: { points: "desc" },
       },
     },
-  });
+  }).catch(() => null);
 
   if (!game) notFound();
 
