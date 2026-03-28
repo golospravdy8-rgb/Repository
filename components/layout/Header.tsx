@@ -25,6 +25,7 @@ export interface HeaderProps {
   navyColor: string;
   orangeColor: string;
   headerBg: string;
+  headerTextColor?: string;
 }
 
 export default function Header({
@@ -40,6 +41,7 @@ export default function Header({
   navyColor,
   orangeColor,
   headerBg,
+  headerTextColor = "rgba(255,255,255,0.85)",
 }: HeaderProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -56,7 +58,7 @@ export default function Header({
     pathname === href || pathname.startsWith(href + "/");
 
   const getActiveLinkStyle = (active: boolean) => {
-    if (!active) return { color: "rgba(255,255,255,0.85)" };
+    if (!active) return { color: headerTextColor };
     const base = { color: orangeColor } as React.CSSProperties;
     if (activeStyle === "underline") return { ...base, borderBottom: `2px solid ${orangeColor}` };
     if (activeStyle === "background") return { ...base, backgroundColor: "rgba(255,255,255,0.15)", borderRadius: "6px" };

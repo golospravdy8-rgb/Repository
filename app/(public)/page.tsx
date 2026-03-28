@@ -28,10 +28,14 @@ export default async function HomePage({ searchParams }: { searchParams: { ag?: 
       "colors.text.accent",
       "colors.heroBg",
       "colors.heroText",
+      "colors.heroTitle",
+      "colors.heroSubtitle",
       "colors.heroButtonBg",
       "colors.heroButtonText",
       "colors.tableBg",
       "colors.tableHeaderText",
+      "colors.tableRowOdd",
+      "colors.tableRowEven",
       "images.heroBg",
       "home.showLive",
       "home.showStandings",
@@ -62,10 +66,14 @@ export default async function HomePage({ searchParams }: { searchParams: { ag?: 
   const heroBg = settings["images.heroBg"] || "";
   const heroBgColor = settings["colors.heroBg"] || "#3b82f6";
   const heroTextColor = settings["colors.heroText"] || "#ffffff";
+  const heroTitleColor = settings["colors.heroTitle"] || heroTextColor;
+  const heroSubtitleColor = settings["colors.heroSubtitle"] || heroTextColor;
   const heroButtonBg = settings["colors.heroButtonBg"] || orange;
   const heroButtonText = settings["colors.heroButtonText"] || "#ffffff";
   const tableBg = settings["colors.tableBg"] || navy;
   const tableHeaderText = settings["colors.tableHeaderText"] || "#ffffff";
+  const tableRowOdd = settings["colors.tableRowOdd"] || "";
+  const tableRowEven = settings["colors.tableRowEven"] || "";
   const showLive = settings["home.showLive"] !== "false";
   const showStandings = settings["home.showStandings"] !== "false";
   const showNews = settings["home.showNews"] !== "false";
@@ -114,10 +122,10 @@ export default async function HomePage({ searchParams }: { searchParams: { ag?: 
           >
             {settings["hero.badge"] || "Сезон 2025-2026"}
           </div>
-          <h1 className="text-3xl md:text-4xl font-black mb-3 tracking-tight">
+          <h1 className="text-3xl md:text-4xl font-black mb-3 tracking-tight" style={{ color: heroTitleColor }}>
             {settings["hero.title"] || "ЛІГА ESCULAB"}
           </h1>
-          <p className="text-2xl text-gray-300 mb-6 max-w-xl mx-auto">
+          <p className="text-2xl mb-6 max-w-xl mx-auto" style={{ color: heroSubtitleColor }}>
             {settings["hero.subtitle"] || "Офіційний сайт баскетбольної ліги Львова. Матчі, статистика та новини."}
           </p>
           <div className="flex flex-wrap gap-3 justify-center mb-6">
@@ -205,7 +213,7 @@ export default async function HomePage({ searchParams }: { searchParams: { ag?: 
                 Повна таблиця →
               </Link>
             </div>
-            <StandingsTable limit={standingsLimit} ageGroup={ag} tableBg={tableBg} tableHeaderText={tableHeaderText} />
+            <StandingsTable limit={standingsLimit} ageGroup={ag} tableBg={tableBg} tableHeaderText={tableHeaderText} tableRowOdd={tableRowOdd} tableRowEven={tableRowEven} />
           </section>
         )}
 

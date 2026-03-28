@@ -5,6 +5,8 @@ interface StandingsTableProps {
   ageGroup?: string;
   tableBg?: string;
   tableHeaderText?: string;
+  tableRowOdd?: string;
+  tableRowEven?: string;
 }
 
 export default async function StandingsTable({
@@ -12,6 +14,8 @@ export default async function StandingsTable({
   ageGroup,
   tableBg = "#1a2744",
   tableHeaderText = "#ffffff",
+  tableRowOdd = "",
+  tableRowEven = "",
 }: StandingsTableProps) {
   const ag = ageGroup || "younger";
   const season = await prisma.season.findFirst({ where: { isActive: true, ageGroup: ag } });
@@ -53,7 +57,11 @@ export default async function StandingsTable({
           </thead>
           <tbody>
             {standings.map((s, i) => (
-              <tr key={s.id} className="border-b last:border-0 hover:bg-gray-50 transition-colors">
+              <tr
+                key={s.id}
+                className="border-b last:border-0 transition-colors"
+                style={{ backgroundColor: i % 2 === 0 ? (tableRowOdd || "#f8fafc") : (tableRowEven || "#ffffff") }}
+              >
                 <td className="px-3 py-2 text-gray-500 font-medium">{i + 1}</td>
                 <td className="px-3 py-2 font-semibold text-gray-800">{s.team.name}</td>
                 <td className="px-3 py-2 text-center text-gray-600">{s.gamesPlayed}</td>

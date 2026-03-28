@@ -31,6 +31,7 @@ export default async function HeaderWrapper() {
     "header.logoPosition",
     "header.height",
     "colors.headerBg",
+    "colors.headerText",
     "colors.navy",
     "colors.orange",
     "images.headerBg",
@@ -53,6 +54,7 @@ export default async function HeaderWrapper() {
         navyColor={settings["colors.headerBg"] || settings["colors.navy"] || "#1a2744"}
         orangeColor={settings["colors.orange"] ?? "#f97316"}
         headerBg={settings["images.headerBg"] ?? ""}
+        headerTextColor={settings["colors.headerText"] || "rgba(255,255,255,0.85)"}
       />
     </Suspense>
   );

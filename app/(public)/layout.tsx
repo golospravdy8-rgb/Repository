@@ -20,6 +20,7 @@ const FONT_URLS: Record<string, string> = {
 
 export default async function PublicLayout({ children }: { children: React.ReactNode }) {
   const settings = await getSettings([
+    "colors.pageBg",
     "colors.bg",
     "colors.navy",
     "colors.orange",
@@ -48,7 +49,7 @@ export default async function PublicLayout({ children }: { children: React.React
     [headingFont, bodyFont].map(f => FONT_URLS[f]).filter(Boolean)
   ));
 
-  const bgColor = settings["colors.bg"] || "#f1f5f9";
+  const bgColor = settings["colors.pageBg"] || settings["colors.bg"] || "#f1f5f9";
   const siteZoom = settings["site.zoom"] ? Number(settings["site.zoom"]) / 100 : 1;
 
   // CSS variables — fallback to navy/orange if page-specific text colors not set

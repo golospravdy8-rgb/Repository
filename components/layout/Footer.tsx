@@ -12,6 +12,8 @@ interface FooterProps {
   navyColor: string;
   orangeColor: string;
   textColor: string;
+  linkColor?: string;
+  copyrightColor?: string;
   col1Visible: boolean;
   col2Visible: boolean;
   col3Visible: boolean;
@@ -30,6 +32,8 @@ export default function Footer({
   navyColor,
   orangeColor,
   textColor,
+  linkColor,
+  copyrightColor,
   col1Visible,
   col2Visible,
   col3Visible,
@@ -80,20 +84,20 @@ export default function Footer({
                 {address && <li>{address}</li>}
                 {email && (
                   <li>
-                    <a href={`mailto:${email}`} style={{ color: textColor }}>
+                    <a href={`mailto:${email}`} style={{ color: linkColor || textColor }}>
                       {email}
                     </a>
                   </li>
                 )}
                 {website && (
-                  <li style={{ color: textColor }}>{website}</li>
+                  <li style={{ color: linkColor || textColor }}>{website}</li>
                 )}
               </ul>
             </div>
           )}
         </div>
 
-        <div className="border-t border-white/10 mt-8 pt-6 text-center text-xs" style={{ color: textColor }}>
+        <div className="border-t border-white/10 mt-8 pt-6 text-center text-xs" style={{ color: copyrightColor || textColor }}>
           © {new Date().getFullYear()} {copyright}
         </div>
       </div>

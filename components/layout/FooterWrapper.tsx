@@ -16,6 +16,8 @@ export default async function FooterWrapper() {
     "colors.orange",
     "colors.footerBg",
     "colors.footerText",
+    "colors.footerLink",
+    "colors.footerCopyright",
     "footer.textColor",
     "footer.col1.visible",
     "footer.col2.visible",
@@ -36,6 +38,8 @@ export default async function FooterWrapper() {
       navyColor={settings["colors.footerBg"] || settings["colors.navy"] || "#1a2744"}
       orangeColor={settings["colors.orange"] || "#f97316"}
       textColor={settings["colors.footerText"] || settings["footer.textColor"] || "#9ca3af"}
+      linkColor={settings["colors.footerLink"] || ""}
+      copyrightColor={settings["colors.footerCopyright"] || ""}
       col1Visible={settings["footer.col1.visible"] !== "false"}
       col2Visible={settings["footer.col2.visible"] !== "false"}
       col3Visible={settings["footer.col3.visible"] !== "false"}
