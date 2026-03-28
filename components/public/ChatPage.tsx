@@ -94,8 +94,29 @@ const GIF_TABS = [
   { key: "anim",    label: "😊", data: ANIMATED_EMOJI },
 ] as const;
 
-// ── Animated Fluent Emojis (Tarikul-Islam-Anik — same source as ANIMATED_EMOJI) ─
-const ANIMATED_EMOJIS = ANIMATED_EMOJI.map((url) => ({ url, name: "" }));
+// ── Animated Emoji (Google Noto Animated — fonts.gstatic.com CDN) ─────────
+const ANIMATED_EMOJIS = [
+  { name: "Fire",         url: "https://fonts.gstatic.com/s/e/notoemoji/latest/1f525/512.gif" },
+  { name: "Party",        url: "https://fonts.gstatic.com/s/e/notoemoji/latest/1f389/512.gif" },
+  { name: "Trophy",       url: "https://fonts.gstatic.com/s/e/notoemoji/latest/1f3c6/512.gif" },
+  { name: "Basketball",   url: "https://fonts.gstatic.com/s/e/notoemoji/latest/1f3c0/512.gif" },
+  { name: "Heart",        url: "https://fonts.gstatic.com/s/e/notoemoji/latest/2764_fe0f/512.gif" },
+  { name: "Thumbs Up",    url: "https://fonts.gstatic.com/s/e/notoemoji/latest/1f44d/512.gif" },
+  { name: "Laugh",        url: "https://fonts.gstatic.com/s/e/notoemoji/latest/1f602/512.gif" },
+  { name: "Star",         url: "https://fonts.gstatic.com/s/e/notoemoji/latest/1f929/512.gif" },
+  { name: "Muscle",       url: "https://fonts.gstatic.com/s/e/notoemoji/latest/1f4aa/512.gif" },
+  { name: "Clap",         url: "https://fonts.gstatic.com/s/e/notoemoji/latest/1f44f/512.gif" },
+  { name: "Rocket",       url: "https://fonts.gstatic.com/s/e/notoemoji/latest/1f680/512.gif" },
+  { name: "Eyes",         url: "https://fonts.gstatic.com/s/e/notoemoji/latest/1f440/512.gif" },
+  { name: "100",          url: "https://fonts.gstatic.com/s/e/notoemoji/latest/1f4af/512.gif" },
+  { name: "Sunglasses",   url: "https://fonts.gstatic.com/s/e/notoemoji/latest/1f60e/512.gif" },
+  { name: "Cry",          url: "https://fonts.gstatic.com/s/e/notoemoji/latest/1f62d/512.gif" },
+  { name: "Mind Blown",   url: "https://fonts.gstatic.com/s/e/notoemoji/latest/1f92f/512.gif" },
+  { name: "Nerd",         url: "https://fonts.gstatic.com/s/e/notoemoji/latest/1f913/512.gif" },
+  { name: "Ghost",        url: "https://fonts.gstatic.com/s/e/notoemoji/latest/1f47b/512.gif" },
+  { name: "Snowflake",    url: "https://fonts.gstatic.com/s/e/notoemoji/latest/2744_fe0f/512.gif" },
+  { name: "Rainbow",      url: "https://fonts.gstatic.com/s/e/notoemoji/latest/1f308/512.gif" },
+];
 
 // ── Badge by HP ───────────────────────────────────────────────────────────
 function getBadge(hp: number): string {
@@ -776,9 +797,8 @@ export default function ChatPage() {
                   {ANIMATED_EMOJIS.map((item) => (
                     <button key={item.url} onClick={() => sendSpecial(`[GIF:${item.url}]`)}
                       style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.09)", borderRadius: "8px", cursor: "pointer", padding: "3px", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                      <img src={item.url} width={70} height={70} title={item.name}
-                        style={{ objectFit: "contain", display: "block" }}
-                        onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
+                      <img src={item.url} width={64} height={64} title={item.name}
+                        style={{ objectFit: "contain", display: "block" }} />
                     </button>
                   ))}
                 </div>
