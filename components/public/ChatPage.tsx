@@ -89,46 +89,10 @@ const ANIMATED_EMOJI = [
   `${R}/Travel%20and%20places/Fire.png`,
   `${R}/Travel%20and%20places/Rainbow.png`,
 ];
-// Helpful GIFs — user-images.githubusercontent.com (надійний CDN)
-const HELPFUL_GIFS = [
-  "https://user-images.githubusercontent.com/74038190/238200426-29fd6286-4e7b-4d6c-818f-c4765d5e39a9.gif",
-  "https://user-images.githubusercontent.com/74038190/238200428-67f477ed-6624-42da-99f0-1a7b1a16eecb.gif",
-  "https://user-images.githubusercontent.com/74038190/238200430-a78a3b79-8d21-4f82-84d3-ecde66d7c6b5.gif",
-  "https://user-images.githubusercontent.com/74038190/238200431-b48a1301-d976-4f17-ac8e-6626e6b8fc6b.gif",
-  "https://user-images.githubusercontent.com/74038190/238200433-5b5fe855-b05e-4fa2-94bc-ed2413078e00.gif",
-  "https://user-images.githubusercontent.com/74038190/238200435-a4af2fb1-60a5-4d52-a9fc-aaae4c55f528.gif",
-  "https://user-images.githubusercontent.com/74038190/238200437-b8701960-9d70-4098-a5e0-54ff8d7c2ae2.gif",
-  "https://user-images.githubusercontent.com/74038190/238200439-b0a7e0c7-b0c4-4df5-8c95-ced82b99bc4a.gif",
-  "https://user-images.githubusercontent.com/74038190/238200441-7d2d3f42-3ffe-4bf4-8424-a0a6b2c48c41.gif",
-  "https://user-images.githubusercontent.com/74038190/238200443-25ef52c2-fcff-43c2-a11a-8cb3d9e7d7f3.gif",
-  "https://user-images.githubusercontent.com/74038190/238200445-adabdbb5-adad-4f8d-ae81-c7d8e8d15e5e.gif",
-  "https://user-images.githubusercontent.com/74038190/238200447-5d9dbfe3-0b2a-4e55-a7ac-31f43c9b5e7f.gif",
-  "https://user-images.githubusercontent.com/74038190/238200449-8c6e6f49-7e76-4f55-9af8-f6e754a9c2e0.gif",
-  "https://user-images.githubusercontent.com/74038190/238200451-8ca14ef9-1523-47ed-a2d5-fd76fab47ede.gif",
-  "https://user-images.githubusercontent.com/74038190/238200453-c82fb3d8-3936-4f5b-b29d-66fa6c0d2b62.gif",
-  "https://user-images.githubusercontent.com/74038190/238200455-eb27c24c-6d3a-4b4f-a6f3-c6e5f15e1c52.gif",
-  "https://user-images.githubusercontent.com/74038190/238200457-c3b6e59c-a3f6-41b2-9b0d-4f0d7a4b59b9.gif",
-  "https://user-images.githubusercontent.com/74038190/238200459-8a6c40e1-c16d-4f24-97c0-50e0e8c95745.gif",
-  "https://user-images.githubusercontent.com/74038190/238200461-16bb02ba-5c08-4c7e-b0da-c40d1c80e18e.gif",
-  "https://user-images.githubusercontent.com/74038190/238200463-a65e1088-8f47-4dc7-b51d-3be39b49f1e6.gif",
-  "https://user-images.githubusercontent.com/74038190/238200465-e1c8b0da-19fa-4acb-b20c-fa1e3de40b88.gif",
-  "https://user-images.githubusercontent.com/74038190/238200467-8e62285a-9d86-4282-aba3-14a69d1a0cd5.gif",
-  "https://user-images.githubusercontent.com/74038190/238200469-c5e0d3be-f2a9-4c1b-a53f-9e47c01b7f21.gif",
-  "https://user-images.githubusercontent.com/74038190/238200471-e3b0c2fe-3a73-41f2-b777-2c6e5cfe00c9.gif",
-  "https://user-images.githubusercontent.com/74038190/238200474-23de4e47-0e24-4b8a-bde3-53af9a9c3286.gif",
-  "https://user-images.githubusercontent.com/74038190/238200476-d37b1c4c-7f38-42cf-97e7-a6aae4e15e47.gif",
-  "https://user-images.githubusercontent.com/74038190/238200478-05d07fce-9459-4b15-8b44-0b11e5d23dbc.gif",
-  "https://user-images.githubusercontent.com/74038190/238200480-5e75d0e4-ce20-4c9c-aa4f-e1a7f60f4f2a.gif",
-];
-// Pixel GIFs — ті самі що на скріні
-const PIXEL_GIFS = [
-  "https://user-images.githubusercontent.com/74038190/212748842-9fcbad5b-6173-4175-8a61-521f3dbb7514.gif",
-  "https://user-images.githubusercontent.com/74038190/212748830-4c709398-a386-4761-84d7-9e10b98fbe6e.gif",
-  "https://user-images.githubusercontent.com/74038190/212748838-4c6f3b94-9e5e-4f8e-974e-4a3d67e0dc95.gif",
-  "https://user-images.githubusercontent.com/74038190/212748846-c26b8ded-6b9e-4f1b-8218-8c5e6b97e4e7.gif",
-  "https://user-images.githubusercontent.com/74038190/212748849-5db6e93b-cc62-45c9-b4e5-c7e9b9e1f7c9.gif",
-  "https://user-images.githubusercontent.com/74038190/212748852-6fdf54d0-e55c-4f88-9b13-2b8b9d3d5e7f.gif",
-];
+const GIF_TABS = [
+  { key: "parrots", label: "🦜", data: PARROTS },
+  { key: "anim",    label: "😊", data: ANIMATED_EMOJI },
+] as const;
 
 // ── Badge by HP ───────────────────────────────────────────────────────────
 function getBadge(hp: number): string {
@@ -191,6 +155,7 @@ export default function ChatPage() {
   const [showMvp, setShowMvp] = useState(false);
   const [players, setPlayers] = useState<{ id: number; firstName: string; lastName: string }[]>([]);
   const [openPanel, setOpenPanel] = useState<"sticker" | "gif" | null>(null);
+  const [gifTab, setGifTab] = useState<"parrots" | "anim">("parrots");
   const [uploading, setUploading] = useState(false);
   const esRef = useRef<EventSource | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -793,16 +758,26 @@ export default function ChatPage() {
           </div>
         )}
 
-        {/* GIF panel — Parrots only */}
+        {/* GIF panel — 🦜 Parrots + 😊 Animated Emoji */}
         {openPanel === "gif" && (
-          <div style={{ position: "absolute", bottom: "100%", left: "10px", width: "320px", background: "#1e2a4a", border: "1px solid #f46f10", borderRadius: "12px", padding: "8px", maxHeight: "280px", overflowY: "auto", zIndex: 100 }} onClick={(e) => e.stopPropagation()}>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: "5px" }}>
-              {PARROTS.map((url) => (
-                <button key={url} onClick={() => sendSpecial(`[GIF:${url}]`)}
-                  style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.09)", borderRadius: "6px", cursor: "pointer", padding: "0", overflow: "hidden", width: 52, height: 52 }}>
-                  <img src={url} alt="parrot" style={{ width: 52, height: 52, objectFit: "cover", display: "block" }} onError={(e) => { (e.currentTarget as HTMLImageElement).parentElement!.style.display = "none"; }} />
+          <div style={{ position: "absolute", bottom: "100%", left: "10px", width: "320px", background: "#1e2a4a", border: "1px solid #f46f10", borderRadius: "12px", zIndex: 100, overflow: "hidden" }} onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: "flex", borderBottom: "1px solid rgba(255,255,255,0.08)", padding: "5px 5px 0" }}>
+              {GIF_TABS.map((tab) => (
+                <button key={tab.key} onClick={() => setGifTab(tab.key)}
+                  style={{ flex: 1, padding: "5px 4px", border: "none", background: "none", cursor: "pointer", fontSize: "20px", borderBottom: gifTab === tab.key ? "2px solid #f46f10" : "2px solid transparent", opacity: gifTab === tab.key ? 1 : 0.5 }}>
+                  {tab.label}
                 </button>
               ))}
+            </div>
+            <div style={{ padding: "8px", maxHeight: "260px", overflowY: "auto" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: "5px" }}>
+                {GIF_TABS.find((t) => t.key === gifTab)!.data.map((url) => (
+                  <button key={url} onClick={() => sendSpecial(`[GIF:${url}]`)}
+                    style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.09)", borderRadius: "6px", cursor: "pointer", padding: "0", overflow: "hidden", width: 52, height: 52 }}>
+                    <img src={url} alt="gif" style={{ width: 52, height: 52, objectFit: "cover", display: "block" }} onError={(e) => { (e.currentTarget as HTMLImageElement).parentElement!.style.display = "none"; }} />
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         )}
