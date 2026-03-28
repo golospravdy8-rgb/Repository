@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 
 const CHAT_URL = process.env.NEXT_PUBLIC_CHAT_URL || "http://localhost:3011";
+const LS_KEY = "ldbl_chat_user";
 
 interface ChatModalProps {
   isOpen: boolean;
@@ -10,25 +11,26 @@ interface ChatModalProps {
 }
 
 export default function ChatModal({ isOpen, onClose }: ChatModalProps) {
-  const [loading, setLoading] = useState(false);
   const [checking, setChecking] = useState(true);
-  const [error, setError] = useState("");
 
   useEffect(() => {
     if (!isOpen) return;
     setChecking(true);
-    // Check if user is already registered (cookie exists)
-    fetch("/api/chat/me", { credentials: "include" })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
-        if (data) {
-          // Already registered — go to chat directly
-          window.location.href = CHAT_URL;
-        } else {
-          setChecking(false);
+
+    // Check localStorage for saved user — redirect directly to chat with params
+    const saved = localStorage.getItem(LS_KEY);
+    if (saved) {
+      try {
+        const { phone, firstName, lastName } = JSON.parse(saved);
+        if (phone && firstName && lastName) {
+          const params = new URLSearchParams({ phone, firstName, lastName });
+          window.location.href = `${CHAT_URL}?${params.toString()}`;
+          return;
         }
-      })
-      .catch(() => setChecking(false));
+      } catch {}
+    }
+
+    setChecking(false);
   }, [isOpen]);
 
   if (!isOpen) return null;
@@ -49,34 +51,20 @@ export default function ChatModal({ isOpen, onClose }: ChatModalProps) {
     );
   }
 
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setError("");
-    setLoading(true);
     const form = e.currentTarget;
     const fd = new FormData(form);
     const phone = (fd.get("phone") as string).trim();
     const firstName = (fd.get("firstName") as string).trim();
     const lastName = (fd.get("lastName") as string).trim();
 
-    try {
-      const res = await fetch("/api/chat/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone, firstName, lastName }),
-        credentials: "include",
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setError(data.error || "Помилка реєстрації");
-        setLoading(false);
-        return;
-      }
-      window.location.href = CHAT_URL;
-    } catch {
-      setError("Помилка з'єднання з чатом");
-      setLoading(false);
-    }
+    // Save to localStorage so next visit skips the form
+    localStorage.setItem(LS_KEY, JSON.stringify({ phone, firstName, lastName }));
+
+    // Redirect directly to chat server with params — no Vercel proxy needed
+    const params = new URLSearchParams({ phone, firstName, lastName });
+    window.location.href = `${CHAT_URL}?${params.toString()}`;
   }
 
   return (
@@ -137,15 +125,12 @@ export default function ChatModal({ isOpen, onClose }: ChatModalProps) {
             />
           </div>
 
-          {error && <p className="text-red-400 text-sm">{error}</p>}
-
           <button
             type="submit"
-            disabled={loading}
-            className="w-full py-3 rounded-lg font-bold text-white text-sm transition-opacity disabled:opacity-50"
+            className="w-full py-3 rounded-lg font-bold text-white text-sm"
             style={{ backgroundColor: "#f46f10" }}
           >
-            {loading ? "Підключення..." : "Увійти до чату"}
+            Увійти до чату
           </button>
 
           <p className="text-center text-xs text-gray-500">

@@ -1487,7 +1487,32 @@
 
     document.getElementById('img-overlay').onclick = () => document.getElementById('img-overlay').classList.remove('open');
 
-    // Auto-login
+    // Auto-login via URL params (from main site ChatModal)
+    const _urlParams = new URLSearchParams(window.location.search);
+    const _urlPhone = _urlParams.get('phone');
+    const _urlFirst = _urlParams.get('firstName');
+    const _urlLast  = _urlParams.get('lastName');
+
+    function _doAutoRegister(phone, firstName, lastName) {
+      fetch('/api/chat/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone, firstName, lastName }),
+        credentials: 'include'
+      })
+        .then(r => r.ok ? r.json() : null)
+        .then(data => {
+          if (!data) return;
+          // Clean URL params
+          history.replaceState({}, '', window.location.pathname);
+          myName = data.name; myPhone = data.phone; myRefCode = data.refCode; myHp = data.hp;
+          isMod = data.isMod || false; myBadges = data.badges || [];
+          startChat();
+        })
+        .catch(() => {});
+    }
+
+    // Auto-login via cookie
     fetch('/api/chat/me', { credentials: 'include' })
       .then(async r => {
         if (r.status === 403) {
@@ -1500,12 +1525,20 @@
         return r.ok ? r.json() : null;
       })
       .then(data => {
-        if (!data) return;
-        myName = data.name; myPhone = data.phone; myRefCode = data.refCode; myHp = data.hp;
-        isMod = data.isMod || false; myBadges = data.badges || [];
-        startChat();
+        if (data) {
+          myName = data.name; myPhone = data.phone; myRefCode = data.refCode; myHp = data.hp;
+          isMod = data.isMod || false; myBadges = data.badges || [];
+          startChat();
+        } else if (_urlPhone && _urlFirst && _urlLast) {
+          // Auto-register from URL params passed by main site
+          _doAutoRegister(_urlPhone, _urlFirst, _urlLast);
+        }
       })
-      .catch(() => {});
+      .catch(() => {
+        if (_urlPhone && _urlFirst && _urlLast) {
+          _doAutoRegister(_urlPhone, _urlFirst, _urlLast);
+        }
+      });
   </script>
 </body>
 </html>
