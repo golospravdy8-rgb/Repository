@@ -234,9 +234,9 @@ export default function ImagesTab({ settings }: { settings: Record<string, strin
       <div>
         <h3 className="font-bold text-gray-700 mb-3 text-sm uppercase tracking-wide">Зображення сайту</h3>
         <div className="bg-white rounded-xl border p-4">
-          <p className="text-xs text-gray-500 mb-4">
-            Завантажені файли зберігаються в <code className="bg-gray-100 px-1 rounded">/public/uploads/</code>
-          </p>
+          <div style={{ background: "#fef3c7", border: "1px solid #f59e0b", borderRadius: 8, padding: "10px 14px", fontSize: 13, color: "#92400e", marginBottom: 16 }}>
+            ⚠️ Зображення зберігаються в базі даних (base64). Максимальний розмір — 512KB. Якщо логотип не відображається — завантажте його знову.
+          </div>
           {IMAGE_CONFIG.map((config) => (
             <ImageUploadRow key={config.type} config={config} currentUrl={settings[`images.${config.type}`] ?? ""} />
           ))}

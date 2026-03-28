@@ -84,7 +84,12 @@ export default function Header({
           <Link href={withAg("/")} className="flex items-center gap-3 flex-shrink-0">
             {logoUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={logoUrl} alt={siteName} className="h-12 w-12 rounded-full object-cover" />
+              <img
+                src={logoUrl}
+                alt={siteName}
+                className="h-12 w-12 rounded-full object-cover"
+                onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+              />
             ) : (
               <div
                 className="w-12 h-12 rounded-full flex items-center justify-center font-bold text-sm"
