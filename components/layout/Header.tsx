@@ -161,7 +161,7 @@ export default function Header({
               );
             })}
             <div className="px-3 pt-2 border-t border-white/10 mt-2">
-              <AuthButton orangeColor={orangeColor} />
+              <AdminButton />
             </div>
           </div>
         )}
