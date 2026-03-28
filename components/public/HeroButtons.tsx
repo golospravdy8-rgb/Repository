@@ -1,37 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import AuthModal from "./AuthModal";
-
-interface User {
-  id: number;
-  name: string;
-  email: string;
-  role: string;
-}
+import { useState } from "react";
+import ChatModal from "./ChatModal";
 
 export default function HeroButtons() {
-  const [user, setUser] = useState<User | null>(null);
-  const [authOpen, setAuthOpen] = useState(false);
-  const [authMessage, setAuthMessage] = useState("");
-  const [authRedirect, setAuthRedirect] = useState("");
-
-  useEffect(() => {
-    fetch("http://localhost:3012/api/auth/me", { credentials: "include" })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((u) => setUser(u))
-      .catch(() => {});
-  }, []);
-
-  function handleChatClick() {
-    if (user) {
-      window.location.href = "http://localhost:3011";
-    } else {
-      setAuthMessage("Для доступу до чату потрібно увійти");
-      setAuthRedirect("http://localhost:3011");
-      setAuthOpen(true);
-    }
-  }
+  const [chatOpen, setChatOpen] = useState(false);
 
   const btnStyle = {
     display: "inline-flex",
@@ -72,18 +45,12 @@ export default function HeroButtons() {
         <a href="/reviews" style={orangeBtn}>
           <span>⭐</span> Відгуки
         </a>
-        <button onClick={handleChatClick} style={darkBtn}>
+        <button onClick={() => setChatOpen(true)} style={darkBtn}>
           <span>💬</span> Балачка
         </button>
       </div>
 
-      <AuthModal
-        isOpen={authOpen}
-        onClose={() => setAuthOpen(false)}
-        message={authMessage}
-        redirectAfter={authRedirect}
-        onSuccess={(u) => setUser(u)}
-      />
+      <ChatModal isOpen={chatOpen} onClose={() => setChatOpen(false)} />
     </>
   );
 }
