@@ -30,6 +30,7 @@ export default async function HeaderWrapper() {
     "header.activeStyle",
     "header.logoPosition",
     "header.height",
+    "colors.headerBg",
     "colors.navy",
     "colors.orange",
     "images.headerBg",
@@ -37,7 +38,7 @@ export default async function HeaderWrapper() {
 
   return (
     <Suspense fallback={
-      <div style={{ height: `${parseInt(settings["header.height"] ?? "64", 10)}px`, backgroundColor: settings["colors.navy"] ?? "#1a2744" }} />
+      <div style={{ height: `${parseInt(settings["header.height"] ?? "64", 10)}px`, backgroundColor: settings["colors.headerBg"] || settings["colors.navy"] || "#1a2744" }} />
     }>
       <Header
         siteName={settings["site.name"] ?? "Ліга ESCULAB"}
@@ -49,7 +50,7 @@ export default async function HeaderWrapper() {
         activeStyle={settings["header.activeStyle"] ?? "underline"}
         logoPosition={settings["header.logoPosition"] ?? "left"}
         headerHeight={parseInt(settings["header.height"] ?? "64", 10)}
-        navyColor={settings["colors.navy"] ?? "#1a2744"}
+        navyColor={settings["colors.headerBg"] || settings["colors.navy"] || "#1a2744"}
         orangeColor={settings["colors.orange"] ?? "#f97316"}
         headerBg={settings["images.headerBg"] ?? ""}
       />

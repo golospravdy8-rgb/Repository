@@ -60,7 +60,7 @@ export default async function HomePage({ searchParams }: { searchParams: { ag?: 
   const navy = settings["colors.text.heading"] || settings["colors.navy"] || "#1a2744";
   const orange = settings["colors.text.accent"] || settings["colors.orange"] || "#f97316";
   const heroBg = settings["images.heroBg"] || "";
-  const heroBgColor = settings["colors.heroBg"] || navy;
+  const heroBgColor = settings["colors.heroBg"] || "#3b82f6";
   const heroTextColor = settings["colors.heroText"] || "#ffffff";
   const heroButtonBg = settings["colors.heroButtonBg"] || orange;
   const heroButtonText = settings["colors.heroButtonText"] || "#ffffff";

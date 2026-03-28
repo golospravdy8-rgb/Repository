@@ -5,6 +5,7 @@ import { updateSiteColors } from "@/actions/site-settings";
 import type { SaveHandle } from "../SiteEditorClient";
 
 const DEFAULT_COLORS = {
+  "colors.headerBg": "#1a2744",
   "colors.navy": "#1a2744",
   "colors.orange": "#f97316",
   "colors.blue": "#3b82f6",
@@ -12,7 +13,7 @@ const DEFAULT_COLORS = {
   "colors.bg": "#f1f5f9",
   "colors.footerBg": "#1e293b",
   "colors.footerText": "#94a3b8",
-  "colors.heroBg": "#2563eb",
+  "colors.heroBg": "#3b82f6",
   "colors.heroText": "#ffffff",
   "colors.heroButtonBg": "#f46f10",
   "colors.heroButtonText": "#ffffff",
@@ -23,7 +24,8 @@ const DEFAULT_COLORS = {
 };
 
 const COLOR_LABELS: Record<string, string> = {
-  "colors.navy": "Navy (хедер, заголовки, кнопка +3)",
+  "colors.headerBg": "Хедер (фон навбару)",
+  "colors.navy": "Navy (заголовки, кнопка +3, акценти)",
   "colors.orange": "Orange (акценти, активні пункти, кнопка +2)",
   "colors.blue": "Blue (кнопка +1 штрафний)",
   "colors.red": "Red (LIVE бейдж, завершити матч)",
@@ -43,7 +45,7 @@ const COLOR_LABELS: Record<string, string> = {
 const COLOR_GROUPS = [
   {
     label: "Основні",
-    keys: ["colors.navy", "colors.orange", "colors.blue", "colors.red", "colors.bg"],
+    keys: ["colors.headerBg", "colors.navy", "colors.orange", "colors.blue", "colors.red", "colors.bg"],
   },
   {
     label: "Footer",
