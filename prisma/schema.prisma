@@ -166,6 +166,62 @@ model MvpVote {
   createdAt  DateTime @default(now())
 }
 
+model ChatMessage {
+  id        Int      @id @default(autoincrement())
+  phone     String
+  name      String
+  text      String
+  replyToId Int?
+  createdAt DateTime @default(now())
+  reactions ChatReaction[]
+  replyTo   ChatMessage?   @relation("Replies", fields: [replyToId], references: [id])
+  replies   ChatMessage[]  @relation("Replies")
+}
+
+model ChatReaction {
+  id        Int         @id @default(autoincrement())
+  messageId Int
+  phone     String
+  emoji     String
+  message   ChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, phone, emoji])
+}
+
+model ChatModerator {
+  id      Int      @id @default(autoincrement())
+  phone   String   @unique
+  addedAt DateTime @default(now())
+}
+
+model ChatBan {
+  id          Int      @id @default(autoincrement())
+  phone       String   @unique
+  reason      String   @default("")
+  bannedUntil DateTime?
+  createdAt   DateTime @default(now())
+}
+
+model ChatMute {
+  id         Int      @id @default(autoincrement())
+  phone      String   @unique
+  mutedUntil DateTime
+  createdAt  DateTime @default(now())
+}
+
+model ChatWarn {
+  id        Int      @id @default(autoincrement())
+  phone     String
+  reason    String   @default("")
+  createdAt DateTime @default(now())
+}
+
+model ChatPinnedMessage {
+  id        Int      @id @default(autoincrement())
+  text      String
+  updatedAt DateTime @updatedAt
+}
+
 model ShopOrder {
   id           Int      @id @default(autoincrement())
   orderNumber  String   @unique
