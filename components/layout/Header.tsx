@@ -69,9 +69,10 @@ export default function Header({
 
   return (
     <header
-      style={headerBg
-        ? { backgroundImage: `url(${headerBg})`, backgroundSize: "cover", backgroundPosition: "center" }
-        : { backgroundColor: navyColor }}
+      style={{
+        backgroundColor: navyColor,
+        ...(headerBg ? { backgroundImage: `url(${headerBg})`, backgroundSize: "cover", backgroundPosition: "center" } : {}),
+      }}
       className="text-white shadow-lg"
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

@@ -41,9 +41,10 @@ export default function Footer({
 }: FooterProps) {
   return (
     <footer
-      style={footerBg
-        ? { backgroundImage: `url(${footerBg})`, backgroundSize: "cover", backgroundPosition: "center" }
-        : { backgroundColor: navyColor }}
+      style={{
+        backgroundColor: navyColor,
+        ...(footerBg ? { backgroundImage: `url(${footerBg})`, backgroundSize: "cover", backgroundPosition: "center" } : {}),
+      }}
       className="mt-auto"
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
