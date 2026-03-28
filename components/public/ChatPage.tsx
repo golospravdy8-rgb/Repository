@@ -131,7 +131,6 @@ const PIXEL_GIFS = [
 ];
 const GIF_TABS = [
   { key: "parrots", label: "🦜", data: PARROTS },
-  { key: "anim",    label: "😊", data: ANIMATED_EMOJI },
   { key: "helpful", label: "🎭", data: HELPFUL_GIFS },
   { key: "pixel",   label: "🎮", data: PIXEL_GIFS },
 ] as const;
@@ -197,7 +196,7 @@ export default function ChatPage() {
   const [showMvp, setShowMvp] = useState(false);
   const [players, setPlayers] = useState<{ id: number; firstName: string; lastName: string }[]>([]);
   const [openPanel, setOpenPanel] = useState<"emoji" | "sticker" | "gif" | null>(null);
-  const [gifTab, setGifTab] = useState<"parrots" | "anim" | "helpful" | "pixel">("parrots");
+  const [gifTab, setGifTab] = useState<"parrots" | "helpful" | "pixel">("parrots");
   const [uploading, setUploading] = useState(false);
   const esRef = useRef<EventSource | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
