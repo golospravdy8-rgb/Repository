@@ -18,26 +18,87 @@ const STICKER_BASE = "https://raw.githubusercontent.com/pavanpatil45/Classic-Mem
 const MEME_STICKERS = Array.from({ length: 26 }, (_, i) => `${STICKER_BASE}/1/${i + 1}.webp`)
   .concat(Array.from({ length: 23 }, (_, i) => `${STICKER_BASE}/2/${i + 1}.webp`));
 
-// ── Cool GIFs (Anmol-Baranwal) ────────────────────────────────────────────
-const COOL_GIFS = [
-  "https://user-images.githubusercontent.com/74038190/212284100-561aa473-3905-4a80-b561-0d28506553ee.gif",
-  "https://user-images.githubusercontent.com/74038190/212284158-e840e285-664b-44d7-b79b-e264b5e54825.gif",
-  "https://user-images.githubusercontent.com/74038190/212284087-bbe7e430-757e-4901-90bf-4cd2ce3e1852.gif",
-  "https://user-images.githubusercontent.com/74038190/212284094-e50ceae2-de86-4dd6-9f9c-a3ebcb3ede9e.gif",
-  "https://user-images.githubusercontent.com/74038190/212284136-03988914-d899-44b4-b1d9-4eeccf656e44.gif",
-  "https://user-images.githubusercontent.com/74038190/212284115-f47cd8ff-2ffb-4b04-b5bf-4d1c14c0247f.gif",
-  "https://user-images.githubusercontent.com/74038190/212284119-fbfd994d-8c2a-4a07-a75f-84e513833c1c.gif",
-  "https://user-images.githubusercontent.com/74038190/212284131-1a7b1d61-dfdb-4fd5-8da4-2cbe4e767db2.gif",
-  "https://user-images.githubusercontent.com/74038190/212284145-bf2c01a8-c448-4f1a-b911-996024c84606.gif",
-  "https://user-images.githubusercontent.com/74038190/212284149-98f19dd7-49e0-4f59-9c21-94c5a1c35b3b.gif",
-  "https://user-images.githubusercontent.com/74038190/212284152-56bcc665-bef5-4c73-9b79-b9b72014dc55.gif",
-  "https://user-images.githubusercontent.com/74038190/212284160-87ec8aa1-bd4a-4b54-8e60-e7c0e0f40c72.gif",
-  "https://user-images.githubusercontent.com/74038190/212284163-82b34eac-0fcd-4ec1-9d75-71001ab4cc57.gif",
-  "https://user-images.githubusercontent.com/74038190/212284165-04fe3e20-a7e4-44af-8a17-f9ba7c1eef00.gif",
-  "https://user-images.githubusercontent.com/74038190/212284168-acba3a84-6acb-4abd-bfe4-87e0ba17db72.gif",
-  "https://user-images.githubusercontent.com/74038190/212284172-5c8c7d89-1b07-4a9d-8b2c-c5f14a2a83a5.gif",
-  "https://user-images.githubusercontent.com/74038190/212284175-c4fd4b9e-8e4e-4b37-a0b3-0e2b27f7b7c2.gif",
+// ── GIF tabs ───────────────────────────────────────────────────────────────
+const PARROTS = [
+  "https://cultofthepartyparrot.com/parrots/hd/parrot.gif",
+  "https://cultofthepartyparrot.com/parrots/hd/hd_parrot.gif",
+  "https://cultofthepartyparrot.com/parrots/hd/ultrafastparrot.gif",
+  "https://cultofthepartyparrot.com/parrots/hd/fastparrot.gif",
+  "https://cultofthepartyparrot.com/parrots/hd/dealwithitparrot.gif",
+  "https://cultofthepartyparrot.com/parrots/hd/boredparrot.gif",
+  "https://cultofthepartyparrot.com/parrots/hd/sadparrot.gif",
+  "https://cultofthepartyparrot.com/parrots/hd/angryparrot.gif",
+  "https://cultofthepartyparrot.com/parrots/hd/sleepyparrot.gif",
+  "https://cultofthepartyparrot.com/parrots/hd/coffeeparrot.gif",
+  "https://cultofthepartyparrot.com/parrots/hd/footballparrot.gif",
+  "https://cultofthepartyparrot.com/parrots/hd/loveparrot.gif",
+  "https://cultofthepartyparrot.com/parrots/hd/ukraineparrot.gif",
+  "https://cultofthepartyparrot.com/parrots/hd/congaparrot.gif",
+  "https://cultofthepartyparrot.com/parrots/hd/fiestasunglassesparrot.gif",
+  "https://cultofthepartyparrot.com/parrots/hd/chillparrot.gif",
 ];
+const ANIMATED_EMOJI = [
+  "https://animated-fluent-emoji.vercel.app/assets/Beaming%20Face%20with%20Smiling%20Eyes/beaming_face_with_smiling_eyes_animated.gif",
+  "https://animated-fluent-emoji.vercel.app/assets/Fire/fire_animated.gif",
+  "https://animated-fluent-emoji.vercel.app/assets/Hundred%20Points/hundred_points_animated.gif",
+  "https://animated-fluent-emoji.vercel.app/assets/Party%20Popper/party_popper_animated.gif",
+  "https://animated-fluent-emoji.vercel.app/assets/Thumbs%20Up/thumbs_up_animated.gif",
+  "https://animated-fluent-emoji.vercel.app/assets/Red%20Heart/red_heart_animated.gif",
+  "https://animated-fluent-emoji.vercel.app/assets/Crying%20Face/crying_face_animated.gif",
+  "https://animated-fluent-emoji.vercel.app/assets/Face%20with%20Tears%20of%20Joy/face_with_tears_of_joy_animated.gif",
+  "https://animated-fluent-emoji.vercel.app/assets/Clapping%20Hands/clapping_hands_animated.gif",
+  "https://animated-fluent-emoji.vercel.app/assets/Rocket/rocket_animated.gif",
+  "https://animated-fluent-emoji.vercel.app/assets/Trophy/trophy_animated.gif",
+  "https://animated-fluent-emoji.vercel.app/assets/Basketball/basketball_animated.gif",
+  "https://animated-fluent-emoji.vercel.app/assets/Star-Struck/star-struck_animated.gif",
+  "https://animated-fluent-emoji.vercel.app/assets/Waving%20Hand/waving_hand_animated.gif",
+  "https://animated-fluent-emoji.vercel.app/assets/Flexed%20Biceps/flexed_biceps_animated.gif",
+  "https://animated-fluent-emoji.vercel.app/assets/Smiling%20Face%20with%20Sunglasses/smiling_face_with_sunglasses_animated.gif",
+];
+const HELPFUL_GIFS = [
+  "https://user-images.githubusercontent.com/74038190/238200426-29fd6286-4e7b-4d6c-818f-c4765d5e39a9.gif",
+  "https://user-images.githubusercontent.com/74038190/238200428-67f477ed-6624-42da-99f0-1a7b1a16eecb.gif",
+  "https://user-images.githubusercontent.com/74038190/238200430-a78a3b79-8d21-4f82-84d3-ecde66d7c6b5.gif",
+  "https://user-images.githubusercontent.com/74038190/238200431-b48a1301-d976-4f17-ac8e-6626e6b8fc6b.gif",
+  "https://user-images.githubusercontent.com/74038190/238200433-5b5fe855-b05e-4fa2-94bc-ed2413078e00.gif",
+  "https://user-images.githubusercontent.com/74038190/238200435-a4af2fb1-60a5-4d52-a9fc-aaae4c55f528.gif",
+  "https://user-images.githubusercontent.com/74038190/238200437-b8701960-9d70-4098-a5e0-54ff8d7c2ae2.gif",
+  "https://user-images.githubusercontent.com/74038190/238200439-b0a7e0c7-b0c4-4df5-8c95-ced82b99bc4a.gif",
+  "https://user-images.githubusercontent.com/74038190/238200441-7d2d3f42-3ffe-4bf4-8424-a0a6b2c48c41.gif",
+  "https://user-images.githubusercontent.com/74038190/238200443-25ef52c2-fcff-43c2-a11a-8cb3d9e7d7f3.gif",
+  "https://user-images.githubusercontent.com/74038190/238200445-adabdbb5-adad-4f8d-ae81-c7d8e8d15e5e.gif",
+  "https://user-images.githubusercontent.com/74038190/238200447-5d9dbfe3-0b2a-4e55-a7ac-31f43c9b5e7f.gif",
+  "https://user-images.githubusercontent.com/74038190/238200449-8c6e6f49-7e76-4f55-9af8-f6e754a9c2e0.gif",
+  "https://user-images.githubusercontent.com/74038190/238200451-8ca14ef9-1523-47ed-a2d5-fd76fab47ede.gif",
+  "https://user-images.githubusercontent.com/74038190/238200453-c82fb3d8-3936-4f5b-b29d-66fa6c0d2b62.gif",
+  "https://user-images.githubusercontent.com/74038190/238200455-eb27c24c-6d3a-4b4f-a6f3-c6e5f15e1c52.gif",
+  "https://user-images.githubusercontent.com/74038190/238200457-c3b6e59c-a3f6-41b2-9b0d-4f0d7a4b59b9.gif",
+  "https://user-images.githubusercontent.com/74038190/238200459-8a6c40e1-c16d-4f24-97c0-50e0e8c95745.gif",
+  "https://user-images.githubusercontent.com/74038190/238200461-16bb02ba-5c08-4c7e-b0da-c40d1c80e18e.gif",
+  "https://user-images.githubusercontent.com/74038190/238200463-a65e1088-8f47-4dc7-b51d-3be39b49f1e6.gif",
+  "https://user-images.githubusercontent.com/74038190/238200465-e1c8b0da-19fa-4acb-b20c-fa1e3de40b88.gif",
+  "https://user-images.githubusercontent.com/74038190/238200467-8e62285a-9d86-4282-aba3-14a69d1a0cd5.gif",
+  "https://user-images.githubusercontent.com/74038190/238200469-c5e0d3be-f2a9-4c1b-a53f-9e47c01b7f21.gif",
+  "https://user-images.githubusercontent.com/74038190/238200471-e3b0c2fe-3a73-41f2-b777-2c6e5cfe00c9.gif",
+  "https://user-images.githubusercontent.com/74038190/238200474-23de4e47-0e24-4b8a-bde3-53af9a9c3286.gif",
+  "https://user-images.githubusercontent.com/74038190/238200476-d37b1c4c-7f38-42cf-97e7-a6aae4e15e47.gif",
+  "https://user-images.githubusercontent.com/74038190/238200478-05d07fce-9459-4b15-8b44-0b11e5d23dbc.gif",
+  "https://user-images.githubusercontent.com/74038190/238200480-5e75d0e4-ce20-4c9c-aa4f-e1a7f60f4f2a.gif",
+];
+const PIXEL_GIFS = [
+  "https://user-images.githubusercontent.com/74038190/212748842-9fcbad5b-6173-4175-8a61-521f3dbb7514.gif",
+  "https://user-images.githubusercontent.com/74038190/212748830-4c709398-a386-4761-84d7-9e10b98fbe6e.gif",
+  "https://user-images.githubusercontent.com/74038190/212748838-4c6f3b94-9e5e-4f8e-974e-4a3d67e0dc95.gif",
+  "https://user-images.githubusercontent.com/74038190/212748846-c26b8ded-6b9e-4f1b-8218-8c5e6b97e4e7.gif",
+  "https://user-images.githubusercontent.com/74038190/212748849-5db6e93b-cc62-45c9-b4e5-c7e9b9e1f7c9.gif",
+  "https://user-images.githubusercontent.com/74038190/212748852-6fdf54d0-e55c-4f88-9b13-2b8b9d3d5e7f.gif",
+];
+const GIF_TABS = [
+  { key: "parrots", label: "🦜", data: PARROTS },
+  { key: "emoji",   label: "😊", data: ANIMATED_EMOJI },
+  { key: "helpful", label: "🎭", data: HELPFUL_GIFS },
+  { key: "pixel",   label: "🎮", data: PIXEL_GIFS },
+] as const;
 
 // ── Badge by HP ───────────────────────────────────────────────────────────
 function getBadge(hp: number): string {
@@ -100,6 +161,7 @@ export default function ChatPage() {
   const [showMvp, setShowMvp] = useState(false);
   const [players, setPlayers] = useState<{ id: number; firstName: string; lastName: string }[]>([]);
   const [openPanel, setOpenPanel] = useState<"emoji" | "sticker" | "gif" | null>(null);
+  const [gifTab, setGifTab] = useState<"parrots" | "emoji" | "helpful" | "pixel">("parrots");
   const [uploading, setUploading] = useState(false);
   const esRef = useRef<EventSource | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -685,35 +747,17 @@ export default function ChatPage() {
       )}
 
       {/* ── Input bar ─────────────────────────────────────────────────────── */}
-      <div style={{ borderTop: "1px solid rgba(255,255,255,0.08)", background: "#1e2a4a", padding: "8px 12px", flexShrink: 0, position: "relative" }} ref={panelRef}>
-        {/* Panel toggle buttons */}
-        <div style={{ display: "flex", gap: "6px", marginBottom: "8px" }} onClick={(e) => e.stopPropagation()}>
-          {(["emoji","sticker","gif"] as const).map((panel, i) => {
-            const labels = ["😊 Emoji","🎭 Стікери","🦜 GIF"];
-            return (
-              <button key={panel} onClick={() => setOpenPanel(openPanel === panel ? null : panel)}
-                style={{ padding: "4px 10px", borderRadius: "8px", border: "1px solid", borderColor: openPanel === panel ? "#f46f10" : "rgba(255,255,255,0.12)", background: openPanel === panel ? "rgba(244,111,16,0.15)" : "rgba(255,255,255,0.05)", color: openPanel === panel ? "#f46f10" : "#94a3b8", cursor: "pointer", fontSize: "12px", fontFamily: "Exo 2, sans-serif" }}>
-                {labels[i]}
-              </button>
-            );
-          })}
-          <button onClick={() => fileRef.current?.click()}
-            style={{ padding: "4px 10px", borderRadius: "8px", border: "1px solid rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.05)", color: "#94a3b8", cursor: uploading ? "wait" : "pointer", fontSize: "12px", fontFamily: "Exo 2, sans-serif" }}>
-            {uploading ? "⏳" : "🖼 Фото"}
-          </button>
-          <input ref={fileRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handleImageUpload} />
-        </div>
+      <div style={{ borderTop: "1px solid rgba(255,255,255,0.08)", background: "#1e2a4a", padding: "6px 10px", flexShrink: 0, position: "relative" }} ref={panelRef}>
 
         {/* Emoji panel */}
         {openPanel === "emoji" && (
-          <div style={{ position: "absolute", bottom: "100%", left: "12px", right: "12px", background: "#1e2a4a", border: "1px solid #f46f10", borderRadius: "12px", padding: "12px", maxHeight: "280px", overflowY: "auto", zIndex: 100 }} onClick={(e) => e.stopPropagation()}>
+          <div style={{ position: "absolute", bottom: "100%", left: "10px", width: "300px", background: "#1e2a4a", border: "1px solid #f46f10", borderRadius: "12px", padding: "10px", maxHeight: "200px", overflowY: "auto", zIndex: 100 }} onClick={(e) => e.stopPropagation()}>
             {Object.entries(EMOJI_GROUPS).map(([group, emojis]) => (
-              <div key={group} style={{ marginBottom: "10px" }}>
-                <div style={{ fontSize: "11px", color: "#64748b", marginBottom: "6px" }}>{group}</div>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(8,1fr)", gap: "4px" }}>
+              <div key={group} style={{ marginBottom: "8px" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(8,1fr)", gap: "2px" }}>
                   {emojis.map((em) => (
                     <button key={em} onClick={() => { setInput((v) => v + em); setOpenPanel(null); inputRef.current?.focus(); }}
-                      style={{ background: "none", border: "none", cursor: "pointer", fontSize: "22px", padding: "3px", borderRadius: "6px", lineHeight: 1 }}
+                      style={{ background: "none", border: "none", cursor: "pointer", fontSize: "24px", padding: "2px", borderRadius: "5px", lineHeight: 1 }}
                       onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(255,255,255,0.08)"; }}
                       onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "none"; }}>
                       {em}
@@ -727,46 +771,76 @@ export default function ChatPage() {
 
         {/* Sticker panel */}
         {openPanel === "sticker" && (
-          <div style={{ position: "absolute", bottom: "100%", left: "12px", right: "12px", background: "#1e2a4a", border: "1px solid #f46f10", borderRadius: "12px", padding: "12px", maxHeight: "280px", overflowY: "auto", zIndex: 100 }} onClick={(e) => e.stopPropagation()}>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: "8px" }}>
+          <div style={{ position: "absolute", bottom: "100%", left: "10px", width: "300px", background: "#1e2a4a", border: "1px solid #f46f10", borderRadius: "12px", padding: "10px", maxHeight: "280px", overflowY: "auto", zIndex: 100 }} onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: "6px" }}>
               {MEME_STICKERS.map((url) => (
                 <button key={url} onClick={() => sendSpecial(`[STICKER:${url}]`)}
-                  style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.09)", borderRadius: "8px", cursor: "pointer", padding: "4px", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <img src={url} alt="sticker" style={{ width: 64, height: 64, objectFit: "contain" }} onError={(e) => { (e.currentTarget as HTMLImageElement).parentElement!.style.display = "none"; }} />
+                  style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.09)", borderRadius: "8px", cursor: "pointer", padding: "3px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <img src={url} alt="sticker" style={{ width: 56, height: 56, objectFit: "contain" }} onError={(e) => { (e.currentTarget as HTMLImageElement).parentElement!.style.display = "none"; }} />
                 </button>
               ))}
             </div>
           </div>
         )}
 
-        {/* GIF panel */}
+        {/* GIF panel with tabs */}
         {openPanel === "gif" && (
-          <div style={{ position: "absolute", bottom: "100%", left: "12px", right: "12px", background: "#1e2a4a", border: "1px solid #f46f10", borderRadius: "12px", padding: "12px", maxHeight: "280px", overflowY: "auto", zIndex: 100 }} onClick={(e) => e.stopPropagation()}>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: "8px" }}>
-              {COOL_GIFS.map((url) => (
-                <button key={url} onClick={() => sendSpecial(`[GIF:${url}]`)}
-                  style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.09)", borderRadius: "8px", cursor: "pointer", padding: "0", overflow: "hidden" }}>
-                  <img src={url} alt="gif" style={{ width: "100%", height: 90, objectFit: "cover", display: "block" }} onError={(e) => { (e.currentTarget as HTMLImageElement).parentElement!.style.display = "none"; }} />
+          <div style={{ position: "absolute", bottom: "100%", left: "10px", width: "320px", background: "#1e2a4a", border: "1px solid #f46f10", borderRadius: "12px", zIndex: 100, overflow: "hidden" }} onClick={(e) => e.stopPropagation()}>
+            {/* Tab bar */}
+            <div style={{ display: "flex", borderBottom: "1px solid rgba(255,255,255,0.08)", padding: "6px 6px 0" }}>
+              {GIF_TABS.map((tab) => (
+                <button key={tab.key} onClick={() => setGifTab(tab.key)}
+                  style={{ flex: 1, padding: "5px 4px", border: "none", background: "none", cursor: "pointer", fontSize: "18px", borderBottom: gifTab === tab.key ? "2px solid #f46f10" : "2px solid transparent", opacity: gifTab === tab.key ? 1 : 0.5 }}>
+                  {tab.label}
                 </button>
               ))}
+            </div>
+            {/* GIF grid */}
+            <div style={{ padding: "8px", maxHeight: "240px", overflowY: "auto" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: "5px" }}>
+                {GIF_TABS.find((t) => t.key === gifTab)!.data.map((url) => (
+                  <button key={url} onClick={() => sendSpecial(`[GIF:${url}]`)}
+                    style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.09)", borderRadius: "6px", cursor: "pointer", padding: "0", overflow: "hidden", width: 52, height: 52 }}>
+                    <img src={url} alt="gif" style={{ width: 52, height: 52, objectFit: "cover", display: "block" }} onError={(e) => { (e.currentTarget as HTMLImageElement).parentElement!.style.display = "none"; }} />
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         )}
 
-        {/* Text input + send */}
-        <form onSubmit={handleSend} style={{ display: "flex", gap: "8px", alignItems: "center", position: "relative" }}>
+        {/* Bottom row: panel buttons + input + send */}
+        <form onSubmit={handleSend} style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+          {/* Panel icon buttons */}
+          <input ref={fileRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handleImageUpload} />
+          {([
+            { panel: "emoji" as const,   icon: "😊" },
+            { panel: "sticker" as const, icon: "🎭" },
+            { panel: "gif" as const,     icon: "🎬" },
+          ]).map(({ panel, icon }) => (
+            <button key={panel} type="button" onClick={(e) => { e.stopPropagation(); setOpenPanel(openPanel === panel ? null : panel); }}
+              style={{ width: 32, height: 32, flexShrink: 0, background: openPanel === panel ? "rgba(244,111,16,0.2)" : "rgba(255,255,255,0.06)", border: `1px solid ${openPanel === panel ? "#f46f10" : "rgba(255,255,255,0.1)"}`, borderRadius: "8px", cursor: "pointer", fontSize: "16px", display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}>
+              {icon}
+            </button>
+          ))}
+          <button type="button" onClick={() => fileRef.current?.click()}
+            style={{ width: 32, height: 32, flexShrink: 0, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "8px", cursor: uploading ? "wait" : "pointer", fontSize: "16px", display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}>
+            {uploading ? "⏳" : "🖼"}
+          </button>
+          {/* Text input */}
           <input
             ref={inputRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Напишіть повідомлення..."
             maxLength={500}
-            style={{ flex: 1, padding: "10px 14px", borderRadius: "11px", background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)", color: "white", fontSize: "14px", fontFamily: "Exo 2, sans-serif", outline: "none" }}
+            style={{ flex: 1, padding: "8px 12px", borderRadius: "10px", background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)", color: "white", fontSize: "14px", fontFamily: "Exo 2, sans-serif", outline: "none" }}
           />
+          {/* Send */}
           <button
             type="submit"
             disabled={sending || !input.trim()}
-            style={{ padding: "10px 16px", background: "#f46f10", color: "white", border: "none", borderRadius: "11px", cursor: "pointer", fontWeight: 800, fontSize: "18px", flexShrink: 0, opacity: (sending || !input.trim()) ? 0.4 : 1 }}
+            style={{ width: 36, height: 36, flexShrink: 0, background: "#f46f10", color: "white", border: "none", borderRadius: "10px", cursor: "pointer", fontWeight: 800, fontSize: "18px", display: "flex", alignItems: "center", justifyContent: "center", padding: 0, opacity: (sending || !input.trim()) ? 0.4 : 1 }}
           >
             →
           </button>
