@@ -1,12 +1,7 @@
-import { auth } from "@/lib/auth";
-import { redirect } from "next/navigation";
 import Link from "next/link";
-import { signOut } from "@/lib/auth";
+import AdminLogoutButton from "./AdminLogoutButton";
 
-export default async function AdminLayout({ children }: { children: React.ReactNode }) {
-  const session = await auth();
-  if (!session) redirect("/login");
-
+export default function AdminLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen" style={{ backgroundColor: "#f1f5f9", zoom: 0.75 }}>
       {/* Admin header */}
@@ -39,20 +34,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
               </nav>
             </div>
             <div className="flex items-center gap-3">
-              <span className="text-xs text-gray-400">{session.user?.email}</span>
-              <form
-                action={async () => {
-                  "use server";
-                  await signOut({ redirectTo: "/login" });
-                }}
-              >
-                <button
-                  type="submit"
-                  className="text-xs text-gray-400 hover:text-white transition-colors px-2 py-1 rounded hover:bg-white/10"
-                >
-                  Вийти
-                </button>
-              </form>
+              <AdminLogoutButton />
             </div>
           </div>
         </div>

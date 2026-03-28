@@ -5,6 +5,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { useState, Suspense } from "react";
 import AuthButton from "@/components/public/AuthButton";
 import AgeGroupSwitcher from "@/components/public/AgeGroupSwitcher";
+import AdminButton from "@/components/public/AdminButton";
 
 export interface NavItem {
   href: string;
@@ -116,6 +117,7 @@ export default function Header({
                 <Suspense fallback={null}>
                   <AgeGroupSwitcher orangeColor={orangeColor} />
                 </Suspense>
+                <AdminButton />
                 <AuthButton orangeColor={orangeColor} />
               </div>
             </nav>

@@ -32,36 +32,32 @@ export default async function middleware(req: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // /admin/login → redirect to actual login page
-  if (pathname === "/admin/login") {
-    return NextResponse.redirect(new URL("/login", req.nextUrl.origin));
-  }
-
   const isAdminRoute = pathname.startsWith("/admin");
+  const isAdminLoginPage = pathname === "/admin/login";
 
-  if (isAdminRoute) {
+  if (isAdminRoute && !isAdminLoginPage) {
+    // Accept simple admin_token cookie
+    const adminToken = req.cookies.get("admin_token")?.value;
+    if (adminToken === "ldbl_admin_2025") {
+      return NextResponse.next();
+    }
+
+    // Also accept legacy JWT session cookie
     const isProd = process.env.NODE_ENV === "production";
     const cookieName = isProd
       ? "__Secure-next-auth.session-token"
       : "next-auth.session-token";
+    const jwtToken = req.cookies.get(cookieName)?.value;
 
-    const token = req.cookies.get(cookieName)?.value;
-
-    if (!token) {
-      const loginUrl = new URL("/login", req.nextUrl.origin);
-      loginUrl.searchParams.set("callbackUrl", "/admin/dashboard");
-      return NextResponse.redirect(loginUrl);
+    if (jwtToken) {
+      try {
+        const secret = getJwtSecret();
+        await jwtVerify(jwtToken, secret);
+        return NextResponse.next();
+      } catch { /* fall through */ }
     }
 
-    try {
-      const secret = getJwtSecret();
-      await jwtVerify(token, secret);
-      return NextResponse.next();
-    } catch {
-      const loginUrl = new URL("/login", req.nextUrl.origin);
-      loginUrl.searchParams.set("callbackUrl", "/admin/dashboard");
-      return NextResponse.redirect(loginUrl);
-    }
+    return NextResponse.redirect(new URL("/admin/login", req.nextUrl.origin));
   }
 
   return NextResponse.next();
