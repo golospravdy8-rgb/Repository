@@ -100,7 +100,7 @@ export default function Header({
             )}
             <div className="leading-tight">
               <div className="font-bold tracking-wide" style={{ fontSize: "1.265rem", lineHeight: 1.3 }}>{siteName}</div>
-              <div className="text-gray-300" style={{ fontSize: "0.805rem", lineHeight: 1.3 }}>{tagline}</div>
+              <div style={{ fontSize: "0.805rem", lineHeight: 1.3, color: "white" }}>{tagline}</div>
             </div>
           </Link>
 
