@@ -1,11 +1,6 @@
 "use client";
 
-import { useState } from "react";
-import ChatModal from "./ChatModal";
-
 export default function HeroButtons() {
-  const [chatOpen, setChatOpen] = useState(false);
-
   const btnStyle = {
     display: "inline-flex",
     alignItems: "center",
@@ -45,12 +40,10 @@ export default function HeroButtons() {
         <a href="/reviews" style={orangeBtn}>
           <span>⭐</span> Відгуки
         </a>
-        <button onClick={() => setChatOpen(true)} style={darkBtn}>
+        <a href="/chat" style={darkBtn}>
           <span>💬</span> Балачка
-        </button>
+        </a>
       </div>
-
-      <ChatModal isOpen={chatOpen} onClose={() => setChatOpen(false)} />
     </>
   );
 }
