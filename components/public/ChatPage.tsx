@@ -129,11 +129,6 @@ const PIXEL_GIFS = [
   "https://user-images.githubusercontent.com/74038190/212748849-5db6e93b-cc62-45c9-b4e5-c7e9b9e1f7c9.gif",
   "https://user-images.githubusercontent.com/74038190/212748852-6fdf54d0-e55c-4f88-9b13-2b8b9d3d5e7f.gif",
 ];
-const GIF_TABS = [
-  { key: "parrots", label: "🦜", data: PARROTS },
-  { key: "helpful", label: "🎭", data: HELPFUL_GIFS },
-  { key: "pixel",   label: "🎮", data: PIXEL_GIFS },
-] as const;
 
 // ── Badge by HP ───────────────────────────────────────────────────────────
 function getBadge(hp: number): string {
@@ -195,8 +190,7 @@ export default function ChatPage() {
   const [notification, setNotification] = useState<string | null>(null);
   const [showMvp, setShowMvp] = useState(false);
   const [players, setPlayers] = useState<{ id: number; firstName: string; lastName: string }[]>([]);
-  const [openPanel, setOpenPanel] = useState<"emoji" | "sticker" | "gif" | null>(null);
-  const [gifTab, setGifTab] = useState<"parrots" | "helpful" | "pixel">("parrots");
+  const [openPanel, setOpenPanel] = useState<"sticker" | "gif" | null>(null);
   const [uploading, setUploading] = useState(false);
   const esRef = useRef<EventSource | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -785,19 +779,6 @@ export default function ChatPage() {
       <div style={{ borderTop: "1px solid rgba(255,255,255,0.08)", background: "#1e2a4a", padding: "6px 10px", flexShrink: 0, position: "relative" }} ref={panelRef}>
 
         {/* Emoji panel → Helpful GIFs */}
-        {openPanel === "emoji" && (
-          <div style={{ position: "absolute", bottom: "100%", left: "10px", width: "320px", background: "#1e2a4a", border: "1px solid #f46f10", borderRadius: "12px", padding: "8px", maxHeight: "280px", overflowY: "auto", zIndex: 100 }} onClick={(e) => e.stopPropagation()}>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: "5px" }}>
-              {HELPFUL_GIFS.map((url) => (
-                <button key={url} onClick={() => sendSpecial(`[GIF:${url}]`)}
-                  style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.09)", borderRadius: "6px", cursor: "pointer", padding: "0", overflow: "hidden", width: 52, height: 52 }}>
-                  <img src={url} alt="gif" style={{ width: 52, height: 52, objectFit: "cover", display: "block" }} onError={(e) => { (e.currentTarget as HTMLImageElement).parentElement!.style.display = "none"; }} />
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
         {/* Sticker panel */}
         {openPanel === "sticker" && (
           <div style={{ position: "absolute", bottom: "100%", left: "10px", width: "300px", background: "#1e2a4a", border: "1px solid #f46f10", borderRadius: "12px", padding: "10px", maxHeight: "280px", overflowY: "auto", zIndex: 100 }} onClick={(e) => e.stopPropagation()}>
@@ -812,28 +793,16 @@ export default function ChatPage() {
           </div>
         )}
 
-        {/* GIF panel with tabs */}
+        {/* GIF panel — Parrots only */}
         {openPanel === "gif" && (
-          <div style={{ position: "absolute", bottom: "100%", left: "10px", width: "320px", background: "#1e2a4a", border: "1px solid #f46f10", borderRadius: "12px", zIndex: 100, overflow: "hidden" }} onClick={(e) => e.stopPropagation()}>
-            {/* Tab bar */}
-            <div style={{ display: "flex", borderBottom: "1px solid rgba(255,255,255,0.08)", padding: "6px 6px 0" }}>
-              {GIF_TABS.map((tab) => (
-                <button key={tab.key} onClick={() => setGifTab(tab.key)}
-                  style={{ flex: 1, padding: "5px 4px", border: "none", background: "none", cursor: "pointer", fontSize: "18px", borderBottom: gifTab === tab.key ? "2px solid #f46f10" : "2px solid transparent", opacity: gifTab === tab.key ? 1 : 0.5 }}>
-                  {tab.label}
+          <div style={{ position: "absolute", bottom: "100%", left: "10px", width: "320px", background: "#1e2a4a", border: "1px solid #f46f10", borderRadius: "12px", padding: "8px", maxHeight: "280px", overflowY: "auto", zIndex: 100 }} onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: "5px" }}>
+              {PARROTS.map((url) => (
+                <button key={url} onClick={() => sendSpecial(`[GIF:${url}]`)}
+                  style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.09)", borderRadius: "6px", cursor: "pointer", padding: "0", overflow: "hidden", width: 52, height: 52 }}>
+                  <img src={url} alt="parrot" style={{ width: 52, height: 52, objectFit: "cover", display: "block" }} onError={(e) => { (e.currentTarget as HTMLImageElement).parentElement!.style.display = "none"; }} />
                 </button>
               ))}
-            </div>
-            {/* GIF grid */}
-            <div style={{ padding: "8px", maxHeight: "240px", overflowY: "auto" }}>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: "5px" }}>
-                {GIF_TABS.find((t) => t.key === gifTab)!.data.map((url) => (
-                  <button key={url} onClick={() => sendSpecial(`[GIF:${url}]`)}
-                    style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.09)", borderRadius: "6px", cursor: "pointer", padding: "0", overflow: "hidden", width: 52, height: 52 }}>
-                    <img src={url} alt="gif" style={{ width: 52, height: 52, objectFit: "cover", display: "block" }} onError={(e) => { (e.currentTarget as HTMLImageElement).parentElement!.style.display = "none"; }} />
-                  </button>
-                ))}
-              </div>
             </div>
           </div>
         )}
@@ -843,7 +812,6 @@ export default function ChatPage() {
           {/* Panel icon buttons */}
           <input ref={fileRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handleImageUpload} />
           {([
-            { panel: "emoji" as const,   icon: "😊" },
             { panel: "sticker" as const, icon: "🎭" },
             { panel: "gif" as const,     icon: "🎬" },
           ]).map(({ panel, icon }) => (
