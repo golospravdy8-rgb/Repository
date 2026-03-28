@@ -42,7 +42,7 @@ export async function GET() {
   });
 }
 
-// ── POST — send message / reaction / pin / mod action ─────────────────────
+// ── POST ──────────────────────────────────────────────────────────────────
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
   if (!body || !body.action) return Response.json({ error: "action required" }, { status: 400 });
@@ -55,27 +55,43 @@ export async function POST(req: NextRequest) {
     if (!phone || !firstName || !lastName)
       return Response.json({ error: "Заповніть всі поля" }, { status: 400 });
 
-    // Check ban
     const ban = await prisma.chatBan.findUnique({ where: { phone } });
     if (ban) {
       if (!ban.bannedUntil || ban.bannedUntil > new Date()) {
-        return Response.json({
-          error: `Ви заблоковані${ban.reason ? ": " + ban.reason : ""}`,
-          banned: true,
-        }, { status: 403 });
+        return Response.json({ error: `Ви заблоковані${ban.reason ? ": " + ban.reason : ""}`, banned: true }, { status: 403 });
       }
       await prisma.chatBan.delete({ where: { phone } });
     }
 
+    // Check if phone belongs to a league player
+    const isLeaguePlayer = !!(await prisma.player.findFirst({
+      where: { OR: [{ firstName: { contains: firstName }, lastName: { contains: lastName } }] },
+    }).catch(() => null));
+
     const guest = await prisma.guestContact.upsert({
       where: { phone },
-      update: { firstName, lastName },
-      create: { phone, firstName, lastName, hp: 25 },
+      update: { firstName, lastName, ...(isLeaguePlayer ? { isLeaguePlayer: true } : {}) },
+      create: { phone, firstName, lastName, hp: 25, isLeaguePlayer },
     });
-    const isMod = !!(await prisma.chatModerator.findUnique({ where: { phone } }));
-    const warns = await prisma.chatWarn.count({ where: { phone } });
-    const pinned = await prisma.chatPinnedMessage.findFirst();
-    return Response.json({ ok: true, guest, isMod, warns, pinnedMessage: pinned?.text ?? null });
+
+    const [isMod, warns, pinned] = await Promise.all([
+      prisma.chatModerator.findUnique({ where: { phone } }),
+      prisma.chatWarn.count({ where: { phone } }),
+      prisma.chatPinnedMessage.findFirst(),
+    ]);
+
+    // Current month MVP vote
+    const month = new Date().toISOString().slice(0, 7);
+    const mvpVote = await prisma.chatMvpVote.findUnique({ where: { voterPhone_month: { voterPhone: phone, month } } }).catch(() => null);
+
+    return Response.json({
+      ok: true,
+      guest,
+      isMod: !!isMod,
+      warns,
+      pinnedMessage: pinned?.text ?? null,
+      mvpVote: mvpVote ? mvpVote.playerName : null,
+    });
   }
 
   // ── send message ─────────────────────────────────────────────────────────
@@ -84,7 +100,6 @@ export async function POST(req: NextRequest) {
     if (!phone || !name || !text?.trim())
       return Response.json({ error: "phone, name, text required" }, { status: 400 });
 
-    // Check ban / mute
     const ban = await prisma.chatBan.findUnique({ where: { phone } });
     if (ban && (!ban.bannedUntil || ban.bannedUntil > new Date()))
       return Response.json({ error: "Ви заблоковані" }, { status: 403 });
@@ -100,11 +115,22 @@ export async function POST(req: NextRequest) {
       include: { replyTo: true, reactions: true },
     });
 
-    // +1 HP for activity
-    await prisma.guestContact.updateMany({ where: { phone }, data: { hp: { increment: 1 } } });
+    // Daily first message bonus: +5 HP, else +1 HP
+    const today = new Date().toISOString().slice(0, 10);
+    let hpGained = 1;
+    try {
+      await prisma.chatDailyFirstMsg.create({ data: { phone, day: today } });
+      hpGained = 5; // first message of the day
+    } catch {
+      // already has a record for today → normal +1
+    }
+    const updated = await prisma.guestContact.updateMany({ where: { phone }, data: { hp: { increment: hpGained } } });
+    const newHp = updated.count > 0
+      ? (await prisma.guestContact.findUnique({ where: { phone }, select: { hp: true } }))?.hp ?? null
+      : null;
 
     broadcast({ type: "message", message: serializeMsg(msg, isMod) });
-    return Response.json({ ok: true });
+    return Response.json({ ok: true, hpGained, newHp });
   }
 
   // ── reaction ─────────────────────────────────────────────────────────────
@@ -121,10 +147,27 @@ export async function POST(req: NextRequest) {
     } else {
       await prisma.chatReaction.create({ data: { messageId: Number(messageId), phone, emoji } });
     }
-
     const reactions = await prisma.chatReaction.findMany({ where: { messageId: Number(messageId) } });
     broadcast({ type: "reactions", messageId: Number(messageId), reactions });
     return Response.json({ ok: true });
+  }
+
+  // ── MVP vote ──────────────────────────────────────────────────────────────
+  if (action === "mvp_vote") {
+    const { voterPhone, playerName } = body;
+    if (!voterPhone || !playerName)
+      return Response.json({ error: "voterPhone, playerName required" }, { status: 400 });
+
+    const month = new Date().toISOString().slice(0, 7);
+    try {
+      await prisma.chatMvpVote.create({ data: { voterPhone, playerName, month } });
+      broadcast({ type: "mvp_vote", voterPhone, playerName });
+      return Response.json({ ok: true, playerName });
+    } catch {
+      // unique constraint — already voted this month
+      const existing = await prisma.chatMvpVote.findUnique({ where: { voterPhone_month: { voterPhone, month } } });
+      return Response.json({ ok: false, alreadyVoted: true, playerName: existing?.playerName ?? "" });
+    }
   }
 
   // ── mod: pin ─────────────────────────────────────────────────────────────
@@ -212,8 +255,7 @@ export async function POST(req: NextRequest) {
 // ── Helpers ───────────────────────────────────────────────────────────────
 async function isModOrAdmin(phone: string): Promise<boolean> {
   if (!phone) return false;
-  const mod = await prisma.chatModerator.findUnique({ where: { phone } });
-  return !!mod;
+  return !!(await prisma.chatModerator.findUnique({ where: { phone } }));
 }
 
 function serializeMsg(msg: {

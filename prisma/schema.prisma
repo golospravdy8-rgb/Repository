@@ -150,13 +150,14 @@ model Review {
 }
 
 model GuestContact {
-  id        Int      @id @default(autoincrement())
-  phone     String   @unique
-  firstName String
-  lastName  String
-  refCode   String?
-  hp        Int      @default(25)
-  createdAt DateTime @default(now())
+  id             Int      @id @default(autoincrement())
+  phone          String   @unique
+  firstName      String
+  lastName       String
+  refCode        String?
+  hp             Int      @default(25)
+  isLeaguePlayer Boolean  @default(false)
+  createdAt      DateTime @default(now())
 }
 
 model MvpVote {
@@ -220,6 +221,25 @@ model ChatPinnedMessage {
   id        Int      @id @default(autoincrement())
   text      String
   updatedAt DateTime @updatedAt
+}
+
+model ChatMvpVote {
+  id          Int      @id @default(autoincrement())
+  voterPhone  String
+  playerName  String
+  month       String
+  createdAt   DateTime @default(now())
+
+  @@unique([voterPhone, month])
+}
+
+model ChatDailyFirstMsg {
+  id        Int      @id @default(autoincrement())
+  phone     String
+  day       String
+  createdAt DateTime @default(now())
+
+  @@unique([phone, day])
 }
 
 model ShopOrder {
