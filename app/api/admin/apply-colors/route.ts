@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { cookies } from "next/headers";
 import { setSettings } from "@/lib/site-settings";
 import { revalidatePath } from "next/cache";
 
@@ -41,8 +40,7 @@ const NEW_COLORS: Record<string, string> = {
 
 export async function GET(req: NextRequest) {
   const secret = req.nextUrl.searchParams.get("secret");
-  const cookieStore = await cookies();
-  const adminToken = cookieStore.get("admin_token")?.value;
+  const adminToken = req.cookies.get("admin_token")?.value;
   if (secret !== "ldbl_admin_2025" && adminToken !== "ldbl_admin_2025") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
