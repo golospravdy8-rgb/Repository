@@ -205,6 +205,7 @@ export default function ChatPage() {
   const [players, setPlayers] = useState<{ id: number; firstName: string; lastName: string }[]>([]);
   const [openPanel, setOpenPanel] = useState<"emoji" | "sticker" | "gif" | null>(null);
   const [gifTab, setGifTab] = useState<"parrots" | "anim" | "helpful" | "pixel">("parrots");
+  const [emojiGroup, setEmojiGroup] = useState<keyof typeof EMOJI_GROUPS>("Базові");
   const [uploading, setUploading] = useState(false);
   const esRef = useRef<EventSource | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -794,21 +795,29 @@ export default function ChatPage() {
 
         {/* Emoji panel */}
         {openPanel === "emoji" && (
-          <div style={{ position: "absolute", bottom: "100%", left: "10px", width: "300px", background: "#1e2a4a", border: "1px solid #f46f10", borderRadius: "12px", padding: "10px", maxHeight: "200px", overflowY: "auto", zIndex: 100 }} onClick={(e) => e.stopPropagation()}>
-            {Object.entries(EMOJI_GROUPS).map(([group, emojis]) => (
-              <div key={group} style={{ marginBottom: "8px" }}>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(8,1fr)", gap: "2px" }}>
-                  {emojis.map((em) => (
-                    <button key={em} onClick={() => { setInput((v) => v + em); setOpenPanel(null); inputRef.current?.focus(); }}
-                      style={{ background: "none", border: "none", cursor: "pointer", fontSize: "24px", padding: "2px", borderRadius: "5px", lineHeight: 1 }}
-                      onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(255,255,255,0.08)"; }}
-                      onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "none"; }}>
-                      {em}
-                    </button>
-                  ))}
-                </div>
+          <div style={{ position: "absolute", bottom: "100%", left: "10px", width: "300px", background: "#1e2a4a", border: "1px solid #f46f10", borderRadius: "12px", zIndex: 100, overflow: "hidden" }} onClick={(e) => e.stopPropagation()}>
+            {/* Group tabs */}
+            <div style={{ display: "flex", borderBottom: "1px solid rgba(255,255,255,0.08)", padding: "5px 5px 0" }}>
+              {(Object.keys(EMOJI_GROUPS) as Array<keyof typeof EMOJI_GROUPS>).map((g) => (
+                <button key={g} onClick={() => setEmojiGroup(g)}
+                  style={{ flex: 1, padding: "4px 2px", border: "none", background: "none", cursor: "pointer", fontSize: "11px", fontFamily: "Exo 2, sans-serif", color: emojiGroup === g ? "#f46f10" : "#64748b", borderBottom: emojiGroup === g ? "2px solid #f46f10" : "2px solid transparent", whiteSpace: "nowrap" }}>
+                  {g}
+                </button>
+              ))}
+            </div>
+            {/* Emoji grid */}
+            <div style={{ padding: "8px", maxHeight: "180px", overflowY: "auto" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(8,1fr)", gap: "2px" }}>
+                {EMOJI_GROUPS[emojiGroup].map((em) => (
+                  <button key={em} onClick={() => { setInput((v) => v + em); inputRef.current?.focus(); }}
+                    style={{ background: "none", border: "none", cursor: "pointer", fontSize: "24px", padding: "2px", borderRadius: "5px", lineHeight: 1 }}
+                    onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(255,255,255,0.08)"; }}
+                    onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "none"; }}>
+                    {em}
+                  </button>
+                ))}
               </div>
-            ))}
+            </div>
           </div>
         )}
 
