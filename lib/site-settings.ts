@@ -1,3 +1,4 @@
+import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/prisma";
 
 export const SETTINGS_TAG = "site-settings";
@@ -11,29 +12,47 @@ export async function getSetting(key: string, fallback = ""): Promise<string> {
   }
 }
 
+const _getSettingsFromDb = async (keys: string[]): Promise<Record<string, string>> => {
+  const rows = await prisma.siteSettings.findMany({
+    where: { key: { in: keys } },
+  });
+  const map: Record<string, string> = {};
+  for (const row of rows) {
+    map[row.key] = row.value;
+  }
+  return map;
+};
+
 export async function getSettings(keys: string[]): Promise<Record<string, string>> {
   try {
-    const rows = await prisma.siteSettings.findMany({
-      where: { key: { in: keys } },
-    });
-    const map: Record<string, string> = {};
-    for (const row of rows) {
-      map[row.key] = row.value;
-    }
-    return map;
+    const cached = unstable_cache(
+      () => _getSettingsFromDb(keys),
+      [SETTINGS_TAG, ...keys],
+      { tags: [SETTINGS_TAG] }
+    );
+    return await cached();
   } catch {
     return {};
   }
 }
 
+const _getAllSettingsFromDb = async (): Promise<Record<string, string>> => {
+  const rows = await prisma.siteSettings.findMany();
+  const map: Record<string, string> = {};
+  for (const row of rows) {
+    map[row.key] = row.value;
+  }
+  return map;
+};
+
 export async function getAllSettings(): Promise<Record<string, string>> {
   try {
-    const rows = await prisma.siteSettings.findMany();
-    const map: Record<string, string> = {};
-    for (const row of rows) {
-      map[row.key] = row.value;
-    }
-    return map;
+    const cached = unstable_cache(
+      () => _getAllSettingsFromDb(),
+      [SETTINGS_TAG, "all"],
+      { tags: [SETTINGS_TAG] }
+    );
+    return await cached();
   } catch {
     return {};
   }
