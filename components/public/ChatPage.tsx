@@ -94,6 +94,26 @@ const GIF_TABS = [
   { key: "anim",    label: "😊", data: ANIMATED_EMOJI },
 ] as const;
 
+// ── Animated Fluent Emojis (vercel.app) ───────────────────────────────────
+const ANIMATED_EMOJIS = [
+  { name: "Laptop",            url: "https://animated-fluent-emoji.vercel.app/assets/Laptop/laptop_animated.gif" },
+  { name: "Handshake",         url: "https://animated-fluent-emoji.vercel.app/assets/Handshake/handshake_animated.gif" },
+  { name: "Grinning Face",     url: "https://animated-fluent-emoji.vercel.app/assets/Grinning%20Face/grinning_face_animated.gif" },
+  { name: "Jack-O-Lantern",    url: "https://animated-fluent-emoji.vercel.app/assets/Jack-O-Lantern/jack-o-lantern_animated.gif" },
+  { name: "Doctor",            url: "https://animated-fluent-emoji.vercel.app/assets/Health%20Worker/health_worker_animated.gif" },
+  { name: "Basketball Player", url: "https://animated-fluent-emoji.vercel.app/assets/Person%20Bouncing%20Ball/person_bouncing_ball_animated.gif" },
+  { name: "Ghost",             url: "https://animated-fluent-emoji.vercel.app/assets/Ghost/ghost_animated.gif" },
+  { name: "Feather",           url: "https://animated-fluent-emoji.vercel.app/assets/Feather/feather_animated.gif" },
+  { name: "Guide Dog",         url: "https://animated-fluent-emoji.vercel.app/assets/Guide%20Dog/guide_dog_animated.gif" },
+  { name: "Shooting Star",     url: "https://animated-fluent-emoji.vercel.app/assets/Shooting%20Star/shooting_star_animated.gif" },
+  { name: "Fire",              url: "https://animated-fluent-emoji.vercel.app/assets/Fire/fire_animated.gif" },
+  { name: "Clock",             url: "https://animated-fluent-emoji.vercel.app/assets/Timer%20Clock/timer_clock_animated.gif" },
+  { name: "Email",             url: "https://animated-fluent-emoji.vercel.app/assets/E-Mail/e-mail_animated.gif" },
+  { name: "Target",            url: "https://animated-fluent-emoji.vercel.app/assets/Bullseye/bullseye_animated.gif" },
+  { name: "Face with Hand",    url: "https://animated-fluent-emoji.vercel.app/assets/Face%20with%20Open%20Eyes%20and%20Hand%20Over%20Mouth/face_with_open_eyes_and_hand_over_mouth_animated.gif" },
+  { name: "Sleepy Face",       url: "https://animated-fluent-emoji.vercel.app/assets/Sleepy%20Face/sleepy_face_animated.gif" },
+];
+
 // ── Badge by HP ───────────────────────────────────────────────────────────
 function getBadge(hp: number): string {
   if (hp >= 200) return "👑";
@@ -156,6 +176,7 @@ export default function ChatPage() {
   const [players, setPlayers] = useState<{ id: number; firstName: string; lastName: string }[]>([]);
   const [openPanel, setOpenPanel] = useState<"sticker" | "gif" | null>(null);
   const [gifTab, setGifTab] = useState<"parrots" | "anim">("parrots");
+  const [stickerTab, setStickerTab] = useState<"meme" | "animated">("meme");
   const [uploading, setUploading] = useState(false);
   const esRef = useRef<EventSource | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -744,16 +765,41 @@ export default function ChatPage() {
       <div style={{ borderTop: "1px solid rgba(255,255,255,0.08)", background: "#1e2a4a", padding: "6px 10px", flexShrink: 0, position: "relative" }} ref={panelRef}>
 
         {/* Emoji panel → Helpful GIFs */}
-        {/* Sticker panel */}
+        {/* Sticker panel — 😊 Meme + ✨ Animated */}
         {openPanel === "sticker" && (
-          <div style={{ position: "absolute", bottom: "100%", left: "10px", width: "300px", background: "#1e2a4a", border: "1px solid #f46f10", borderRadius: "12px", padding: "10px", maxHeight: "280px", overflowY: "auto", zIndex: 100 }} onClick={(e) => e.stopPropagation()}>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: "6px" }}>
-              {MEME_STICKERS.map((url) => (
-                <button key={url} onClick={() => sendSpecial(`[STICKER:${url}]`)}
-                  style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.09)", borderRadius: "8px", cursor: "pointer", padding: "3px", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <img src={url} alt="sticker" style={{ width: 56, height: 56, objectFit: "contain" }} onError={(e) => { (e.currentTarget as HTMLImageElement).parentElement!.style.display = "none"; }} />
+          <div style={{ position: "absolute", bottom: "100%", left: "10px", width: "320px", background: "#1e2a4a", border: "1px solid #f46f10", borderRadius: "12px", zIndex: 100, overflow: "hidden" }} onClick={(e) => e.stopPropagation()}>
+            {/* Tabs */}
+            <div style={{ display: "flex", gap: "6px", padding: "8px 8px 0" }}>
+              {([{ key: "meme", label: "😊 Звичайні" }, { key: "animated", label: "✨ Animated" }] as const).map((t) => (
+                <button key={t.key} onClick={() => setStickerTab(t.key)}
+                  style={{ padding: "4px 10px", borderRadius: "6px", border: stickerTab === t.key ? "none" : "1px solid #334", background: stickerTab === t.key ? "#f46f10" : "transparent", color: stickerTab === t.key ? "white" : "#aaa", cursor: "pointer", fontSize: "13px", fontFamily: "Exo 2, sans-serif" }}>
+                  {t.label}
                 </button>
               ))}
+            </div>
+            {/* Content */}
+            <div style={{ padding: "8px", maxHeight: "270px", overflowY: "auto" }}>
+              {stickerTab === "meme" ? (
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: "6px" }}>
+                  {MEME_STICKERS.map((url) => (
+                    <button key={url} onClick={() => sendSpecial(`[STICKER:${url}]`)}
+                      style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.09)", borderRadius: "8px", cursor: "pointer", padding: "3px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <img src={url} alt="sticker" style={{ width: 56, height: 56, objectFit: "contain" }} onError={(e) => { (e.currentTarget as HTMLImageElement).parentElement!.style.display = "none"; }} />
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: "6px" }}>
+                  {ANIMATED_EMOJIS.map((item) => (
+                    <button key={item.url} onClick={() => sendSpecial(`[GIF:${item.url}]`)}
+                      style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.09)", borderRadius: "8px", cursor: "pointer", padding: "3px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <img src={item.url} width={70} height={70} title={item.name}
+                        style={{ objectFit: "contain", display: "block" }}
+                        onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         )}
