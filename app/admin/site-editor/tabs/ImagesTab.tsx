@@ -38,25 +38,31 @@ function ImageUploadRow({
   const [uploading, setUploading] = useState(false);
   const [pending, startTransition] = useTransition();
   const [saved, setSaved] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    e.target.value = "";
+    setError(null);
     setUploading(true);
-    const fd = new FormData();
-    fd.append("file", file);
-    fd.append("type", config.type);
     try {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("type", config.type);
       const res = await fetch("/api/upload", { method: "POST", body: fd });
       const data = await res.json();
+      if (!res.ok || data.error) {
+        setError(data.error || `HTTP ${res.status}`);
+        return;
+      }
       if (data.url) {
         setUrl(data.url);
-        startTransition(async () => {
-          await updateSiteTexts({ [`images.${config.type}`]: data.url });
-          setSaved(true);
-          setTimeout(() => setSaved(false), 2000);
-        });
+        setSaved(true);
+        setTimeout(() => setSaved(false), 2000);
       }
+    } catch (err) {
+      setError(String(err));
     } finally {
       setUploading(false);
     }
@@ -71,6 +77,8 @@ function ImageUploadRow({
     });
   };
 
+  const isDataUrl = url.startsWith("data:");
+
   return (
     <div className="flex items-start gap-4 py-4 border-b last:border-0">
       <div className="flex-1">
@@ -78,22 +86,36 @@ function ImageUploadRow({
         <div className="text-xs text-gray-500 mt-0.5">{config.hint}</div>
         {url && (
           <div className="mt-2 flex items-center gap-2">
-            <span className="text-xs text-green-600 font-mono truncate max-w-xs">{url}</span>
+            <span className="text-xs text-green-600 font-mono">
+              {isDataUrl ? `[base64, ${Math.round(url.length / 1024)}KB]` : url}
+            </span>
             <button onClick={handleClear} disabled={pending} className="text-xs text-red-500 hover:text-red-700">
               Видалити
             </button>
           </div>
         )}
-        {saved && <div className="mt-1 text-xs text-green-600 font-medium">✓ Збережено та застосовано!</div>}
+        {error && <div className="mt-1 text-xs text-red-600 font-medium">⚠ {error}</div>}
+        {saved && <div className="mt-1 text-xs text-green-600 font-medium">✓ Збережено!</div>}
       </div>
       <div className="flex flex-col items-end gap-2">
         {url && config.type !== "ogImage" && (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={url} alt={config.label} className="w-16 h-16 object-cover rounded-lg border" />
+          <img
+            src={url}
+            alt={config.label}
+            className="w-16 h-16 object-contain rounded-lg border bg-gray-50"
+            onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+          />
         )}
         <label className="cursor-pointer px-4 py-2 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50">
           {uploading ? "Завантаження..." : pending ? "Зберігається..." : url ? "Змінити" : "Завантажити"}
-          <input type="file" accept="image/*" className="hidden" onChange={handleFileChange} disabled={uploading || pending} />
+          <input
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handleFileChange}
+            disabled={uploading || pending}
+          />
         </label>
       </div>
     </div>
