@@ -1,4 +1,4 @@
-# Chat — Express + Socket.io (не Next.js, тому простий Dockerfile)
+# Chat — Express + Socket.io
 FROM node:20-alpine
 
 WORKDIR /app
@@ -9,13 +9,14 @@ COPY package*.json ./
 RUN npm ci --omit=dev
 
 COPY src ./src
+COPY public ./public
 
-RUN chown -R appuser:appgroup /app
+RUN mkdir -p db && chown -R appuser:appgroup /app
 USER appuser
 
 EXPOSE 3011
 
 HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
-  CMD wget -qO- http://localhost:3011/health || exit 1
+  CMD wget -qO- http://localhost:${PORT:-3011}/health || exit 1
 
 CMD ["node", "src/server.js"]

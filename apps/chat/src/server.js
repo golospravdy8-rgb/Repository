@@ -8,12 +8,15 @@ const Database = require("better-sqlite3");
 
 const app = express();
 const server = http.createServer(app);
+const _corsOrigins = process.env.CORS_ORIGINS
+  ? process.env.CORS_ORIGINS.split(",")
+  : ["https://basketball.lviv.ua", "https://chat.basketball.lviv.ua", "https://repository-theta-ten.vercel.app"];
 const io = new Server(server, {
-  cors: { origin: process.env.CORS_ORIGINS ? process.env.CORS_ORIGINS.split(",") : ["https://basketball.lviv.ua", "https://chat.basketball.lviv.ua"], credentials: true },
+  cors: { origin: _corsOrigins, credentials: true },
   maxHttpBufferSize: 10 * 1024 * 1024,
 });
 
-const PORT = process.env.CHAT_PORT || 3011;
+const PORT = process.env.PORT || process.env.CHAT_PORT || 3011;
 const JWT_SECRET = process.env.JWT_SECRET || "ldbl_super_secret_2025";
 const MAIN_SITE = process.env.MAIN_SITE || "https://basketball.lviv.ua";
 
@@ -132,13 +135,11 @@ try {
 } catch {}
 
 const cors = require("cors");
-app.use(cors({
-  origin: process.env.CORS_ORIGINS ? process.env.CORS_ORIGINS.split(",") : ["https://basketball.lviv.ua", "https://chat.basketball.lviv.ua"],
-  credentials: true,
-}));
+app.use(cors({ origin: _corsOrigins, credentials: true }));
 app.use(cookieParser());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "../public")));
+app.get("/health", (_, res) => res.json({ status: "ok" }));
 
 // ── Helpers ──
 function genRefCode(phone) {
