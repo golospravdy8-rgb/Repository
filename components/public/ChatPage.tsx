@@ -94,29 +94,8 @@ const GIF_TABS = [
   { key: "anim",    label: "😊", data: ANIMATED_EMOJI },
 ] as const;
 
-// ── Animated Fluent Emojis (microsoft/fluentui-emoji) ─────────────────────
-const ANIMATED_EMOJIS = [
-  { name: "Laptop",            url: "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Laptop/Animated/laptop_animated.png" },
-  { name: "Handshake",         url: "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Handshake/Animated/handshake_animated.png" },
-  { name: "Grinning Face",     url: "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Grinning%20face/Animated/grinning_face_animated.png" },
-  { name: "Jack-O-Lantern",    url: "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Jack-o-lantern/Animated/jack-o-lantern_animated.png" },
-  { name: "Doctor",            url: "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Health%20worker/Animated/health_worker_animated.png" },
-  { name: "Basketball Player", url: "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Person%20bouncing%20ball/Animated/person_bouncing_ball_animated.png" },
-  { name: "Ghost",             url: "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Ghost/Animated/ghost_animated.png" },
-  { name: "Feather",           url: "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Feather/Animated/feather_animated.png" },
-  { name: "Shooting Star",     url: "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Shooting%20star/Animated/shooting_star_animated.png" },
-  { name: "Fire",              url: "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Fire/Animated/fire_animated.png" },
-  { name: "Timer Clock",       url: "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Timer%20clock/Animated/timer_clock_animated.png" },
-  { name: "Email",             url: "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/E-mail/Animated/e-mail_animated.png" },
-  { name: "Bullseye",          url: "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Bullseye/Animated/bullseye_animated.png" },
-  { name: "Sleepy Face",       url: "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Sleepy%20face/Animated/sleepy_face_animated.png" },
-  { name: "Trophy",            url: "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Trophy/Animated/trophy_animated.png" },
-  { name: "Soccer Ball",       url: "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Soccer%20ball/Animated/soccer_ball_animated.png" },
-  { name: "Party Popper",      url: "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Party%20popper/Animated/party_popper_animated.png" },
-  { name: "Thumbs Up",         url: "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Thumbs%20up/Animated/thumbs_up_animated.png" },
-  { name: "Clapping Hands",    url: "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Clapping%20hands/Animated/clapping_hands_animated.png" },
-  { name: "Star-Struck",       url: "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Star-struck/Animated/star-struck_animated.png" },
-];
+// ── Animated Fluent Emojis (Tarikul-Islam-Anik — same source as ANIMATED_EMOJI) ─
+const ANIMATED_EMOJIS = ANIMATED_EMOJI.map((url) => ({ url, name: "" }));
 
 // ── Badge by HP ───────────────────────────────────────────────────────────
 function getBadge(hp: number): string {
