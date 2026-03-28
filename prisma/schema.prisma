@@ -253,8 +253,51 @@ model ShopProduct {
   sizes        String?
   inStock      Boolean  @default(true)
   sortOrder    Int      @default(0)
-  showInChat   Boolean  @default(false)
+  showInChat   Boolean  @default(true)
   chatPriority Boolean  @default(false)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+}
+
+model MarketplaceListing {
+  id          Int      @id @default(autoincrement())
+  title       String
+  description String   @default("")
+  price       Int
+  category    String
+  condition   String
+  seller      String
+  phone       String
+  imageUrl    String?
+  emoji       String   @default("🏀")
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+}
+
+model AuctionItem {
+  id          Int          @id @default(autoincrement())
+  title       String
+  description String       @default("")
+  category    String
+  seller      String
+  phone       String
+  imageUrl    String?
+  emoji       String       @default("🏀")
+  startPrice  Int
+  currentBid  Int
+  minStep     Int          @default(50)
+  endsAt      DateTime
+  isActive    Boolean      @default(true)
+  createdAt   DateTime     @default(now())
+  bids        AuctionBid[]
+}
+
+model AuctionBid {
+  id        Int         @id @default(autoincrement())
+  amount    Int
+  bidder    String
+  phone     String      @default("")
+  auctionId Int
+  auction   AuctionItem @relation(fields: [auctionId], references: [id])
+  createdAt DateTime    @default(now())
 }

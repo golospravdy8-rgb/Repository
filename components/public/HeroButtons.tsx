@@ -22,16 +22,16 @@ export default function HeroButtons() {
   return (
     <>
       <div style={{ display: "flex", flexWrap: "wrap", gap: "10px", justifyContent: "center", marginTop: "8px" }}>
-        <a href="http://localhost:3007" style={orangeBtn}>
+        <a href="/marketplace" style={orangeBtn}>
           <span>🛒</span> Барахолка
         </a>
-        <a href="http://localhost:3008" style={orangeBtn}>
+        <a href="/courses" style={orangeBtn}>
           <span>🎓</span> Курси
         </a>
-        <a href="http://localhost:3009" style={orangeBtn}>
+        <a href="/shop" style={orangeBtn}>
           <span>🛍</span> Магазин
         </a>
-        <a href="http://localhost:3010" style={orangeBtn}>
+        <a href="/news" style={orangeBtn}>
           <span>📰</span> Новини
         </a>
         <a href="/media" style={orangeBtn}>
