@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useState, Suspense } from "react";
-import AuthButton from "@/components/public/AuthButton";
 import AgeGroupSwitcher from "@/components/public/AgeGroupSwitcher";
 import AdminButton from "@/components/public/AdminButton";
 
@@ -118,7 +117,6 @@ export default function Header({
                   <AgeGroupSwitcher orangeColor={orangeColor} />
                 </Suspense>
                 <AdminButton />
-                <AuthButton orangeColor={orangeColor} />
               </div>
             </nav>
           )}
