@@ -26,6 +26,12 @@ export default async function HomePage({ searchParams }: { searchParams: { ag?: 
       "colors.orange",
       "colors.text.heading",
       "colors.text.accent",
+      "colors.heroBg",
+      "colors.heroText",
+      "colors.heroButtonBg",
+      "colors.heroButtonText",
+      "colors.tableBg",
+      "colors.tableHeaderText",
       "images.heroBg",
       "home.showLive",
       "home.showStandings",
@@ -54,6 +60,12 @@ export default async function HomePage({ searchParams }: { searchParams: { ag?: 
   const navy = settings["colors.text.heading"] || settings["colors.navy"] || "#1a2744";
   const orange = settings["colors.text.accent"] || settings["colors.orange"] || "#f97316";
   const heroBg = settings["images.heroBg"] || "";
+  const heroBgColor = settings["colors.heroBg"] || navy;
+  const heroTextColor = settings["colors.heroText"] || "#ffffff";
+  const heroButtonBg = settings["colors.heroButtonBg"] || orange;
+  const heroButtonText = settings["colors.heroButtonText"] || "#ffffff";
+  const tableBg = settings["colors.tableBg"] || navy;
+  const tableHeaderText = settings["colors.tableHeaderText"] || "#ffffff";
   const showLive = settings["home.showLive"] !== "false";
   const showStandings = settings["home.showStandings"] !== "false";
   const showNews = settings["home.showNews"] !== "false";
@@ -83,12 +95,12 @@ export default async function HomePage({ searchParams }: { searchParams: { ag?: 
 
   const heroStyle: React.CSSProperties = heroBg
     ? { backgroundImage: `url(${heroBg})`, backgroundSize: "cover", backgroundPosition: "center" }
-    : { backgroundColor: navy };
+    : { backgroundColor: heroBgColor };
 
   return (
     <div>
       {/* Hero Banner */}
-      <section className="relative py-12 px-4 text-white overflow-hidden" style={heroStyle}>
+      <section className="relative py-12 px-4 overflow-hidden" style={{ ...heroStyle, color: heroTextColor }}>
         {!heroBg && (
           <div className="absolute inset-0 opacity-5">
             <div className="absolute top-10 left-10 w-40 h-40 border-4 border-white rounded-full"></div>
@@ -123,7 +135,7 @@ export default async function HomePage({ searchParams }: { searchParams: { ag?: 
               {settings["hero.ctaSecondary"] || "Таблиця змагань"}
             </Link>
           </div>
-          <HeroButtons />
+          <HeroButtons buttonBg={heroButtonBg} buttonText={heroButtonText} />
           <div className="mt-4 flex justify-center">
             <DonateButton
               cardNumber={settings["donate.cardNumber"] ?? ""}
@@ -193,7 +205,7 @@ export default async function HomePage({ searchParams }: { searchParams: { ag?: 
                 Повна таблиця →
               </Link>
             </div>
-            <StandingsTable limit={standingsLimit} ageGroup={ag} />
+            <StandingsTable limit={standingsLimit} ageGroup={ag} tableBg={tableBg} tableHeaderText={tableHeaderText} />
           </section>
         )}
 

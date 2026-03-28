@@ -1,6 +1,18 @@
 import { prisma } from "@/lib/prisma";
 
-export default async function StandingsTable({ limit, ageGroup }: { limit?: number; ageGroup?: string }) {
+interface StandingsTableProps {
+  limit?: number;
+  ageGroup?: string;
+  tableBg?: string;
+  tableHeaderText?: string;
+}
+
+export default async function StandingsTable({
+  limit,
+  ageGroup,
+  tableBg = "#1a2744",
+  tableHeaderText = "#ffffff",
+}: StandingsTableProps) {
   const ag = ageGroup || "younger";
   const season = await prisma.season.findFirst({ where: { isActive: true, ageGroup: ag } });
 
@@ -22,8 +34,8 @@ export default async function StandingsTable({ limit, ageGroup }: { limit?: numb
   return (
     <div className="bg-white rounded-xl shadow overflow-hidden">
       <div
-        className="px-4 py-2 text-white font-bold text-xs uppercase tracking-wider"
-        style={{ backgroundColor: "#1a2744" }}
+        className="px-4 py-2 text-xs font-bold uppercase tracking-wider"
+        style={{ backgroundColor: tableBg, color: tableHeaderText }}
       >
         Таблиця сезону {season.name}
       </div>
@@ -45,7 +57,7 @@ export default async function StandingsTable({ limit, ageGroup }: { limit?: numb
                 <td className="px-3 py-2 text-gray-500 font-medium">{i + 1}</td>
                 <td className="px-3 py-2 font-semibold text-gray-800">{s.team.name}</td>
                 <td className="px-3 py-2 text-center text-gray-600">{s.gamesPlayed}</td>
-                <td className="px-3 py-2 text-center font-bold" style={{ color: "#1a2744" }}>
+                <td className="px-3 py-2 text-center font-bold" style={{ color: tableBg }}>
                   {s.wins}
                 </td>
                 <td className="px-3 py-2 text-center text-gray-600">{s.losses}</td>

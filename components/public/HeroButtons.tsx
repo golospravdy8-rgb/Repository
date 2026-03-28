@@ -1,6 +1,11 @@
 "use client";
 
-export default function HeroButtons() {
+interface HeroButtonsProps {
+  buttonBg?: string;
+  buttonText?: string;
+}
+
+export default function HeroButtons({ buttonBg = "#f46f10", buttonText = "#ffffff" }: HeroButtonsProps) {
   const btnStyle = {
     display: "inline-flex",
     alignItems: "center",
@@ -14,30 +19,36 @@ export default function HeroButtons() {
     textDecoration: "none",
     transition: "opacity 0.2s",
     border: "none",
+    backgroundColor: buttonBg,
+    color: buttonText,
   } as React.CSSProperties;
 
-  const orangeBtn = { ...btnStyle, backgroundColor: "#f46f10", color: "white" } as React.CSSProperties;
-  const darkBtn = { ...btnStyle, backgroundColor: "#1e2a4a", color: "white", border: "2px solid #f46f10" } as React.CSSProperties;
+  const darkBtn = {
+    ...btnStyle,
+    backgroundColor: "#1e2a4a",
+    color: "#ffffff",
+    border: `2px solid ${buttonBg}`,
+  } as React.CSSProperties;
 
   return (
     <>
       <div style={{ display: "flex", flexWrap: "wrap", gap: "10px", justifyContent: "center", marginTop: "8px" }}>
-        <a href="/marketplace" style={orangeBtn}>
+        <a href="/marketplace" style={btnStyle}>
           <span>🛒</span> Барахолка
         </a>
-        <a href="/courses" style={orangeBtn}>
+        <a href="/courses" style={btnStyle}>
           <span>🎓</span> Курси
         </a>
-        <a href="/shop" style={orangeBtn}>
+        <a href="/shop" style={btnStyle}>
           <span>🛍</span> Магазин
         </a>
-        <a href="/news" style={orangeBtn}>
+        <a href="/news" style={btnStyle}>
           <span>📰</span> Новини
         </a>
-        <a href="/media" style={orangeBtn}>
+        <a href="/media" style={btnStyle}>
           <span>🎥</span> Медіа
         </a>
-        <a href="/reviews" style={orangeBtn}>
+        <a href="/reviews" style={btnStyle}>
           <span>⭐</span> Відгуки
         </a>
         <a href="/chat" style={darkBtn}>
