@@ -67,6 +67,37 @@ const ANIMATED_EMOJIS = [
   { name: "Rainbow",      url: "https://fonts.gstatic.com/s/e/notoemoji/latest/1f308/512.gif" },
 ];
 
+// ── Cool GIFs ─────────────────────────────────────────────────────────────
+const COOL_GIFS = [
+  "https://user-images.githubusercontent.com/74038190/238200426-29fd6286-4e7b-4d6c-818f-c4765d5e39a9.gif",
+  "https://user-images.githubusercontent.com/74038190/238200428-67f477ed-6624-42da-99f0-1a7b1a16eecb.gif",
+  "https://user-images.githubusercontent.com/74038190/238200430-a78a3b79-8d21-4f82-84d3-ecde66d7c6b5.gif",
+  "https://user-images.githubusercontent.com/74038190/238200431-b48a1301-d976-4f17-ac8e-6626e6b8fc6b.gif",
+  "https://user-images.githubusercontent.com/74038190/238200433-5b5fe855-b05e-4fa2-94bc-ed2413078e00.gif",
+  "https://user-images.githubusercontent.com/74038190/238200435-a4af2fb1-60a5-4d52-a9fc-aaae4c55f528.gif",
+  "https://user-images.githubusercontent.com/74038190/238200437-b8701960-9d70-4098-a5e0-54ff8d7c2ae2.gif",
+  "https://user-images.githubusercontent.com/74038190/238200439-b0a7e0c7-b0c4-4df5-8c95-ced82b99bc4a.gif",
+  "https://user-images.githubusercontent.com/74038190/238200441-7d2d3f42-3ffe-4bf4-8424-a0a6b2c48c41.gif",
+  "https://user-images.githubusercontent.com/74038190/238200443-25ef52c2-fcff-43c2-a11a-8cb3d9e7d7f3.gif",
+  "https://user-images.githubusercontent.com/74038190/238200445-adabdbb5-adad-4f8d-ae81-c7d8e8d15e5e.gif",
+  "https://user-images.githubusercontent.com/74038190/238200447-5d9dbfe3-0b2a-4e55-a7ac-31f43c9b5e7f.gif",
+  "https://user-images.githubusercontent.com/74038190/238200449-8c6e6f49-7e76-4f55-9af8-f6e754a9c2e0.gif",
+  "https://user-images.githubusercontent.com/74038190/238200451-8ca14ef9-1523-47ed-a2d5-fd76fab47ede.gif",
+  "https://user-images.githubusercontent.com/74038190/238200453-c82fb3d8-3936-4f5b-b29d-66fa6c0d2b62.gif",
+  "https://user-images.githubusercontent.com/74038190/238200455-eb27c24c-6d3a-4b4f-a6f3-c6e5f15e1c52.gif",
+  "https://user-images.githubusercontent.com/74038190/238200457-c3b6e59c-a3f6-41b2-9b0d-4f0d7a4b59b9.gif",
+  "https://user-images.githubusercontent.com/74038190/238200459-8a6c40e1-c16d-4f24-97c0-50e0e8c95745.gif",
+  "https://user-images.githubusercontent.com/74038190/238200461-16bb02ba-5c08-4c7e-b0da-c40d1c80e18e.gif",
+  "https://user-images.githubusercontent.com/74038190/238200463-a65e1088-8f47-4dc7-b51d-3be39b49f1e6.gif",
+  "https://user-images.githubusercontent.com/74038190/238200465-e1c8b0da-19fa-4acb-b20c-fa1e3de40b88.gif",
+  "https://user-images.githubusercontent.com/74038190/238200467-8e62285a-9d86-4282-aba3-14a69d1a0cd5.gif",
+  "https://user-images.githubusercontent.com/74038190/238200469-c5e0d3be-f2a9-4c1b-a53f-9e47c01b7f21.gif",
+  "https://user-images.githubusercontent.com/74038190/238200471-e3b0c2fe-3a73-41f2-b777-2c6e5cfe00c9.gif",
+  "https://user-images.githubusercontent.com/74038190/238200474-23de4e47-0e24-4b8a-bde3-53af9a9c3286.gif",
+  "https://user-images.githubusercontent.com/74038190/238200476-d37b1c4c-7f38-42cf-97e7-a6aae4e15e47.gif",
+  "https://user-images.githubusercontent.com/74038190/238200478-05d07fce-9459-4b15-8b44-0b11e5d23dbc.gif",
+];
+
 // ── Badge by HP ───────────────────────────────────────────────────────────
 function getBadge(hp: number): string {
   if (hp >= 200) return "👑";
@@ -128,7 +159,7 @@ export default function ChatPage() {
   const [showMvp, setShowMvp] = useState(false);
   const [players, setPlayers] = useState<{ id: number; firstName: string; lastName: string }[]>([]);
   const [openPanel, setOpenPanel] = useState<"sticker" | "gif" | null>(null);
-  const [stickerTab, setStickerTab] = useState<"meme" | "animated">("meme");
+  const [stickerTab, setStickerTab] = useState<"meme" | "animated" | "cool">("meme");
   const [uploading, setUploading] = useState(false);
   const esRef = useRef<EventSource | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -716,13 +747,12 @@ export default function ChatPage() {
       {/* ── Input bar ─────────────────────────────────────────────────────── */}
       <div style={{ borderTop: "1px solid rgba(255,255,255,0.08)", background: "#1e2a4a", padding: "6px 10px", flexShrink: 0, position: "relative" }} ref={panelRef}>
 
-        {/* Emoji panel → Helpful GIFs */}
-        {/* Sticker panel — 😊 Meme + ✨ Animated */}
+        {/* Sticker panel — 😊 Meme + ✨ Animated + 🎭 Cool */}
         {openPanel === "sticker" && (
           <div style={{ position: "absolute", bottom: "100%", left: "10px", width: "320px", background: "#1e2a4a", border: "1px solid #f46f10", borderRadius: "12px", zIndex: 100, overflow: "hidden" }} onClick={(e) => e.stopPropagation()}>
             {/* Tabs */}
             <div style={{ display: "flex", gap: "6px", padding: "8px 8px 0" }}>
-              {([{ key: "meme", label: "😊 Звичайні" }, { key: "animated", label: "✨ Animated" }] as const).map((t) => (
+              {([{ key: "meme", label: "😊 Звичайні" }, { key: "animated", label: "✨ Animated" }, { key: "cool", label: "🎭 Cool" }] as const).map((t) => (
                 <button key={t.key} onClick={() => setStickerTab(t.key)}
                   style={{ padding: "4px 10px", borderRadius: "6px", border: stickerTab === t.key ? "none" : "1px solid #334", background: stickerTab === t.key ? "#f46f10" : "transparent", color: stickerTab === t.key ? "white" : "#aaa", cursor: "pointer", fontSize: "13px", fontFamily: "Exo 2, sans-serif" }}>
                   {t.label}
@@ -740,13 +770,22 @@ export default function ChatPage() {
                     </button>
                   ))}
                 </div>
-              ) : (
+              ) : stickerTab === "animated" ? (
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: "6px" }}>
                   {ANIMATED_EMOJIS.map((item) => (
                     <button key={item.url} onClick={() => sendSpecial(`[GIF:${item.url}]`)}
                       style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.09)", borderRadius: "8px", cursor: "pointer", padding: "3px", display: "flex", alignItems: "center", justifyContent: "center" }}>
                       <img src={item.url} width={64} height={64} title={item.name}
                         style={{ objectFit: "contain", display: "block" }} />
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: "6px" }}>
+                  {COOL_GIFS.map((url) => (
+                    <button key={url} onClick={() => sendSpecial(`[GIF:${url}]`)}
+                      style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.09)", borderRadius: "8px", cursor: "pointer", padding: "0", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <img src={url} alt="gif" style={{ width: 64, height: 64, objectFit: "cover", display: "block" }} onError={(e) => { (e.currentTarget as HTMLImageElement).parentElement!.style.display = "none"; }} />
                     </button>
                   ))}
                 </div>
