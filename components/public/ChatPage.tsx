@@ -5,13 +5,6 @@ import { useState, useEffect, useRef, useCallback } from "react";
 const LS_KEY = "ldbl_chat_user";
 const EMOJIS = ["👍", "❤️", "😂", "😮", "🔥", "🏀"];
 
-// ── Emoji groups ──────────────────────────────────────────────────────────
-const EMOJI_GROUPS = {
-  "Базові":  ["😀","😂","😍","🤩","😎","😭","🤣","😤","🥳","🤔","😴","🥺","😅","🤗","😏"],
-  "Жести":   ["👍","👎","👏","🙌","🤝","💪","🙏","👋","🤙","☝️"],
-  "Серця":   ["❤️","🧡","💛","💚","💙","💜","🖤","🤍","💕","💯"],
-  "Спорт":   ["🏀","🏆","⛹️","🥇","🎯","🔥","⚡","👟","🧢","🎉"],
-};
 
 // ── Stickers (pavanpatil45/Classic-Meme-Stickers) ─────────────────────────
 const STICKER_BASE = "https://raw.githubusercontent.com/pavanpatil45/Classic-Meme-Stickers/main/app/src/main/assets";
@@ -205,7 +198,6 @@ export default function ChatPage() {
   const [players, setPlayers] = useState<{ id: number; firstName: string; lastName: string }[]>([]);
   const [openPanel, setOpenPanel] = useState<"emoji" | "sticker" | "gif" | null>(null);
   const [gifTab, setGifTab] = useState<"parrots" | "anim" | "helpful" | "pixel">("parrots");
-  const [emojiGroup, setEmojiGroup] = useState<keyof typeof EMOJI_GROUPS>("Базові");
   const [uploading, setUploading] = useState(false);
   const esRef = useRef<EventSource | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -793,30 +785,16 @@ export default function ChatPage() {
       {/* ── Input bar ─────────────────────────────────────────────────────── */}
       <div style={{ borderTop: "1px solid rgba(255,255,255,0.08)", background: "#1e2a4a", padding: "6px 10px", flexShrink: 0, position: "relative" }} ref={panelRef}>
 
-        {/* Emoji panel */}
+        {/* Emoji panel → Helpful GIFs */}
         {openPanel === "emoji" && (
-          <div style={{ position: "absolute", bottom: "100%", left: "10px", width: "300px", background: "#1e2a4a", border: "1px solid #f46f10", borderRadius: "12px", zIndex: 100, overflow: "hidden" }} onClick={(e) => e.stopPropagation()}>
-            {/* Group tabs */}
-            <div style={{ display: "flex", borderBottom: "1px solid rgba(255,255,255,0.08)", padding: "5px 5px 0" }}>
-              {(Object.keys(EMOJI_GROUPS) as Array<keyof typeof EMOJI_GROUPS>).map((g) => (
-                <button key={g} onClick={() => setEmojiGroup(g)}
-                  style={{ flex: 1, padding: "4px 2px", border: "none", background: "none", cursor: "pointer", fontSize: "11px", fontFamily: "Exo 2, sans-serif", color: emojiGroup === g ? "#f46f10" : "#64748b", borderBottom: emojiGroup === g ? "2px solid #f46f10" : "2px solid transparent", whiteSpace: "nowrap" }}>
-                  {g}
+          <div style={{ position: "absolute", bottom: "100%", left: "10px", width: "320px", background: "#1e2a4a", border: "1px solid #f46f10", borderRadius: "12px", padding: "8px", maxHeight: "280px", overflowY: "auto", zIndex: 100 }} onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: "5px" }}>
+              {HELPFUL_GIFS.map((url) => (
+                <button key={url} onClick={() => sendSpecial(`[GIF:${url}]`)}
+                  style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.09)", borderRadius: "6px", cursor: "pointer", padding: "0", overflow: "hidden", width: 52, height: 52 }}>
+                  <img src={url} alt="gif" style={{ width: 52, height: 52, objectFit: "cover", display: "block" }} onError={(e) => { (e.currentTarget as HTMLImageElement).parentElement!.style.display = "none"; }} />
                 </button>
               ))}
-            </div>
-            {/* Emoji grid */}
-            <div style={{ padding: "8px", maxHeight: "180px", overflowY: "auto" }}>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(8,1fr)", gap: "2px" }}>
-                {EMOJI_GROUPS[emojiGroup].map((em) => (
-                  <button key={em} onClick={() => { setInput((v) => v + em); inputRef.current?.focus(); }}
-                    style={{ background: "none", border: "none", cursor: "pointer", fontSize: "24px", padding: "2px", borderRadius: "5px", lineHeight: 1 }}
-                    onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(255,255,255,0.08)"; }}
-                    onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "none"; }}>
-                    {em}
-                  </button>
-                ))}
-              </div>
             </div>
           </div>
         )}
