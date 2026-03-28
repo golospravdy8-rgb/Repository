@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { writeFile, mkdir } from "fs/promises";
-import path from "path";
 import { setSettings } from "@/lib/site-settings";
-import { revalidateTag } from "next/cache";
-import { SETTINGS_TAG } from "@/lib/site-settings";
+import { revalidatePath } from "next/cache";
+
+const VALID_IMAGE_TYPES = ["logo", "ogImage", "heroBg", "headerBg", "footerBg", "pageBg"];
+const MAX_SIZE_BYTES = 512 * 1024; // 512KB limit for DB storage
 
 export async function POST(req: NextRequest) {
   const session = await auth();
@@ -23,21 +23,20 @@ export async function POST(req: NextRequest) {
   const bytes = await file.arrayBuffer();
   const buffer = Buffer.from(bytes);
 
-  const ext = file.name.split(".").pop() ?? "bin";
-  const filename = `${type}-${Date.now()}.${ext}`;
-  const uploadsDir = path.join(process.cwd(), "public", "uploads");
-
-  await mkdir(uploadsDir, { recursive: true });
-  await writeFile(path.join(uploadsDir, filename), buffer);
-
-  const url = `/uploads/${filename}`;
-
-  // Persist URL to SiteSettings so the homepage and other pages pick it up
-  const validImageTypes = ["logo", "ogImage", "heroBg", "headerBg", "footerBg", "pageBg"];
-  if (validImageTypes.includes(type)) {
-    await setSettings({ [`images.${type}`]: url });
-    revalidateTag(SETTINGS_TAG);
+  if (buffer.length > MAX_SIZE_BYTES) {
+    return NextResponse.json(
+      { error: `Файл занадто великий. Максимум ${MAX_SIZE_BYTES / 1024}KB.` },
+      { status: 400 }
+    );
   }
 
-  return NextResponse.json({ url });
+  const mimeType = file.type || "image/jpeg";
+  const dataUrl = `data:${mimeType};base64,${buffer.toString("base64")}`;
+
+  if (VALID_IMAGE_TYPES.includes(type)) {
+    await setSettings({ [`images.${type}`]: dataUrl });
+    revalidatePath("/", "layout");
+  }
+
+  return NextResponse.json({ url: dataUrl });
 }
