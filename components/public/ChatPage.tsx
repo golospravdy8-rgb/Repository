@@ -367,6 +367,12 @@ export default function ChatPage() {
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
           <span style={{ fontSize: "20px" }}>💬</span>
           <span style={{ fontWeight: 800, fontSize: "18px" }}>Балачка</span>
+          <button
+            onClick={() => setShowMvp(true)}
+            style={{ background: "#f46f10", color: "white", border: "none", borderRadius: "8px", padding: "4px 12px", fontSize: "13px", cursor: "pointer", fontWeight: 700, fontFamily: "Exo 2, sans-serif" }}
+          >
+            🏆 MVP
+          </button>
           {user!.isMod && (
             <span style={{ background: "#f46f10", color: "white", fontSize: "10px", fontWeight: 700, padding: "2px 7px", borderRadius: "99px" }}>МОД</span>
           )}
@@ -571,14 +577,6 @@ export default function ChatPage() {
 
       {/* ── Input bar ─────────────────────────────────────────────────────── */}
       <form onSubmit={handleSend} style={{ borderTop: "1px solid rgba(255,255,255,0.08)", background: "#1e2a4a", padding: "10px 16px", flexShrink: 0, display: "flex", gap: "8px", alignItems: "center" }}>
-        <button
-          type="button"
-          onClick={() => setShowMvp(true)}
-          title="Голосування MVP"
-          style={{ padding: "9px 10px", background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.09)", borderRadius: "10px", cursor: "pointer", fontSize: "16px", flexShrink: 0, color: user!.mvpVote ? "#f46f10" : "white" }}
-        >
-          🏆
-        </button>
         <input
           ref={inputRef}
           value={input}
