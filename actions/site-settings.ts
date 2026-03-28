@@ -1,9 +1,9 @@
 "use server";
 
-import { revalidateTag } from "next/cache";
+import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
 import { cookies } from "next/headers";
-import { setSettings, SETTINGS_TAG } from "@/lib/site-settings";
+import { setSettings } from "@/lib/site-settings";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 
@@ -20,37 +20,37 @@ async function requireAuth() {
 export async function updateSiteTexts(data: Record<string, string>) {
   await requireAuth();
   await setSettings(data);
-  revalidateTag(SETTINGS_TAG);
+  revalidatePath("/", "layout");
 }
 
 export async function updateSiteColors(data: Record<string, string>) {
   await requireAuth();
   await setSettings(data);
-  revalidateTag(SETTINGS_TAG);
+  revalidatePath("/", "layout");
 }
 
 export async function updateNavigation(items: Array<{ href: string; label: string; visible: boolean }>) {
   await requireAuth();
   await setSettings({ "nav.items": JSON.stringify(items) });
-  revalidateTag(SETTINGS_TAG);
+  revalidatePath("/", "layout");
 }
 
 export async function updateHomeWidgets(data: Record<string, string>) {
   await requireAuth();
   await setSettings(data);
-  revalidateTag(SETTINGS_TAG);
+  revalidatePath("/", "layout");
 }
 
 export async function updateHeaderSettings(data: Record<string, string>) {
   await requireAuth();
   await setSettings(data);
-  revalidateTag(SETTINGS_TAG);
+  revalidatePath("/", "layout");
 }
 
 export async function updateFooterSettings(data: Record<string, string>) {
   await requireAuth();
   await setSettings(data);
-  revalidateTag(SETTINGS_TAG);
+  revalidatePath("/", "layout");
 }
 
 export async function uploadSiteImage(
@@ -74,7 +74,7 @@ export async function uploadSiteImage(
 
   const url = `/uploads/${filename}`;
   await setSettings({ [`images.${type}`]: url });
-  revalidateTag(SETTINGS_TAG);
+  revalidatePath("/", "layout");
 
   return { url };
 }
