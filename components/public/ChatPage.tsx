@@ -526,6 +526,7 @@ export default function ChatPage() {
       {/* ── Header ─────────────────────────────────────────────────────── */}
       <header style={{ background: "#1e2a4a", borderBottom: "1px solid rgba(255,255,255,0.08)", padding: "10px 16px", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <a href="/" style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 32, height: 32, borderRadius: 8, background: "rgba(255,255,255,0.08)", color: "white", textDecoration: "none", fontSize: 16, flexShrink: 0 }} title="На головну">←</a>
           <span style={{ fontSize: "20px" }}>💬</span>
           <span style={{ fontWeight: 800, fontSize: "18px" }}>Балачка</span>
           <button
