@@ -94,24 +94,28 @@ const GIF_TABS = [
   { key: "anim",    label: "😊", data: ANIMATED_EMOJI },
 ] as const;
 
-// ── Animated Fluent Emojis (vercel.app) ───────────────────────────────────
+// ── Animated Fluent Emojis (microsoft/fluentui-emoji) ─────────────────────
 const ANIMATED_EMOJIS = [
-  { name: "Laptop",            url: "https://animated-fluent-emoji.vercel.app/assets/Laptop/laptop_animated.gif" },
-  { name: "Handshake",         url: "https://animated-fluent-emoji.vercel.app/assets/Handshake/handshake_animated.gif" },
-  { name: "Grinning Face",     url: "https://animated-fluent-emoji.vercel.app/assets/Grinning%20Face/grinning_face_animated.gif" },
-  { name: "Jack-O-Lantern",    url: "https://animated-fluent-emoji.vercel.app/assets/Jack-O-Lantern/jack-o-lantern_animated.gif" },
-  { name: "Doctor",            url: "https://animated-fluent-emoji.vercel.app/assets/Health%20Worker/health_worker_animated.gif" },
-  { name: "Basketball Player", url: "https://animated-fluent-emoji.vercel.app/assets/Person%20Bouncing%20Ball/person_bouncing_ball_animated.gif" },
-  { name: "Ghost",             url: "https://animated-fluent-emoji.vercel.app/assets/Ghost/ghost_animated.gif" },
-  { name: "Feather",           url: "https://animated-fluent-emoji.vercel.app/assets/Feather/feather_animated.gif" },
-  { name: "Guide Dog",         url: "https://animated-fluent-emoji.vercel.app/assets/Guide%20Dog/guide_dog_animated.gif" },
-  { name: "Shooting Star",     url: "https://animated-fluent-emoji.vercel.app/assets/Shooting%20Star/shooting_star_animated.gif" },
-  { name: "Fire",              url: "https://animated-fluent-emoji.vercel.app/assets/Fire/fire_animated.gif" },
-  { name: "Clock",             url: "https://animated-fluent-emoji.vercel.app/assets/Timer%20Clock/timer_clock_animated.gif" },
-  { name: "Email",             url: "https://animated-fluent-emoji.vercel.app/assets/E-Mail/e-mail_animated.gif" },
-  { name: "Target",            url: "https://animated-fluent-emoji.vercel.app/assets/Bullseye/bullseye_animated.gif" },
-  { name: "Face with Hand",    url: "https://animated-fluent-emoji.vercel.app/assets/Face%20with%20Open%20Eyes%20and%20Hand%20Over%20Mouth/face_with_open_eyes_and_hand_over_mouth_animated.gif" },
-  { name: "Sleepy Face",       url: "https://animated-fluent-emoji.vercel.app/assets/Sleepy%20Face/sleepy_face_animated.gif" },
+  { name: "Laptop",            url: "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Laptop/Animated/laptop_animated.png" },
+  { name: "Handshake",         url: "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Handshake/Animated/handshake_animated.png" },
+  { name: "Grinning Face",     url: "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Grinning%20face/Animated/grinning_face_animated.png" },
+  { name: "Jack-O-Lantern",    url: "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Jack-o-lantern/Animated/jack-o-lantern_animated.png" },
+  { name: "Doctor",            url: "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Health%20worker/Animated/health_worker_animated.png" },
+  { name: "Basketball Player", url: "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Person%20bouncing%20ball/Animated/person_bouncing_ball_animated.png" },
+  { name: "Ghost",             url: "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Ghost/Animated/ghost_animated.png" },
+  { name: "Feather",           url: "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Feather/Animated/feather_animated.png" },
+  { name: "Shooting Star",     url: "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Shooting%20star/Animated/shooting_star_animated.png" },
+  { name: "Fire",              url: "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Fire/Animated/fire_animated.png" },
+  { name: "Timer Clock",       url: "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Timer%20clock/Animated/timer_clock_animated.png" },
+  { name: "Email",             url: "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/E-mail/Animated/e-mail_animated.png" },
+  { name: "Bullseye",          url: "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Bullseye/Animated/bullseye_animated.png" },
+  { name: "Sleepy Face",       url: "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Sleepy%20face/Animated/sleepy_face_animated.png" },
+  { name: "Trophy",            url: "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Trophy/Animated/trophy_animated.png" },
+  { name: "Soccer Ball",       url: "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Soccer%20ball/Animated/soccer_ball_animated.png" },
+  { name: "Party Popper",      url: "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Party%20popper/Animated/party_popper_animated.png" },
+  { name: "Thumbs Up",         url: "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Thumbs%20up/Animated/thumbs_up_animated.png" },
+  { name: "Clapping Hands",    url: "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Clapping%20hands/Animated/clapping_hands_animated.png" },
+  { name: "Star-Struck",       url: "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Star-struck/Animated/star-struck_animated.png" },
 ];
 
 // ── Badge by HP ───────────────────────────────────────────────────────────
@@ -642,11 +646,11 @@ export default function ChatPage() {
                   onContextMenu={(e) => { e.preventDefault(); setContextMenu({ msgId: msg.id, x: e.clientX, y: e.clientY }); }}
                 >
                   {msg.text.startsWith("[STICKER:") ? (
-                    <img src={msg.text.slice(9, -1)} alt="sticker" style={{ width: 80, height: 80, objectFit: "contain", display: "block", borderRadius: "8px" }} />
+                    <img src={msg.text.slice(9, -1)} alt="sticker" style={{ width: 100, height: 100, objectFit: "contain", display: "block", borderRadius: "8px" }} onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
                   ) : msg.text.startsWith("[IMAGE:") ? (
                     <img src={msg.text.slice(7, -1)} alt="photo" style={{ maxWidth: 220, maxHeight: 220, borderRadius: "10px", display: "block", objectFit: "cover" }} />
                   ) : msg.text.startsWith("[GIF:") ? (
-                    <img src={msg.text.slice(5, -1)} alt="gif" style={{ maxWidth: 220, maxHeight: 160, borderRadius: "10px", display: "block" }} onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
+                    <img src={msg.text.slice(5, -1)} alt="gif" style={{ maxWidth: 120, maxHeight: 120, borderRadius: "10px", display: "block" }} onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
                   ) : msg.text}
                 </div>
                 {/* Quick actions (hover) */}
