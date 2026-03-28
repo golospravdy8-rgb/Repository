@@ -2,11 +2,17 @@
 
 import { revalidateTag } from "next/cache";
 import { auth } from "@/lib/auth";
+import { cookies } from "next/headers";
 import { setSettings, SETTINGS_TAG } from "@/lib/site-settings";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 
 async function requireAuth() {
+  // Accept simple admin_token cookie (new auth)
+  const cookieStore = await cookies();
+  const adminToken = cookieStore.get("admin_token")?.value;
+  if (adminToken === "ldbl_admin_2025") return;
+  // Fall back to NextAuth JWT session (legacy)
   const session = await auth();
   if (!session) throw new Error("Unauthorized");
 }
