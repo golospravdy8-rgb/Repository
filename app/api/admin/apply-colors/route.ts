@@ -39,13 +39,18 @@ const NEW_COLORS: Record<string, string> = {
   "colors.bg":              "#f8fafc",
 };
 
-export async function POST(req: NextRequest) {
+export async function GET(req: NextRequest) {
+  const secret = req.nextUrl.searchParams.get("secret");
   const cookieStore = await cookies();
   const adminToken = cookieStore.get("admin_token")?.value;
-  if (adminToken !== "ldbl_admin_2025") {
+  if (secret !== "ldbl_admin_2025" && adminToken !== "ldbl_admin_2025") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   await setSettings(NEW_COLORS);
   revalidatePath("/", "layout");
   return NextResponse.json({ ok: true, applied: Object.keys(NEW_COLORS).length });
+}
+
+export async function POST(req: NextRequest) {
+  return GET(req);
 }
