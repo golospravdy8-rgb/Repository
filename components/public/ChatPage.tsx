@@ -42,57 +42,6 @@ const PARROTS = [
   "https://cultofthepartyparrot.com/parrots/hd/mustacheparrot.gif",
   "https://cultofthepartyparrot.com/parrots/hd/scienceparrot.gif",
 ];
-// Animated Fluent Emojis — github.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis (APNG)
-const R = "https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis";
-const ANIMATED_EMOJI = [
-  // Smilies
-  `${R}/Smilies/Beaming%20Face%20with%20Smiling%20Eyes.png`,
-  `${R}/Smilies/Face%20with%20Tears%20of%20Joy.png`,
-  `${R}/Smilies/Grinning%20Face%20with%20Smiling%20Eyes.png`,
-  `${R}/Smilies/Smiling%20Face%20with%20Sunglasses.png`,
-  `${R}/Smilies/Star-Struck.png`,
-  `${R}/Smilies/Hugging%20Face.png`,
-  `${R}/Smilies/Winking%20Face.png`,
-  `${R}/Smilies/Face%20with%20Rolling%20Eyes.png`,
-  `${R}/Smilies/Cowboy%20Hat%20Face.png`,
-  `${R}/Smilies/Clown%20Face.png`,
-  `${R}/Smilies/Exploding%20Head.png`,
-  `${R}/Smilies/Crying%20Face.png`,
-  `${R}/Smilies/Loudly%20Crying%20Face.png`,
-  `${R}/Smilies/Angry%20Face%20with%20Horns.png`,
-  `${R}/Smilies/Ghost.png`,
-  `${R}/Smilies/Alien.png`,
-  `${R}/Smilies/Hundred%20Points.png`,
-  `${R}/Smilies/Red%20Heart.png`,
-  `${R}/Smilies/Heart%20on%20Fire.png`,
-  `${R}/Smilies/Sparkling%20Heart.png`,
-  // Hand gestures
-  `${R}/Hand%20gestures/Thumbs%20Up.png`,
-  `${R}/Hand%20gestures/Thumbs%20Down.png`,
-  `${R}/Hand%20gestures/Clapping%20Hands.png`,
-  `${R}/Hand%20gestures/Raising%20Hands.png`,
-  `${R}/Hand%20gestures/Flexed%20Biceps.png`,
-  `${R}/Hand%20gestures/Folded%20Hands.png`,
-  `${R}/Hand%20gestures/Waving%20Hand.png`,
-  `${R}/Hand%20gestures/OK%20Hand.png`,
-  // Activities & Objects
-  `${R}/Activities/Trophy.png`,
-  `${R}/Activities/Party%20Popper.png`,
-  `${R}/Activities/Basketball.png`,
-  `${R}/Activities/1st%20Place%20Medal.png`,
-  `${R}/Activities/Bullseye.png`,
-  `${R}/Activities/Sparkles.png`,
-  `${R}/Objects/Crown.png`,
-  `${R}/Objects/Gem%20Stone.png`,
-  `${R}/Objects/Fire%20Extinguisher.png`,
-  `${R}/Travel%20and%20places/Rocket.png`,
-  `${R}/Travel%20and%20places/Fire.png`,
-  `${R}/Travel%20and%20places/Rainbow.png`,
-];
-const GIF_TABS = [
-  { key: "parrots", label: "🦜", data: PARROTS },
-  { key: "anim",    label: "😊", data: ANIMATED_EMOJI },
-] as const;
 
 // ── Animated Emoji (Google Noto Animated — fonts.gstatic.com CDN) ─────────
 const ANIMATED_EMOJIS = [
@@ -179,7 +128,6 @@ export default function ChatPage() {
   const [showMvp, setShowMvp] = useState(false);
   const [players, setPlayers] = useState<{ id: number; firstName: string; lastName: string }[]>([]);
   const [openPanel, setOpenPanel] = useState<"sticker" | "gif" | null>(null);
-  const [gifTab, setGifTab] = useState<"parrots" | "anim">("parrots");
   const [stickerTab, setStickerTab] = useState<"meme" | "animated">("meme");
   const [uploading, setUploading] = useState(false);
   const esRef = useRef<EventSource | null>(null);
@@ -807,26 +755,16 @@ export default function ChatPage() {
           </div>
         )}
 
-        {/* GIF panel — 🦜 Parrots + 😊 Animated Emoji */}
+        {/* GIF panel — 🦜 Parrots only */}
         {openPanel === "gif" && (
-          <div style={{ position: "absolute", bottom: "100%", left: "10px", width: "320px", background: "#1e2a4a", border: "1px solid #f46f10", borderRadius: "12px", zIndex: 100, overflow: "hidden" }} onClick={(e) => e.stopPropagation()}>
-            <div style={{ display: "flex", borderBottom: "1px solid rgba(255,255,255,0.08)", padding: "5px 5px 0" }}>
-              {GIF_TABS.map((tab) => (
-                <button key={tab.key} onClick={() => setGifTab(tab.key)}
-                  style={{ flex: 1, padding: "5px 4px", border: "none", background: "none", cursor: "pointer", fontSize: "20px", borderBottom: gifTab === tab.key ? "2px solid #f46f10" : "2px solid transparent", opacity: gifTab === tab.key ? 1 : 0.5 }}>
-                  {tab.label}
+          <div style={{ position: "absolute", bottom: "100%", left: "10px", width: "320px", background: "#1e2a4a", border: "1px solid #f46f10", borderRadius: "12px", padding: "8px", maxHeight: "280px", overflowY: "auto", zIndex: 100 }} onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: "5px" }}>
+              {PARROTS.map((url) => (
+                <button key={url} onClick={() => sendSpecial(`[GIF:${url}]`)}
+                  style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.09)", borderRadius: "6px", cursor: "pointer", padding: "0", overflow: "hidden", width: 52, height: 52 }}>
+                  <img src={url} alt="parrot" style={{ width: 52, height: 52, objectFit: "cover", display: "block" }} onError={(e) => { (e.currentTarget as HTMLImageElement).parentElement!.style.display = "none"; }} />
                 </button>
               ))}
-            </div>
-            <div style={{ padding: "8px", maxHeight: "260px", overflowY: "auto" }}>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: "5px" }}>
-                {GIF_TABS.find((t) => t.key === gifTab)!.data.map((url) => (
-                  <button key={url} onClick={() => sendSpecial(`[GIF:${url}]`)}
-                    style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.09)", borderRadius: "6px", cursor: "pointer", padding: "0", overflow: "hidden", width: 52, height: 52 }}>
-                    <img src={url} alt="gif" style={{ width: 52, height: 52, objectFit: "cover", display: "block" }} onError={(e) => { (e.currentTarget as HTMLImageElement).parentElement!.style.display = "none"; }} />
-                  </button>
-                ))}
-              </div>
             </div>
           </div>
         )}
