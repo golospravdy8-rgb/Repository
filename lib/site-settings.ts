@@ -48,13 +48,12 @@ export async function setSetting(key: string, value: string): Promise<void> {
 }
 
 export async function setSettings(data: Record<string, string>): Promise<void> {
-  await Promise.all(
-    Object.entries(data).map(([key, value]) =>
-      prisma.siteSettings.upsert({
-        where: { key },
-        update: { value },
-        create: { key, value },
-      })
-    )
-  );
+  // Update or create each setting by key (key is @unique in schema)
+  for (const [key, value] of Object.entries(data)) {
+    await prisma.siteSettings.upsert({
+      where: { key },
+      update: { value },
+      create: { key, value },
+    });
+  }
 }
