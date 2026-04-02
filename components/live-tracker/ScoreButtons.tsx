@@ -15,12 +15,12 @@ export default function ScoreButtons({ gameId, teamId, playerId, disabled }: Pro
 
   const handleScore = (points: 1 | 2 | 3) => {
     if (!playerId) return;
-    startTransition(() => addScore(gameId, teamId, playerId, points));
+    startTransition(async () => { await addScore(gameId, teamId, playerId, points); });
   };
 
   const handleFoul = () => {
     if (!playerId) return;
-    startTransition(() => addFoul(gameId, teamId, playerId));
+    startTransition(async () => { await addFoul(gameId, teamId, playerId); });
   };
 
   const isDisabled = disabled || pending || !playerId;

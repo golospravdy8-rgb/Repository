@@ -1,29 +1,12 @@
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
+import { Suspense } from "react";
 import PlayersFilter from "./PlayersFilter";
 import AgeGroupTabs from "@/components/public/AgeGroupTabs";
+import { calculateRating, getRatingTier, BADGES } from "@/lib/achievements";
 
 export const metadata = { title: "Гравці — ЛДБЛ" };
 export const dynamic = "force-dynamic";
-
-function calculateRating(games: { points: number; rebounds: number; assists: number; steals: number; blocks: number }[]) {
-  if (!games.length) return 60;
-  const n = games.length;
-  const avg = {
-    pts: games.reduce((s, g) => s + g.points, 0) / n,
-    reb: games.reduce((s, g) => s + g.rebounds, 0) / n,
-    ast: games.reduce((s, g) => s + g.assists, 0) / n,
-    stl: games.reduce((s, g) => s + g.steals, 0) / n,
-    blk: games.reduce((s, g) => s + g.blocks, 0) / n,
-  };
-  return Math.min(99, Math.round(50 + avg.pts * 1.8 + avg.reb * 1.2 + avg.ast * 1.5 + avg.stl * 2.0 + avg.blk * 1.8));
-}
-
-function getRatingTier(rating: number): "gold" | "silver" | "bronze" {
-  if (rating >= 85) return "gold";
-  if (rating >= 75) return "silver";
-  return "bronze";
-}
 
 const TIER = {
   gold:   { bg: "linear-gradient(135deg,#b8860b,#ffd700,#b8860b)", border: "#ffd700", text: "#4a3000", badge: "#b8860b" },
@@ -72,12 +55,13 @@ export default async function PlayersPage({
       const avgAst = p.boxScores.length ? Math.round(p.boxScores.reduce((s, g) => s + g.assists, 0) / n) : 0;
       const avgStl = p.boxScores.length ? Math.round(p.boxScores.reduce((s, g) => s + g.steals, 0) / n) : 0;
       const avgBlk = p.boxScores.length ? Math.round(p.boxScores.reduce((s, g) => s + g.blocks, 0) / n) : 0;
-      return { ...p, rating, tier, avgPts, avgReb, avgAst, avgStl, avgBlk };
+      const achievementCount = 0; // TODO: achievements model not in schema
+      return { ...p, rating, tier, avgPts, avgReb, avgAst, avgStl, avgBlk, achievementCount };
     })
     .sort((a, b) => b.rating - a.rating);
 
-  const activeTeam = searchParams.team || "";
-  const activePosition = searchParams.position || "";
+  const activeTeam = decodeURIComponent((searchParams.team || "").replace(/\+/g, " "));
+  const activePosition = decodeURIComponent((searchParams.position || "").replace(/\+/g, " "));
   // const hasFilter = !!(activeTeam || activePosition);
 
   const filtered = playersWithRating.filter((p) => {
@@ -89,63 +73,71 @@ export default async function PlayersPage({
   const topRated = playersWithRating[0];
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8" style={{ zoom: 0.66 }}>
-      <div className="flex items-center justify-between mb-2">
-        <h1 className="text-6xl font-black" style={{ color: "#1e2a4a" }}>Гравці ліги</h1>
-        <div className="text-2xl text-gray-500">{filtered.length} гравців</div>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2" style={{ zoom: 0.66 }}>
+      <div className="flex items-center justify-between mb-0.5">
+        <h1 className="text-4xl font-black" style={{ color: "#1e2a4a" }}>Гравці ліги</h1>
+        <div className="text-lg text-gray-500">{filtered.length} гравців</div>
       </div>
 
-      <div style={{ fontSize: "200%" }}><AgeGroupTabs /></div>
+      <div style={{ fontSize: "180%" }}><AgeGroupTabs /></div>
 
-      <PlayersFilter teams={teams} positions={positions} activeTeam={activeTeam} activePosition={activePosition} />
+      <Suspense fallback={null}>
+        <PlayersFilter teams={teams} positions={positions} activeTeam={activeTeam} activePosition={activePosition} />
+      </Suspense>
 
       {topRated && (
-        <div className="mb-4 p-4 rounded-xl border-2 border-orange-400 bg-orange-50 flex items-center gap-4">
+        <div className="mb-1.5 px-3 py-1.5 rounded-xl border-2 border-orange-400 bg-orange-50 flex items-center gap-2">
           {/* MVP photo */}
-          <div style={{ width: 160, height: 160, borderRadius: "12px", overflow: "hidden", flexShrink: 0, background: "linear-gradient(135deg,#b8860b,#ffd700,#b8860b)", display: "flex", alignItems: "center", justifyContent: "center", border: "3px solid #f46f10" }}>
+          <div style={{ width: 44, height: 44, borderRadius: "8px", overflow: "hidden", flexShrink: 0, background: "linear-gradient(135deg,#b8860b,#ffd700,#b8860b)", display: "flex", alignItems: "center", justifyContent: "center", border: "2px solid #f46f10" }}>
             {topRated.photoUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={topRated.photoUrl} alt={topRated.firstName} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
             ) : (
-              <span style={{ fontSize: 56, fontWeight: 900, color: "#4a3000", opacity: 0.7 }}>
+              <span style={{ fontSize: 16, fontWeight: 900, color: "#4a3000", opacity: 0.7 }}>
                 {topRated.firstName[0]}{topRated.lastName[0]}
               </span>
             )}
           </div>
           <div>
-            <div className="font-black text-orange-600 text-2xl uppercase tracking-wide">MVP сезону</div>
-            <div className="font-bold text-gray-800 text-2xl">{topRated.firstName} {topRated.lastName} — рейтинг {topRated.rating}</div>
-            <div className="text-2xl text-gray-500">{topRated.team.name}</div>
+            <div className="font-black text-orange-600 text-xs uppercase tracking-wide">MVP сезону</div>
+            <div className="font-bold text-gray-800 text-sm">{topRated.firstName} {topRated.lastName} — рейтинг {topRated.rating}</div>
+            <div className="text-xs text-gray-500">{topRated.team.name}</div>
           </div>
         </div>
       )}
 
       {/* Топ-5 гравців ліги */}
       {playersWithRating.length > 0 && (
-        <div className="mb-6 bg-white rounded-xl shadow p-4 border-l-4" style={{ borderColor: "#1e2a4a" }}>
-          <div className="font-black text-2xl uppercase tracking-wide mb-3" style={{ color: "#1e2a4a" }}>
+        <div className="mb-2 bg-white rounded-xl shadow px-3 py-1.5 border-l-4" style={{ borderColor: "#1e2a4a" }}>
+          <div className="font-black text-xs uppercase tracking-wide mb-0.5" style={{ color: "#1e2a4a" }}>
             🏅 Топ-5 гравців ліги
           </div>
           <div className="flex flex-col divide-y divide-gray-100">
             {playersWithRating.slice(0, 5).map((p, i) => (
-              <div key={p.id} className="flex items-center gap-3 py-2 first:pt-0 last:pb-0">
+              <div key={p.id} className="flex items-center gap-1.5 py-0.5 first:pt-0 last:pb-0">
                 <div
-                  className="w-12 h-12 rounded-full flex items-center justify-center text-2xl font-black text-white flex-shrink-0"
+                  className="w-5 h-5 rounded-full flex items-center justify-center text-xs font-black text-white flex-shrink-0"
                   style={{ backgroundColor: i === 0 ? "#b8860b" : i === 1 ? "#708090" : i === 2 ? "#8B4513" : "#1e2a4a" }}
                 >
                   {i + 1}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="font-bold text-2xl text-gray-800 truncate">{p.firstName} {p.lastName}</div>
-                  <div className="text-xl text-gray-400 truncate">{p.team.name}</div>
+                  <div className="font-bold text-xs text-gray-800 truncate leading-tight">{p.firstName} {p.lastName}</div>
+                  <div className="text-xs text-gray-400 truncate leading-tight" style={{ fontSize: "10px" }}>{p.team.name}</div>
                 </div>
-                <div className="flex gap-2 flex-shrink-0">
+                <div className="flex gap-1.5 flex-shrink-0 items-center">
                   {([["ОЧ", p.avgPts], ["РЕБ", p.avgReb], ["ПЕР", p.avgAst], ["ПМ", p.avgStl], ["БЛК", p.avgBlk]] as [string, number][]).map(([lbl, val]) => (
-                    <div key={lbl} className="flex flex-col items-center" style={{ minWidth: 56 }}>
-                      <span className="text-2xl font-black text-gray-800">{val}</span>
-                      <span className="text-xl text-gray-400 uppercase">{lbl}</span>
+                    <div key={lbl} className="flex flex-col items-center" style={{ minWidth: 24 }}>
+                      <span className="text-xs font-black text-gray-800 leading-tight">{val}</span>
+                      <span className="text-gray-400 uppercase leading-tight" style={{ fontSize: "9px" }}>{lbl}</span>
                     </div>
                   ))}
+                  {p.achievementCount > 0 && (
+                    <div className="flex flex-col items-center" style={{ minWidth: 24 }}>
+                      <span className="text-xs font-black text-gray-800 leading-tight">🏅{p.achievementCount}</span>
+                      <span className="text-gray-400 uppercase leading-tight" style={{ fontSize: "9px" }}>ДОС</span>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
@@ -154,11 +146,11 @@ export default async function PlayersPage({
       )}
 
       {/* Rating & Badge Info Panel */}
-      <details className="mb-6 rounded-xl border border-gray-200 bg-gray-50 overflow-hidden">
+      <details className="mb-3 rounded-xl border border-gray-200 bg-gray-50 overflow-hidden">
         <summary className="px-4 py-3 cursor-pointer font-semibold text-sm text-gray-600 select-none hover:bg-gray-100 transition-colors flex items-center gap-2">
           <span>ℹ️</span> Як розраховується рейтинг і досягнення?
         </summary>
-        <div className="px-4 pb-4 pt-2 space-y-4">
+        <div className="px-4 pb-4 pt-2 space-y-4" style={{ zoom: "1.45" }}>
 
           {/* Rating formula */}
           <div>
@@ -195,8 +187,8 @@ export default async function PlayersPage({
               <table className="w-full text-xs border-collapse">
                 <thead>
                   <tr className="bg-gray-100">
-                    <th className="text-left px-3 py-1.5 font-semibold text-gray-600 border border-gray-200">Досягнення</th>
-                    <th className="text-left px-3 py-1.5 font-semibold text-gray-600 border border-gray-200">Умова (розблоковується автоматично)</th>
+                    <th className="text-left px-3 py-2 font-semibold text-gray-600 border border-gray-200">Досягнення</th>
+                    <th className="text-left px-3 py-2 font-semibold text-gray-600 border border-gray-200">Умова (розблоковується автоматично)</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -210,8 +202,8 @@ export default async function PlayersPage({
                     ["🤝", "Командний гравець",    "Середнє 5+ передач за весь сезон"],
                   ].map(([icon, name, cond]) => (
                     <tr key={name} className="border-b border-gray-100 hover:bg-gray-50">
-                      <td className="px-3 py-1.5 border border-gray-200 font-semibold whitespace-nowrap">{icon} {name}</td>
-                      <td className="px-3 py-1.5 border border-gray-200 text-gray-600">{cond}</td>
+                      <td className="px-3 py-2 border border-gray-200 font-semibold whitespace-nowrap">{icon} {name}</td>
+                      <td className="px-3 py-2 border border-gray-200 text-gray-600">{cond}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -227,8 +219,8 @@ export default async function PlayersPage({
               <table className="w-full text-xs border-collapse">
                 <thead>
                   <tr className="bg-orange-50">
-                    <th className="text-left px-3 py-1.5 font-semibold text-gray-600 border border-gray-200">Дія</th>
-                    <th className="text-left px-3 py-1.5 font-semibold text-gray-600 border border-gray-200">HP</th>
+                    <th className="text-left px-3 py-2 font-semibold text-gray-600 border border-gray-200">Дія</th>
+                    <th className="text-left px-3 py-2 font-semibold text-gray-600 border border-gray-200">HP</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -241,8 +233,8 @@ export default async function PlayersPage({
                     ["🔥 Легенда ліги", "1000 HP"],
                   ].map(([action, hp]) => (
                     <tr key={action} className="border-b border-gray-100 hover:bg-gray-50">
-                      <td className="px-3 py-1.5 border border-gray-200 text-gray-700">{action}</td>
-                      <td className="px-3 py-1.5 border border-gray-200 font-bold text-orange-600">{hp}</td>
+                      <td className="px-3 py-2 border border-gray-200 text-gray-700">{action}</td>
+                      <td className="px-3 py-2 border border-gray-200 font-bold text-orange-600">{hp}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -292,7 +284,7 @@ export default async function PlayersPage({
                 </div>
 
                 {/* Stats */}
-                <div style={{ margin: "4px 6px 6px", borderRadius: "8px", background: "rgba(0,0,0,0.15)", display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", flexShrink: 0 }}>
+                <div style={{ margin: "4px 6px 2px", borderRadius: "8px", background: "rgba(0,0,0,0.15)", display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", flexShrink: 0 }}>
                   {([["ОЧ", player.avgPts], ["РЕБ", player.avgReb], ["ПЕР", player.avgAst], ["БЛК", player.avgBlk]] as [string, number][]).map(([label, val]) => (
                     <div key={label} style={{ textAlign: "center", padding: "3px 0" }}>
                       <div style={{ fontWeight: 900, fontSize: "24px", color: s.text, lineHeight: 1 }}>{val}</div>
@@ -300,6 +292,12 @@ export default async function PlayersPage({
                     </div>
                   ))}
                 </div>
+                {/* Achievement count */}
+                {player.achievementCount > 0 && (
+                  <div style={{ margin: "2px 6px 4px", textAlign: "center", fontSize: "18px", color: s.text, opacity: 0.75 }}>
+                    🏅 {player.achievementCount}/{BADGES.length}
+                  </div>
+                )}
               </div>
             </Link>
           );

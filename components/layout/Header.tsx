@@ -5,6 +5,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { useState, Suspense } from "react";
 import AgeGroupSwitcher from "@/components/public/AgeGroupSwitcher";
 import AdminButton from "@/components/public/AdminButton";
+import LogoutButton from "@/components/public/LogoutButton";
 
 export interface NavItem {
   href: string;
@@ -28,7 +29,7 @@ export interface HeaderProps {
   headerTextColor?: string;
 }
 
-export default function Header({
+function HeaderInner({
   siteName,
   tagline,
   logoText,
@@ -72,58 +73,63 @@ export default function Header({
       style={{
         backgroundColor: navyColor,
         ...(headerBg ? { backgroundImage: `url(${headerBg})`, backgroundSize: "cover", backgroundPosition: "center" } : {}),
+        width: "100%",
+        overflow: "hidden",
       }}
       className="text-white shadow-lg"
     >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8" style={{ overflow: "hidden" }}>
         <div
           className={`flex items-center ${centered ? "justify-center" : "justify-between"}`}
           style={{ minHeight: `${headerHeight}px`, paddingTop: "8px", paddingBottom: "8px" }}
         >
           {/* Logo */}
-          <Link href={withAg("/")} className="flex items-center gap-3 flex-shrink-0">
+          <Link href={withAg("/")} className="flex items-center gap-2 flex-shrink-0" style={{ marginLeft: "-8px" }}>
             {logoUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={logoUrl}
-                alt={siteName}
-                className="h-12 w-12 rounded-full object-cover"
-                onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
-              />
+              <div style={{ width: "44px", height: "44px", borderRadius: "50%", overflow: "hidden", flexShrink: 0, backgroundColor: "#fff" }}>
+                <img
+                  src={logoUrl}
+                  alt={siteName}
+                  style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                  onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+                />
+              </div>
             ) : (
               <div
-                className="w-12 h-12 rounded-full flex items-center justify-center font-bold text-sm"
+                className="w-11 h-11 rounded-full flex items-center justify-center font-bold text-sm"
                 style={{ backgroundColor: orangeColor }}
               >
                 {logoText}
               </div>
             )}
-            <div className="leading-tight">
-              <div className="font-bold tracking-wide" style={{ fontSize: "1.265rem", lineHeight: 1.3 }}>{siteName}</div>
-              <div style={{ fontSize: "0.805rem", lineHeight: 1.3, color: "white" }}>{tagline}</div>
+            <div className="leading-tight flex flex-col items-center">
+              <div className="font-bold tracking-wide" style={{ fontSize: "1.1rem", lineHeight: 1.3 }}>{siteName}</div>
+              <div style={{ fontSize: "0.65rem", lineHeight: 1.3, color: "rgba(255,255,255,0.85)" }}>{tagline}</div>
             </div>
           </Link>
 
           {/* Desktop nav */}
           {!centered && (
-            <nav className="hidden md:flex items-center gap-1 flex-wrap justify-end">
+            <nav className="hidden md:flex items-center gap-0 flex-nowrap justify-end flex-1 min-w-0" style={{ marginLeft: "12px" }}>
               {visibleLinks.map((link) => {
                 const active = isActive(link.href);
                 return (
                   <Link
                     key={link.href}
                     href={withAg(link.href)}
-                    className="px-3 py-2 rounded font-medium transition-colors hover:bg-white/10 text-center"
-                    style={{ fontSize: `${navFontSize * 2}px`, ...getActiveLinkStyle(active) }}
+                    className="px-1.5 py-1 rounded font-medium transition-colors hover:bg-white/10 text-center whitespace-nowrap"
+                    style={{ fontSize: `${Math.min(Math.round(navFontSize * 1.1), 13)}px`, ...getActiveLinkStyle(active) }}
                   >
                     {link.label}
                   </Link>
                 );
               })}
-              <div className="ml-3 pl-3 border-l border-white/20 flex items-center gap-3">
+              <div className="ml-2 pl-2 border-l border-white/20 flex items-center gap-1.5 flex-shrink-0">
                 <Suspense fallback={null}>
                   <AgeGroupSwitcher orangeColor={orangeColor} />
                 </Suspense>
+                <LogoutButton />
                 <AdminButton />
               </div>
             </nav>
@@ -168,12 +174,23 @@ export default function Header({
                 </Link>
               );
             })}
-            <div className="px-3 pt-2 border-t border-white/10 mt-2">
+            <div className="px-3 pt-2 border-t border-white/10 mt-2 flex items-center gap-2">
+              <LogoutButton />
               <AdminButton />
             </div>
           </div>
         )}
       </div>
     </header>
+  );
+}
+
+export default function Header(props: HeaderProps) {
+  return (
+    <Suspense fallback={
+      <header style={{ backgroundColor: props.navyColor, width: "100%", height: `${props.headerHeight}px` }} className="text-white shadow-lg" />
+    }>
+      <HeaderInner {...props} />
+    </Suspense>
   );
 }

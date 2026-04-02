@@ -43,6 +43,7 @@ model Player {
   photoUrl   String?
   boxScores  BoxScore[]
   gameEvents GameEvent[]
+  mvpVotes   ChatMvpVote[]
   team       Team        @relation(fields: [teamId], references: [id])
 }
 
@@ -157,7 +158,20 @@ model GuestContact {
   refCode        String?
   hp             Int      @default(25)
   isLeaguePlayer Boolean  @default(false)
+  role           String   @default("guest")
+  childTeamId    Int?
+  displayName    String?
   createdAt      DateTime @default(now())
+}
+
+model ParentSession {
+  id          Int      @id @default(autoincrement())
+  phone       String
+  token       String   @unique
+  name        String
+  childTeamId Int?
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
 }
 
 model MvpVote {
@@ -190,9 +204,22 @@ model ChatReaction {
 }
 
 model ChatModerator {
-  id      Int      @id @default(autoincrement())
-  phone   String   @unique
-  addedAt DateTime @default(now())
+  id         Int      @id @default(autoincrement())
+  phone      String   @unique
+  name       String   @default("")
+  assignedBy String   @default("admin")
+  addedAt    DateTime @default(now())
+}
+
+model ChatModAction {
+  id          Int      @id @default(autoincrement())
+  action      String
+  modPhone    String
+  modName     String
+  targetPhone String
+  targetName  String
+  details     String   @default("")
+  createdAt   DateTime @default(now())
 }
 
 model ChatBan {
@@ -226,9 +253,11 @@ model ChatPinnedMessage {
 model ChatMvpVote {
   id          Int      @id @default(autoincrement())
   voterPhone  String
-  playerName  String
+  playerId    Int
   month       String
+  chatTab     String   @default("balacka")
   createdAt   DateTime @default(now())
+  player      Player   @relation(fields: [playerId], references: [id])
 
   @@unique([voterPhone, month])
 }
@@ -320,4 +349,13 @@ model AuctionBid {
   auctionId Int
   auction   AuctionItem @relation(fields: [auctionId], references: [id])
   createdAt DateTime    @default(now())
+}
+
+model ChatOnline {
+  id       Int      @id @default(autoincrement())
+  phone    String   @unique
+  room     String   @default("general")
+  lastSeen DateTime @default(now())
+  name     String   @default("")
+  role     String   @default("player")
 }

@@ -1,4 +1,5 @@
 import type { BoxScore, Game, Standing } from "@prisma/client";
+import { getRatingTier } from "@/lib/achievements";
 
 export type LeaderStats = {
   playerId: number;
@@ -13,6 +14,8 @@ export type LeaderStats = {
   bpg: number;
   val: number;
   gamesPlayed: number;
+  rating: number;
+  tier: "gold" | "silver" | "bronze";
 };
 
 export function calculateVAL(boxScore: BoxScore): number {
@@ -76,6 +79,8 @@ export function calculateLeaderStats(boxScores: BoxScoreWithPlayer[]): LeaderSta
   const stats: LeaderStats[] = [];
   for (const [playerId, data] of Array.from(playerMap.entries())) {
     const g = data.games || 1;
+    const rating = Math.min(99, Math.round(50 + (data.points / g) * 1.8 + (data.rebounds / g) * 1.2 + (data.assists / g) * 1.5 + (data.steals / g) * 2.0 + (data.blocks / g) * 1.8));
+    const tier = getRatingTier(rating);
     stats.push({
       playerId,
       firstName: data.firstName,
@@ -89,6 +94,8 @@ export function calculateLeaderStats(boxScores: BoxScoreWithPlayer[]): LeaderSta
       bpg: Math.round((data.blocks / g) * 10) / 10,
       val: Math.round(((data.points + data.rebounds + data.assists + data.steals + data.blocks - data.fouls) / g) * 10) / 10,
       gamesPlayed: data.games,
+      rating,
+      tier,
     });
   }
 

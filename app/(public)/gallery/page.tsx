@@ -5,7 +5,12 @@ export const metadata = { title: "Галерея — ЛДБЛ" };
 export const dynamic = "force-dynamic";
 
 export default async function GalleryPage() {
-  const galleryData: any = JSON.parse(require('fs').readFileSync(require('path').join(process.cwd(), 'lib', 'gallery.data.json'), 'utf-8'));
+  let galleryData: any = { albums: [] };
+  try {
+    galleryData = JSON.parse(require('fs').readFileSync(require('path').join(process.cwd(), 'lib', 'gallery.data.json'), 'utf-8'));
+  } catch {
+    // gallery.data.json відсутній або пошкоджений
+  }
 
   const gameIds = galleryData.albums.map((a: any) => a.gameId) as number[];
   const games = await prisma.game.findMany({

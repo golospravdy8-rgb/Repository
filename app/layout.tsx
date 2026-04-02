@@ -1,10 +1,15 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { getSettings } from "@/lib/site-settings";
 
-export const metadata: Metadata = {
-  title: "Федерація Баскетболу Львова",
-  description: "Матчі, турнірні таблиці, статистика та актуальні новини дитячого баскетболу Львова.",
-};
+export const dynamic = "force-dynamic";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const s = await getSettings(["site.name", "site.description", "site.tagline"]);
+  const title = s["site.name"] || "Федерація Баскетболу Львова";
+  const description = s["site.description"] || s["site.tagline"] || "Матчі, турнірні таблиці, статистика та актуальні новини дитячого баскетболу Львова.";
+  return { title, description };
+}
 
 export default function RootLayout({
   children,

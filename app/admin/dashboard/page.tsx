@@ -3,10 +3,12 @@ import { calculateLeaderStats } from "@/lib/stats-calculator";
 import Link from "next/link";
 import { Suspense } from "react";
 import AgeGroupTabs from "./AgeGroupTabs";
+import { requireAuth } from "@/lib/require-auth";
 
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage({ searchParams }: { searchParams: { ag?: string } }) {
+  await requireAuth();
   const ag = searchParams.ag === "older" ? "older" : "younger";
 
   const [season, gamesCount, teamsCount, playersCount] = await Promise.all([

@@ -24,11 +24,11 @@ export default async function LeadersPage({ searchParams }: { searchParams: { ag
   const leaders = calculateLeaderStats(boxScores);
 
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-      <h1 className="text-base font-black mb-1" style={{ color: "var(--color-heading)" }}>
+    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-2">
+      <h1 className="text-sm font-black mb-0.5" style={{ color: "var(--color-heading)" }}>
         Лідери сезону
       </h1>
-      <p className="text-gray-500 mb-3 text-xs">Вікова група: <span className="font-bold" style={{ color: "var(--color-accent)" }}>{label}</span></p>
+      <p className="text-gray-500 mb-2 text-xs">Вікова група: <span className="font-bold" style={{ color: "var(--color-accent)" }}>{label}</span></p>
       {leaders.length === 0 ? (
         <div className="bg-white rounded-xl shadow p-12 text-center text-gray-400">
           Статистика з&apos;явиться після перших ігор групи &quot;{label}&quot;

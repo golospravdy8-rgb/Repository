@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect } from "react";
 
 export default function PlayersFilter({
   teams,
@@ -20,6 +20,10 @@ export default function PlayersFilter({
   const [team, setTeam] = useState(activeTeam);
   const [position, setPosition] = useState(activePosition);
 
+  // Sync local state with server-rendered props on navigation
+  useEffect(() => { setTeam(activeTeam); }, [activeTeam]);
+  useEffect(() => { setPosition(activePosition); }, [activePosition]);
+
   function apply(newTeam: string, newPosition: string) {
     const params = new URLSearchParams();
     if (newTeam) params.set("team", newTeam);
@@ -33,7 +37,7 @@ export default function PlayersFilter({
   }
 
   return (
-    <div className="bg-white rounded-xl shadow p-4 mb-6 flex flex-wrap gap-3 items-center">
+    <div className="bg-white rounded-xl shadow p-2 mb-2 flex flex-wrap gap-2 items-center">
       <select
         value={team}
         disabled={isPending}

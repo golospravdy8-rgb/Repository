@@ -1,105 +1,246 @@
 "use client";
+import { useEffect, useState } from "react";
 
-import { useState, useEffect } from "react";
-
-type Review = { id: number; author: string; text: string; createdAt: string };
+interface Review {
+  id: number;
+  author: string;
+  text: string;
+  createdAt: string;
+}
 
 export default function ReviewsPage() {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [author, setAuthor] = useState("");
   const [text, setText] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [success, setSuccess] = useState(false);
-  const [error, setError] = useState("");
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [msg, setMsg] = useState("");
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    fetch("/api/reviews")
+    // Load reviews
+    setLoading(true);
+    fetch("/api/v1/reviews")
       .then((r) => r.json())
-      .then((d) => setReviews(d.reviews ?? []));
+      .then(setReviews)
+      .finally(() => setLoading(false));
+
+    // Check if user is admin (server-side cookie check)
+    fetch("/api/admin/check")
+      .then((r) => r.json())
+      .then((data) => {
+        setIsAdmin(data.isAdmin === true);
+        console.log("[ReviewsPage-UA] isAdmin:", data.isAdmin);
+      })
+      .catch((e) => {
+        console.error("[ReviewsPage-UA] Error checking admin:", e);
+        setIsAdmin(false);
+      });
   }, []);
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!author.trim() || !text.trim()) { setError("Заповніть всі поля"); return; }
-    setError("");
-    setSaving(true);
-    try {
-      const res = await fetch("/api/reviews", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ author: author.trim(), text: text.trim() }),
-      });
-      const data = await res.json();
-      if (!res.ok) { setError(data.error || "Помилка"); return; }
-      setReviews((r) => [data, ...r]);
-      setAuthor("");
+  async function submit() {
+    if (!author.trim() || !text.trim()) {
+      setMsg("Заповніть всі поля");
+      return;
+    }
+
+    const res = await fetch("/api/v1/reviews", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ author: author.trim(), text: text.trim() }),
+    });
+
+    if (res.ok) {
+      const r = await res.json();
+      setReviews((prev) => [r, ...prev]);
       setText("");
-      setSuccess(true);
-      setTimeout(() => setSuccess(false), 3000);
-    } finally {
-      setSaving(false);
+      setMsg("Відгук збережено!");
+      setTimeout(() => setMsg(""), 3000);
+    } else {
+      const d = await res.json();
+      setMsg(d.error ?? "Помилка");
+    }
+  }
+
+  async function remove(review: Review) {
+    if (!confirm("Видалити відгук?")) return;
+
+    try {
+      const res = await fetch(`/api/v1/reviews/${review.id}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+      });
+
+      if (res.ok) {
+        setReviews((prev) => prev.filter((x) => x.id !== review.id));
+        setMsg("Видалено!");
+        setTimeout(() => setMsg(""), 3000);
+      } else {
+        const data = await res.json();
+        setMsg(data.error ?? "Немає прав або помилка");
+      }
+    } catch (e) {
+      setMsg("Помилка мережі: " + String(e));
     }
   }
 
   return (
-    <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
-      <h1 className="text-xl font-black mb-1" style={{ color: "#1e2a4a" }}>Відгуки</h1>
-      <p className="text-gray-500 mb-8">Залиште свій відгук про ЛДБЛ</p>
+    <div style={{ maxWidth: 900, margin: "0 auto", padding: "24px 16px" }}>
+      <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 4 }}>Відгуки</h1>
+      <p style={{ color: "#666", marginBottom: 24 }}>Залиште свій відгук про ЛДБЛ</p>
 
-      {/* Form */}
-      <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow p-6 mb-8 space-y-4">
-        <h2 className="font-bold text-gray-800">Написати відгук</h2>
-        <div>
-          <label className="text-xs text-gray-500 mb-1 block">Ваше ім&apos;я</label>
+      <div style={{ display: "flex", gap: 24, flexWrap: "wrap" }}>
+        {/* Форма */}
+        <div
+          style={{
+            flex: "0 0 280px",
+            background: "#fff",
+            borderRadius: 12,
+            padding: 20,
+            boxShadow: "0 1px 4px rgba(0,0,0,0.08)",
+          }}
+        >
+          <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 16 }}>
+            Написати відгук
+          </h2>
+          <label style={{ fontSize: 13, color: "#444" }}>Ваше ім&apos;я</label>
           <input
-            className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-orange-400"
-            placeholder="Ім'я та прізвище"
             value={author}
             onChange={(e) => setAuthor(e.target.value)}
-            maxLength={100}
+            placeholder="Ім'я та прізвище"
+            style={{
+              width: "100%",
+              padding: "8px 10px",
+              borderRadius: 8,
+              border: "1px solid #ddd",
+              marginTop: 4,
+              marginBottom: 12,
+              fontSize: 14,
+              boxSizing: "border-box",
+            }}
           />
-        </div>
-        <div>
-          <label className="text-xs text-gray-500 mb-1 block">Відгук</label>
+          <label style={{ fontSize: 13, color: "#444" }}>Відгук</label>
           <textarea
-            className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-orange-400 resize-none"
-            placeholder="Поділіться враженнями про лігу..."
-            rows={4}
             value={text}
-            onChange={(e) => setText(e.target.value)}
-            maxLength={1000}
+            onChange={(e) => setText(e.target.value.slice(0, 1000))}
+            placeholder="Поділіться враженнями про лігу..."
+            rows={5}
+            style={{
+              width: "100%",
+              padding: "8px 10px",
+              borderRadius: 8,
+              border: "1px solid #ddd",
+              marginTop: 4,
+              marginBottom: 4,
+              fontSize: 14,
+              resize: "vertical",
+              boxSizing: "border-box",
+            }}
           />
-          <div className="text-xs text-gray-400 text-right mt-0.5">{text.length}/1000</div>
-        </div>
-        {error && <div className="text-sm text-red-500">{error}</div>}
-        {success && <div className="text-sm text-green-600 font-medium">Дякуємо за відгук!</div>}
-        <button
-          type="submit"
-          disabled={saving}
-          className="px-6 py-2.5 rounded-lg font-bold text-white text-sm disabled:opacity-50"
-          style={{ backgroundColor: "#f46f10" }}
-        >
-          {saving ? "Збереження..." : "Зберегти відгук"}
-        </button>
-      </form>
-
-      {/* Reviews list */}
-      <div className="space-y-4">
-        {reviews.length === 0 ? (
-          <div className="text-center py-12 text-gray-400 text-sm">Поки що немає відгуків. Будьте першим!</div>
-        ) : (
-          reviews.map((r) => (
-            <div key={r.id} className="bg-white rounded-xl shadow p-5">
-              <div className="flex items-center justify-between mb-2">
-                <span className="font-bold text-gray-800">{r.author}</span>
-                <span className="text-xs text-gray-400">
-                  {new Date(r.createdAt).toLocaleDateString("uk-UA", { day: "numeric", month: "long", year: "numeric" })}
-                </span>
-              </div>
-              <p className="text-gray-600 text-sm leading-relaxed whitespace-pre-wrap">{r.text}</p>
+          <div style={{ fontSize: 12, color: "#999", textAlign: "right", marginBottom: 12 }}>
+            {text.length}/1000
+          </div>
+          {msg && (
+            <div
+              style={{
+                fontSize: 13,
+                color: msg.includes("збережено") || msg.includes("Видалено")
+                  ? "green"
+                  : "red",
+                marginBottom: 8,
+              }}
+            >
+              {msg}
             </div>
-          ))
-        )}
+          )}
+          <button
+            onClick={submit}
+            style={{
+              width: "100%",
+              padding: "10px",
+              background: "#e87722",
+              color: "#fff",
+              border: "none",
+              borderRadius: 8,
+              fontWeight: 700,
+              fontSize: 15,
+              cursor: "pointer",
+            }}
+          >
+            Зберегти відгук
+          </button>
+        </div>
+
+        {/* Список */}
+        <div style={{ flex: 1, minWidth: 280 }}>
+          {loading ? (
+            <p style={{ color: "#999" }}>Завантаження...</p>
+          ) : reviews.length === 0 ? (
+            <p style={{ color: "#999" }}>Відгуків поки немає</p>
+          ) : (
+            reviews.map((review) => (
+              <div
+                key={review.id}
+                style={{
+                  background: "#fff",
+                  borderRadius: 12,
+                  padding: "16px 20px",
+                  marginBottom: 12,
+                  boxShadow: "0 1px 4px rgba(0,0,0,0.08)",
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "flex-start",
+                    marginBottom: 8,
+                    gap: 12,
+                  }}
+                >
+                  <div>
+                    <strong style={{ fontSize: 15 }}>{review.author}</strong>
+                    <span style={{ fontSize: 12, color: "#999", marginLeft: 12 }}>
+                      {new Date(review.createdAt).toLocaleDateString("uk-UA", {
+                        day: "numeric",
+                        month: "short",
+                        year: "numeric",
+                      })}
+                    </span>
+                  </div>
+                  {/* Delete button - visible only to admin */}
+                  {isAdmin && (
+                    <button
+                      onClick={() => remove(review)}
+                      style={{
+                        background: "none",
+                        border: "1px solid #dc2626",
+                        borderRadius: 6,
+                        padding: "4px 8px",
+                        fontSize: 12,
+                        color: "#dc2626",
+                        cursor: "pointer",
+                        whiteSpace: "nowrap",
+                        transition: "all 0.2s",
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = "#ffe0e0";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = "none";
+                      }}
+                      title="Видалити як адміністратор"
+                    >
+                      🗑 Видалити
+                    </button>
+                  )}
+                </div>
+                <p style={{ fontSize: 14, color: "#333", margin: 0 }}>
+                  {review.text}
+                </p>
+              </div>
+            ))
+          )}
+        </div>
       </div>
     </div>
   );

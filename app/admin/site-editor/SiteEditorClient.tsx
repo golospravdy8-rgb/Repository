@@ -18,6 +18,8 @@ import GuestContactsTab from "./tabs/GuestContactsTab";
 import StreamTab from "./tabs/StreamTab";
 import ShopTab from "./tabs/ShopTab";
 import ChatModeratorsTab from "./tabs/ChatModeratorsTab";
+import StatsTab from "./tabs/StatsTab";
+import StandingsManageTab from "./tabs/StandingsManageTab";
 
 const TABS = [
   { id: "teams", label: "Команди та гравці" },
@@ -37,6 +39,8 @@ const TABS = [
   { id: "stream", label: "🔴 Трансляція" },
   { id: "shop", label: "🛒 Магазин" },
   { id: "chat-mods", label: "🛡 Модератори чату" },
+  { id: "stats", label: "📊 Статистика" },
+  { id: "standings-manage", label: "🏆 Таблиця змагань" },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
@@ -70,7 +74,7 @@ export default function SiteEditorClient({
   const [saved, setSaved] = useState(false);
   const saveRef = useRef<SaveHandle>(null);
 
-  const isDataTab = activeTab === "teams" || activeTab === "schedule" || activeTab === "news" || activeTab === "gallery" || activeTab === "guest-contacts" || activeTab === "shop" || activeTab === "chat-mods";
+  const isDataTab = activeTab === "teams" || activeTab === "schedule" || activeTab === "news" || activeTab === "gallery" || activeTab === "guest-contacts" || activeTab === "shop" || activeTab === "chat-mods" || activeTab === "stats" || activeTab === "standings-manage";
 
   const handleGlobalSave = () => {
     if (isDataTab) return;
@@ -137,7 +141,9 @@ export default function SiteEditorClient({
           {activeTab === "guest-contacts" && <GuestContactsTab />}
           {activeTab === "stream" && <StreamTab settings={settings} />}
           {activeTab === "shop" && <ShopTab products={shopProducts} settings={settings} />}
-          {activeTab === "chat-mods" && <ChatModeratorsTab />}
+          {activeTab === "chat-mods" && <ChatModeratorsTab settings={settings} shopProducts={shopProducts} />}
+          {activeTab === "stats" && <StatsTab />}
+          {activeTab === "standings-manage" && <StandingsManageTab />}
         </div>
       </div>
     </div>

@@ -11,6 +11,26 @@ const STICKER_BASE = "https://raw.githubusercontent.com/pavanpatil45/Classic-Mem
 const MEME_STICKERS = Array.from({ length: 26 }, (_, i) => `${STICKER_BASE}/1/${i + 1}.webp`)
   .concat(Array.from({ length: 23 }, (_, i) => `${STICKER_BASE}/2/${i + 1}.webp`));
 
+// ── Classic Rage Face memes (user-images.githubusercontent.com — verified 200) ──
+const CLASSIC_MEMES = [
+  { name: "Sticker 1",  url: "https://user-images.githubusercontent.com/74038190/212284068-b4ee9a5c-331c-4d18-9481-53dd6b9debd5.gif" },
+  { name: "Sticker 2",  url: "https://user-images.githubusercontent.com/74038190/212284087-bbe7e430-757e-4901-90bf-4cd2ce3e1852.gif" },
+  { name: "Sticker 3",  url: "https://user-images.githubusercontent.com/74038190/212284094-e50ceae2-de86-4dd6-9f9c-a3ebcb3ede9e.gif" },
+  { name: "Sticker 4",  url: "https://user-images.githubusercontent.com/74038190/212284100-561aa473-3905-4a80-b561-0d28506553ee.gif" },
+  { name: "Sticker 5",  url: "https://user-images.githubusercontent.com/74038190/212284115-f47cd8ff-2ffb-4b04-b5bf-4d1c14c0247f.gif" },
+  { name: "Sticker 6",  url: "https://user-images.githubusercontent.com/74038190/212284136-03988914-d899-44b4-b1d9-4eeccf656e44.gif" },
+  { name: "Sticker 7",  url: "https://user-images.githubusercontent.com/74038190/212284145-bf2c01a8-c448-4f1a-b911-996024c84606.gif" },
+  { name: "Sticker 8",  url: "https://user-images.githubusercontent.com/74038190/212284158-e840e285-664b-44d7-b79b-e264b5e54825.gif" },
+  { name: "Sticker 9",  url: "https://user-images.githubusercontent.com/74038190/212284164-662b26f5-a2e4-49cb-b675-4af56e609afa.gif" },
+  { name: "Sticker 10", url: "https://user-images.githubusercontent.com/74038190/212744275-c56a72c2-50b1-45e2-a693-d19d40357766.gif" },
+  { name: "Sticker 11", url: "https://user-images.githubusercontent.com/74038190/212744287-14f66c13-5458-40dc-9244-8ff533fc8f4a.gif" },
+  { name: "Sticker 12", url: "https://user-images.githubusercontent.com/74038190/212744289-c46f1717-bfc9-4724-8ef3-4b08e3583110.gif" },
+  { name: "Sticker 13", url: "https://user-images.githubusercontent.com/74038190/212747657-7a8d59da-69c8-4110-8ea8-f8102fd0b413.gif" },
+  { name: "Sticker 14", url: "https://user-images.githubusercontent.com/74038190/212747903-e9bdf048-2dc8-41f9-b973-0e72ff07bfba.gif" },
+  { name: "Sticker 15", url: "https://user-images.githubusercontent.com/74038190/212748830-4c709398-a386-4761-84d7-9e10b98fbe6e.gif" },
+  { name: "Sticker 16", url: "https://user-images.githubusercontent.com/74038190/212748842-9fcbad5b-6173-4175-8a61-521f3dbb7514.gif" },
+];
+
 // ── GIF tabs ───────────────────────────────────────────────────────────────
 const PARROTS = [
   "https://cultofthepartyparrot.com/parrots/hd/parrot.gif",
@@ -67,43 +87,82 @@ const ANIMATED_EMOJIS = [
   { name: "Rainbow",      url: "https://fonts.gstatic.com/s/e/notoemoji/latest/1f308/512.gif" },
 ];
 
-// ── Cool GIFs (Anmol-Baranwal/Cool-GIFs-For-GitHub, github.com/assets/ URLs) ─
+// ── Cool GIFs (user-images.githubusercontent.com — verified 200) ─────────
 const COOL_GIFS = [
-  "https://github.com/Anmol-Baranwal/Cool-GIFs-For-GitHub/assets/74038190/0b335028-1d3d-4ee5-b5b3-a373d499be7e",
-  "https://github.com/Anmol-Baranwal/Cool-GIFs-For-GitHub/assets/74038190/1a797f46-efe4-41e6-9e75-5303e1bbcbfa",
-  "https://github.com/Anmol-Baranwal/Cool-GIFs-For-GitHub/assets/74038190/3fb2cdf6-8920-4a23-bf05-9f9aed0dc4d7",
-  "https://github.com/Anmol-Baranwal/Cool-GIFs-For-GitHub/assets/74038190/29fd6286-4e7b-4d6c-818f-c4765d5e39a9",
-  "https://github.com/Anmol-Baranwal/Cool-GIFs-For-GitHub/assets/74038190/67f477ed-6624-42da-99f0-1a7b1a16eecb",
-  "https://github.com/Anmol-Baranwal/Cool-GIFs-For-GitHub/assets/74038190/a78a3b79-8d21-4f82-84d3-ecde66d7c6b5",
-  "https://github.com/Anmol-Baranwal/Cool-GIFs-For-GitHub/assets/74038190/b48a1301-d976-4f17-ac8e-6626e6b8fc6b",
-  "https://github.com/Anmol-Baranwal/Cool-GIFs-For-GitHub/assets/74038190/5b5fe855-b05e-4fa2-94bc-ed2413078e00",
-  "https://github.com/Anmol-Baranwal/Cool-GIFs-For-GitHub/assets/74038190/a4af2fb1-60a5-4d52-a9fc-aaae4c55f528",
-  "https://github.com/Anmol-Baranwal/Cool-GIFs-For-GitHub/assets/74038190/b8701960-9d70-4098-a5e0-54ff8d7c2ae2",
-  "https://github.com/Anmol-Baranwal/Cool-GIFs-For-GitHub/assets/74038190/b0a7e0c7-b0c4-4df5-8c95-ced82b99bc4a",
-  "https://github.com/Anmol-Baranwal/Cool-GIFs-For-GitHub/assets/74038190/7d2d3f42-3ffe-4bf4-8424-a0a6b2c48c41",
-  "https://github.com/Anmol-Baranwal/Cool-GIFs-For-GitHub/assets/74038190/25ef52c2-fcff-43c2-a11a-8cb3d9e7d7f3",
-  "https://github.com/Anmol-Baranwal/Cool-GIFs-For-GitHub/assets/74038190/adabdbb5-adad-4f8d-ae81-c7d8e8d15e5e",
-  "https://github.com/Anmol-Baranwal/Cool-GIFs-For-GitHub/assets/74038190/5d9dbfe3-0b2a-4e55-a7ac-31f43c9b5e7f",
-  "https://github.com/Anmol-Baranwal/Cool-GIFs-For-GitHub/assets/74038190/8c6e6f49-7e76-4f55-9af8-f6e754a9c2e0",
-  "https://github.com/Anmol-Baranwal/Cool-GIFs-For-GitHub/assets/74038190/8ca14ef9-1523-47ed-a2d5-fd76fab47ede",
-  "https://github.com/Anmol-Baranwal/Cool-GIFs-For-GitHub/assets/74038190/c82fb3d8-3936-4f5b-b29d-66fa6c0d2b62",
-  "https://github.com/Anmol-Baranwal/Cool-GIFs-For-GitHub/assets/74038190/16bb02ba-5c08-4c7e-b0da-c40d1c80e18e",
-  "https://github.com/Anmol-Baranwal/Cool-GIFs-For-GitHub/assets/74038190/a65e1088-8f47-4dc7-b51d-3be39b49f1e6",
-  "https://github.com/Anmol-Baranwal/Cool-GIFs-For-GitHub/assets/74038190/e1c8b0da-19fa-4acb-b20c-fa1e3de40b88",
-  "https://github.com/Anmol-Baranwal/Cool-GIFs-For-GitHub/assets/74038190/8e62285a-9d86-4282-aba3-14a69d1a0cd5",
-  "https://github.com/Anmol-Baranwal/Cool-GIFs-For-GitHub/assets/74038190/c5e0d3be-f2a9-4c1b-a53f-9e47c01b7f21",
-  "https://github.com/Anmol-Baranwal/Cool-GIFs-For-GitHub/assets/74038190/d37b1c4c-7f38-42cf-97e7-a6aae4e15e47",
-  "https://github.com/Anmol-Baranwal/Cool-GIFs-For-GitHub/assets/74038190/05d07fce-9459-4b15-8b44-0b11e5d23dbc",
+  "https://user-images.githubusercontent.com/74038190/213866269-5d00981c-7c98-46d7-8a8e-16f462f15227.gif",
+  "https://user-images.githubusercontent.com/74038190/212257454-16e3712e-945a-4ca2-b238-408ad0bf87e6.gif",
+  "https://user-images.githubusercontent.com/74038190/212257472-08e52665-c503-4bd9-aa20-f5a4dae769b5.gif",
+  "https://user-images.githubusercontent.com/74038190/212257468-1e9a91f1-b626-4baa-b15d-5c385dfa7ed2.gif",
+  "https://user-images.githubusercontent.com/74038190/212257465-7ce8d493-cac5-494e-982a-5a9deb852c4b.gif",
+  "https://user-images.githubusercontent.com/74038190/212257463-4d082cb4-7483-4eaf-bc25-6dde2628aabd.gif",
+  "https://user-images.githubusercontent.com/74038190/212257460-738ff738-247f-4445-a718-cdd0ca76e2db.gif",
+  "https://user-images.githubusercontent.com/74038190/212257467-871d32b7-e401-42e8-a166-fcfd7baa4c6b.gif",
+  "https://user-images.githubusercontent.com/74038190/212281756-450d3ffa-9335-4b98-a965-db8a18fee927.gif",
+  "https://user-images.githubusercontent.com/74038190/212280805-9bcb336b-8c55-46a8-abf8-ff286ab55472.gif",
+  "https://user-images.githubusercontent.com/74038190/212280823-79088828-a258-4a4d-8d6c-96315d5a07af.gif",
+  "https://user-images.githubusercontent.com/74038190/212281763-e6ecd7ef-c4aa-45b6-a97c-f33f6bb592bd.gif",
+];
+
+// ── Cat GIFs (cataas.com — public cat GIF API, always returns 200) ────────
+const CAT_GIFS = [
+  "https://cataas.com/cat/gif",
+  "https://cataas.com/cat/gif?tag=cute",
+  "https://cataas.com/cat/gif?tag=funny",
+  "https://cataas.com/cat/gif?tag=sleep",
+  "https://cataas.com/cat/gif?tag=play",
+  "https://cataas.com/cat/gif?tag=jump",
+  "https://cataas.com/cat/gif?tag=food",
+  "https://cataas.com/cat/gif?tag=box",
+  "https://cataas.com/cat/gif?tag=kitten",
+  "https://cataas.com/cat/gif?tag=angry",
+];
+
+// ── Pepe / Fun GIFs (user-images.githubusercontent.com — verified 200) ───
+const PEPE_GIFS = [
+  "https://user-images.githubusercontent.com/74038190/235294002-8aafea24-3179-45af-91d9-412ad7ff5359.gif",
+  "https://user-images.githubusercontent.com/74038190/235294007-de441046-823e-4eff-89bf-d4df52858b65.gif",
+  "https://user-images.githubusercontent.com/74038190/235294008-ed8de58b-d4d0-4790-aa81-a39fdc8a1e50.gif",
+  "https://user-images.githubusercontent.com/74038190/235294009-98ca7572-795f-4056-b2c1-ccbde3f2982e.gif",
+  "https://user-images.githubusercontent.com/74038190/235294010-ec412ef5-e3da-4efa-b1d4-0ab4d4638755.gif",
+  "https://user-images.githubusercontent.com/74038190/235294011-b8074c31-9097-4a65-a594-4151b58743a8.gif",
+  "https://user-images.githubusercontent.com/74038190/235294012-0a55e343-37ad-4b0f-924f-c8431d9d2483.gif",
+  "https://user-images.githubusercontent.com/74038190/235294013-a33e5c43-a01c-43f6-b44d-a406d8b4ab75.gif",
+  "https://user-images.githubusercontent.com/74038190/235294015-47144047-25ab-417c-af1b-6746820a20ff.gif",
+  "https://user-images.githubusercontent.com/74038190/235294016-6556559a-ed58-4ca6-a4c9-c307cbe0b6b7.gif",
 ];
 
 // ── Badge by HP ───────────────────────────────────────────────────────────
 function getBadge(hp: number): string {
-  if (hp >= 200) return "👑";
-  if (hp >= 100) return "🔥";
-  if (hp >= 50)  return "⭐";
-  if (hp >= 25)  return "🌱";
+  if (hp >= 1000) return "🏆";
+  if (hp >= 300)  return "👑";
+  if (hp >= 100)  return "🔥";
+  if (hp >= 25)   return "🌱";
   return "";
 }
+
+// ── Custom avatar by HP ───────────────────────────────────────────────────
+function getAvatar(hp: number): { emoji: string; label: string } | null {
+  if (hp >= 1000) return { emoji: "🏆", label: "Амбасадор клубу" };
+  if (hp >= 300)  return { emoji: "👑", label: "Рекрутер" };
+  if (hp >= 100)  return { emoji: "🔥", label: "Легенда ліги" };
+  if (hp >= 50)   return { emoji: "⭐", label: "Активний учасник" };
+  if (hp >= 25)   return { emoji: "🌱", label: "Новачок" };
+  return null;
+}
+
+// ── Spin wheel sectors ────────────────────────────────────────────────────
+const SPIN_SECTORS = [
+  { hp: 5,  color: "#334155", label: "+5" },
+  { hp: 10, color: "#1e3a5f", label: "+10" },
+  { hp: 5,  color: "#334155", label: "+5" },
+  { hp: 15, color: "#1e4040", label: "+15" },
+  { hp: 10, color: "#1e3a5f", label: "+10" },
+  { hp: 50, color: "#7c2d12", label: "+50" },
+  { hp: 5,  color: "#334155", label: "+5" },
+  { hp: 20, color: "#1e293b", label: "+20" },
+  { hp: 10, color: "#1e3a5f", label: "+10" },
+  { hp: 25, color: "#14532d", label: "+25" },
+];
 
 // ── Types ─────────────────────────────────────────────────────────────────
 interface User {
@@ -114,7 +173,7 @@ interface User {
   isMod: boolean;
   warns: number;
   isLeaguePlayer: boolean;
-  mvpVote: string | null; // player name voted this month, or null
+  mvpVote: number | null; // playerId voted this month, or null
 }
 
 interface Reaction {
@@ -140,6 +199,29 @@ interface ChatMessage {
   reactions: Reaction[];
 }
 
+interface MvpPlayer {
+  id: number;
+  firstName: string;
+  lastName: string;
+  photoUrl: string | null;
+  position: string | null;
+  team: { name: string };
+}
+
+interface MvpLeader {
+  player: MvpPlayer;
+  totalVotes: number;
+  votesByChat: { balacka: number; batky: number };
+}
+
+interface MvpData {
+  currentLeader: MvpLeader | null;
+  allResults: { player: MvpPlayer; votes: number }[];
+  userVote: number | null;
+  isActive: boolean;
+  month: string;
+}
+
 // ── Main Component ────────────────────────────────────────────────────────
 export default function ChatPage() {
   const [step, setStep] = useState<"checking" | "form" | "chat">("checking");
@@ -155,15 +237,61 @@ export default function ChatPage() {
   const [showPinForm, setShowPinForm] = useState(false);
   const [notification, setNotification] = useState<string | null>(null);
   const [showMvp, setShowMvp] = useState(false);
-  const [players, setPlayers] = useState<{ id: number; firstName: string; lastName: string }[]>([]);
+  const [players, setPlayers] = useState<MvpPlayer[]>([]);
+  const [members, setMembers] = useState<{ phone: string; firstName: string; lastName: string; hp: number; role: string; isMod: boolean; isOnline: boolean; isBanned: boolean; bannedUntil?: string | null }[]>([]);
+  const [banPopup, setBanPopup] = useState<{ phone: string; name: string; isBanned: boolean; bannedUntil?: string | null; x: number; y: number } | null>(null);
+  const [refCodeFromUrl, setRefCodeFromUrl] = useState<string | null>(null);
+  const [showHpRules, setShowHpRules] = useState(false);
+  const [showHpModal, setShowHpModal] = useState(false);
+  const [modalMods, setModalMods] = useState<{ phone: string; name: string }[]>([]);
+  const [showPoll, setShowPoll] = useState(false);
+  const [pollQuestion, setPollQuestion] = useState("");
+  const [pollOptions, setPollOptions] = useState(["", ""]);
+  const [activePoll, setActivePoll] = useState<{
+    id: string; question: string; options: string[];
+    votes: Record<string, string>; createdBy: string;
+  } | null>(null);
+  const [showPorokhova, setShowPorokhova] = useState(false);
+  const [porokhovaList, setPorokhovaList] = useState<{
+    phone: string; name: string; status: "їду" | "їду_20" | "потрібен_1"; checkinAt: string;
+  }[]>([]);
+  const [porokhovaLoading, setPorokhovaLoading] = useState(false);
   const [openPanel, setOpenPanel] = useState<"sticker" | "gif" | null>(null);
-  const [stickerTab, setStickerTab] = useState<"meme" | "animated" | "cool">("meme");
+  const [stickerTab, setStickerTab] = useState<"meme" | "animated" | "cool" | "classic" | "cat" | "pepe">("meme");
   const [uploading, setUploading] = useState(false);
+  const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
+  const [shopItems, setShopItems] = useState<{ id: number; name: string; description: string; emoji: string; price: number; oldPrice: number | null; category: string; badge: string | null; imageUrl: string | null; sizes: string | null; inStock: boolean; chatPriority: boolean; showInChat: boolean; sortOrder: number }[]>([]);
+  const [shopTicker, setShopTicker] = useState(0);
+  const [mvpData, setMvpData] = useState<MvpData | null>(null);
+  const [nextGame, setNextGame] = useState<{ id: number; homeTeam: { name: string }; awayTeam: { name: string }; scheduledAt: string; season: { name: string } } | null>(null);
+  const [gameAttendees, setGameAttendees] = useState<{ phone: string; name: string }[]>([]);
+  const [showNextGame, setShowNextGame] = useState(false);
+  const [spinDone, setSpinDone] = useState(false);
+  const [showSpin, setShowSpin] = useState(false);
+  const [spinState, setSpinState] = useState<"idle" | "spinning" | "result">("idle");
+  const [spinResult, setSpinResult] = useState<number | null>(null);
+  const [spinAngle, setSpinAngle] = useState(0);
+  const [streak, setStreak] = useState(0);
+  const [activeRoom, setActiveRoom] = useState<"general" | "parents">("general");
+  const [isParent, setIsParent] = useState(false);
+  const [regSuccess, setRegSuccess] = useState<{ firstName: string; hp: number; refLink: string; isNew: boolean } | null>(null);
+  const [formSubmitting, setFormSubmitting] = useState(false);
+  // Simple registration form state
+  const [regMode, setRegMode] = useState<"choose" | "player" | "parent">("choose");
+  const [regFirstName, setRegFirstName] = useState("");
+  const [regLastName, setRegLastName] = useState("");
+  const [regPhone, setRegPhone] = useState("");
+  const [showLeaderboard, setShowLeaderboard] = useState(false);
+  const [leaderboardMode, setLeaderboardMode] = useState<"alltime" | "weekly">("weekly");
+  const [leaderboard, setLeaderboard] = useState<{ phone: string; firstName: string; lastName: string; hp: number; weeklyHp?: number | null }[]>([]);
+  const [leaderboardWeekStart, setLeaderboardWeekStart] = useState<string>("");
   const esRef = useRef<EventSource | null>(null);
+  const activeRoomRef = useRef<"general" | "parents">("general");
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
+
 
   const notify = useCallback((msg: string) => {
     setNotification(msg);
@@ -172,23 +300,92 @@ export default function ChatPage() {
 
   // ── Init ──────────────────────────────────────────────────────────────
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const ref = params.get("ref");
+    const mode = params.get("mode"); // "player" | "parent"
+    const room = params.get("room"); // "parents"
+    if (ref) setRefCodeFromUrl(ref);
+
+    // 1. Перевіряємо chat-сесію гравця
     const saved = localStorage.getItem(LS_KEY);
     if (saved) {
       try {
         const { phone, firstName, lastName } = JSON.parse(saved);
-        if (phone && firstName && lastName) { doLogin(phone, firstName, lastName); return; }
+        if (phone && firstName && lastName) {
+          // If ?room=parents requested but user is a player — still go to chat, room handled below
+          doLogin(phone, firstName, lastName);
+          return;
+        }
       } catch {}
     }
+
+    // 2. Перевіряємо сесію батька (parent_token + parent_data)
+    const parentToken = localStorage.getItem("parent_token");
+    const parentDataRaw = localStorage.getItem("parent_data");
+    if (parentToken && parentDataRaw) {
+      try {
+        const { contact } = JSON.parse(parentDataRaw);
+        if (contact?.phone && contact?.firstName && contact?.lastName) {
+          setIsParent(true);
+          if (room === "parents" || mode === "parent") setActiveRoom("parents");
+          doLogin(contact.phone, contact.firstName, contact.lastName);
+          return;
+        }
+      } catch {}
+    }
+
+    // 3. Not logged in — set regMode from ?mode param
+    if (mode === "parent") setRegMode("parent");
+    else if (mode === "player") setRegMode("player");
+    // else stays "choose"
+
     setStep("form");
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  async function doLogin(phone: string, firstName: string, lastName: string) {
-    const res = await fetch("/api/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "register", phone, firstName, lastName }),
-    });
-    const data = await res.json();
+  // ── Shop ticker load ──────────────────────────────────────────────────
+  useEffect(() => {
+    if (step !== "chat") return;
+    fetch("/api/shop/products-chat")
+      .then(r => r.json())
+      .then(d => setShopItems(d.products || []))
+      .catch(() => {});
+  }, [step]);
+
+  // ── Shop ticker rotation (every 19s) ─────────────────────────────────
+  useEffect(() => {
+    if (shopItems.length === 0) return;
+    const t = setInterval(() => setShopTicker(n => n + 1), 19000);
+    return () => clearInterval(t);
+  }, [shopItems.length]);
+
+  // ── Porokhova checkins — initial load + polling every 10s ─────────────
+  useEffect(() => {
+    const load = () => {
+      fetch("/api/playground/checkin")
+        .then(r => r.json())
+        .then(d => setPorokhovaList(d.checkins || []))
+        .catch(() => {});
+    };
+    load();
+    const t = setInterval(load, 10_000);
+    return () => clearInterval(t);
+  }, []);
+
+  async function doLogin(phone: string, firstName: string, lastName: string, refCode?: string, showWelcome?: boolean) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let res: Response, data: any;
+    try {
+      res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "register", phone, firstName, lastName, refCode }),
+      });
+      data = await res.json();
+    } catch {
+      notify("Помилка з'єднання. Спробуйте ще раз.");
+      setStep("form");
+      return;
+    }
     if (!res.ok) {
       if (data.banned) notify(data.error);
       setStep("form");
@@ -203,28 +400,182 @@ export default function ChatPage() {
       mvpVote: data.mvpVote ?? null,
     });
     setPinnedMessage(data.pinnedMessage);
+    // Auto-switch room from URL param
+    const roomParam = new URLSearchParams(window.location.search).get("room");
+    const modeParam = new URLSearchParams(window.location.search).get("mode");
+    if (roomParam === "parents" || modeParam === "parent") {
+      // will be handled by parent auth useEffect, or set directly for parents
+    }
+    // Show welcome screen for new registrations
+    if ((showWelcome || data.isNewUser) && data.refLink) {
+      setRegSuccess({ firstName, hp: data.guest.hp, refLink: data.refLink, isNew: !!data.isNewUser });
+    }
     setStep("chat");
   }
+
+  // ── Check parent auth from localStorage ──────────────────────────────
+  useEffect(() => {
+    if (step !== "chat") return;
+    const token = typeof window !== "undefined" ? localStorage.getItem("parent_token") : null;
+    if (token) {
+      fetch("/api/parents/me", { headers: { Authorization: `Bearer ${token}` } })
+        .then((r) => r.ok ? r.json() : null)
+        .then((d) => {
+          if (d?.contact?.role === "parent") {
+            setIsParent(true);
+            // Auto-switch to parents room if ?room=parents or ?mode=parent in URL
+            const roomParam = new URLSearchParams(window.location.search).get("room");
+            const modeParam = new URLSearchParams(window.location.search).get("mode");
+            if (roomParam === "parents" || modeParam === "parent") setActiveRoom("parents");
+          }
+        })
+        .catch(() => {});
+    }
+  }, [step]);
+
+  // ── Sync activeRoom ref (for SSE filtering) ───────────────────────────
+  useEffect(() => {
+    activeRoomRef.current = activeRoom;
+  }, [activeRoom]);
 
   // ── Load history ───────────────────────────────────────────────────────
   useEffect(() => {
     if (step !== "chat") return;
-    fetch("/api/chat/messages?limit=50")
-      .then((r) => r.json())
+    setMessages([]);
+    const headers: Record<string, string> = {};
+    if (activeRoom === "parents") {
+      const token = typeof window !== "undefined" ? localStorage.getItem("parent_token") : null;
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+      else if (user?.phone) {
+        // fallback: use phone param for chat-registered parents/players
+        fetch(`/api/chat/messages?limit=50&room=${activeRoom}&phone=${encodeURIComponent(user.phone)}`)
+          .then((r) => r.ok ? r.json() : { messages: [], pinnedMessage: null })
+          .then((d) => { setMessages(d.messages ?? []); if (d.pinnedMessage) setPinnedMessage(d.pinnedMessage); })
+          .catch(() => {});
+        return;
+      }
+    }
+    fetch(`/api/chat/messages?limit=50&room=${activeRoom}`, { headers })
+      .then((r) => r.ok ? r.json() : { messages: [], pinnedMessage: null })
       .then((d) => {
         setMessages(d.messages ?? []);
         if (d.pinnedMessage) setPinnedMessage(d.pinnedMessage);
       })
       .catch(() => {});
-  }, [step]);
+  }, [step, activeRoom, user?.phone]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Load players for MVP ───────────────────────────────────────────────
   useEffect(() => {
     if (step !== "chat") return;
-    fetch("/api/players?limit=100")
+    fetch("/api/players?ageGroup=younger")
       .then((r) => r.json())
-      .then((d) => setPlayers(d.players ?? []))
+      .then((d) => {
+        const all: MvpPlayer[] = d.players ?? [];
+        const withPhoto = all.filter((p) => p.photoUrl);
+        setPlayers(withPhoto.length >= 3 ? withPhoto : all);
+      })
       .catch(() => {});
+  }, [step]);
+
+  // ── Load MVP data for current month ──────────────────────────────────
+  const loadMvpData = useCallback((phone?: string) => {
+    const q = phone ? `?phone=${encodeURIComponent(phone)}` : "";
+    fetch(`/api/mvp-vote${q}`)
+      .then((r) => r.json())
+      .then((d) => setMvpData(d))
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (step !== "chat") return;
+    loadMvpData(user?.phone);
+  }, [step, user?.phone, loadMvpData]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Load next game (within 24h) ───────────────────────────────────────
+  useEffect(() => {
+    if (step !== "chat") return;
+    fetch("/api/chat/next-game")
+      .then((r) => r.json())
+      .then((d) => {
+        setNextGame(d.game ?? null);
+        setGameAttendees(d.attendees ?? []);
+      })
+      .catch(() => {});
+  }, [step]);
+
+  // ── Load spin/streak status + do streak checkin ───────────────────────
+  useEffect(() => {
+    if (step !== "chat" || !user) return;
+    // Load status
+    fetch(`/api/chat/status?phone=${encodeURIComponent(user.phone)}`)
+      .then((r) => r.json())
+      .then((d) => {
+        setSpinDone(d.spinDone ?? false);
+        setStreak(d.streak ?? 0);
+      })
+      .catch(() => {});
+    // Checkin for streak
+    fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "checkin", phone: user.phone }),
+    })
+      .then((r) => r.json())
+      .then((d) => { if (d.streak) setStreak(d.streak); })
+      .catch(() => {});
+  }, [step, user?.phone]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Load chat participants for sidebar ───────────────────────────────
+  useEffect(() => {
+    if (step !== "chat") return;
+    const load = () =>
+      fetch(`/api/chat/participants?room=${activeRoom}`)
+        .then((r) => r.json())
+        .then((d) => setMembers(d.members ?? []))
+        .catch(() => {});
+    load();
+    const interval = setInterval(load, 30000);
+    return () => clearInterval(interval);
+  }, [step, activeRoom]);
+
+  // ── Online presence: heartbeat + polling ──────────────────────────────
+  useEffect(() => {
+    if (step !== "chat" || !user) return;
+    const userId = user.phone;
+    const ping = () => {
+      // Legacy in-memory ping
+      fetch("/api/online", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId }),
+      }).catch(() => {});
+      // Persistent DB heartbeat
+      fetch("/api/chat/heartbeat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          phone: user.phone,
+          name: `${user.firstName} ${user.lastName}`,
+          role: isParent ? "parent" : "player",
+          room: activeRoom,
+        }),
+      }).catch(() => {});
+    };
+    ping();
+    const pingInterval = setInterval(ping, 30000);
+    return () => clearInterval(pingInterval);
+  }, [step, user, activeRoom, isParent]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (step !== "chat") return;
+    const fetchOnline = () =>
+      fetch("/api/online")
+        .then((r) => r.json())
+        .then((d) => setOnlineUsers(new Set<string>(d.onlineIds ?? [])))
+        .catch(() => {});
+    fetchOnline();
+    const pollInterval = setInterval(fetchOnline, 15000);
+    return () => clearInterval(pollInterval);
   }, [step]);
 
   // ── SSE ────────────────────────────────────────────────────────────────
@@ -241,9 +592,15 @@ export default function ChatPage() {
   function handleSSE(ev: {
     type: string; message?: ChatMessage; messageId?: number; reactions?: Reaction[];
     text?: string; phone?: string; mutedUntil?: string; count?: number; reason?: string;
+    enabled?: boolean; roomId?: string;
   }) {
     if (ev.type === "message" && ev.message) {
-      setMessages((prev) => [...prev.slice(-199), ev.message!]);
+      const msgRoom = (ev.message as { roomId?: string }).roomId ?? "general";
+      const currentRoom = activeRoomRef.current;
+      // Only add message if it belongs to the currently viewed room
+      if (msgRoom === currentRoom || (msgRoom === "general" && currentRoom === "general")) {
+        setMessages((prev) => [...prev.slice(-199), ev.message!]);
+      }
     }
     if (ev.type === "delete_message" && ev.messageId) {
       setMessages((prev) => prev.filter((m) => m.id !== ev.messageId));
@@ -263,6 +620,9 @@ export default function ChatPage() {
     if (ev.type === "warn" && ev.phone === user?.phone) {
       notify(`⚠️ Попередження: ${ev.reason || "порушення правил"} (${ev.count}/3)`);
       setUser((u) => u ? { ...u, warns: ev.count ?? 0 } : u);
+    }
+    if (ev.type === "mvp_vote") {
+      loadMvpData(user?.phone);
     }
   }
 
@@ -287,12 +647,15 @@ export default function ChatPage() {
   // ── Handlers ──────────────────────────────────────────────────────────
   function handleRegister(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (formSubmitting) return;
     const fd = new FormData(e.currentTarget);
     const phone = (fd.get("phone") as string).trim();
     const firstName = (fd.get("firstName") as string).trim();
     const lastName = (fd.get("lastName") as string).trim();
+    if (!phone || !firstName || !lastName) { notify("Заповніть всі поля"); return; }
+    setFormSubmitting(true);
     localStorage.setItem(LS_KEY, JSON.stringify({ phone, firstName, lastName }));
-    doLogin(phone, firstName, lastName);
+    doLogin(phone, firstName, lastName, refCodeFromUrl ?? undefined, true).finally(() => setFormSubmitting(false));
   }
 
   async function handleSend(e: React.FormEvent) {
@@ -313,6 +676,7 @@ export default function ChatPage() {
           name: `${user.firstName} ${user.lastName}`,
           text,
           replyToId: replyId,
+          roomId: activeRoom,
         }),
       });
       if (res.ok) {
@@ -325,6 +689,8 @@ export default function ChatPage() {
         const d = await res.json();
         notify(d.error ?? "Помилка відправки");
       }
+    } catch {
+      notify("Помилка з'єднання. Повідомлення не надіслано.");
     } finally {
       setSending(false);
       inputRef.current?.focus();
@@ -333,21 +699,25 @@ export default function ChatPage() {
 
   async function handleReact(messageId: number, emoji: string) {
     if (!user) return;
-    await fetch("/api/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "react", phone: user.phone, messageId, emoji }),
-    });
+    try {
+      await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "react", phone: user.phone, messageId, emoji }),
+      });
+    } catch {}
     setEmojiTarget(null);
   }
 
   async function handleDeleteMsg(msgId: number) {
     if (!user) return;
-    await fetch("/api/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "delete_message", phone: user.phone, messageId: msgId }),
-    });
+    try {
+      await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "delete_message", phone: user.phone, messageId: msgId }),
+      });
+    } catch {}
     setContextMenu(null);
   }
 
@@ -362,6 +732,27 @@ export default function ChatPage() {
     notify(`${action} виконано`);
   }
 
+  async function handleBanAction(targetPhone: string, minutes: number | null, unban?: boolean) {
+    if (!user) return;
+    setBanPopup(null);
+    if (unban) {
+      await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "unban", phone: user.phone, targetPhone }),
+      });
+      notify("🔓 Бан знято");
+    } else {
+      await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "ban", phone: user.phone, targetPhone, minutes }),
+      });
+      const label = minutes === 5 ? "5 хвилин" : minutes === 1440 ? "1 день" : "1 рік";
+      notify(`🔨 Користувача заблоковано на ${label}`);
+    }
+  }
+
   async function handlePin() {
     if (!user) return;
     await fetch("/api/chat", {
@@ -373,21 +764,87 @@ export default function ChatPage() {
     setPinInput("");
   }
 
-  async function handleMvpVote(playerName: string) {
+  async function handleMvpVote(playerId: number, chatTab: "balacka" | "batky") {
     if (!user) return;
-    const res = await fetch("/api/chat", {
+    const res = await fetch("/api/mvp-vote", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "mvp_vote", voterPhone: user.phone, playerName }),
+      body: JSON.stringify({ playerId, phone: user.phone, chatTab }),
     });
     const data = await res.json();
-    if (data.alreadyVoted) {
-      notify(`Ви вже голосували цього місяця: ${data.playerName}`);
-    } else {
-      setUser((u) => u ? { ...u, mvpVote: playerName } : u);
-      notify(`✅ Ваш голос за ${playerName} прийнято!`);
+    if (data.alreadyVoted || res.status === 409) {
+      notify(`Ви вже голосували цього місяця`);
+    } else if (data.success) {
+      setUser((u) => u ? { ...u, mvpVote: playerId } : u);
+      const p = players.find((pl) => pl.id === playerId);
+      const name = p ? `${p.firstName} ${p.lastName}` : "гравця";
+      notify(`✅ Ваш голос за ${name} прийнято!`);
+      loadMvpData(user.phone);
     }
-    setShowMvp(false);
+  }
+
+  async function handleSpin() {
+    if (!user || spinDone || spinState === "spinning") return;
+    setSpinState("spinning");
+    // Spin animation: random full rotations + land on sector
+    const extraSpins = 5 + Math.floor(Math.random() * 4); // 5-8 full rotations
+    const sectorAngle = 360 / SPIN_SECTORS.length;
+    const targetSector = Math.floor(Math.random() * SPIN_SECTORS.length);
+    const targetAngle = spinAngle + extraSpins * 360 + (targetSector * sectorAngle);
+    setSpinAngle(targetAngle);
+    setTimeout(async () => {
+      try {
+        const res = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "spin", phone: user.phone }),
+        });
+        const data = await res.json();
+        if (data.alreadySpun) {
+          setSpinResult(data.hpGained);
+          setSpinState("result");
+          setSpinDone(true);
+        } else if (data.ok) {
+          setSpinResult(data.hpGained);
+          setSpinState("result");
+          setSpinDone(true);
+          setUser((u) => u ? { ...u, hp: data.newHp ?? u.hp } : u);
+          notify(`🎰 Ви виграли +${data.hpGained} HP!`);
+        } else {
+          setSpinState("idle");
+          notify("Помилка спіну, спробуй ще раз");
+        }
+      } catch {
+        setSpinState("idle");
+        notify("Помилка з'єднання");
+      }
+    }, 3500);
+  }
+
+  async function handleGameAttend() {
+    if (!user || !nextGame) return;
+    const res = await fetch("/api/chat/next-game", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ gameId: nextGame.id, phone: user.phone, name: `${user.firstName} ${user.lastName}` }),
+    });
+    const data = await res.json();
+    if (data.attendees) setGameAttendees(data.attendees);
+    if (data.attending) notify("✅ Ти в списку! До зустрічі на матчі 🏀");
+    else notify("Ти прибрав(ла) свою відмітку");
+  }
+
+  function openLeaderboard(mode: "alltime" | "weekly" = "weekly") {
+    setShowLeaderboard(true);
+    setLeaderboardMode(mode);
+    setLeaderboard([]);
+    fetch(`/api/chat/leaderboard?mode=${mode}`)
+      .then((r) => r.json())
+      .then((d) => {
+        setLeaderboard(d.leaderboard ?? []);
+        setLeaderboardWeekStart(d.weekStart ?? "");
+      })
+      .catch(() => {});
   }
 
   async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -415,6 +872,7 @@ export default function ChatPage() {
               name: `${user.firstName} ${user.lastName}`,
               text: `[IMAGE:${url}]`,
               replyToId: replyTo?.id ?? null,
+              roomId: activeRoom,
             }),
           });
           setReplyTo(null);
@@ -443,6 +901,7 @@ export default function ChatPage() {
         name: `${user.firstName} ${user.lastName}`,
         text,
         replyToId: replyTo?.id ?? null,
+        roomId: activeRoom,
       }),
     });
     setReplyTo(null);
@@ -454,6 +913,12 @@ export default function ChatPage() {
     setUser(null);
     setMessages([]);
     localStorage.removeItem(LS_KEY);
+    setRegMode("choose");
+    setRegFirstName("");
+    setRegLastName("");
+    setRegPhone("");
+    setRegSuccess(null);
+    setFormSubmitting(false);
     setStep("form");
   }
 
@@ -478,39 +943,179 @@ export default function ChatPage() {
 
   // ── Render: form ──────────────────────────────────────────────────────
   if (step === "form") {
+    const inp: React.CSSProperties = { width: "100%", padding: "12px 14px", borderRadius: "10px", background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.14)", color: "white", fontSize: "15px", fontFamily: "Exo 2, sans-serif", boxSizing: "border-box", outline: "none" };
+    const lbl: React.CSSProperties = { display: "block", fontSize: "12px", color: "#94a3b8", marginBottom: "5px", fontWeight: 600 };
+
+    // ── Player form ───────────────────────────────────────────────────
+    if (regMode === "player") {
+      return (
+        <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: "16px", background: "linear-gradient(135deg, #0f172a 0%, #1e3a5f 100%)" }}>
+          <div style={{ width: "100%", maxWidth: "420px", background: "#1a2744", borderRadius: "20px", overflow: "hidden", boxShadow: "0 25px 50px rgba(0,0,0,0.5)" }}>
+            <div style={{ padding: "28px 24px 20px", textAlign: "center" }}>
+              <div style={{ fontSize: "44px", marginBottom: "8px" }}>🏀</div>
+              <h1 style={{ color: "white", fontWeight: 800, fontSize: "22px", margin: "0 0 4px", fontFamily: "Exo 2, sans-serif" }}>Балачка ЛДБЛ</h1>
+              <p style={{ color: "#94a3b8", fontSize: "13px", margin: 0 }}>Введіть своє ім'я та телефон</p>
+            </div>
+            {notification && (
+              <div style={{ margin: "0 24px 12px", padding: "10px 14px", background: "rgba(239,68,68,0.15)", borderRadius: "8px", color: "#fca5a5", fontSize: "13px" }}>
+                {notification}
+              </div>
+            )}
+            <div style={{ padding: "0 24px 28px", display: "flex", flexDirection: "column", gap: "12px" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                <div>
+                  <label style={lbl}>Ім'я *</label>
+                  <input type="text" value={regFirstName} onChange={e => setRegFirstName(e.target.value)} placeholder="Ваше ім'я" style={inp} autoFocus />
+                </div>
+                <div>
+                  <label style={lbl}>Прізвище *</label>
+                  <input type="text" value={regLastName} onChange={e => setRegLastName(e.target.value)} placeholder="Прізвище" style={inp} />
+                </div>
+              </div>
+              <div>
+                <label style={lbl}>Номер телефону *</label>
+                <input type="tel" value={regPhone} onChange={e => setRegPhone(e.target.value)} placeholder="+380XXXXXXXXX" style={inp} />
+              </div>
+              {refCodeFromUrl && (
+                <div style={{ background: "rgba(244,111,16,0.12)", border: "1px solid rgba(244,111,16,0.3)", borderRadius: "8px", padding: "9px 12px", fontSize: "12px", color: "#f46f10" }}>
+                  🔗 Вас запросив учасник — він отримає бонус HP
+                </div>
+              )}
+              <button
+                type="button"
+                disabled={formSubmitting}
+                onClick={async () => {
+                  if (formSubmitting) return;
+                  const firstName = regFirstName.trim();
+                  const lastName = regLastName.trim();
+                  const phone = regPhone.trim();
+                  if (!firstName || !lastName || !phone) { notify("Заповніть всі поля"); return; }
+                  setFormSubmitting(true);
+                  localStorage.setItem(LS_KEY, JSON.stringify({ phone, firstName, lastName }));
+                  doLogin(phone, firstName, lastName, refCodeFromUrl ?? undefined, true).finally(() => setFormSubmitting(false));
+                }}
+                style={{ padding: "13px", background: formSubmitting ? "#334155" : "#2563eb", color: "white", border: "none", borderRadius: "10px", cursor: formSubmitting ? "not-allowed" : "pointer", fontWeight: 800, fontSize: "15px", fontFamily: "Exo 2, sans-serif", marginTop: "4px" }}
+              >
+                {formSubmitting ? "Вхід..." : "Увійти до чату"}
+              </button>
+              <button type="button" onClick={() => setRegMode("choose")} style={{ padding: "10px", background: "transparent", color: "#64748b", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "10px", cursor: "pointer", fontSize: "13px", fontFamily: "Exo 2, sans-serif" }}>
+                ← Назад
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ── Parent form ───────────────────────────────────────────────────
+    if (regMode === "parent") {
+      return (
+        <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: "16px", background: "linear-gradient(135deg, #0f172a 0%, #1e3a5f 100%)" }}>
+          <div style={{ width: "100%", maxWidth: "420px", background: "#1e3a5f", borderRadius: "20px", overflow: "hidden", boxShadow: "0 25px 50px rgba(0,0,0,0.5)" }}>
+            <div style={{ padding: "28px 24px 20px", textAlign: "center" }}>
+              <div style={{ fontSize: "44px", marginBottom: "8px" }}>👨‍👩‍👦</div>
+              <h1 style={{ color: "white", fontWeight: 800, fontSize: "22px", margin: "0 0 4px", fontFamily: "Exo 2, sans-serif" }}>Чат батьків</h1>
+              <p style={{ color: "#94a3b8", fontSize: "13px", margin: 0 }}>Введіть своє ім'я та телефон</p>
+            </div>
+            {notification && (
+              <div style={{ margin: "0 24px 12px", padding: "10px 14px", background: "rgba(239,68,68,0.15)", borderRadius: "8px", color: "#fca5a5", fontSize: "13px" }}>
+                {notification}
+              </div>
+            )}
+            <div style={{ padding: "0 24px 28px", display: "flex", flexDirection: "column", gap: "12px" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                <div>
+                  <label style={lbl}>Ваше ім'я *</label>
+                  <input type="text" value={regFirstName} onChange={e => setRegFirstName(e.target.value)} placeholder="Ваше ім'я" style={inp} autoFocus />
+                </div>
+                <div>
+                  <label style={lbl}>Прізвище *</label>
+                  <input type="text" value={regLastName} onChange={e => setRegLastName(e.target.value)} placeholder="Прізвище" style={inp} />
+                </div>
+              </div>
+              <div>
+                <label style={lbl}>Номер телефону *</label>
+                <input type="tel" value={regPhone} onChange={e => setRegPhone(e.target.value)} placeholder="+380XXXXXXXXX" style={inp} />
+              </div>
+              <button
+                type="button"
+                disabled={formSubmitting}
+                onClick={async () => {
+                  if (formSubmitting) return;
+                  const firstName = regFirstName.trim();
+                  const lastName = regLastName.trim();
+                  const phone = regPhone.trim();
+                  if (!firstName || !lastName || !phone) { notify("Заповніть всі поля"); return; }
+                  setFormSubmitting(true);
+                  try {
+                    const res = await fetch("/api/parents/register", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ phone, firstName, lastName }),
+                    });
+                    const data = await res.json();
+                    if (!res.ok) { notify(data.error || "Помилка реєстрації"); setFormSubmitting(false); return; }
+                    if (data.token) localStorage.setItem("parent_token", data.token);
+                    if (data.contact) localStorage.setItem("parent_data", JSON.stringify({ contact: data.contact }));
+                    setIsParent(true);
+                    setActiveRoom("parents");
+                    if (data.refLink) setRegSuccess({ firstName, hp: data.contact?.hp ?? 25, refLink: data.refLink, isNew: true });
+                    doLogin(phone, firstName, lastName);
+                  } catch { notify("Помилка з'єднання"); setFormSubmitting(false); }
+                }}
+                style={{ padding: "13px", background: formSubmitting ? "#64748b" : "#f97316", color: "white", border: "none", borderRadius: "10px", cursor: formSubmitting ? "not-allowed" : "pointer", fontWeight: 800, fontSize: "15px", fontFamily: "Exo 2, sans-serif", marginTop: "4px" }}
+              >
+                {formSubmitting ? "Реєстрація..." : "Увійти до чату батьків"}
+              </button>
+              <button type="button" onClick={() => setRegMode("choose")} style={{ padding: "10px", background: "transparent", color: "#64748b", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "10px", cursor: "pointer", fontSize: "13px", fontFamily: "Exo 2, sans-serif" }}>
+                ← Назад
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ── Choose screen ─────────────────────────────────────────────────
     return (
       <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: "16px", background: "linear-gradient(135deg, #0f172a 0%, #1e3a5f 100%)" }}>
-        <div style={{ width: "100%", maxWidth: "440px", background: "#1e2a4a", borderRadius: "20px", overflow: "hidden", boxShadow: "0 25px 50px rgba(0,0,0,0.5)" }}>
-          <div style={{ padding: "32px 24px 16px", textAlign: "center" }}>
-            <div style={{ fontSize: "48px" }}>💬</div>
-            <h1 style={{ color: "white", fontWeight: 800, fontSize: "24px", margin: "8px 0 4px", fontFamily: "Exo 2, sans-serif" }}>Балачка</h1>
-            <p style={{ color: "#94a3b8", fontSize: "13px", margin: 0 }}>Чат фанів Basket Lviv</p>
+        <div style={{ width: "100%", maxWidth: "460px" }}>
+          <div style={{ textAlign: "center", marginBottom: "28px" }}>
+            <div style={{ fontSize: "48px", marginBottom: "8px" }}>🏀</div>
+            <h1 style={{ color: "white", fontWeight: 800, fontSize: "24px", margin: "0 0 4px", fontFamily: "Exo 2, sans-serif" }}>Basket Lviv · Чат</h1>
+            <p style={{ color: "#94a3b8", fontSize: "13px", margin: 0 }}>Оберіть розділ для входу</p>
           </div>
-          {notification && (
-            <div style={{ margin: "0 24px 16px", padding: "10px 14px", background: "rgba(239,68,68,0.15)", borderRadius: "8px", color: "#fca5a5", fontSize: "13px" }}>
-              {notification}
-            </div>
-          )}
-          <form onSubmit={handleRegister} style={{ padding: "8px 24px 32px", display: "flex", flexDirection: "column", gap: "14px" }}>
-            {[
-              { name: "phone", label: "Телефон", type: "tel", placeholder: "+380 XX XXX XX XX" },
-              { name: "firstName", label: "Ім'я", type: "text", placeholder: "Іван" },
-              { name: "lastName", label: "Прізвище", type: "text", placeholder: "Петренко" },
-            ].map((f) => (
-              <div key={f.name}>
-                <label style={{ display: "block", fontSize: "12px", color: "#94a3b8", marginBottom: "5px" }}>{f.label}</label>
-                <input name={f.name} type={f.type} required placeholder={f.placeholder}
-                  style={{ width: "100%", padding: "11px 14px", borderRadius: "9px", background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.14)", color: "white", fontSize: "14px", fontFamily: "Exo 2, sans-serif", boxSizing: "border-box", outline: "none" }}
-                />
+          <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+            <button
+              type="button"
+              onClick={() => { setRegFirstName(""); setRegLastName(""); setRegPhone(""); setRegMode("player"); }}
+              style={{ padding: "22px 24px", background: "#1a2744", border: "2px solid rgba(255,255,255,0.1)", borderRadius: "18px", color: "white", cursor: "pointer", display: "flex", alignItems: "center", gap: "16px", textAlign: "left" }}
+              onMouseEnter={e => (e.currentTarget.style.borderColor = "#2563eb")}
+              onMouseLeave={e => (e.currentTarget.style.borderColor = "rgba(255,255,255,0.1)")}
+            >
+              <span style={{ fontSize: "38px", flexShrink: 0 }}>🏀</span>
+              <div>
+                <div style={{ fontWeight: 800, fontSize: "17px", fontFamily: "Exo 2, sans-serif", marginBottom: "3px" }}>Балачка</div>
+                <div style={{ color: "#94a3b8", fontSize: "13px" }}>Загальний чат ЛДБЛ — для всіх</div>
               </div>
-            ))}
-            <button type="submit" style={{ padding: "12px", background: "#f46f10", color: "white", border: "none", borderRadius: "10px", cursor: "pointer", fontWeight: 800, fontSize: "15px", fontFamily: "Exo 2, sans-serif", marginTop: "4px" }}>
-              Увійти до чату
             </button>
-            <p style={{ textAlign: "center", fontSize: "12px", color: "#475569", margin: 0 }}>
-              Якщо реєструвались — введіть той самий номер телефону
-            </p>
-          </form>
+            <button
+              type="button"
+              onClick={() => { setRegFirstName(""); setRegLastName(""); setRegPhone(""); setRegMode("parent"); }}
+              style={{ padding: "22px 24px", background: "#1e3a5f", border: "2px solid rgba(255,255,255,0.1)", borderRadius: "18px", color: "white", cursor: "pointer", display: "flex", alignItems: "center", gap: "16px", textAlign: "left" }}
+              onMouseEnter={e => (e.currentTarget.style.borderColor = "#f97316")}
+              onMouseLeave={e => (e.currentTarget.style.borderColor = "rgba(255,255,255,0.1)")}
+            >
+              <span style={{ fontSize: "38px", flexShrink: 0 }}>👨‍👩‍👦</span>
+              <div>
+                <div style={{ fontWeight: 800, fontSize: "17px", fontFamily: "Exo 2, sans-serif", marginBottom: "3px" }}>Чат батьків</div>
+                <div style={{ color: "#94a3b8", fontSize: "13px" }}>Приватний чат для батьків гравців</div>
+              </div>
+            </button>
+          </div>
+          <p style={{ textAlign: "center", color: "#475569", fontSize: "12px", marginTop: "16px" }}>
+            <a href="/" style={{ color: "#475569", textDecoration: "none" }}>← На головну</a>
+          </p>
         </div>
       </div>
     );
@@ -521,20 +1126,164 @@ export default function ChatPage() {
   const userName = `${user!.firstName} ${user!.lastName}`;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100dvh", background: "#0f172a", color: "white", fontFamily: "Exo 2, sans-serif" }}>
+    <div style={{ display: "flex", flexDirection: "row", height: "100dvh", background: "#0f172a", color: "white", fontFamily: "Exo 2, sans-serif" }}>
+
+      {/* ── Welcome / Referral modal ──────────────────────────────────────── */}
+      {regSuccess && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: "16px" }}
+          onClick={(e) => { if (e.target === e.currentTarget) setRegSuccess(null); }}>
+          <div style={{ background: "linear-gradient(135deg, #1e2a4a, #1e3a5f)", borderRadius: "24px", width: "100%", maxWidth: "420px", padding: "32px 28px", fontFamily: "Exo 2, sans-serif", boxShadow: "0 32px 64px rgba(0,0,0,0.6)", border: "1px solid rgba(255,255,255,0.08)" }}>
+            {/* Header */}
+            <div style={{ textAlign: "center", marginBottom: "24px" }}>
+              <div style={{ fontSize: "52px", marginBottom: "8px" }}>🎉</div>
+              <h2 style={{ color: "white", fontWeight: 800, fontSize: "22px", margin: "0 0 6px" }}>
+                Ласкаво просимо, {regSuccess.firstName}!
+              </h2>
+              {regSuccess.isNew && (
+                <div style={{ display: "inline-flex", alignItems: "center", gap: "6px", background: "rgba(244,111,16,0.15)", border: "1px solid rgba(244,111,16,0.3)", borderRadius: "20px", padding: "4px 14px", fontSize: "13px", color: "#f46f10", fontWeight: 700 }}>
+                  ⚡ +{regSuccess.hp} HP за реєстрацію
+                </div>
+              )}
+            </div>
+
+            {/* Ref link block */}
+            <div style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "14px", padding: "16px", marginBottom: "16px" }}>
+              <div style={{ fontSize: "13px", color: "#94a3b8", marginBottom: "10px", fontWeight: 600 }}>
+                🔗 Ваше реферальне посилання:
+              </div>
+              <div style={{ background: "rgba(0,0,0,0.3)", borderRadius: "8px", padding: "10px 12px", fontSize: "12px", color: "#e2e8f0", wordBreak: "break-all", marginBottom: "10px", lineHeight: "1.5" }}>
+                {regSuccess.refLink}
+              </div>
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(regSuccess.refLink).then(() => notify("✅ Посилання скопійовано!")).catch(() => notify("Не вдалось скопіювати"));
+                }}
+                style={{ width: "100%", padding: "10px", background: "#f97316", color: "white", border: "none", borderRadius: "9px", cursor: "pointer", fontWeight: 700, fontSize: "13px", fontFamily: "Exo 2, sans-serif" }}
+              >
+                📋 Скопіювати посилання
+              </button>
+            </div>
+
+            {/* Info */}
+            <div style={{ background: "rgba(37,99,235,0.1)", border: "1px solid rgba(37,99,235,0.2)", borderRadius: "10px", padding: "12px 14px", fontSize: "12px", color: "#93c5fd", lineHeight: "1.7", marginBottom: "20px" }}>
+              За кожного друга, хто зареєструється за вашим посиланням — <strong>+50 HP вам!</strong>
+            </div>
+
+            <button
+              onClick={() => setRegSuccess(null)}
+              style={{ width: "100%", padding: "13px", background: "linear-gradient(135deg, #2563eb, #1d4ed8)", color: "white", border: "none", borderRadius: "10px", cursor: "pointer", fontWeight: 800, fontSize: "15px", fontFamily: "Exo 2, sans-serif" }}
+            >
+              Перейти до чату →
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Main chat column ──────────────────────────────────────────────── */}
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, overflow: "hidden" }}>
+
+      {/* ── Room tabs ──────────────────────────────────────────────────── */}
+      <div style={{ background: "#162035", borderBottom: "1px solid rgba(255,255,255,0.06)", padding: "0 16px", flexShrink: 0, display: "flex", gap: 0 }}>
+        <button
+          onClick={() => setActiveRoom("general")}
+          style={{ padding: "8px 16px", background: "none", border: "none", cursor: "pointer", fontFamily: "Exo 2, sans-serif", fontWeight: 700, fontSize: "13px", color: activeRoom === "general" ? "#f46f10" : "#94a3b8", borderBottom: activeRoom === "general" ? "2px solid #f46f10" : "2px solid transparent", transition: "all 0.15s" }}
+        >
+          💬 Балачка
+        </button>
+        <button
+          onClick={() => {
+            if (isParent || (user && user.isLeaguePlayer)) {
+              setActiveRoom("parents");
+            } else {
+              notify("Зареєструйся як батько або гравець щоб приєднатись");
+            }
+          }}
+          style={{ padding: "8px 16px", background: "none", border: "none", cursor: "pointer", fontFamily: "Exo 2, sans-serif", fontWeight: 700, fontSize: "13px", color: activeRoom === "parents" ? "#f46f10" : "#94a3b8", borderBottom: activeRoom === "parents" ? "2px solid #f46f10" : "2px solid transparent", transition: "all 0.15s", display: "flex", alignItems: "center", gap: "4px" }}
+        >
+          👨‍👩‍👦 Батьки {!isParent && !user?.isLeaguePlayer && <span style={{ fontSize: "10px" }}>🔒</span>}
+        </button>
+      </div>
 
       {/* ── Header ─────────────────────────────────────────────────────── */}
       <header style={{ background: "#1e2a4a", borderBottom: "1px solid rgba(255,255,255,0.08)", padding: "10px 16px", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
           <a href="/" style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 32, height: 32, borderRadius: 8, background: "rgba(255,255,255,0.08)", color: "white", textDecoration: "none", fontSize: 16, flexShrink: 0 }} title="На головну">←</a>
           <span style={{ fontSize: "20px" }}>💬</span>
-          <span style={{ fontWeight: 800, fontSize: "18px" }}>Балачка</span>
+          <span style={{ fontWeight: 800, fontSize: "18px" }}>{activeRoom === "parents" ? "👨‍👩‍👦 Чат батьків" : "Балачка"}</span>
+          {/* MVP — обидві вкладки */}
           <button
             onClick={() => setShowMvp(true)}
-            style={{ background: "#f46f10", color: "white", border: "none", borderRadius: "8px", padding: "4px 12px", fontSize: "13px", cursor: "pointer", fontWeight: 700, fontFamily: "Exo 2, sans-serif" }}
+            style={{ background: "#f46f10", color: "white", border: "none", borderRadius: "8px", padding: "4px 12px", fontSize: "13px", cursor: "pointer", fontWeight: 700, fontFamily: "Exo 2, sans-serif", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: "6px" }}
           >
-            🏆 MVP
+            {mvpData && !mvpData.isActive && mvpData.currentLeader?.player?.photoUrl ? (
+              <img
+                src={mvpData.currentLeader.player.photoUrl}
+                alt="MVP"
+                style={{ width: "20px", height: "20px", borderRadius: "50%", objectFit: "contain", border: "1px solid rgba(255,255,255,0.5)" }}
+              />
+            ) : null}
+            🏅 MVP
           </button>
+
+          {activeRoom === "general" ? (
+            <>
+              <button
+                onClick={() => { setShowSpin(true); setSpinState(spinDone ? "result" : "idle"); }}
+                style={{ background: spinDone ? "#334155" : "linear-gradient(135deg,#7c3aed,#4f46e5)", color: "white", border: "none", borderRadius: "8px", padding: "4px 12px", fontSize: "13px", cursor: "pointer", fontWeight: 700, fontFamily: "Exo 2, sans-serif", whiteSpace: "nowrap", opacity: spinDone ? 0.7 : 1 }}
+              >
+                🎰 {spinDone ? "Спін ✓" : "Спін"}
+              </button>
+              <button
+                onClick={() => openLeaderboard()}
+                style={{ background: "linear-gradient(135deg,#0f766e,#0e7490)", color: "white", border: "none", borderRadius: "8px", padding: "4px 12px", fontSize: "13px", cursor: "pointer", fontWeight: 700, fontFamily: "Exo 2, sans-serif", whiteSpace: "nowrap" }}
+              >
+                🏅 Топ HP
+              </button>
+              {nextGame && (
+                <button
+                  onClick={() => setShowNextGame(true)}
+                  style={{ background: "linear-gradient(135deg,#166534,#15803d)", color: "white", border: "none", borderRadius: "8px", padding: "4px 12px", fontSize: "13px", cursor: "pointer", fontWeight: 700, fontFamily: "Exo 2, sans-serif", whiteSpace: "nowrap", animation: "pulse 2s infinite" }}
+                >
+                  🏀 Сьогоднішній матч
+                </button>
+              )}
+              <button
+                onClick={() => setShowPorokhova(true)}
+                style={{ background: "#16a34a", color: "white", border: "none", borderRadius: "8px", padding: "4px 12px", fontSize: "13px", cursor: "pointer", fontWeight: 700, fontFamily: "Exo 2, sans-serif", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: "4px" }}
+              >
+                🏀 Порохова
+                {porokhovaList.length > 0 && (
+                  <span style={{ background: "rgba(255,255,255,0.25)", borderRadius: "10px", padding: "0px 7px", fontSize: "12px", fontWeight: 800 }}>
+                    {porokhovaList.length}
+                  </span>
+                )}
+              </button>
+              <button
+                onClick={() => {
+                  setShowHpModal(true);
+                  fetch("/api/chat/moderators").then(r => r.json()).then(d => setModalMods(d.moderators || [])).catch(() => {});
+                }}
+                style={{ background: "linear-gradient(135deg, #f59e0b, #f46f10)", color: "white", border: "none", borderRadius: "8px", padding: "4px 12px", fontSize: "13px", cursor: "pointer", fontWeight: 700, fontFamily: "Exo 2, sans-serif", whiteSpace: "nowrap", width: "fit-content", minWidth: "unset", marginLeft: "10px" }}
+              >
+                ⚡ Правила HP
+              </button>
+            </>
+          ) : (
+            <>
+              <a
+                href="/marketplace"
+                style={{ background: "linear-gradient(135deg,#0f766e,#0e7490)", color: "white", border: "none", borderRadius: "8px", padding: "4px 12px", fontSize: "13px", cursor: "pointer", fontWeight: 700, fontFamily: "Exo 2, sans-serif", whiteSpace: "nowrap", textDecoration: "none", display: "inline-flex", alignItems: "center" }}
+              >
+                🛒 Барахолка
+              </a>
+              <a
+                href="/marketplace"
+                style={{ background: "linear-gradient(135deg,#7c3aed,#4f46e5)", color: "white", border: "none", borderRadius: "8px", padding: "4px 12px", fontSize: "13px", cursor: "pointer", fontWeight: 700, fontFamily: "Exo 2, sans-serif", whiteSpace: "nowrap", textDecoration: "none", display: "inline-flex", alignItems: "center" }}
+              >
+                🏆 Аукціон
+              </a>
+            </>
+          )}
           {user!.isMod && (
             <span style={{ background: "#f46f10", color: "white", fontSize: "10px", fontWeight: 700, padding: "2px 7px", borderRadius: "99px" }}>МОД</span>
           )}
@@ -547,7 +1296,7 @@ export default function ChatPage() {
               {user!.isLeaguePlayer && <span style={{ marginLeft: "4px" }} title="Гравець ліги">⚡</span>}
             </div>
             <div style={{ fontSize: "11px", color: "#94a3b8" }}>
-              ❤️ {user!.hp} HP{user!.warns > 0 && ` · ⚠️${user!.warns}`}
+              ❤️ {user!.hp} HP{user!.warns > 0 && ` · ⚠️${user!.warns}`}{streak >= 3 && <span style={{ marginLeft: "6px" }} title={`Стрік ${streak} днів`}>🔥×{streak}</span>}
             </div>
           </div>
           {user!.isMod && (
@@ -598,17 +1347,21 @@ export default function ChatPage() {
           </div>
         )}
 
-        {messages.map((msg) => {
+        {messages.filter((msg) => {
+          const t = msg.text || "";
+          return !t.startsWith("[POROKHOVA:") && !t.startsWith("[POLL:") && !t.startsWith("[VOTE:");
+        }).map((msg) => {
           const isMe = msg.phone === user!.phone;
           const summary = reactionSummary(msg.reactions);
           const mine = myReactions(msg.reactions);
           const canDelete = isMe || user!.isMod;
 
           return (
-            <div key={msg.id} style={{ display: "flex", flexDirection: "column", alignItems: isMe ? "flex-end" : "flex-start" }} className="group">
+            <div key={msg.id} style={{ display: "flex", flexDirection: "column", alignItems: "center" }} className="group">
               {!isMe && (
-                <div style={{ fontSize: "11px", color: msg.isMod ? "#f46f10" : "#64748b", marginBottom: "2px", paddingLeft: "4px" }}>
-                  {msg.name}{msg.isMod && " ✦"}
+                <div style={{ fontSize: "11px", color: msg.isMod ? "#3b82f6" : "#64748b", marginBottom: "2px", paddingLeft: "4px", alignSelf: "center", display: "flex", alignItems: "center", gap: "3px" }}>
+                  {msg.name}
+                  {msg.isMod && <span style={{ fontSize: "10px", background: "rgba(59,130,246,0.18)", color: "#93c5fd", borderRadius: "4px", padding: "0 4px", fontWeight: 700, letterSpacing: "0.03em" }}>🛡️ MOD</span>}
                 </div>
               )}
               {msg.replyTo && (
@@ -617,7 +1370,7 @@ export default function ChatPage() {
                 </div>
               )}
 
-              <div style={{ position: "relative", display: "inline-flex", alignItems: "center", gap: "4px", flexDirection: isMe ? "row-reverse" : "row" }}>
+              <div style={{ position: "relative", display: "inline-flex", alignItems: "center", gap: "4px", flexDirection: "row" }}>
                 {/* Bubble */}
                 <div
                   style={{ padding: msg.text.startsWith("[STICKER:") || msg.text.startsWith("[IMAGE:") || msg.text.startsWith("[GIF:") ? "4px" : "9px 13px", borderRadius: "16px", fontSize: "14px", maxWidth: "280px", wordBreak: "break-word", lineHeight: 1.4, background: isMe ? "#f46f10" : "rgba(255,255,255,0.08)", cursor: "pointer" }}
@@ -636,6 +1389,19 @@ export default function ChatPage() {
                   <QuickBtn onClick={(e) => { e.stopPropagation(); setEmojiTarget(emojiTarget === msg.id ? null : msg.id); }}>😊</QuickBtn>
                   <QuickBtn onClick={(e) => { e.stopPropagation(); setReplyTo(msg); inputRef.current?.focus(); }}>↩️</QuickBtn>
                   {canDelete && <QuickBtn onClick={(e) => { e.stopPropagation(); handleDeleteMsg(msg.id); }}>🗑️</QuickBtn>}
+                  {user!.isMod && !isMe && (
+                    <>
+                      <button onClick={(e) => { e.stopPropagation(); handleMod("ban", msg.phone, { reason: "бан", minutes: 5 }); }}
+                        style={{ background: "rgba(239,68,68,0.18)", border: "1px solid rgba(239,68,68,0.35)", color: "#fca5a5", borderRadius: "6px", fontSize: "10px", fontWeight: 700, cursor: "pointer", padding: "2px 6px", fontFamily: "Exo 2, sans-serif", whiteSpace: "nowrap" }}
+                        title="Бан 5 хвилин">🔨 5хв</button>
+                      <button onClick={(e) => { e.stopPropagation(); handleMod("ban", msg.phone, { reason: "бан", hours: 1 }); }}
+                        style={{ background: "rgba(239,68,68,0.18)", border: "1px solid rgba(239,68,68,0.35)", color: "#fca5a5", borderRadius: "6px", fontSize: "10px", fontWeight: 700, cursor: "pointer", padding: "2px 6px", fontFamily: "Exo 2, sans-serif", whiteSpace: "nowrap" }}
+                        title="Бан 1 годину">🔨 1год</button>
+                      <button onClick={(e) => { e.stopPropagation(); handleMod("ban", msg.phone, { reason: "бан", hours: 24 }); }}
+                        style={{ background: "rgba(239,68,68,0.25)", border: "1px solid rgba(239,68,68,0.5)", color: "#f87171", borderRadius: "6px", fontSize: "10px", fontWeight: 700, cursor: "pointer", padding: "2px 6px", fontFamily: "Exo 2, sans-serif", whiteSpace: "nowrap" }}
+                        title="Бан 1 день">🔨 1день</button>
+                    </>
+                  )}
                 </div>
               </div>
 
@@ -685,14 +1451,65 @@ export default function ChatPage() {
             {user!.isMod && !isMe && (
               <>
                 <div style={{ height: "1px", background: "rgba(255,255,255,0.06)", margin: "4px 0" }} />
-                <CtxItem onClick={() => handleMod("warn", msg.phone, { reason: "порушення" })}>⚠️ Попередити</CtxItem>
-                <CtxItem onClick={() => handleMod("mute", msg.phone, { minutes: 10 })}>🔇 Мют 10хв</CtxItem>
-                <CtxItem onClick={() => handleMod("ban", msg.phone, { reason: "бан", hours: 24 })} danger>🚫 Бан 24г</CtxItem>
+                <CtxItem onClick={() => { handleMod("warn", msg.phone, { reason: "порушення правил" }); setContextMenu(null); }}>⚠️ Варнінг</CtxItem>
+                <CtxItem onClick={() => { handleMod("mute", msg.phone, { minutes: 30 }); setContextMenu(null); }}>🔇 Мют 30хв</CtxItem>
+                <div style={{ height: "1px", background: "rgba(255,255,255,0.06)", margin: "4px 0" }} />
+                <CtxItem onClick={() => { handleMod("ban", msg.phone, { reason: "бан", minutes: 15 }); setContextMenu(null); }} danger>🚫 Бан 15хв</CtxItem>
+                <CtxItem onClick={() => { handleMod("ban", msg.phone, { reason: "бан", hours: 24 }); setContextMenu(null); }} danger>🚫 Бан 24г</CtxItem>
+                <CtxItem onClick={() => { handleMod("ban", msg.phone, { reason: "бан" }); setContextMenu(null); }} danger>🚫 Бан назавжди</CtxItem>
+                <div style={{ height: "1px", background: "rgba(255,255,255,0.06)", margin: "4px 0" }} />
+                <CtxItem onClick={() => {
+                  fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "pin", phone: user!.phone, text: msg.text }) });
+                  setContextMenu(null); notify("📌 Повідомлення закріплено");
+                }}>📌 Закріпити</CtxItem>
               </>
             )}
           </div>
         );
       })()}
+
+      {/* ── Ban popup (moderator only) ────────────────────────────────────── */}
+      {banPopup && (
+        <>
+          <div style={{ position: "fixed", inset: 0, zIndex: 59 }} onClick={() => setBanPopup(null)} />
+          <div
+            style={{
+              position: "fixed",
+              zIndex: 60,
+              top: Math.min(banPopup.y, window.innerHeight - 240),
+              left: Math.max(4, Math.min(banPopup.x, window.innerWidth - 210)),
+              background: "#1e2a4a",
+              border: "1px solid rgba(255,255,255,0.09)",
+              borderRadius: "12px",
+              padding: "4px 0",
+              minWidth: "195px",
+              boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ padding: "9px 14px 7px", fontFamily: "Exo 2, sans-serif", fontWeight: 700, fontSize: "13px", color: "white" }}>
+              {banPopup.name || "Учасник"}
+            </div>
+            <div style={{ height: "1px", background: "rgba(255,255,255,0.06)", margin: "0 0 4px" }} />
+            {banPopup.isBanned && banPopup.bannedUntil && (
+              <div style={{ padding: "4px 14px 6px", fontFamily: "Exo 2, sans-serif", fontSize: "11px", color: "#f87171" }}>
+                До: {new Date(banPopup.bannedUntil).toLocaleString("uk-UA", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
+              </div>
+            )}
+            {banPopup.isBanned ? (
+              <CtxItem onClick={() => handleBanAction(banPopup.phone, null, true)}>🔓 Розбанити</CtxItem>
+            ) : (
+              <>
+                <CtxItem onClick={() => handleBanAction(banPopup.phone, 5)} danger>🔨 Бан 5 хвилин</CtxItem>
+                <CtxItem onClick={() => handleBanAction(banPopup.phone, 1440)} danger>🔨 Бан 1 день</CtxItem>
+                <CtxItem onClick={() => handleBanAction(banPopup.phone, 525600)} danger>🔨 Бан 1 рік</CtxItem>
+              </>
+            )}
+            <div style={{ height: "1px", background: "rgba(255,255,255,0.06)", margin: "4px 0" }} />
+            <CtxItem onClick={() => setBanPopup(null)}>❌ Скасувати</CtxItem>
+          </div>
+        </>
+      )}
 
       {/* ── Reply preview ─────────────────────────────────────────────────── */}
       {replyTo && (
@@ -704,41 +1521,649 @@ export default function ChatPage() {
         </div>
       )}
 
-      {/* ── MVP Modal ─────────────────────────────────────────────────────── */}
-      {showMvp && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", padding: "16px" }}
-          onClick={(e) => { if (e.target === e.currentTarget) setShowMvp(false); }}>
-          <div style={{ background: "#1e2a4a", borderRadius: "20px", width: "100%", maxWidth: "380px", padding: "24px", maxHeight: "80vh", display: "flex", flexDirection: "column" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
-              <h2 style={{ margin: 0, fontSize: "18px", fontWeight: 800 }}>🏆 Голосування MVP</h2>
-              <button onClick={() => setShowMvp(false)} style={{ background: "none", border: "none", color: "#94a3b8", fontSize: "24px", cursor: "pointer", lineHeight: 1 }}>×</button>
+      {/* ── HP Rules Modal ────────────────────────────────────────────────── */}
+      {showHpModal && (
+        <div
+          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", padding: "16px" }}
+          onClick={(e) => { if (e.target === e.currentTarget) setShowHpModal(false); }}
+        >
+          <div style={{ background: "#0f1623", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "20px", width: "100%", maxWidth: "460px", padding: "24px", maxHeight: "85vh", overflowY: "auto", fontFamily: "Exo 2, sans-serif" }}>
+            {/* Header */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+              <h2 style={{ margin: 0, fontSize: "18px", fontWeight: 800, color: "white" }}>⚡ Правила нарахування HP</h2>
+              <button onClick={() => setShowHpModal(false)} style={{ background: "rgba(255,255,255,0.07)", border: "none", color: "#94a3b8", cursor: "pointer", width: 32, height: 32, borderRadius: "8px", fontSize: "16px", display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
             </div>
-            {user!.mvpVote ? (
-              <div style={{ textAlign: "center", padding: "16px 0" }}>
-                <div style={{ fontSize: "40px", marginBottom: "8px" }}>✅</div>
-                <p style={{ color: "#94a3b8", margin: 0 }}>Ви вже голосували цього місяця</p>
-                <p style={{ fontWeight: 700, color: "#f46f10", margin: "8px 0 0" }}>Ваш вибір: {user!.mvpVote}</p>
+
+            {/* Section: earn / lose */}
+            <div style={{ marginBottom: "20px" }}>
+              <div style={{ fontSize: "13px", fontWeight: 800, color: "#f59e0b", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "10px" }}>💰 Способи отримати / втратити HP</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                {[
+                  { icon: "🆕", text: "Реєстрація в чаті ЛДБЛ (перший вхід)", hp: "+25", plus: true },
+                  { icon: "🔗", text: "Хтось зареєструвався за твоїм реферальним посиланням", hp: "+50", plus: true },
+                  { icon: "☀️", text: "Зайшов на сайт + написав повідомлення в чаті (раз на добу)", hp: "+15", plus: true },
+                  { icon: "🥇", text: "Перший хто зайшов і написав коментар за день", hp: "+25", plus: true },
+                  { icon: "😴", text: "Не заходив у чат 1 день", hp: "−10", plus: false },
+                ].map(({ icon, text, hp, plus }) => (
+                  <div key={text} style={{ display: "flex", alignItems: "center", gap: "10px", background: "rgba(255,255,255,0.04)", borderRadius: "10px", padding: "10px 12px" }}>
+                    <span style={{ fontSize: "18px", flexShrink: 0 }}>{icon}</span>
+                    <span style={{ flex: 1, fontSize: "13px", color: "#cbd5e1", lineHeight: 1.4 }}>{text}</span>
+                    <span style={{ fontWeight: 800, fontSize: "14px", flexShrink: 0, color: plus ? "#4ade80" : "#f87171" }}>{hp} HP</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Section: rankings */}
+            <div style={{ marginBottom: "20px" }}>
+              <div style={{ fontSize: "13px", fontWeight: 800, color: "#f59e0b", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "10px" }}>🏆 Рейтинг та звання</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                {[
+                  { place: "🔥", rank: "3-є місце", hp: "100 HP", title: "«Легенда ліги»" },
+                  { place: "👑", rank: "2-е місце", hp: "300 HP", title: "«Рекрутер»" },
+                  { place: "🏆", rank: "1-е місце", hp: "1000 HP", title: "«Амбасадор клубу»" },
+                ].map(({ place, rank, hp, title }) => (
+                  <div key={rank} style={{ display: "flex", alignItems: "center", gap: "10px", background: "rgba(255,255,255,0.04)", borderRadius: "10px", padding: "10px 12px" }}>
+                    <span style={{ fontSize: "22px", flexShrink: 0 }}>{place}</span>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: "13px", fontWeight: 700, color: "white" }}>{rank} — {hp}</div>
+                      <div style={{ fontSize: "12px", color: "#94a3b8" }}>{title}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Section: moderators */}
+            <div>
+              <div style={{ fontSize: "13px", fontWeight: 800, color: "#f59e0b", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "10px" }}>🛡️ Модератори чату</div>
+              <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: "10px", padding: "12px 14px", display: "flex", flexDirection: "column", gap: "8px" }}>
+                {modalMods.length === 0 ? (
+                  <div style={{ fontSize: "13px", color: "#475569", textAlign: "center", padding: "4px 0" }}>Модераторів ще немає</div>
+                ) : (
+                  modalMods.map((m) => (
+                    <div key={m.phone} style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                      <div style={{ width: 32, height: 32, borderRadius: "50%", background: "rgba(124,58,237,0.25)", border: "1px solid rgba(124,58,237,0.4)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "13px", fontWeight: 700, color: "#a78bfa", flexShrink: 0 }}>
+                        {(m.name || "?")[0].toUpperCase()}
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: "13px", fontWeight: 700, color: "white" }}>🛡️ {m.name}</div>
+                      </div>
+                      <span style={{ fontSize: "10px", background: "rgba(124,58,237,0.2)", color: "#a78bfa", padding: "2px 8px", borderRadius: "99px", fontWeight: 700 }}>МОД</span>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            {/* Section: mod functionality */}
+            <div style={{ marginTop: "20px" }}>
+              <div style={{ fontSize: "13px", fontWeight: 800, color: "#f59e0b", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "10px" }}>🔨 Функціонал модератора</div>
+              <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: "10px", padding: "12px 14px", display: "flex", flexDirection: "column", gap: "8px" }}>
+                <div style={{ fontSize: "12px", color: "#94a3b8", marginBottom: "4px" }}>
+                  Кнопки бану видимі <strong style={{ color: "white" }}>тільки модератору</strong> — з&apos;являються при наведенні на повідомлення:
+                </div>
+                {[
+                  { label: "🔨 Бан 5 хв", desc: "Короткий бан — порушення тону" },
+                  { label: "🔨 Бан 1 год", desc: "Середній бан — повторне порушення" },
+                  { label: "🔨 Бан 1 день", desc: "Серйозне порушення правил" },
+                ].map(({ label, desc }) => (
+                  <div key={label} style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                    <span style={{ background: "rgba(239,68,68,0.2)", border: "1px solid rgba(239,68,68,0.4)", color: "#fca5a5", borderRadius: "6px", fontSize: "11px", fontWeight: 700, padding: "3px 10px", whiteSpace: "nowrap" }}>{label}</span>
+                    <span style={{ fontSize: "12px", color: "#64748b" }}>{desc}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* My reflink reminder */}
+            <div style={{ marginTop: "16px", background: "rgba(244,111,16,0.1)", border: "1px solid rgba(244,111,16,0.25)", borderRadius: "10px", padding: "10px 14px", fontSize: "12px", color: "#f46f10" }}>
+              🔗 Своє реферальне посилання знайдеш внизу правої колонки учасників
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── MVP Modal ─────────────────────────────────────────────────────── */}
+      {showMvp && (() => {
+        const monthNames = ["Січень","Лютий","Березень","Квітень","Травень","Червень","Липень","Серпень","Вересень","Жовтень","Листопад","Грудень"];
+        const now = new Date();
+        const currentMonth = now.toISOString().slice(0, 7);
+        const monthLabel = `${monthNames[now.getMonth()]} ${now.getFullYear()}`;
+
+        const isActive = mvpData?.isActive !== false;
+        const leader = mvpData?.currentLeader ?? null;
+        const userVoteId = mvpData?.userVote ?? user?.mvpVote ?? null;
+        const votedPlayer = userVoteId ? players.find((p) => p.id === userVoteId) : null;
+        const votedPlayerName = votedPlayer ? `${votedPlayer.firstName} ${votedPlayer.lastName}` : null;
+
+        // Determine state
+        // State C: month ended (not active) AND there is a leader
+        const isMonthEnded = !isActive && leader !== null;
+        // State B: voted this month
+        const hasVoted = !!userVoteId;
+        // State A: active + not voted
+
+        const chatTab: "balacka" | "batky" = activeRoom === "parents" ? "batky" : "balacka";
+
+        const vWords = (n: number) => n === 1 ? "голос" : n < 5 ? "голоси" : "голосів";
+
+        const PlayerPhoto = ({ player, size = 80 }: { player: MvpPlayer; size?: number }) => (
+          <div style={{ width: size, height: size, borderRadius: "50%", overflow: "hidden", background: "#0f1829", border: "3px solid #f46f10", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            {player.photoUrl ? (
+              <img src={player.photoUrl} alt={`${player.firstName} ${player.lastName}`} style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+            ) : (
+              <span style={{ fontSize: size * 0.4 }}>🏀</span>
+            )}
+          </div>
+        );
+
+        return (
+          <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", padding: "16px" }}
+            onClick={(e) => { if (e.target === e.currentTarget) setShowMvp(false); }}>
+            <div style={{ background: "#1e2a4a", borderRadius: "20px", width: "100%", maxWidth: "420px", padding: "24px", maxHeight: "88vh", display: "flex", flexDirection: "column", fontFamily: "Exo 2, sans-serif" }}>
+
+              {/* Header */}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+                <h2 style={{ margin: 0, fontSize: "18px", fontWeight: 800 }}>🏅 Гравець MVP місяця</h2>
+                <button onClick={() => setShowMvp(false)} style={{ background: "none", border: "none", color: "#94a3b8", fontSize: "24px", cursor: "pointer", lineHeight: 1 }}>×</button>
+              </div>
+
+              {/* ─── State C: Month ended, show winner ─── */}
+              {isMonthEnded && leader && (() => {
+                const [y, m] = (mvpData?.month ?? currentMonth).split("-");
+                const winLabel = `${monthNames[parseInt(m) - 1]} ${y}`;
+                return (
+                  <div style={{ textAlign: "center" }}>
+                    <div style={{ fontSize: "22px", fontWeight: 900, color: "#fbbf24", marginBottom: "16px" }}>🏆 MVP {winLabel}</div>
+                    <div style={{ display: "flex", justifyContent: "center", marginBottom: "14px" }}>
+                      <PlayerPhoto player={leader.player} size={110} />
+                    </div>
+                    <div style={{ fontSize: "20px", fontWeight: 800, color: "white", marginBottom: "4px" }}>{leader.player.firstName} {leader.player.lastName}</div>
+                    {leader.player.team && <div style={{ fontSize: "13px", color: "#94a3b8", marginBottom: "2px" }}>{leader.player.team.name}</div>}
+                    {leader.player.position && <div style={{ fontSize: "12px", color: "#64748b", marginBottom: "12px" }}>{leader.player.position}</div>}
+                    <div style={{ fontSize: "16px", color: "#f46f10", fontWeight: 700, marginBottom: "8px" }}>🗳️ {leader.totalVotes} {vWords(leader.totalVotes)}</div>
+                    <div style={{ fontSize: "13px", color: "#94a3b8" }}>Балачка: {leader.votesByChat.balacka} | Батьки: {leader.votesByChat.batky}</div>
+                  </div>
+                );
+              })()}
+
+              {/* ─── State B: Voted — show checkmark + leader ─── */}
+              {isActive && hasVoted && leader && (
+                <div style={{ overflowY: "auto", flex: 1 }}>
+                  <div style={{ textAlign: "center", marginBottom: "16px" }}>
+                    <div style={{ fontSize: "40px", marginBottom: "6px" }}>✅</div>
+                    <div style={{ color: "#94a3b8", fontSize: "14px" }}>Ви вже проголосували цього місяця</div>
+                    {votedPlayerName && <div style={{ color: "#f46f10", fontWeight: 700, marginTop: "4px", fontSize: "15px" }}>Ваш вибір: {votedPlayerName}</div>}
+                  </div>
+
+                  {/* Current leader */}
+                  <div style={{ background: "rgba(244,111,16,0.08)", border: "1px solid rgba(244,111,16,0.3)", borderRadius: "16px", padding: "16px", textAlign: "center" }}>
+                    <div style={{ fontSize: "11px", color: "#f46f10", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "12px" }}>📊 Поточний лідер</div>
+                    <div style={{ display: "flex", justifyContent: "center", marginBottom: "10px" }}>
+                      <PlayerPhoto player={leader.player} size={90} />
+                    </div>
+                    <div style={{ fontSize: "18px", fontWeight: 800, color: "white", marginBottom: "2px" }}>{leader.player.firstName} {leader.player.lastName}</div>
+                    {leader.player.team && <div style={{ fontSize: "12px", color: "#94a3b8", marginBottom: "2px" }}>{leader.player.team.name}</div>}
+                    {leader.player.position && <div style={{ fontSize: "11px", color: "#64748b", marginBottom: "10px" }}>{leader.player.position}</div>}
+                    <div style={{ fontSize: "15px", color: "#f46f10", fontWeight: 700, marginBottom: "6px" }}>🗳️ {leader.totalVotes} {vWords(leader.totalVotes)}</div>
+                    <div style={{ fontSize: "12px", color: "#94a3b8" }}>Балачка: {leader.votesByChat.balacka} | Батьки: {leader.votesByChat.batky}</div>
+                  </div>
+
+                  {/* Other results */}
+                  {(mvpData?.allResults?.length ?? 0) > 1 && (
+                    <div style={{ marginTop: "14px" }}>
+                      <div style={{ fontSize: "11px", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "8px" }}>Інші результати</div>
+                      {mvpData!.allResults.slice(1, 5).map((r, i) => (
+                        <div key={r.player.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", color: "#94a3b8", fontSize: "13px", marginBottom: "5px", padding: "4px 0" }}>
+                          <span>{i + 2}. {r.player.firstName} {r.player.lastName}</span>
+                          <span style={{ color: "#f46f10", fontWeight: 700 }}>{r.votes} гол.</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* ─── State B (voted) but no leader yet ─── */}
+              {isActive && hasVoted && !leader && (
+                <div style={{ textAlign: "center", padding: "20px 0" }}>
+                  <div style={{ fontSize: "40px", marginBottom: "8px" }}>✅</div>
+                  <div style={{ color: "#94a3b8", fontSize: "14px" }}>Ви вже проголосували цього місяця</div>
+                  {votedPlayerName && <div style={{ color: "#f46f10", fontWeight: 700, marginTop: "6px" }}>Ваш вибір: {votedPlayerName}</div>}
+                </div>
+              )}
+
+              {/* ─── State A: Active + not voted — show player list ─── */}
+              {isActive && !hasVoted && (
+                <>
+                  <div style={{ fontSize: "13px", color: "#94a3b8", marginBottom: "12px" }}>
+                    📅 {monthLabel} — виберіть найкращого гравця:
+                  </div>
+                  <div style={{ overflowY: "auto", flex: 1, display: "flex", flexDirection: "column", gap: "8px" }}>
+                    {players.length === 0 ? (
+                      <div style={{ color: "#64748b", textAlign: "center", padding: "20px 0" }}>Список гравців не завантажено</div>
+                    ) : players.map((p) => {
+                      const voteInfo = mvpData?.allResults?.find((r) => r.player.id === p.id);
+                      return (
+                        <button key={p.id}
+                          onClick={() => handleMvpVote(p.id, chatTab)}
+                          style={{ padding: "10px 14px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.09)", borderRadius: "12px", color: "white", cursor: "pointer", textAlign: "left", fontSize: "14px", fontFamily: "Exo 2, sans-serif", transition: "background 0.15s", display: "flex", alignItems: "center", gap: "12px" }}
+                          onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(244,111,16,0.15)"; }}
+                          onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(255,255,255,0.05)"; }}
+                        >
+                          <div style={{ width: "40px", height: "40px", borderRadius: "50%", overflow: "hidden", background: "#0f1829", border: "2px solid rgba(244,111,16,0.4)", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                            {p.photoUrl ? (
+                              <img src={p.photoUrl} alt={`${p.firstName} ${p.lastName}`} style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+                            ) : (
+                              <span style={{ fontSize: "20px" }}>🏀</span>
+                            )}
+                          </div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontWeight: 700 }}>{p.firstName} {p.lastName}</div>
+                            <div style={{ fontSize: "12px", color: "#64748b" }}>{p.team?.name}{p.position ? ` · ${p.position}` : ""}</div>
+                          </div>
+                          {voteInfo && <span style={{ fontSize: "12px", color: "#f46f10", fontWeight: 700, flexShrink: 0 }}>{voteInfo.votes} гол.</span>}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+
+              {/* ─── State A: Active + not voted + no players ─── */}
+              {isActive && !hasVoted && players.length === 0 && (
+                <div style={{ color: "#64748b", textAlign: "center", padding: "20px 0" }}>Завантаження...</div>
+              )}
+
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ── Spin Modal ───────────────────────────────────────────────────── */}
+      {showSpin && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)", zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", padding: "16px" }}
+          onClick={(e) => { if (e.target === e.currentTarget) setShowSpin(false); }}>
+          <div style={{ background: "#1e2a4a", borderRadius: "20px", width: "100%", maxWidth: "360px", padding: "24px", textAlign: "center", fontFamily: "Exo 2, sans-serif" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+              <h2 style={{ margin: 0, fontSize: "18px", fontWeight: 800, color: "white" }}>🎰 Щоденний спін</h2>
+              <button onClick={() => setShowSpin(false)} style={{ background: "none", border: "none", color: "#94a3b8", fontSize: "24px", cursor: "pointer", lineHeight: 1 }}>×</button>
+            </div>
+            <p style={{ color: "#94a3b8", fontSize: "13px", margin: "0 0 12px" }}>Раз на день — крути і отримуй HP!</p>
+
+            {/* Spin wheel SVG */}
+            {spinState !== "result" ? (
+              <div style={{ position: "relative", display: "inline-block", margin: "0 auto 16px" }}>
+                {/* Pointer triangle */}
+                <div style={{ position: "absolute", top: -10, left: "50%", transform: "translateX(-50%)", width: 0, height: 0, borderLeft: "10px solid transparent", borderRight: "10px solid transparent", borderTop: "18px solid #f46f10", zIndex: 10 }} />
+                <svg width="240" height="240" viewBox="0 0 240 240" style={{ display: "block", transition: spinState === "spinning" ? "transform 4s cubic-bezier(0.17,0.67,0.12,0.99)" : "none", transform: `rotate(${spinAngle}deg)`, transformOrigin: "120px 120px" }}>
+                  {SPIN_SECTORS.map((sector, i) => {
+                    const total = SPIN_SECTORS.length;
+                    const angleStep = (2 * Math.PI) / total;
+                    const startAngle = i * angleStep - Math.PI / 2;
+                    const endAngle = startAngle + angleStep;
+                    const r = 110;
+                    const cx = 120, cy = 120;
+                    const x1 = cx + r * Math.cos(startAngle);
+                    const y1 = cy + r * Math.sin(startAngle);
+                    const x2 = cx + r * Math.cos(endAngle);
+                    const y2 = cy + r * Math.sin(endAngle);
+                    const midAngle = startAngle + angleStep / 2;
+                    const lx = cx + (r * 0.65) * Math.cos(midAngle);
+                    const ly = cy + (r * 0.65) * Math.sin(midAngle);
+                    return (
+                      <g key={i}>
+                        <path d={`M${cx},${cy} L${x1},${y1} A${r},${r} 0 0,1 ${x2},${y2} Z`} fill={sector.color} stroke="#0f172a" strokeWidth="1.5" />
+                        <text x={lx} y={ly} textAnchor="middle" dominantBaseline="middle" fill="white" fontSize="13" fontWeight="800" fontFamily="Exo 2, sans-serif">{sector.label}</text>
+                      </g>
+                    );
+                  })}
+                  <circle cx="120" cy="120" r="18" fill="#0f172a" stroke="#f46f10" strokeWidth="3" />
+                  <text x="120" y="120" textAnchor="middle" dominantBaseline="middle" fill="#f46f10" fontSize="11" fontWeight="900" fontFamily="Exo 2, sans-serif">HP</text>
+                </svg>
               </div>
             ) : (
-              <>
-                <p style={{ color: "#94a3b8", fontSize: "13px", margin: "0 0 14px" }}>
-                  Виберіть найкращого гравця місяця:
-                </p>
-                <div style={{ overflowY: "auto", flex: 1, display: "flex", flexDirection: "column", gap: "6px" }}>
-                  {players.length === 0 ? (
-                    <div style={{ color: "#64748b", textAlign: "center", padding: "20px 0" }}>Список гравців не завантажено</div>
-                  ) : players.map((p) => (
-                    <button key={p.id} onClick={() => handleMvpVote(`${p.firstName} ${p.lastName}`)}
-                      style={{ padding: "10px 14px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.09)", borderRadius: "9px", color: "white", cursor: "pointer", textAlign: "left", fontSize: "14px", fontFamily: "Exo 2, sans-serif", transition: "background 0.15s" }}
-                      onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(244,111,16,0.15)"; }}
-                      onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(255,255,255,0.05)"; }}
-                    >
-                      🏀 {p.firstName} {p.lastName}
-                    </button>
+              <div style={{ fontSize: "52px", margin: "16px 0" }}>🎉</div>
+            )}
+
+            {spinState === "result" && spinResult !== null && (
+              <div style={{ background: "linear-gradient(135deg,#14532d,#166534)", borderRadius: "12px", padding: "14px", marginBottom: "16px" }}>
+                <div style={{ fontSize: "28px", fontWeight: 900, color: "#4ade80" }}>+{spinResult} HP</div>
+                <div style={{ color: "#86efac", fontSize: "13px", marginTop: 4 }}>Нараховано до вашого рахунку!</div>
+              </div>
+            )}
+
+            {spinDone && spinState !== "spinning" ? (
+              <div style={{ color: "#64748b", fontSize: "13px", marginBottom: 8 }}>✅ Сьогодні вже крутили. Повертайтесь завтра!</div>
+            ) : (
+              <button
+                onClick={handleSpin}
+                disabled={spinState === "spinning" || spinDone}
+                style={{ width: "100%", padding: "12px", borderRadius: "10px", fontWeight: 800, fontSize: "15px", cursor: spinState === "spinning" || spinDone ? "not-allowed" : "pointer", background: spinState === "spinning" ? "#334155" : "linear-gradient(135deg,#7c3aed,#4f46e5)", color: "white", border: "none", fontFamily: "Exo 2, sans-serif", opacity: spinState === "spinning" ? 0.7 : 1 }}
+              >
+                {spinState === "spinning" ? "Крутиться..." : "🎰 Крутити!"}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Leaderboard Modal ────────────────────────────────────────────── */}
+      {showLeaderboard && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)", zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", padding: "16px" }}
+          onClick={(e) => { if (e.target === e.currentTarget) setShowLeaderboard(false); }}>
+          <div style={{ background: "#1e2a4a", borderRadius: "20px", width: "100%", maxWidth: "360px", padding: "24px", fontFamily: "Exo 2, sans-serif" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
+              <h2 style={{ margin: 0, fontSize: "18px", fontWeight: 800 }}>🏅 Таблиця лідерів HP</h2>
+              <button onClick={() => setShowLeaderboard(false)} style={{ background: "none", border: "none", color: "#94a3b8", fontSize: "24px", cursor: "pointer", lineHeight: 1 }}>×</button>
+            </div>
+
+            {/* Mode switcher */}
+            <div style={{ display: "flex", gap: 6, marginBottom: 16, background: "rgba(255,255,255,0.06)", borderRadius: 10, padding: 4 }}>
+              <button
+                onClick={() => openLeaderboard("weekly")}
+                style={{ flex: 1, padding: "6px 0", borderRadius: 7, fontSize: 12, fontWeight: 700, border: "none", cursor: "pointer", transition: "all 0.15s", background: leaderboardMode === "weekly" ? "#f46f10" : "transparent", color: leaderboardMode === "weekly" ? "white" : "#94a3b8" }}
+              >
+                📅 Цей тиждень
+              </button>
+              <button
+                onClick={() => openLeaderboard("alltime")}
+                style={{ flex: 1, padding: "6px 0", borderRadius: 7, fontSize: 12, fontWeight: 700, border: "none", cursor: "pointer", transition: "all 0.15s", background: leaderboardMode === "alltime" ? "#0e7490" : "transparent", color: leaderboardMode === "alltime" ? "white" : "#94a3b8" }}
+              >
+                🏆 Весь час
+              </button>
+            </div>
+
+            {/* Week label */}
+            {leaderboardMode === "weekly" && leaderboardWeekStart && (
+              <div style={{ fontSize: 11, color: "#64748b", marginBottom: 12, textAlign: "center" }}>
+                Тиждень з {new Date(leaderboardWeekStart).toLocaleDateString("uk-UA", { day: "numeric", month: "long" })}
+              </div>
+            )}
+
+            {leaderboard.length === 0 ? (
+              <div style={{ color: "#475569", textAlign: "center", padding: "20px 0" }}>
+                {leaderboardMode === "weekly" ? "Цього тижня ще немає активності" : "Завантаження..."}
+              </div>
+            ) : leaderboard.map((m, i) => {
+              const av = getAvatar(m.hp);
+              const medals = ["🥇", "🥈", "🥉"];
+              const isMe = m.phone === user!.phone;
+              const displayHp = leaderboardMode === "weekly" ? (m.weeklyHp ?? 0) : m.hp;
+              return (
+                <div key={m.phone} style={{ display: "flex", alignItems: "center", gap: "12px", padding: "10px 14px", borderRadius: "10px", marginBottom: "6px", background: isMe ? "rgba(244,111,16,0.12)" : i < 3 ? "rgba(255,255,255,0.04)" : "transparent", border: isMe ? "1px solid rgba(244,111,16,0.3)" : "1px solid transparent" }}>
+                  <div style={{ width: "28px", textAlign: "center", fontSize: "18px", flexShrink: 0 }}>{medals[i] ?? `${i + 1}.`}</div>
+                  <div style={{ width: "36px", height: "36px", borderRadius: "50%", background: i === 0 ? "#b45309" : i === 1 ? "#374151" : i === 2 ? "#7c2d12" : "#1e293b", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "16px", flexShrink: 0 }}>
+                    {av ? av.emoji : (m.firstName?.[0] || "?").toUpperCase()}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 700, fontSize: "14px", color: isMe ? "#f46f10" : "white", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                      {getBadge(m.hp) && <span style={{ marginRight: "4px" }}>{getBadge(m.hp)}</span>}
+                      {m.firstName} {m.lastName}{isMe && " (я)"}
+                    </div>
+                    {av && <div style={{ fontSize: "10px", color: "#64748b" }}>{av.emoji} {av.label}</div>}
+                  </div>
+                  <div style={{ fontSize: "16px", fontWeight: 800, color: i === 0 ? "#fbbf24" : i === 1 ? "#94a3b8" : i === 2 ? "#fb923c" : "#f46f10", flexShrink: 0 }}>
+                    +{displayHp} HP
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* ── Next Game Modal ──────────────────────────────────────────────── */}
+      {showNextGame && nextGame && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)", zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", padding: "16px" }}
+          onClick={(e) => { if (e.target === e.currentTarget) setShowNextGame(false); }}>
+          <div style={{ background: "#1e2a4a", borderRadius: "20px", width: "100%", maxWidth: "400px", padding: "24px", fontFamily: "Exo 2, sans-serif" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+              <h2 style={{ margin: 0, fontSize: "18px", fontWeight: 800 }}>🏀 Сьогоднішній матч</h2>
+              <button onClick={() => setShowNextGame(false)} style={{ background: "none", border: "none", color: "#94a3b8", fontSize: "24px", cursor: "pointer", lineHeight: 1 }}>×</button>
+            </div>
+
+            {/* Match card */}
+            <div style={{ background: "rgba(21,128,61,0.12)", border: "1px solid rgba(21,128,61,0.35)", borderRadius: "14px", padding: "18px", marginBottom: "16px", textAlign: "center" }}>
+              <div style={{ fontSize: "11px", color: "#22c55e", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "10px" }}>
+                {nextGame.season.name}
+              </div>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "12px", marginBottom: "10px" }}>
+                <div style={{ flex: 1, textAlign: "right" }}>
+                  <div style={{ fontWeight: 800, fontSize: "16px", color: "white" }}>{nextGame.homeTeam.name}</div>
+                  <div style={{ fontSize: "11px", color: "#64748b" }}>господарі</div>
+                </div>
+                <div style={{ fontSize: "22px", fontWeight: 900, color: "#f46f10", padding: "0 4px" }}>VS</div>
+                <div style={{ flex: 1, textAlign: "left" }}>
+                  <div style={{ fontWeight: 800, fontSize: "16px", color: "white" }}>{nextGame.awayTeam.name}</div>
+                  <div style={{ fontSize: "11px", color: "#64748b" }}>гості</div>
+                </div>
+              </div>
+              <div style={{ fontSize: "14px", color: "#94a3b8" }}>
+                🕐 {new Date(nextGame.scheduledAt).toLocaleString("uk-UA", { weekday: "short", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" })}
+              </div>
+            </div>
+
+            {/* Attend button */}
+            {(() => {
+              const isAttending = gameAttendees.some((a) => a.phone === user!.phone);
+              return (
+                <button onClick={handleGameAttend}
+                  style={{ width: "100%", padding: "12px", background: isAttending ? "#166534" : "linear-gradient(135deg,#16a34a,#15803d)", border: isAttending ? "2px solid #22c55e" : "none", borderRadius: "10px", color: "white", fontWeight: 800, fontSize: "15px", cursor: "pointer", fontFamily: "Exo 2, sans-serif", marginBottom: "16px" }}>
+                  {isAttending ? "✅ Я буду! (зняти відмітку)" : "🙋 Я там буду!"}
+                </button>
+              );
+            })()}
+
+            {/* Attendees list */}
+            <div>
+              <div style={{ fontSize: "12px", color: "#64748b", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "10px" }}>
+                Підуть на матч ({gameAttendees.length}):
+              </div>
+              {gameAttendees.length === 0 ? (
+                <div style={{ color: "#334155", fontSize: "13px", textAlign: "center", padding: "12px 0" }}>
+                  Поки ніхто не відмітився. Будь першим! 🏀
+                </div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: "6px", maxHeight: "200px", overflowY: "auto" }}>
+                  {gameAttendees.map((a, i) => (
+                    <div key={a.phone} style={{ display: "flex", alignItems: "center", gap: "10px", padding: "8px 10px", borderRadius: "8px", background: a.phone === user!.phone ? "rgba(34,197,94,0.12)" : "rgba(255,255,255,0.04)", border: a.phone === user!.phone ? "1px solid rgba(34,197,94,0.3)" : "1px solid transparent" }}>
+                      <div style={{ width: "28px", height: "28px", borderRadius: "50%", background: "#166534", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "12px", fontWeight: 700, color: "white", flexShrink: 0 }}>
+                        {a.name[0]?.toUpperCase() || "?"}
+                      </div>
+                      <span style={{ fontSize: "13px", fontWeight: a.phone === user!.phone ? 700 : 400, color: a.phone === user!.phone ? "#22c55e" : "white" }}>
+                        {i + 1}. {a.name}{a.phone === user!.phone ? " (я)" : ""}
+                      </span>
+                    </div>
                   ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Poll Modal ────────────────────────────────────────────────────── */}
+      {showPoll && (
+        <div onClick={() => setShowPoll(false)}
+          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", padding: "16px" }}>
+          <div onClick={(e) => e.stopPropagation()}
+            style={{ background: "#1e2a4a", borderRadius: "20px", width: "100%", maxWidth: "380px", padding: "24px", fontFamily: "Exo 2, sans-serif" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+              <h2 style={{ margin: 0, fontSize: "18px", fontWeight: 800 }}>📊 {activePoll ? activePoll.question : "Створити опитування"}</h2>
+              <button onClick={() => setShowPoll(false)} style={{ background: "none", border: "none", color: "#94a3b8", fontSize: "24px", cursor: "pointer", lineHeight: 1 }}>×</button>
+            </div>
+            {!activePoll ? (
+              <>
+                <input placeholder="Питання..." value={pollQuestion} onChange={(e) => setPollQuestion(e.target.value)}
+                  style={{ width: "100%", padding: "10px", borderRadius: "8px", border: "1px solid #334", background: "#0f172a", color: "white", fontSize: "14px", marginBottom: "12px", boxSizing: "border-box" }} />
+                {pollOptions.map((opt, i) => (
+                  <div key={i} style={{ display: "flex", gap: "8px", marginBottom: "8px" }}>
+                    <input placeholder={`Варіант ${i + 1}`} value={opt}
+                      onChange={(e) => { const next = [...pollOptions]; next[i] = e.target.value; setPollOptions(next); }}
+                      style={{ flex: 1, padding: "8px", borderRadius: "8px", border: "1px solid #334", background: "#0f172a", color: "white", fontSize: "14px" }} />
+                    {pollOptions.length > 2 && (
+                      <button onClick={() => setPollOptions(pollOptions.filter((_, j) => j !== i))}
+                        style={{ background: "#7f1d1d", border: "none", borderRadius: "6px", color: "white", padding: "0 10px", cursor: "pointer" }}>✕</button>
+                    )}
+                  </div>
+                ))}
+                {pollOptions.length < 5 && (
+                  <button onClick={() => setPollOptions([...pollOptions, ""])}
+                    style={{ background: "transparent", border: "1px dashed #334", color: "#aaa", borderRadius: "8px", padding: "8px", width: "100%", cursor: "pointer", marginBottom: "12px", fontSize: "13px" }}>
+                    + Додати варіант
+                  </button>
+                )}
+                <div style={{ display: "flex", gap: "10px" }}>
+                  <button onClick={() => setShowPoll(false)}
+                    style={{ flex: 1, padding: "10px", borderRadius: "8px", border: "1px solid #334", background: "transparent", color: "#aaa", cursor: "pointer" }}>
+                    Скасувати
+                  </button>
+                  <button onClick={() => {
+                    const valid = pollOptions.filter((o) => o.trim());
+                    if (!pollQuestion.trim() || valid.length < 2) return;
+                    const poll = { id: Date.now().toString(), question: pollQuestion.trim(), options: valid, votes: {}, createdBy: `${user!.firstName} ${user!.lastName}` };
+                    setActivePoll(poll);
+                    sendSpecial(`[POLL:${JSON.stringify({ q: poll.question, opts: poll.options })}]`);
+                    setPollQuestion("");
+                    setPollOptions(["", ""]);
+                  }}
+                    style={{ flex: 1, padding: "10px", borderRadius: "8px", border: "none", background: "#2563eb", color: "white", fontWeight: 700, cursor: "pointer" }}>
+                    Створити 🗳️
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <p style={{ color: "#94a3b8", fontSize: "12px", margin: "0 0 16px" }}>
+                  Автор: {activePoll.createdBy} · Голосів: {Object.keys(activePoll.votes).length}
+                </p>
+                {activePoll.options.map((opt, i) => {
+                  const total = Object.keys(activePoll.votes).length;
+                  const cnt = Object.values(activePoll.votes).filter((v) => v === String(i)).length;
+                  const pct = total > 0 ? Math.round((cnt / total) * 100) : 0;
+                  const voted = activePoll.votes[user!.phone] === String(i);
+                  const hasVoted = user!.phone in activePoll.votes;
+                  return (
+                    <button key={i} onClick={() => {
+                      if (hasVoted) return;
+                      setActivePoll({ ...activePoll, votes: { ...activePoll.votes, [user!.phone]: String(i) } });
+                    }}
+                      style={{ width: "100%", marginBottom: "8px", padding: "10px 14px", borderRadius: "8px", border: voted ? "2px solid #2563eb" : "1px solid #334", background: voted ? "rgba(37,99,235,0.15)" : "rgba(255,255,255,0.04)", color: "white", cursor: hasVoted ? "default" : "pointer", textAlign: "left", position: "relative", overflow: "hidden", fontSize: "14px" }}>
+                      <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: `${pct}%`, background: "rgba(37,99,235,0.2)", transition: "width 0.3s" }} />
+                      <span style={{ position: "relative" }}>{voted ? "✓ " : ""}{opt}</span>
+                      <span style={{ position: "relative", float: "right", color: "#60a5fa", fontWeight: 700 }}>{pct}%</span>
+                    </button>
+                  );
+                })}
+                <div style={{ display: "flex", gap: "10px", marginTop: "8px" }}>
+                  <button onClick={() => setShowPoll(false)}
+                    style={{ flex: 1, padding: "10px", borderRadius: "8px", border: "1px solid #334", background: "transparent", color: "#aaa", cursor: "pointer" }}>Закрити</button>
+                  {activePoll.createdBy === `${user!.firstName} ${user!.lastName}` && (
+                    <button onClick={() => { setActivePoll(null); setShowPoll(false); }}
+                      style={{ flex: 1, padding: "10px", borderRadius: "8px", border: "none", background: "#7f1d1d", color: "white", cursor: "pointer" }}>🗑️ Завершити</button>
+                  )}
                 </div>
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Porokhova Modal ───────────────────────────────────────────────── */}
+      {showPorokhova && (
+        <div onClick={() => setShowPorokhova(false)}
+          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", padding: "16px" }}>
+          <div onClick={(e) => e.stopPropagation()}
+            style={{ background: "#1e2a4a", border: "2px solid #16a34a", borderRadius: "20px", padding: "28px", width: "420px", maxWidth: "92vw", fontFamily: "Exo 2, sans-serif", maxHeight: "90vh", overflowY: "auto" }}>
+            <div style={{ textAlign: "center", marginBottom: "20px" }}>
+              <div style={{ fontSize: "40px", marginBottom: "8px" }}>🏀</div>
+              <h2 style={{ color: "#16a34a", margin: 0, fontSize: "22px" }}>Хто на Порохову?</h2>
+              <p style={{ color: "#888", fontSize: "13px", margin: "6px 0 0" }}>Баскетбольний майданчик · вул. Порохова</p>
+            </div>
+            {([
+              { status: "їду" as const,        emoji: "✅", label: "Їду!",               color: "#16a34a" },
+              { status: "їду_20" as const,     emoji: "⏱️", label: "Їду через 20 хвилин", color: "#d97706" },
+              { status: "потрібен_1" as const, emoji: "🙋", label: "Потрібен +1 гравець", color: "#2563eb" },
+            ] as const).map(({ status, emoji, label, color }) => {
+              const myEntry = porokhovaList.find((p) => p.phone === user!.phone);
+              const isSelected = myEntry?.status === status;
+              const group = porokhovaList.filter((p) => p.status === status);
+              const cnt = group.length;
+              return (
+                <div key={status} style={{ marginBottom: "12px" }}>
+                  <button
+                    disabled={porokhovaLoading}
+                    onClick={async () => {
+                      setPorokhovaLoading(true);
+                      try {
+                        if (isSelected) {
+                          // деселект — видалити свою відмітку
+                          await fetch("/api/playground/checkin", {
+                            method: "DELETE",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ phone: user!.phone }),
+                          });
+                          setPorokhovaList(prev => prev.filter(p => p.phone !== user!.phone));
+                        } else {
+                          // вибрати / змінити статус
+                          const res = await fetch("/api/playground/checkin", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ phone: user!.phone, name: userName, status }),
+                          });
+                          const data = await res.json();
+                          if (data.checkin) {
+                            setPorokhovaList(prev => {
+                              const filtered = prev.filter(p => p.phone !== user!.phone);
+                              return [...filtered, data.checkin];
+                            });
+                          }
+                        }
+                      } finally {
+                        setPorokhovaLoading(false);
+                      }
+                    }}
+                    style={{ width: "100%", padding: "12px 16px", borderRadius: "10px", border: isSelected ? `2px solid ${color}` : "1px solid #334", background: isSelected ? `${color}22` : "rgba(255,255,255,0.04)", color: "white", cursor: porokhovaLoading ? "wait" : "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: "15px", fontFamily: "Exo 2, sans-serif", fontWeight: isSelected ? 700 : 400 }}>
+                    <span>{emoji} {label}</span>
+                    {cnt > 0 && (
+                      <span style={{ background: color, borderRadius: "20px", padding: "2px 10px", fontSize: "13px", fontWeight: 700 }}>
+                        {cnt} {cnt === 1 ? "гравець" : cnt < 5 ? "гравці" : "гравців"}
+                      </span>
+                    )}
+                  </button>
+                  {cnt > 0 && (
+                    <div style={{ paddingLeft: "12px", paddingTop: "6px", display: "flex", flexDirection: "column", gap: "4px" }}>
+                      {group.map((p) => (
+                        <div key={p.phone} style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "13px", color: p.phone === user!.phone ? color : "#cbd5e1" }}>
+                          <span style={{ width: "28px", height: "28px", borderRadius: "50%", background: `${color}33`, border: `1px solid ${color}66`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "13px", flexShrink: 0 }}>
+                            {p.name.charAt(0).toUpperCase()}
+                          </span>
+                          <span>{p.name}{p.phone === user!.phone ? " (ти)" : ""}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+            <div style={{ display: "flex", gap: "10px", marginTop: "20px" }}>
+              <button onClick={() => setShowPorokhova(false)}
+                style={{ flex: 1, padding: "10px", borderRadius: "8px", border: "1px solid #334", background: "transparent", color: "#aaa", cursor: "pointer", fontFamily: "Exo 2, sans-serif" }}>
+                Закрити
+              </button>
+              {user?.isMod && (
+                <button onClick={async () => {
+                  if (!confirm("Скинути всі відмітки?")) return;
+                  await fetch("/api/playground/reset", { method: "POST", headers: { "x-mod-phone": user!.phone } });
+                  setPorokhovaList([]);
+                }}
+                  style={{ flex: 1, padding: "10px", borderRadius: "8px", border: "none", background: "#7f1d1d", color: "white", cursor: "pointer", fontFamily: "Exo 2, sans-serif" }}>
+                  🗑️ Скинути всі
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -748,12 +2173,12 @@ export default function ChatPage() {
 
         {/* Sticker panel — 😊 Meme + ✨ Animated + 🎭 Cool */}
         {openPanel === "sticker" && (
-          <div style={{ position: "absolute", bottom: "100%", left: "10px", width: "320px", background: "#1e2a4a", border: "1px solid #f46f10", borderRadius: "12px", zIndex: 100, overflow: "hidden" }} onClick={(e) => e.stopPropagation()}>
+          <div style={{ position: "absolute", bottom: "100%", left: "10px", width: "360px", background: "#1e2a4a", border: "1px solid #f46f10", borderRadius: "12px", zIndex: 100, overflow: "hidden" }} onClick={(e) => e.stopPropagation()}>
             {/* Tabs */}
-            <div style={{ display: "flex", gap: "6px", padding: "8px 8px 0" }}>
-              {([{ key: "meme", label: "😊 Звичайні" }, { key: "animated", label: "✨ Animated" }, { key: "cool", label: "🎭 Cool" }] as const).map((t) => (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "4px", padding: "8px 8px 0" }}>
+              {([{ key: "meme", label: "😊 Звичайні" }, { key: "animated", label: "✨ Animated" }, { key: "cool", label: "🎭 Cool" }, { key: "classic", label: "🧌 Класичні" }, { key: "cat", label: "🐱 Cat" }, { key: "pepe", label: "🐸 Жаби" }] as const).map((t) => (
                 <button key={t.key} onClick={() => setStickerTab(t.key)}
-                  style={{ padding: "4px 10px", borderRadius: "6px", border: stickerTab === t.key ? "none" : "1px solid #334", background: stickerTab === t.key ? "#f46f10" : "transparent", color: stickerTab === t.key ? "white" : "#aaa", cursor: "pointer", fontSize: "13px", fontFamily: "Exo 2, sans-serif" }}>
+                  style={{ padding: "3px 8px", borderRadius: "6px", border: stickerTab === t.key ? "none" : "1px solid #334", background: stickerTab === t.key ? "#f46f10" : "transparent", color: stickerTab === t.key ? "white" : "#aaa", cursor: "pointer", fontSize: "11px", fontFamily: "Exo 2, sans-serif", whiteSpace: "nowrap" }}>
                   {t.label}
                 </button>
               ))}
@@ -779,12 +2204,39 @@ export default function ChatPage() {
                     </button>
                   ))}
                 </div>
-              ) : (
+              ) : stickerTab === "cool" ? (
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: "6px" }}>
                   {COOL_GIFS.map((url) => (
                     <button key={url} onClick={() => sendSpecial(`[GIF:${url}]`)}
                       style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.09)", borderRadius: "8px", cursor: "pointer", padding: "0", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" }}>
                       <img src={url} alt="gif" style={{ width: 64, height: 64, objectFit: "cover", display: "block" }} onError={(e) => { (e.currentTarget as HTMLImageElement).parentElement!.style.display = "none"; }} />
+                    </button>
+                  ))}
+                </div>
+              ) : stickerTab === "classic" ? (
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: "6px" }}>
+                  {CLASSIC_MEMES.map((item) => (
+                    <button key={item.url} onClick={() => sendSpecial(`[GIF:${item.url}]`)}
+                      style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.09)", borderRadius: "8px", cursor: "pointer", padding: "3px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <img src={item.url} alt={item.name} title={item.name} style={{ width: 56, height: 56, objectFit: "contain" }} onError={(e) => { (e.currentTarget as HTMLImageElement).parentElement!.style.display = "none"; }} />
+                    </button>
+                  ))}
+                </div>
+              ) : stickerTab === "cat" ? (
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: "6px" }}>
+                  {CAT_GIFS.map((url) => (
+                    <button key={url} onClick={() => sendSpecial(`[GIF:${url}]`)}
+                      style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.09)", borderRadius: "8px", cursor: "pointer", padding: "0", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <img src={url} alt="cat" style={{ width: 64, height: 64, objectFit: "cover", display: "block" }} onError={(e) => { (e.currentTarget as HTMLImageElement).parentElement!.style.display = "none"; }} />
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: "6px" }}>
+                  {PEPE_GIFS.map((url) => (
+                    <button key={url} onClick={() => sendSpecial(`[GIF:${url}]`)}
+                      style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.09)", borderRadius: "8px", cursor: "pointer", padding: "0", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <img src={url} alt="pepe" style={{ width: 64, height: 64, objectFit: "cover", display: "block" }} onError={(e) => { (e.currentTarget as HTMLImageElement).parentElement!.style.display = "none"; }} />
                     </button>
                   ))}
                 </div>
@@ -824,6 +2276,11 @@ export default function ChatPage() {
             style={{ width: 32, height: 32, flexShrink: 0, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "8px", cursor: uploading ? "wait" : "pointer", fontSize: "16px", display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}>
             {uploading ? "⏳" : "🖼"}
           </button>
+          <button type="button" onClick={() => setShowPoll(true)}
+            title="Голосування"
+            style={{ width: 32, height: 32, flexShrink: 0, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "8px", cursor: "pointer", fontSize: "16px", display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}>
+            📊
+          </button>
           {/* Text input */}
           <input
             ref={inputRef}
@@ -843,6 +2300,226 @@ export default function ChatPage() {
           </button>
         </form>
       </div>
+      </div>{/* end main chat column */}
+
+      {/* ── Shop + HP + Referral column ───────────────────────────────────── */}
+      <div style={{ width: "240px", minWidth: "240px", background: "#0f1829", borderLeft: "1px solid #1e2d4a", display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
+
+        {/* ── Shop product card ────────────────────────────────────────────── */}
+        {shopItems.length > 0 && (() => {
+          const sorted = [...shopItems].sort((a, b) => (b.chatPriority ? 1 : 0) - (a.chatPriority ? 1 : 0) || a.sortOrder - b.sortOrder);
+          const item = sorted[shopTicker % sorted.length];
+          const sizeOptions = item.sizes ? item.sizes.split(",").map((s: string) => s.trim()).filter(Boolean) : [];
+          const images = item.imageUrl ? item.imageUrl.split("|") : [];
+          const mainImage = images[0] ?? null;
+          return (
+            <div style={{ padding: "14px 14px 12px", borderBottom: "1px solid #1e2d4a", flexShrink: 0 }}>
+              <div style={{ fontSize: "11px", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.5px", fontWeight: 700, marginBottom: "10px", fontFamily: "Exo 2, sans-serif" }}>
+                🛒 Магазин
+              </div>
+              <a
+                href="/shop"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ textDecoration: "none", color: "inherit", display: "block" }}
+              >
+                <div style={{ background: "#1e2a4a", borderRadius: "12px", overflow: "hidden", border: "1px solid rgba(255,255,255,0.08)", display: "flex", flexDirection: "column", cursor: "pointer" }}>
+                  {/* Image */}
+                  <div style={{ height: "120px", display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(255,255,255,0.04)", position: "relative" }}>
+                    {mainImage ? (
+                      <img src={mainImage} alt={item.name} style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+                    ) : (
+                      <span style={{ fontSize: "44px", lineHeight: 1 }}>{item.emoji}</span>
+                    )}
+                    {item.badge && (
+                      <span style={{ position: "absolute", top: "8px", left: "8px", background: "#f46f10", color: "white", padding: "2px 7px", borderRadius: "5px", fontSize: "10px", fontWeight: 700, fontFamily: "Exo 2, sans-serif" }}>
+                        {item.badge}
+                      </span>
+                    )}
+                    {!item.inStock && (
+                      <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "12px", fontWeight: 700, color: "#94a3b8", fontFamily: "Exo 2, sans-serif" }}>
+                        Немає в наявності
+                      </div>
+                    )}
+                  </div>
+                  {/* Info */}
+                  <div style={{ padding: "8px 10px", display: "flex", flexDirection: "column", gap: "4px" }}>
+                    <div style={{ fontSize: "10px", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.5px", fontFamily: "Exo 2, sans-serif" }}>
+                      {item.category}
+                    </div>
+                    <div style={{ fontWeight: 700, fontSize: "13px", lineHeight: 1.3, color: "white", fontFamily: "Exo 2, sans-serif", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+                      {item.name}
+                    </div>
+                    {/* Sizes */}
+                    {sizeOptions.length > 0 && (
+                      <div style={{ display: "flex", gap: "3px", flexWrap: "wrap", marginTop: "2px" }}>
+                        {sizeOptions.map((s: string) => (
+                          <span key={s} style={{ width: "24px", height: "24px", borderRadius: "4px", border: "1px solid rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "10px", fontWeight: 700, color: "white", fontFamily: "Exo 2, sans-serif" }}>
+                            {s}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    {/* Price + Buy */}
+                    <div style={{ marginTop: "6px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                      <div>
+                        <span style={{ fontSize: "15px", fontWeight: 800, color: "#f46f10", fontFamily: "Exo 2, sans-serif" }}>{item.price} грн</span>
+                        {item.oldPrice && (
+                          <span style={{ fontSize: "11px", color: "#64748b", textDecoration: "line-through", marginLeft: "4px", fontFamily: "Exo 2, sans-serif" }}>
+                            {item.oldPrice} грн
+                          </span>
+                        )}
+                      </div>
+                      <span style={{ padding: "5px 9px", background: item.inStock ? "#f46f10" : "#374151", color: "white", borderRadius: "7px", fontWeight: 700, fontSize: "11px", fontFamily: "Exo 2, sans-serif" }}>
+                        🛒 Купити
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </a>
+              {/* Dots */}
+              <div style={{ display: "flex", justifyContent: "center", gap: "4px", marginTop: "8px" }}>
+                {sorted.map((_, i) => (
+                  <div key={i} style={{ width: i === shopTicker % sorted.length ? 16 : 5, height: 5, borderRadius: 3, background: i === shopTicker % sorted.length ? "#f46f10" : "rgba(255,255,255,0.15)", transition: "all 0.3s" }} />
+                ))}
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* ── My HP + referral block ────────────────────────────────────────── */}
+        <div style={{ padding: "14px", borderBottom: "1px solid #1e2d4a", flexShrink: 0 }}>
+          <div style={{ fontFamily: "Exo 2, sans-serif", fontSize: "11px", color: "#64748b", marginBottom: "10px", textTransform: "uppercase", letterSpacing: "0.5px", fontWeight: 700 }}>
+            ⚡ Моя HP та реферал
+          </div>
+          {/* HP display */}
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "10px" }}>
+            <span style={{ fontSize: "26px" }}>{getBadge(user!.hp) || "⚡"}</span>
+            <div>
+              <div style={{ fontFamily: "Exo 2, sans-serif", fontSize: "18px", fontWeight: 800, color: "#f46f10" }}>
+                {user!.hp} HP
+              </div>
+              <div style={{ fontSize: "11px", color: "#475569", fontFamily: "Exo 2, sans-serif" }}>
+                {user!.hp < 25 ? "Зареєструйся" : user!.hp < 50 ? "Ще " + (50 - user!.hp) + " до ⭐" : user!.hp < 100 ? "Ще " + (100 - user!.hp) + " до 🔥" : user!.hp < 200 ? "Ще " + (200 - user!.hp) + " до 👑" : "Максимальний бейдж 👑"}
+              </div>
+            </div>
+          </div>
+          {/* Ref link */}
+          <div style={{ fontSize: "11px", color: "#64748b", marginBottom: "5px", fontFamily: "Exo 2, sans-serif" }}>
+            🔗 Реферальне посилання (+50 HP другу):
+          </div>
+          <div
+            style={{ background: "#0a1020", border: "1px solid #1e2d4a", borderRadius: "8px", padding: "7px 10px", fontFamily: "monospace", fontSize: "10px", color: "#94a3b8", wordBreak: "break-all", cursor: "pointer", transition: "border-color 0.15s" }}
+            title="Натисни щоб скопіювати"
+            onClick={() => {
+              const link = `${window.location.origin}/chat?ref=${user!.phone}`;
+              navigator.clipboard.writeText(link).then(() => notify("✅ Посилання скопійовано!"));
+            }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.borderColor = "#f46f10"; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.borderColor = "#1e2d4a"; }}
+          >
+            {typeof window !== "undefined" ? `${window.location.origin}/chat?ref=${user!.phone}` : `/chat?ref=${user!.phone}`}
+          </div>
+          <div style={{ fontSize: "10px", color: "#334155", marginTop: "4px", fontFamily: "Exo 2, sans-serif" }}>
+            Натисни щоб скопіювати
+          </div>
+        </div>
+
+        {/* filler */}
+        <div style={{ flex: 1 }} />
+      </div>
+
+      {/* ── Participants sidebar ───────────────────────────────────────────── */}
+      <div style={{ width: "200px", minWidth: "200px", background: "#131f3a", borderLeft: "1px solid #1e2d4a", display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
+        {/* Header */}
+        <div style={{ padding: "14px 16px", borderBottom: "1px solid #1e2d4a", fontFamily: "Exo 2, sans-serif", fontWeight: 700, fontSize: "13px", color: "#f46f10", letterSpacing: "0.5px", textTransform: "uppercase", flexShrink: 0 }}>
+          👥 Учасники ({members.length}){members.filter(m => m.isOnline || onlineUsers.has(m.phone)).length > 0 && <span style={{ color: "#22c55e", marginLeft: 6, fontSize: "11px", fontWeight: 600 }}>● {members.filter(m => m.isOnline || onlineUsers.has(m.phone)).length} онлайн</span>}
+        </div>
+
+        {/* List — full height */}
+        <div style={{ flex: 1, overflowY: "auto", padding: "8px 0" }}>
+          {(() => {
+              const mvpLeader = mvpData?.currentLeader ?? null;
+              const mvpName = mvpLeader ? `${mvpLeader.player.firstName} ${mvpLeader.player.lastName}` : null;
+              const mvpVotes = mvpLeader?.totalVotes ?? 0;
+              return members
+                .slice()
+                .sort((a, b) => {
+                  if (a.isOnline && !b.isOnline) return -1;
+                  if (!a.isOnline && b.isOnline) return 1;
+                  return (b.hp ?? 0) - (a.hp ?? 0);
+                })
+                .map((member) => {
+                  const isOnline = member.isOnline || onlineUsers.has(member.phone);
+                  const fullName = `${member.firstName} ${member.lastName}`.trim();
+                  const isMvp = mvpName !== null && fullName === mvpName && mvpVotes > 0;
+                  const av = getAvatar(member.hp ?? 0);
+                  const avatarBg = isMvp ? "#b45309" : av ? "#1e3a5f" : isOnline ? "#15803d" : "#1e293b";
+                  const avatarContent = isMvp ? "🏆" : av ? av.emoji : (member.firstName?.[0] || "?").toUpperCase();
+                  const isClickableByMod = user?.isMod && member.phone !== user?.phone && !member.isMod;
+                  return (
+                    <div
+                      key={member.phone}
+                      style={{ display: "flex", alignItems: "center", gap: "10px", padding: "7px 14px", cursor: isClickableByMod ? "pointer" : "default", transition: "background 0.15s", background: isMvp ? "rgba(244,111,16,0.06)" : "transparent" }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = isMvp ? "rgba(244,111,16,0.12)" : "rgba(255,255,255,0.04)")}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = isMvp ? "rgba(244,111,16,0.06)" : "transparent")}
+                      onClick={(e) => {
+                        if (!isClickableByMod) return;
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        setBanPopup({ phone: member.phone, name: `${member.firstName} ${member.lastName}`.trim(), isBanned: member.isBanned, bannedUntil: member.bannedUntil, x: rect.right + 8, y: rect.top });
+                      }}
+                    >
+                      {/* Avatar with online dot */}
+                      <div style={{ position: "relative", flexShrink: 0 }}>
+                        <div style={{ width: "34px", height: "34px", borderRadius: "50%", background: avatarBg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: av || isMvp ? "18px" : "13px", fontWeight: 700, color: "white", fontFamily: "Exo 2, sans-serif" }}>
+                          {avatarContent}
+                        </div>
+                        <span style={{ position: "absolute", bottom: 0, right: 0, width: "10px", height: "10px", borderRadius: "50%", background: isOnline ? "#22c55e" : "#4b5563", border: "2px solid #131f3a" }} />
+                      </div>
+
+                      {/* Name + status + HP */}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontFamily: "Exo 2, sans-serif", fontSize: "13px", fontWeight: isMvp ? 800 : 600, color: isMvp ? "#fbbf24" : isOnline ? "white" : "#6b7280", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                          {getBadge(member.hp ?? 0) && <span style={{ marginRight: "3px" }}>{getBadge(member.hp ?? 0)}</span>}
+                          {member.isMod && <span style={{ marginRight: "3px" }} title="Модератор">🛡️</span>}
+                          {member.isBanned && user?.isMod && <span style={{ marginRight: "3px" }} title="Заблокований">🚫</span>}
+                          {fullName || "Без імені"}
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: "4px", flexWrap: "wrap" }}>
+                          {isMvp && (
+                            <span style={{ fontSize: "10px", color: "#fbbf24", fontFamily: "Exo 2, sans-serif", fontWeight: 700 }}>
+                              MVP · {mvpVotes} гол.
+                            </span>
+                          )}
+                          {!isMvp && member.isMod && (
+                            <span style={{ fontSize: "10px", color: "#60a5fa", fontFamily: "Exo 2, sans-serif", fontWeight: 700 }}>
+                              🛡 модератор
+                            </span>
+                          )}
+                          {!isMvp && !member.isMod && (
+                            <span style={{ fontSize: "11px", color: isOnline ? "#22c55e" : "#4b5563", fontFamily: "Exo 2, sans-serif" }}>
+                              {isOnline ? "● онлайн" : "○ оффлайн"}
+                            </span>
+                          )}
+                          {(member.hp ?? 0) > 0 && (
+                            <span style={{ fontSize: "10px", color: "#f46f10", fontFamily: "Exo 2, sans-serif", fontWeight: 600 }}>
+                              ⚡{member.hp}
+                            </span>
+                          )}
+                          {av && (
+                            <span style={{ fontSize: "10px", color: "#60a5fa", fontFamily: "Exo 2, sans-serif" }} title={`Аватар розблоковано: ${av.label}`}>
+                              {av.label}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                });
+            })()}
+        </div>
+      </div>
+
     </div>
   );
 }

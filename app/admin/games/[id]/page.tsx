@@ -25,7 +25,7 @@ export default async function AdminGamePage({ params }: { params: { id: string }
         take: 50,
       },
     },
-    }),
+    }).catch(() => null),
     getSettings(["colors.btnBlue", "colors.btnOrange", "colors.btnNavy", "colors.btnRed",
                  "colors.navy", "colors.orange", "colors.blue", "colors.red"]),
   ]);

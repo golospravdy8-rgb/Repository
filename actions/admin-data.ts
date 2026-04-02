@@ -1,13 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { auth } from "@/lib/auth";
+import { requireAuth } from "@/lib/require-auth";
 import { prisma } from "@/lib/prisma";
-
-async function requireAuth() {
-  const session = await auth();
-  if (!session) throw new Error("Unauthorized");
-}
 
 // ===== TEAMS =====
 
@@ -330,6 +325,12 @@ export async function createShopProduct(data: ShopProductInput) {
 }
 
 export async function updateShopProduct(id: number, data: Partial<ShopProductInput>) {
+  await requireAuth();
+  await prisma.shopProduct.update({ where: { id }, data });
+  revalidatePath("/admin/site-editor");
+}
+
+export async function updateShopProductChatSettings(id: number, data: { showInChat?: boolean; chatPriority?: boolean; emoji?: string }) {
   await requireAuth();
   await prisma.shopProduct.update({ where: { id }, data });
   revalidatePath("/admin/site-editor");

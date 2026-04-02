@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getSettings } from "@/lib/site-settings";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -51,7 +52,7 @@ export async function POST(req: NextRequest) {
 
   // ── register / login ────────────────────────────────────────────────────
   if (action === "register") {
-    const { firstName, lastName } = body;
+    const { firstName, lastName, refCode } = body;
     if (!phone || !firstName || !lastName)
       return Response.json({ error: "Заповніть всі поля" }, { status: 400 });
 
@@ -68,21 +69,56 @@ export async function POST(req: NextRequest) {
       where: { OR: [{ firstName: { contains: firstName }, lastName: { contains: lastName } }] },
     }).catch(() => null));
 
+    const existing = await prisma.guestContact.findUnique({ where: { phone } });
+
+    if (!existing) {
+      // New registration — apply HP bonuses from settings
+      const hpSettings = await getSettings(["chat.hp.joinBonus", "chat.hp.referralBonus"]);
+      const joinBonus = Number(hpSettings["chat.hp.joinBonus"] ?? "25");
+      const referralBonus = Number(hpSettings["chat.hp.referralBonus"] ?? "50");
+
+      if (refCode) {
+        await prisma.guestContact.updateMany({
+          where: { phone: refCode },
+          data: { hp: { increment: referralBonus } },
+        });
+      }
+
+      // role: "player" для гравців ліги, інакше "guest"
+      // Батьки реєструються через /api/parents/register і мають role="parent"
+      const newRole = isLeaguePlayer ? "player" : "guest";
+
+      await prisma.guestContact.create({
+        data: { phone, firstName, lastName, hp: joinBonus, isLeaguePlayer, role: newRole, refCode: refCode || null },
+      });
+    }
+
     const guest = await prisma.guestContact.upsert({
       where: { phone },
-      update: { firstName, lastName, ...(isLeaguePlayer ? { isLeaguePlayer: true } : {}) },
-      create: { phone, firstName, lastName, hp: 25, isLeaguePlayer },
+      update: {
+        firstName, lastName,
+        ...(isLeaguePlayer ? { isLeaguePlayer: true, role: "player" } : {}),
+      },
+      create: { phone, firstName, lastName, hp: 25, isLeaguePlayer, role: isLeaguePlayer ? "player" : "guest" },
     });
 
-    const [isMod, warns, pinned] = await Promise.all([
+    const [isMod, warns, pinned, room] = await Promise.all([
       prisma.chatModerator.findUnique({ where: { phone } }),
       prisma.chatWarn.count({ where: { phone } }),
       prisma.chatPinnedMessage.findFirst(),
+      prisma.$queryRaw<{ slowMode: boolean }[]>`SELECT "slowMode" FROM "ChatRoom" WHERE id = 'general' LIMIT 1`.catch(() => [] as { slowMode: boolean }[]),
     ]);
 
-    // Current month MVP vote
+    // Current month MVP vote (use raw SQL — Prisma client has stale schema)
     const month = new Date().toISOString().slice(0, 7);
-    const mvpVote = await prisma.chatMvpVote.findUnique({ where: { voterPhone_month: { voterPhone: phone, month } } }).catch(() => null);
+    const mvpRows = await prisma.$queryRawUnsafe<{ player_id: number }[]>(
+      `SELECT "playerId" as player_id FROM "ChatMvpVote" WHERE "voterPhone" = $1 AND month = $2 LIMIT 1`,
+      phone, month
+    ).catch(() => [] as { player_id: number }[]);
+    const mvpVoteId = mvpRows.length > 0 ? Number(mvpRows[0].player_id) : null;
+
+    const origin = req.headers.get("origin") || process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_SITE_URL || "https://basket-lviv.com";
+    const refLink = `${origin}/chat?ref=${encodeURIComponent(phone)}`;
 
     return Response.json({
       ok: true,
@@ -90,13 +126,16 @@ export async function POST(req: NextRequest) {
       isMod: !!isMod,
       warns,
       pinnedMessage: pinned?.text ?? null,
-      mvpVote: mvpVote ? mvpVote.playerName : null,
+      mvpVote: mvpVoteId,
+      refLink,
+      isNewUser: !existing,
+      slowMode: room[0]?.slowMode ?? false,
     });
   }
 
   // ── send message ─────────────────────────────────────────────────────────
   if (action === "message") {
-    const { text, replyToId } = body;
+    const { text, replyToId, roomId: msgRoomId } = body;
     if (!phone || !name || !text?.trim())
       return Response.json({ error: "phone, name, text required" }, { status: 400 });
 
@@ -108,6 +147,19 @@ export async function POST(req: NextRequest) {
     if (mute && mute.mutedUntil > new Date())
       return Response.json({ error: "Ви замовчані до " + mute.mutedUntil.toLocaleString("uk-UA") }, { status: 403 });
 
+    // Check parents room access
+    const roomId = msgRoomId === "parents" ? "parents" : "general";
+    if (roomId === "parents") {
+      const adminToken = req.cookies.get("admin_token")?.value;
+      const isAdmin = !!adminToken && adminToken.length > 10;
+      if (!isAdmin) {
+        const contact = await prisma.guestContact.findUnique({ where: { phone } });
+        if (!contact || (contact.role !== "parent" && contact.role !== "player")) {
+          return Response.json({ error: "Тільки для батьків та гравців" }, { status: 403 });
+        }
+      }
+    }
+
     const isMod = !!(await prisma.chatModerator.findUnique({ where: { phone } }));
 
     const msg = await prisma.chatMessage.create({
@@ -115,14 +167,26 @@ export async function POST(req: NextRequest) {
       include: { replyTo: true, reactions: true },
     });
 
-    // Daily first message bonus: +5 HP, else +1 HP
+    // HP logic per message:
+    // +25 HP — first message of the day (першим написав після 00:00)
+    // +15 HP — first message of this user today (щодобовий бонус за вхід + повідомлення)
+    // +0 — subsequent messages today
     const today = new Date().toISOString().slice(0, 10);
-    let hpGained = 1;
+    let hpGained = 0;
+    let isFirstEverToday = false;
     try {
+      // chatDailyFirstMsg unique on (phone, day) — throws on duplicate
       await prisma.chatDailyFirstMsg.create({ data: { phone, day: today } });
-      hpGained = 5; // first message of the day
+      // This user's first message today → +15 HP daily bonus
+      hpGained = 15;
+      // Check if this is also the very first message from anyone today → +25 HP
+      const totalToday = await prisma.chatDailyFirstMsg.count({ where: { day: today } });
+      if (totalToday === 1) {
+        isFirstEverToday = true;
+        hpGained = 25; // first-of-day bonus overrides daily bonus
+      }
     } catch {
-      // already has a record for today → normal +1
+      // already sent a message today — no HP
     }
     const updated = await prisma.guestContact.updateMany({ where: { phone }, data: { hp: { increment: hpGained } } });
     const newHp = updated.count > 0
@@ -152,21 +216,27 @@ export async function POST(req: NextRequest) {
     return Response.json({ ok: true });
   }
 
-  // ── MVP vote ──────────────────────────────────────────────────────────────
+  // ── MVP vote (legacy action — new API is /api/mvp-vote, used by frontend) ──
   if (action === "mvp_vote") {
-    const { voterPhone, playerName } = body;
-    if (!voterPhone || !playerName)
-      return Response.json({ error: "voterPhone, playerName required" }, { status: 400 });
+    const { voterPhone, playerId, chatTab } = body;
+    if (!voterPhone || !playerId)
+      return Response.json({ error: "voterPhone, playerId required" }, { status: 400 });
 
     const month = new Date().toISOString().slice(0, 7);
+    const tab = chatTab || "balacka";
     try {
-      await prisma.chatMvpVote.create({ data: { voterPhone, playerName, month } });
-      broadcast({ type: "mvp_vote", voterPhone, playerName });
-      return Response.json({ ok: true, playerName });
+      await prisma.$executeRawUnsafe(
+        `INSERT INTO "ChatMvpVote" ("voterPhone", "playerId", month, "chatTab", "createdAt") VALUES ($1, $2, $3, $4, NOW())`,
+        voterPhone, Number(playerId), month, tab
+      );
+      broadcast({ type: "mvp_vote", voterPhone, playerId });
+      return Response.json({ ok: true, playerId });
     } catch {
-      // unique constraint — already voted this month
-      const existing = await prisma.chatMvpVote.findUnique({ where: { voterPhone_month: { voterPhone, month } } });
-      return Response.json({ ok: false, alreadyVoted: true, playerName: existing?.playerName ?? "" });
+      const rows = await prisma.$queryRawUnsafe<{ player_id: number }[]>(
+        `SELECT "playerId" as player_id FROM "ChatMvpVote" WHERE "voterPhone" = $1 AND month = $2 LIMIT 1`,
+        voterPhone, month
+      ).catch(() => [] as { player_id: number }[]);
+      return Response.json({ ok: false, alreadyVoted: true, playerId: rows.length > 0 ? Number(rows[0].player_id) : null });
     }
   }
 
@@ -204,12 +274,21 @@ export async function POST(req: NextRequest) {
   if (action === "ban") {
     const isMod = await isModOrAdmin(phone);
     if (!isMod) return Response.json({ error: "Недостатньо прав" }, { status: 403 });
-    const { targetPhone, reason, hours } = body;
-    const bannedUntil = hours ? new Date(Date.now() + hours * 3600_000) : null;
+    const { targetPhone, reason, hours, minutes: banMinutes } = body;
+    const durationMs = hours ? hours * 3600_000 : banMinutes ? banMinutes * 60_000 : null;
+    const bannedUntil = durationMs ? new Date(Date.now() + durationMs) : null;
     await prisma.chatBan.upsert({
       where: { phone: targetPhone },
       update: { reason: reason ?? "", bannedUntil },
       create: { phone: targetPhone, reason: reason ?? "", bannedUntil },
+    });
+    const modInfo = await prisma.guestContact.findUnique({ where: { phone }, select: { firstName: true, lastName: true } });
+    const modName = modInfo ? `${modInfo.firstName} ${modInfo.lastName}`.trim() : phone;
+    const targetInfo = await prisma.guestContact.findUnique({ where: { phone: targetPhone }, select: { firstName: true, lastName: true } });
+    const targetName = targetInfo ? `${targetInfo.firstName} ${targetInfo.lastName}`.trim() : targetPhone;
+    const durLabel = hours ? `${hours}г` : banMinutes ? `${banMinutes}хв` : "назавжди";
+    await prisma.chatModAction.create({
+      data: { action: "ban", modPhone: phone, modName, targetPhone, targetName, details: `Бан ${durLabel}: ${reason ?? ""}` },
     });
     broadcast({ type: "banned", phone: targetPhone });
     return Response.json({ ok: true });
@@ -219,7 +298,15 @@ export async function POST(req: NextRequest) {
   if (action === "unban") {
     const isMod = await isModOrAdmin(phone);
     if (!isMod) return Response.json({ error: "Недостатньо прав" }, { status: 403 });
-    await prisma.chatBan.deleteMany({ where: { phone: body.targetPhone } });
+    const { targetPhone } = body;
+    await prisma.chatBan.deleteMany({ where: { phone: targetPhone } });
+    const modInfo = await prisma.guestContact.findUnique({ where: { phone }, select: { firstName: true, lastName: true } });
+    const modName = modInfo ? `${modInfo.firstName} ${modInfo.lastName}`.trim() : phone;
+    const targetInfo = await prisma.guestContact.findUnique({ where: { phone: targetPhone }, select: { firstName: true, lastName: true } });
+    const targetName = targetInfo ? `${targetInfo.firstName} ${targetInfo.lastName}`.trim() : targetPhone;
+    await prisma.chatModAction.create({
+      data: { action: "unban", modPhone: phone, modName, targetPhone, targetName, details: "Знято бан" },
+    });
     return Response.json({ ok: true });
   }
 
@@ -228,26 +315,140 @@ export async function POST(req: NextRequest) {
     const isMod = await isModOrAdmin(phone);
     if (!isMod) return Response.json({ error: "Недостатньо прав" }, { status: 403 });
     const { targetPhone, minutes } = body;
-    const mutedUntil = new Date(Date.now() + (minutes ?? 10) * 60_000);
+    const muteMins = minutes ?? 30;
+    const mutedUntil = new Date(Date.now() + muteMins * 60_000);
     await prisma.chatMute.upsert({
       where: { phone: targetPhone },
       update: { mutedUntil },
       create: { phone: targetPhone, mutedUntil },
     });
+    const modInfo = await prisma.guestContact.findUnique({ where: { phone }, select: { firstName: true, lastName: true } });
+    const modName = modInfo ? `${modInfo.firstName} ${modInfo.lastName}`.trim() : phone;
+    const targetInfo = await prisma.guestContact.findUnique({ where: { phone: targetPhone }, select: { firstName: true, lastName: true } });
+    const targetName = targetInfo ? `${targetInfo.firstName} ${targetInfo.lastName}`.trim() : targetPhone;
+    await prisma.chatModAction.create({
+      data: { action: "mute", modPhone: phone, modName, targetPhone, targetName, details: `Мют ${muteMins} хв` },
+    });
     broadcast({ type: "muted", phone: targetPhone, mutedUntil });
     return Response.json({ ok: true });
   }
 
-  // ── mod: warn ─────────────────────────────────────────────────────────────
+  // ── mod: warn (3 warns = auto-ban 24h) ───────────────────────────────────
   if (action === "warn") {
     const isMod = await isModOrAdmin(phone);
     if (!isMod) return Response.json({ error: "Недостатньо прав" }, { status: 403 });
     const { targetPhone, reason } = body;
+    const modInfo = await prisma.guestContact.findUnique({ where: { phone }, select: { firstName: true, lastName: true } });
+    const modName = modInfo ? `${modInfo.firstName} ${modInfo.lastName}`.trim() : phone;
+    const targetInfo = await prisma.guestContact.findUnique({ where: { phone: targetPhone }, select: { firstName: true, lastName: true } });
+    const targetName = targetInfo ? `${targetInfo.firstName} ${targetInfo.lastName}`.trim() : targetPhone;
+
     await prisma.chatWarn.create({ data: { phone: targetPhone, reason: reason ?? "" } });
     const warnCount = await prisma.chatWarn.count({ where: { phone: targetPhone } });
+
+    await prisma.chatModAction.create({
+      data: { action: "warn", modPhone: phone, modName, targetPhone, targetName, details: `Варн ${warnCount}/3: ${reason ?? ""}` },
+    });
+
+    // Auto-ban after 3 warnings
+    if (warnCount >= 3) {
+      const bannedUntil = new Date(Date.now() + 24 * 3600_000);
+      await prisma.chatBan.upsert({
+        where: { phone: targetPhone },
+        update: { reason: "3 попередження (автобан)", bannedUntil },
+        create: { phone: targetPhone, reason: "3 попередження (автобан)", bannedUntil },
+      });
+      await prisma.chatModAction.create({
+        data: { action: "autoban", modPhone: "system", modName: "Система", targetPhone, targetName, details: "Автобан після 3 варнів" },
+      });
+      broadcast({ type: "banned", phone: targetPhone });
+    }
+
     broadcast({ type: "warn", phone: targetPhone, count: warnCount, reason: reason ?? "" });
-    return Response.json({ ok: true, warnCount });
+    return Response.json({ ok: true, warnCount, autoBanned: warnCount >= 3 });
   }
+
+  // ── mod: slow_mode toggle ─────────────────────────────────────────────────
+  if (action === "slow_mode") {
+    const isMod = await isModOrAdmin(phone);
+    if (!isMod) return Response.json({ error: "Недостатньо прав" }, { status: 403 });
+    const { roomId: slowRoomId, enabled } = body;
+    const roomKey = slowRoomId === "parents" ? "parents" : "general";
+
+    await prisma.$executeRaw`
+      INSERT INTO "ChatRoom" (id, "slowMode", "updatedAt")
+      VALUES (${roomKey}, ${!!enabled}, NOW())
+      ON CONFLICT (id) DO UPDATE SET "slowMode" = ${!!enabled}, "updatedAt" = NOW()
+    `;
+
+    const modInfo = await prisma.guestContact.findUnique({ where: { phone }, select: { firstName: true, lastName: true } });
+    const modName = modInfo ? `${modInfo.firstName} ${modInfo.lastName}`.trim() : phone;
+    await prisma.chatModAction.create({
+      data: { action: "slowMode", modPhone: phone, modName, targetPhone: "", targetName: "", details: enabled ? "Увімкнено повільний режим" : "Вимкнено повільний режим" },
+    });
+
+    broadcast({ type: "slow_mode", roomId: roomKey, enabled: !!enabled });
+    return Response.json({ ok: true, slowMode: !!enabled });
+  }
+
+  // ── mod: log_action (log any mod action with details) ─────────────────────
+  if (action === "log_action") {
+    const { modAction, targetPhone: ta, details } = body;
+    const modInfo = await prisma.guestContact.findUnique({ where: { phone }, select: { firstName: true, lastName: true } });
+    const modName = modInfo ? `${modInfo.firstName} ${modInfo.lastName}`.trim() : phone;
+    const targetInfo = ta ? await prisma.guestContact.findUnique({ where: { phone: ta }, select: { firstName: true, lastName: true } }) : null;
+    const targetName = targetInfo ? `${targetInfo.firstName} ${targetInfo.lastName}`.trim() : (ta ?? "");
+    await prisma.chatModAction.create({
+      data: { action: modAction ?? "unknown", modPhone: phone, modName, targetPhone: ta ?? "", targetName, details: details ?? "" },
+    });
+    return Response.json({ ok: true });
+  }
+
+  // ── daily spin ───────────────────────────────────────────────────────────
+  // TODO: chatDailySpin model not in schema — spin feature disabled
+  // if (action === "spin") {
+  //   if (!phone) return Response.json({ error: "phone required" }, { status: 400 });
+  //
+  //   const today = new Date().toISOString().slice(0, 10);
+  //   const existing = await prisma.chatDailySpin.findUnique({ where: { phone_day: { phone, day: today } } });
+  //   if (existing) {
+  //     return Response.json({ ok: false, alreadySpun: true, hpGained: existing.hpGained });
+  //   }
+  //
+  //   // Random HP: 5, 10, 15, 20, 25, 30, 50
+  //   const prizes = [5, 5, 10, 10, 15, 15, 20, 25, 30, 50];
+  //   const hpGained = prizes[Math.floor(Math.random() * prizes.length)];
+  //
+  //   await prisma.chatDailySpin.create({ data: { phone, day: today, hpGained } });
+  //   await prisma.guestContact.updateMany({ where: { phone }, data: { hp: { increment: hpGained } } });
+  //   const guest = await prisma.guestContact.findUnique({ where: { phone }, select: { hp: true } });
+  //
+  //   return Response.json({ ok: true, hpGained, newHp: guest?.hp ?? null });
+  // }
+
+  // ── streak checkin ────────────────────────────────────────────────────────
+  // TODO: chatStreak model not in schema — checkin feature disabled
+  // if (action === "checkin") {
+  //   if (!phone) return Response.json({ error: "phone required" }, { status: 400 });
+  //
+  //   const today = new Date().toISOString().slice(0, 10);
+  //   const yesterday = new Date(Date.now() - 86400_000).toISOString().slice(0, 10);
+  //
+  //   const streak = await prisma.chatStreak.findUnique({ where: { phone } });
+  //   let currentStreak = 1;
+  //
+  //   if (streak) {
+  //     if (streak.lastVisit === today) {
+  //       return Response.json({ ok: true, streak: streak.currentStreak, alreadyChecked: true });
+  //     }
+  //     currentStreak = streak.lastVisit === yesterday ? streak.currentStreak + 1 : 1;
+  //     await prisma.chatStreak.update({ where: { phone }, data: { currentStreak, lastVisit: today } });
+  //   } else {
+  //     await prisma.chatStreak.create({ data: { phone, currentStreak: 1, lastVisit: today } });
+  //   }
+  //
+  //   return Response.json({ ok: true, streak: currentStreak });
+  // }
 
   return Response.json({ error: "Unknown action" }, { status: 400 });
 }
@@ -259,7 +460,7 @@ async function isModOrAdmin(phone: string): Promise<boolean> {
 }
 
 function serializeMsg(msg: {
-  id: number; phone: string; name: string; text: string; createdAt: Date;
+  id: number; phone: string; name: string; text: string; createdAt: Date; roomId?: string;
   replyTo: { id: number; name: string; text: string } | null;
   reactions: { id: number; phone: string; emoji: string }[];
 }, isMod: boolean) {
@@ -268,6 +469,7 @@ function serializeMsg(msg: {
     phone: msg.phone,
     name: msg.name,
     text: msg.text,
+    roomId: msg.roomId ?? "general",
     createdAt: msg.createdAt.toISOString(),
     isMod,
     replyTo: msg.replyTo ? { id: msg.replyTo.id, name: msg.replyTo.name, text: msg.replyTo.text } : null,

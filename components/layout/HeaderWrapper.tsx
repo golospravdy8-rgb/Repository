@@ -23,6 +23,7 @@ export default async function HeaderWrapper() {
   const settings = await getSettings([
     "site.name",
     "site.tagline",
+    "site.shortName",
     "site.logoText",
     "images.logo",
     "nav.items",
@@ -43,7 +44,7 @@ export default async function HeaderWrapper() {
     }>
       <Header
         siteName={settings["site.name"] ?? "Ліга ESCULAB"}
-        tagline={settings["site.tagline"] ?? "Баскетбол Львів"}
+        tagline={settings["site.tagline"] || settings["site.shortName"] || "Баскетбол Львів"}
         logoText={settings["site.logoText"] ?? "БЛ"}
         logoUrl={settings["images.logo"] ?? ""}
         navItems={parseNavItems(settings["nav.items"] ?? "")}

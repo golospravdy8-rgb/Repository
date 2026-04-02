@@ -10,7 +10,12 @@ function getYouTubeId(url: string) {
 }
 
 export default async function VideoPage({ params }: { params: { id: string } }) {
-  const highlightsData: any = JSON.parse(require('fs').readFileSync(require('path').join(process.cwd(), 'lib', 'highlights.data.json'), 'utf-8'));
+  let highlightsData: any = { videos: [] };
+  try {
+    highlightsData = JSON.parse(require('fs').readFileSync(require('path').join(process.cwd(), 'lib', 'highlights.data.json'), 'utf-8'));
+  } catch {
+    notFound();
+  }
   const videoId = parseInt(params.id);
   if (isNaN(videoId)) notFound();
 

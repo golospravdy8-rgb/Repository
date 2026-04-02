@@ -65,38 +65,38 @@ export default function CoursesPage() {
       </header>
 
       {/* Hero */}
-      <div style={{ background: "linear-gradient(135deg, #1e2a4a 0%, #0f172a 100%)", padding: "60px 24px", textAlign: "center" }}>
-        <div style={{ fontSize: "64px", marginBottom: "16px" }}>🏀</div>
-        <h2 style={{ fontSize: "clamp(24px, 5vw, 42px)", fontWeight: 900, margin: "0 0 12px" }}>
+      <div style={{ background: "linear-gradient(135deg, #1e2a4a 0%, #0f172a 100%)", padding: "28px 24px", textAlign: "center" }}>
+        <div style={{ fontSize: "36px", marginBottom: "8px" }}>🏀</div>
+        <h2 style={{ fontSize: "clamp(18px, 3.5vw, 28px)", fontWeight: 900, margin: "0 0 6px" }}>
           Тренерські курси для дітей
         </h2>
-        <p style={{ fontSize: "18px", color: "#94a3b8", maxWidth: "600px", margin: "0 auto", lineHeight: 1.6 }}>
+        <p style={{ fontSize: "14px", color: "#94a3b8", maxWidth: "600px", margin: "0 auto", lineHeight: 1.5 }}>
           Навчаємо баскетболу дітей від 6 до 16 років у Львові.<br />
           Досвідчені тренери, сучасні методики, результат гарантовано.
         </p>
-        <div style={{ display: "flex", justifyContent: "center", gap: "32px", marginTop: "32px", flexWrap: "wrap" }}>
+        <div style={{ display: "flex", justifyContent: "center", gap: "24px", marginTop: "16px", flexWrap: "wrap" }}>
           {[["200+", "Вихованців"], ["10+", "Років досвіду"], ["3", "Вікові групи"]].map(([n, l]) => (
             <div key={l} style={{ textAlign: "center" }}>
-              <div style={{ fontSize: "32px", fontWeight: 900, color: "#f46f10" }}>{n}</div>
-              <div style={{ fontSize: "13px", color: "#64748b" }}>{l}</div>
+              <div style={{ fontSize: "22px", fontWeight: 900, color: "#f46f10" }}>{n}</div>
+              <div style={{ fontSize: "11px", color: "#64748b" }}>{l}</div>
             </div>
           ))}
         </div>
       </div>
 
       {/* Programs */}
-      <div style={{ padding: "48px 24px", maxWidth: "1000px", margin: "0 auto" }}>
-        <h2 style={{ textAlign: "center", fontSize: "28px", fontWeight: 800, marginBottom: "32px" }}>
+      <div style={{ padding: "20px 24px", maxWidth: "1000px", margin: "0 auto" }}>
+        <h2 style={{ textAlign: "center", fontSize: "20px", fontWeight: 800, marginBottom: "16px" }}>
           Наші програми
         </h2>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "20px" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "12px" }}>
           {PROGRAMS.map((p) => (
-            <div key={p.title} style={{ background: "#1e2a4a", borderRadius: "16px", padding: "24px", border: "1px solid rgba(255,255,255,0.08)" }}>
-              <div style={{ fontSize: "40px", marginBottom: "12px" }}>{p.emoji}</div>
-              <h3 style={{ margin: "0 0 4px", fontSize: "20px", fontWeight: 800 }}>{p.title}</h3>
-              <div style={{ color: "#f46f10", fontSize: "14px", fontWeight: 700, marginBottom: "12px" }}>{p.age}</div>
-              <p style={{ color: "#94a3b8", fontSize: "14px", lineHeight: 1.6, marginBottom: "16px" }}>{p.desc}</p>
-              <ul style={{ margin: 0, paddingLeft: "20px", color: "#cbd5e1", fontSize: "13px", lineHeight: 1.8 }}>
+            <div key={p.title} style={{ background: "#1e2a4a", borderRadius: "12px", padding: "16px", border: "1px solid rgba(255,255,255,0.08)" }}>
+              <div style={{ fontSize: "28px", marginBottom: "6px" }}>{p.emoji}</div>
+              <h3 style={{ margin: "0 0 2px", fontSize: "16px", fontWeight: 800 }}>{p.title}</h3>
+              <div style={{ color: "#f46f10", fontSize: "13px", fontWeight: 700, marginBottom: "8px" }}>{p.age}</div>
+              <p style={{ color: "#94a3b8", fontSize: "13px", lineHeight: 1.5, marginBottom: "10px" }}>{p.desc}</p>
+              <ul style={{ margin: 0, paddingLeft: "18px", color: "#cbd5e1", fontSize: "12px", lineHeight: 1.6 }}>
                 {p.topics.map((t) => <li key={t}>{t}</li>)}
               </ul>
             </div>

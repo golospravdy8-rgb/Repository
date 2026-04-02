@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect, useTransition } from "react";
+import { updateSiteTexts } from "@/actions/site-settings";
+import { updateShopProductChatSettings } from "@/actions/admin-data";
 
 // All requests go through Next.js proxy → no CORS issues
 const proxy = (path: string) => `/api/chat-proxy?path=${encodeURIComponent(path)}`;
@@ -28,6 +30,16 @@ type ModLogEntry = {
   createdAt: string;
 };
 
+type ShopProduct = {
+  id: number;
+  name: string;
+  emoji: string;
+  category: string;
+  price: number;
+  showInChat: boolean;
+  chatPriority: boolean;
+};
+
 const ACTION_LABELS: Record<string, string> = {
   ban: "🚫 Бан",
   unban: "✅ Розбан",
@@ -41,15 +53,31 @@ const ACTION_LABELS: Record<string, string> = {
   quiz: "❓ Вікторина",
 };
 
-export default function ChatModeratorsTab() {
+export default function ChatModeratorsTab({
+  settings,
+  shopProducts,
+}: {
+  settings: Record<string, string>;
+  shopProducts: ShopProduct[];
+}) {
   const [moderators, setModerators] = useState<Moderator[]>([]);
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [log, setLog] = useState<ModLogEntry[]>([]);
   const [search, setSearch] = useState("");
-  const [section, setSection] = useState<"mods" | "log">("mods");
+  const [section, setSection] = useState<"mods" | "hp" | "shop-chat" | "log">("mods");
   const [pending, startTransition] = useTransition();
   const [status, setStatus] = useState("");
   const [chatOnline, setChatOnline] = useState(true);
+
+  // HP settings
+  const [joinBonus, setJoinBonus] = useState(Number(settings["chat.hp.joinBonus"] ?? "25"));
+  const [referralBonus, setReferralBonus] = useState(Number(settings["chat.hp.referralBonus"] ?? "50"));
+  const [hpSaved, setHpSaved] = useState(false);
+  const [showHpRules, setShowHpRules] = useState(false);
+
+  // Shop chat settings (local copy for optimistic UI)
+  const [products, setProducts] = useState<ShopProduct[]>(shopProducts);
+  const [shopSaving, setShopSaving] = useState<number | null>(null);
 
   async function fetchModerators() {
     try {
@@ -86,7 +114,7 @@ export default function ChatModeratorsTab() {
       const res = await fetch("/api/guest-contacts");
       if (res.ok) {
         const data = await res.json();
-        for (const g of data.guests || data || []) {
+        for (const g of data.contacts || data.guests || []) {
           const name = g.name || `${g.firstName || ""} ${g.lastName || ""}`.trim();
           if (g.phone && name && !seen.has(g.phone)) {
             seen.add(g.phone);
@@ -148,6 +176,40 @@ export default function ChatModeratorsTab() {
     });
   }
 
+  function saveHpSettings() {
+    startTransition(async () => {
+      await updateSiteTexts({
+        "chat.hp.joinBonus": String(joinBonus),
+        "chat.hp.referralBonus": String(referralBonus),
+      });
+      setHpSaved(true);
+      setTimeout(() => setHpSaved(false), 2000);
+    });
+  }
+
+  async function toggleShowInChat(product: ShopProduct) {
+    const newVal = !product.showInChat;
+    setProducts((prev) => prev.map((p) => p.id === product.id ? { ...p, showInChat: newVal } : p));
+    setShopSaving(product.id);
+    await updateShopProductChatSettings(product.id, { showInChat: newVal });
+    setShopSaving(null);
+  }
+
+  async function toggleChatPriority(product: ShopProduct) {
+    const newVal = !product.chatPriority;
+    setProducts((prev) => prev.map((p) => p.id === product.id ? { ...p, chatPriority: newVal } : p));
+    setShopSaving(product.id);
+    await updateShopProductChatSettings(product.id, { chatPriority: newVal });
+    setShopSaving(null);
+  }
+
+  async function updateEmoji(product: ShopProduct, emoji: string) {
+    setProducts((prev) => prev.map((p) => p.id === product.id ? { ...p, emoji } : p));
+    setShopSaving(product.id);
+    await updateShopProductChatSettings(product.id, { emoji });
+    setShopSaving(null);
+  }
+
   const modPhones = new Set(moderators.map((m) => m.phone));
   const filtered = candidates.filter(
     (g) =>
@@ -155,28 +217,31 @@ export default function ChatModeratorsTab() {
       g.name.toLowerCase().includes(search.toLowerCase())
   );
 
+  const SECTIONS = [
+    { id: "mods" as const, label: "🛡 Модератори" },
+    { id: "hp" as const, label: "⚡ HP та реферали" },
+    { id: "shop-chat" as const, label: "🛒 Товари в чаті" },
+    { id: "log" as const, label: "📋 Журнал дій" },
+  ];
+
   return (
     <div className="space-y-5">
       {/* Section tabs */}
       <div className="flex gap-2 border-b pb-3 flex-wrap items-center">
-        <button
-          onClick={() => setSection("mods")}
-          className={`px-4 py-2 rounded-lg text-sm font-bold transition-colors ${section === "mods" ? "text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}
-          style={section === "mods" ? { backgroundColor: "#1a2744" } : {}}
-        >
-          🛡 Модератори
-        </button>
-        <button
-          onClick={() => { setSection("log"); fetchLog(); }}
-          className={`px-4 py-2 rounded-lg text-sm font-bold transition-colors ${section === "log" ? "text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}
-          style={section === "log" ? { backgroundColor: "#1a2744" } : {}}
-        >
-          📋 Журнал дій
-        </button>
+        {SECTIONS.map((s) => (
+          <button
+            key={s.id}
+            onClick={() => { setSection(s.id); if (s.id === "log") fetchLog(); }}
+            className={`px-4 py-2 rounded-lg text-sm font-bold transition-colors ${section === s.id ? "text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}
+            style={section === s.id ? { backgroundColor: "#1a2744" } : {}}
+          >
+            {s.label}
+          </button>
+        ))}
         <div className="ml-auto flex items-center gap-3">
           {status && <span className="text-sm font-medium text-green-600">{status}</span>}
-          <span className={`text-xs font-semibold px-2 py-1 rounded-lg ${chatOnline ? "bg-green-100 text-green-700" : "bg-red-100 text-red-600"}`}>
-            {chatOnline ? "🟢 Чат онлайн" : "🔴 Чат недоступний"}
+          <span className="text-xs font-semibold px-2 py-1 rounded-lg bg-green-100 text-green-700">
+            🟢 Чат онлайн
           </span>
         </div>
       </div>
@@ -218,18 +283,10 @@ export default function ChatModeratorsTab() {
           <div className="bg-gray-50 border rounded-xl p-4 space-y-3">
             <h3 className="font-bold text-gray-700">Призначити модератора</h3>
             <p className="text-xs text-gray-400">
-              Вибрати з учасників чату — людей які хоча б раз заходили на{" "}
-              <a href="http://localhost:3011" target="_blank" className="text-blue-500 underline">localhost:3011</a>.
-              Роль вступає в силу миттєво.
+              Вибрати зі зареєстрованих учасників чату. Роль вступає в силу миттєво.
             </p>
 
-            {!chatOnline && (
-              <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-xs text-red-600">
-                ⚠️ Чат сервер не відповідає. Запустіть його командою{" "}
-                <code className="bg-red-100 px-1 rounded">npm run portal</code> в кореневій папці проєкту.
-              </div>
-            )}
-
+  
             <input
               className="w-full border rounded-lg px-3 py-2 text-sm"
               placeholder="Пошук за ім'ям..."
@@ -237,12 +294,9 @@ export default function ChatModeratorsTab() {
               onChange={(e) => setSearch(e.target.value)}
             />
 
-            {candidates.length === 0 && chatOnline && (
+            {candidates.length === 0 && (
               <p className="text-xs text-gray-400 text-center py-2">
                 Список порожній — жодного учасника в чаті ще немає.
-                Попросіть людей зайти на{" "}
-                <a href="http://localhost:3011" target="_blank" className="text-blue-500 underline">localhost:3011</a>{" "}
-                і зареєструватися.
               </p>
             )}
 
@@ -284,6 +338,235 @@ export default function ChatModeratorsTab() {
             <p>• Видалення та закріплення повідомлень</p>
             <p>• Запуск вікторини (30 секунд, 4 варіанти)</p>
             <p>• Повільний режим (1 повід. кожні 30 сек)</p>
+          </div>
+        </div>
+      )}
+
+      {/* HP & REFERRAL SETTINGS */}
+      {section === "hp" && (
+        <div className="space-y-6">
+          {/* HP Accrual */}
+          <section>
+            <div className="flex items-center justify-between border-b pb-2 mb-4">
+              <h2 className="font-bold text-gray-800 text-base">⚡ Нарахування HP</h2>
+              <button
+                type="button"
+                onClick={() => setShowHpRules((v) => !v)}
+                className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border border-blue-200 text-blue-600 hover:bg-blue-50 transition-colors"
+              >
+                <span className="w-4 h-4 rounded-full border border-blue-400 flex items-center justify-center font-black text-blue-500 text-xs leading-none">?</span>
+                {showHpRules ? "Сховати правила" : "Правила нарахування"}
+              </button>
+            </div>
+
+            {showHpRules && (
+              <div className="mb-4 bg-blue-50 border border-blue-200 rounded-xl p-4 space-y-3 text-sm">
+                <p className="font-bold text-blue-800">Як нараховуються HP:</p>
+                <div className="space-y-2 text-blue-700">
+                  <div className="flex items-start gap-2">
+                    <span className="text-lg leading-none mt-0.5">🆕</span>
+                    <div>
+                      <span className="font-semibold">Реєстрація в чаті</span>
+                      <span className="ml-1 text-blue-600">— +{joinBonus} HP</span>
+                      <p className="text-xs text-blue-500 mt-0.5">При першому вході та заповненні форми реєстрації</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <span className="text-lg leading-none mt-0.5">🔗</span>
+                    <div>
+                      <span className="font-semibold">Реферальне запрошення</span>
+                      <span className="ml-1 text-blue-600">— +{referralBonus} HP</span>
+                      <p className="text-xs text-blue-500 mt-0.5">Нараховується реферу, коли новий учасник реєструється за його посиланням</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <span className="text-lg leading-none mt-0.5">🏆</span>
+                    <div>
+                      <span className="font-semibold">Для чого потрібні HP</span>
+                      <p className="text-xs text-blue-500 mt-0.5">HP — внутрішня валюта чату. Використовується для рейтингу учасників, голосування MVP та покупок у магазині</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <span className="text-lg leading-none mt-0.5">⚙️</span>
+                    <div>
+                      <span className="font-semibold">Зміна значень</span>
+                      <p className="text-xs text-blue-500 mt-0.5">Нові значення застосовуються тільки до нових реєстрацій — вже нарахованi HP не змінюються</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <p className="text-xs text-gray-500 mb-4">
+              HP (Health Points) — внутрішня валюта чату. Нараховується при реєстрації та за реферальні запрошення.
+            </p>
+            <div className="bg-gray-50 rounded-xl border p-4 space-y-4">
+              <div className="flex items-center gap-4">
+                <div className="flex-1">
+                  <div className="text-sm font-semibold text-gray-800">HP за реєстрацію</div>
+                  <div className="text-xs text-gray-500 mt-0.5">Скільки HP отримує новий учасник при першому вході в чат</div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min={0}
+                    max={9999}
+                    value={joinBonus}
+                    onChange={(e) => setJoinBonus(Number(e.target.value))}
+                    className="border border-gray-200 rounded-lg px-3 py-2 text-sm w-24 font-mono text-center focus:outline-none focus:ring-2 focus:ring-orange-400"
+                  />
+                  <span className="text-sm text-gray-500 font-bold">HP</span>
+                </div>
+              </div>
+              <div className="flex items-center gap-4">
+                <div className="flex-1">
+                  <div className="text-sm font-semibold text-gray-800">HP за реферала</div>
+                  <div className="text-xs text-gray-500 mt-0.5">Скільки HP отримує учасник, коли хтось реєструється за його реферальним посиланням</div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min={0}
+                    max={9999}
+                    value={referralBonus}
+                    onChange={(e) => setReferralBonus(Number(e.target.value))}
+                    className="border border-gray-200 rounded-lg px-3 py-2 text-sm w-24 font-mono text-center focus:outline-none focus:ring-2 focus:ring-orange-400"
+                  />
+                  <span className="text-sm text-gray-500 font-bold">HP</span>
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center gap-4 mt-4">
+              <button
+                onClick={saveHpSettings}
+                disabled={pending}
+                className="px-6 py-2.5 rounded-lg font-bold text-white text-sm disabled:opacity-60"
+                style={{ backgroundColor: "#1a2744" }}
+              >
+                {pending ? "Зберігається..." : "Зберегти HP налаштування"}
+              </button>
+              {hpSaved && <span className="text-green-600 text-sm font-medium">✓ Збережено!</span>}
+            </div>
+          </section>
+
+          {/* Referral Link */}
+          <section>
+            <h2 className="font-bold text-gray-800 mb-1 text-base border-b pb-2">🔗 Реферальні посилання</h2>
+            <p className="text-xs text-gray-500 mb-4">
+              Кожен учасник чату має унікальне реферальне посилання. Телефон учасника є його реферальним кодом.
+            </p>
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 space-y-3 text-sm">
+              <div>
+                <div className="font-semibold text-gray-800 mb-1">Формат реферального посилання:</div>
+                <code className="bg-white border border-amber-200 rounded-lg px-3 py-2 block text-xs font-mono text-gray-700 break-all">
+                  https://[домен-чату]/?ref=[ТЕЛЕФОН_УЧАСНИКА]
+                </code>
+              </div>
+              <div>
+                <div className="font-semibold text-gray-800 mb-1">Приклад:</div>
+                <code className="bg-white border border-amber-200 rounded-lg px-3 py-2 block text-xs font-mono text-gray-700 break-all">
+                  https://chat.lbbl.lviv.ua/?ref=380991234567
+                </code>
+              </div>
+              <div className="text-xs text-gray-600 bg-white border border-amber-100 rounded-lg p-3 space-y-1">
+                <p className="font-semibold">Як працює:</p>
+                <p>1. Учасник ділиться своїм посиланням</p>
+                <p>2. Новий користувач реєструється за цим посиланням</p>
+                <p>3. Учасник-реферер отримує <strong>{referralBonus} HP</strong> автоматично</p>
+                <p>4. Новий учасник отримує <strong>{joinBonus} HP</strong> за реєстрацію</p>
+              </div>
+            </div>
+          </section>
+        </div>
+      )}
+
+      {/* SHOP PRODUCTS IN CHAT */}
+      {section === "shop-chat" && (
+        <div className="space-y-4">
+          <div>
+            <h2 className="font-bold text-gray-800 mb-1 text-base border-b pb-2">🛒 Іконки товарів у чаті</h2>
+            <p className="text-xs text-gray-500 mb-4">
+              Керуйте тим, які товари з Магазину відображаються в чаті та їх пріоритетністю. Іконка (emoji) відображається поруч з назвою товару.
+            </p>
+          </div>
+
+          {products.length === 0 ? (
+            <div className="text-center py-12 text-gray-400 text-sm border-2 border-dashed rounded-xl">
+              Товарів у магазині ще немає
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {products.map((product) => (
+                <div
+                  key={product.id}
+                  className={`bg-white border rounded-xl px-4 py-3 flex items-center gap-3 transition-opacity ${shopSaving === product.id ? "opacity-60" : ""}`}
+                >
+                  {/* Emoji editor */}
+                  <div className="flex-shrink-0">
+                    <input
+                      type="text"
+                      value={product.emoji}
+                      onChange={(e) => {
+                        const val = Array.from(e.target.value).slice(-2).join("") || product.emoji;
+                        setProducts((prev) => prev.map((p) => p.id === product.id ? { ...p, emoji: val } : p));
+                      }}
+                      onBlur={(e) => {
+                        if (e.target.value !== shopProducts.find((p) => p.id === product.id)?.emoji) {
+                          updateEmoji(product, e.target.value || "🏀");
+                        }
+                      }}
+                      className="w-12 h-12 text-2xl text-center border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-400 cursor-text"
+                      title="Іконка товару (emoji)"
+                      maxLength={4}
+                    />
+                  </div>
+
+                  {/* Product info */}
+                  <div className="flex-1 min-w-0">
+                    <div className="font-semibold text-gray-800 text-sm truncate">{product.name}</div>
+                    <div className="text-xs text-gray-400">{product.category} · {product.price} грн</div>
+                  </div>
+
+                  {/* Show in chat toggle */}
+                  <label className="flex items-center gap-2 cursor-pointer flex-shrink-0">
+                    <div
+                      onClick={() => toggleShowInChat(product)}
+                      className={`relative w-10 h-5 rounded-full transition-colors cursor-pointer ${product.showInChat ? "bg-orange-500" : "bg-gray-300"}`}
+                    >
+                      <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${product.showInChat ? "translate-x-5" : "translate-x-0.5"}`} />
+                    </div>
+                    <span className="text-xs text-gray-600 w-20">
+                      {product.showInChat ? "В чаті" : "Прихований"}
+                    </span>
+                  </label>
+
+                  {/* Priority toggle */}
+                  <label className={`flex items-center gap-2 cursor-pointer flex-shrink-0 ${!product.showInChat ? "opacity-40 pointer-events-none" : ""}`}>
+                    <div
+                      onClick={() => product.showInChat && toggleChatPriority(product)}
+                      className={`relative w-10 h-5 rounded-full transition-colors cursor-pointer ${product.chatPriority ? "bg-yellow-400" : "bg-gray-300"}`}
+                    >
+                      <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${product.chatPriority ? "translate-x-5" : "translate-x-0.5"}`} />
+                    </div>
+                    <span className="text-xs text-gray-600 w-20">
+                      {product.chatPriority ? "⭐ Пріоритет" : "Звичайний"}
+                    </span>
+                  </label>
+
+                  {shopSaving === product.id && (
+                    <span className="text-xs text-gray-400 flex-shrink-0">збереження...</span>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-xs text-blue-700 space-y-1">
+            <p className="font-bold mb-1">Як це працює:</p>
+            <p>• <strong>В чаті</strong> — товар відображається в списку покупок чату</p>
+            <p>• <strong>Пріоритет ⭐</strong> — товар показується першим / виділяється у списку</p>
+            <p>• <strong>Іконка</strong> — emoji відображається поруч з назвою товару в чаті</p>
+            <p>• Зміни зберігаються автоматично при перемиканні</p>
           </div>
         </div>
       )}

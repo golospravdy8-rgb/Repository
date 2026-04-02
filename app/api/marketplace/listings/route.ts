@@ -35,3 +35,23 @@ export async function POST(req: NextRequest) {
   });
   return NextResponse.json({ listing });
 }
+
+export async function DELETE(req: NextRequest) {
+  const { id, phone } = await req.json();
+  if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
+
+  const listing = await prisma.marketplaceListing.findUnique({ where: { id: Number(id) } });
+  if (!listing) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  // Check rights: owner (by phone) or admin (via cookie)
+  const adminToken = req.cookies.get("admin_token")?.value;
+  const isAdmin = adminToken === "ldbl_admin_2025";
+  const isOwner = phone && listing.phone === phone;
+
+  if (!isAdmin && !isOwner) {
+    return NextResponse.json({ error: "Немає прав для видалення" }, { status: 403 });
+  }
+
+  await prisma.marketplaceListing.delete({ where: { id: Number(id) } });
+  return NextResponse.json({ ok: true });
+}

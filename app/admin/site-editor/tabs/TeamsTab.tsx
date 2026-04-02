@@ -2,7 +2,6 @@
 
 import { useState, useTransition, useRef } from "react";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
 import { createTeam, updateTeam, deleteTeam, createPlayer, updatePlayer, deletePlayer } from "@/actions/admin-data";
 import type { TeamRow, PlayerRow } from "../SiteEditorClient";
 
@@ -20,6 +19,8 @@ export default function TeamsTab({ teams, players }: { teams: TeamRow[]; players
   const [editingTeam, setEditingTeam] = useState<TeamRow | null>(null);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const logoInputRef = useRef<HTMLInputElement>(null);
+  // Відстеження битих зображень (404/broken) по teamId
+  const [brokenLogos, setBrokenLogos] = useState<Set<number>>(new Set());
 
   // Player form
   const [playerForm, setPlayerForm] = useState({ firstName: "", lastName: "", number: "", position: "PG", teamId: "", photoUrl: "" });
@@ -33,14 +34,34 @@ export default function TeamsTab({ teams, players }: { teams: TeamRow[]; players
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    // Миттєвий локальний preview ще до завантаження
+    const localPreview = URL.createObjectURL(file);
+    setTeamForm((f) => ({ ...f, logoUrl: localPreview }));
     setUploadingLogo(true);
     try {
       const fd = new FormData();
       fd.append("file", file);
       fd.append("type", "team-logo");
       const res = await fetch("/api/upload", { method: "POST", body: fd });
+      if (!res.ok) {
+        const text = await res.text();
+        console.error("[upload] HTTP error", res.status, text);
+        // Скидаємо preview якщо upload не вдався
+        setTeamForm((f) => ({ ...f, logoUrl: "" }));
+        return;
+      }
       const data = await res.json();
-      if (data.url) setTeamForm((f) => ({ ...f, logoUrl: data.url }));
+      if (data.url) {
+        // Замінюємо blob URL на серверний шлях і звільняємо пам'ять
+        setTeamForm((f) => ({ ...f, logoUrl: data.url }));
+        URL.revokeObjectURL(localPreview);
+      } else {
+        console.error("[upload] no url in response:", data);
+        setTeamForm((f) => ({ ...f, logoUrl: "" }));
+      }
+    } catch (err) {
+      console.error("[upload] fetch error:", err);
+      setTeamForm((f) => ({ ...f, logoUrl: "" }));
     } finally {
       setUploadingLogo(false);
       if (logoInputRef.current) logoInputRef.current.value = "";
@@ -78,14 +99,35 @@ export default function TeamsTab({ teams, players }: { teams: TeamRow[]; players
   const handlePlayerPhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    // Show instant local preview before upload completes
+    const localPreview = URL.createObjectURL(file);
+    setPlayerForm((f) => ({ ...f, photoUrl: localPreview }));
     setUploadingPhoto(true);
     try {
       const fd = new FormData();
       fd.append("file", file);
       fd.append("type", "player-photo");
       const res = await fetch("/api/upload", { method: "POST", body: fd });
+      if (!res.ok) {
+        const text = await res.text();
+        console.error("[upload] HTTP error", res.status, text);
+        setPlayerForm((f) => ({ ...f, photoUrl: "" }));
+        URL.revokeObjectURL(localPreview);
+        return;
+      }
       const data = await res.json();
-      if (data.url) setPlayerForm((f) => ({ ...f, photoUrl: data.url }));
+      if (data.url) {
+        setPlayerForm((f) => ({ ...f, photoUrl: data.url }));
+        URL.revokeObjectURL(localPreview);
+      } else {
+        console.error("[upload] no url in response:", data);
+        setPlayerForm((f) => ({ ...f, photoUrl: "" }));
+        URL.revokeObjectURL(localPreview);
+      }
+    } catch (err) {
+      console.error("[upload] fetch error:", err);
+      setPlayerForm((f) => ({ ...f, photoUrl: "" }));
+      URL.revokeObjectURL(localPreview);
     } finally {
       setUploadingPhoto(false);
       if (photoInputRef.current) photoInputRef.current.value = "";
@@ -171,7 +213,13 @@ export default function TeamsTab({ teams, players }: { teams: TeamRow[]; players
               title="Завантажити логотип"
             >
               {teamForm.logoUrl ? (
-                <Image src={teamForm.logoUrl} alt="logo" width={64} height={64} className="object-cover w-full h-full" />
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={teamForm.logoUrl}
+                  alt="logo"
+                  className="object-cover w-full h-full"
+                  onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                />
               ) : (
                 <span className="text-gray-300 text-2xl font-black select-none">
                   {teamForm.shortName || "БЛ"}
@@ -270,8 +318,14 @@ export default function TeamsTab({ teams, players }: { teams: TeamRow[]; players
               <div className="flex items-center gap-3 min-w-0">
                 {/* Team logo or placeholder */}
                 <div className="w-10 h-10 rounded-lg overflow-hidden flex-shrink-0 border bg-gray-100 flex items-center justify-center">
-                  {team.logoUrl ? (
-                    <Image src={team.logoUrl} alt={team.name} width={40} height={40} className="object-cover w-full h-full" />
+                  {team.logoUrl && !brokenLogos.has(team.id) ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={team.logoUrl}
+                      alt={team.name}
+                      className="object-cover w-full h-full"
+                      onError={() => setBrokenLogos((prev) => new Set(prev).add(team.id))}
+                    />
                   ) : (
                     <span className="text-gray-400 text-xs font-bold">{team.shortName}</span>
                   )}
@@ -332,28 +386,33 @@ export default function TeamsTab({ teams, players }: { teams: TeamRow[]; players
                 {/* Photo upload */}
                 <div className="flex flex-col items-center gap-1 flex-shrink-0">
                   <div
-                    className="w-14 h-14 rounded-full border-2 border-dashed border-gray-300 overflow-hidden flex items-center justify-center bg-white cursor-pointer hover:border-orange-400 transition-colors"
-                    onClick={() => photoInputRef.current?.click()}
+                    className="w-16 h-16 rounded-full border-2 border-dashed border-gray-300 overflow-hidden flex items-center justify-center bg-white cursor-pointer hover:border-orange-400 transition-colors relative"
+                    onClick={() => !uploadingPhoto && photoInputRef.current?.click()}
                     title="Завантажити фото"
                   >
-                    {playerForm.photoUrl ? (
-                      <Image src={playerForm.photoUrl} alt="photo" width={56} height={56} className="object-cover w-full h-full" />
+                    {uploadingPhoto ? (
+                      <div className="flex items-center justify-center w-full h-full">
+                        <div className="w-5 h-5 border-2 border-orange-400 border-t-transparent rounded-full animate-spin" />
+                      </div>
+                    ) : playerForm.photoUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={playerForm.photoUrl} alt="photo" className="object-cover w-full h-full" />
                     ) : (
-                      <span className="text-gray-300 text-xl">👤</span>
+                      <span className="text-gray-300 text-2xl">👤</span>
                     )}
                   </div>
                   <input ref={photoInputRef} type="file" accept="image/*" className="hidden" onChange={handlePlayerPhotoUpload} />
                   <button
                     type="button"
-                    onClick={() => photoInputRef.current?.click()}
+                    onClick={() => !uploadingPhoto && photoInputRef.current?.click()}
                     disabled={uploadingPhoto}
                     className="text-xs text-gray-400 hover:text-orange-500 transition-colors disabled:opacity-50 whitespace-nowrap"
                   >
-                    {uploadingPhoto ? "..." : playerForm.photoUrl ? "Змінити" : "Фото"}
+                    {uploadingPhoto ? "Завантаження..." : playerForm.photoUrl ? "Змінити" : "Додати фото"}
                   </button>
-                  {playerForm.photoUrl && (
+                  {playerForm.photoUrl && !uploadingPhoto && (
                     <button type="button" onClick={() => setPlayerForm((f) => ({ ...f, photoUrl: "" }))} className="text-xs text-red-400 hover:text-red-600">
-                      ✕
+                      Видалити
                     </button>
                   )}
                 </div>
@@ -426,7 +485,8 @@ export default function TeamsTab({ teams, players }: { teams: TeamRow[]; players
                       <div className="flex items-center gap-2">
                         <div className="w-7 h-7 rounded-full overflow-hidden bg-gray-100 border flex-shrink-0 flex items-center justify-center">
                           {p.photoUrl
-                            ? <Image src={p.photoUrl} alt={p.firstName} width={28} height={28} className="object-cover w-full h-full" />
+                            // eslint-disable-next-line @next/next/no-img-element
+                            ? <img src={p.photoUrl} alt={p.firstName} className="object-cover w-full h-full" />
                             : <span className="text-gray-300 text-xs">👤</span>
                           }
                         </div>

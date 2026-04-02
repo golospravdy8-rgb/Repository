@@ -25,7 +25,6 @@ export default function DonateButton({ cardNumber, cardName, cardBank, donateLab
     });
   }
 
-  // Format card number: split into groups of 4
   function formatCard(raw: string) {
     const digits = raw.replace(/\D/g, "");
     return digits.match(/.{1,4}/g)?.join(" ") ?? raw;
@@ -38,24 +37,23 @@ export default function DonateButton({ cardNumber, cardName, cardBank, donateLab
         style={{
           display: "inline-flex",
           alignItems: "center",
-          gap: "8px",
-          padding: "12px 24px",
-          borderRadius: "12px",
+          gap: 8,
+          padding: "8px 18px",
+          borderRadius: 12,
           background: buttonBg ? buttonBg : "linear-gradient(135deg, #f59e0b, #f46f10)",
           color: "white",
           border: "none",
           fontFamily: "inherit",
           fontWeight: 800,
-          fontSize: "30px",
+          fontSize: "16px",
           cursor: "pointer",
-          boxShadow: `0 4px 20px ${buttonBg ? buttonBg + "66" : "rgba(244,111,16,0.4)"}`,
+          boxShadow: `0 3px 15px ${buttonBg ? buttonBg + "66" : "rgba(244,111,16,0.4)"}`,
           letterSpacing: "0.01em",
         }}
       >
         ❤️ {label}
       </button>
 
-      {/* Modal */}
       {open && (
         <div
           onClick={() => setOpen(false)}
@@ -64,16 +62,16 @@ export default function DonateButton({ cardNumber, cardName, cardBank, donateLab
             background: "rgba(0,0,0,0.6)",
             zIndex: 9999,
             display: "flex", alignItems: "center", justifyContent: "center",
-            padding: "16px",
+            padding: 16,
           }}
         >
           <div
             onClick={(e) => e.stopPropagation()}
             style={{
               background: "white",
-              borderRadius: "20px",
+              borderRadius: 20,
               padding: "32px 28px",
-              maxWidth: "380px",
+              maxWidth: 380,
               width: "100%",
               boxShadow: "0 20px 60px rgba(0,0,0,0.25)",
               textAlign: "center",
@@ -83,16 +81,14 @@ export default function DonateButton({ cardNumber, cardName, cardBank, donateLab
             <button
               onClick={() => setOpen(false)}
               style={{
-                position: "absolute", top: "14px", right: "16px",
-                background: "none", border: "none", fontSize: "22px",
+                position: "absolute", top: 14, right: 16,
+                background: "none", border: "none", fontSize: "24px",
                 color: "#9ca3af", cursor: "pointer", lineHeight: 1,
               }}
-            >
-              ×
-            </button>
+            >×</button>
 
-            <div style={{ fontSize: "48px", marginBottom: "8px" }}>❤️</div>
-            <h2 style={{ fontSize: "20px", fontWeight: 800, color: "#1a2744", margin: "0 0 6px" }}>
+            <div style={{ fontSize: "48px", marginBottom: 8 }}>❤️</div>
+            <h2 style={{ fontSize: "22px", fontWeight: 800, color: "#1a2744", margin: "0 0 6px" }}>
               Підтримати клуб
             </h2>
             <p style={{ fontSize: "14px", color: "#6b7280", margin: "0 0 24px" }}>
@@ -102,31 +98,27 @@ export default function DonateButton({ cardNumber, cardName, cardBank, donateLab
             {hasCard ? (
               <>
                 {cardBank && (
-                  <div style={{ fontSize: "13px", color: "#9ca3af", marginBottom: "8px", fontWeight: 600 }}>
+                  <div style={{ fontSize: "13px", color: "#9ca3af", marginBottom: 6, fontWeight: 600 }}>
                     {cardBank}
                   </div>
                 )}
-
-                {/* Card visual */}
-                <div
-                  style={{
-                    background: "linear-gradient(135deg, #1a2744, #2d4a8a)",
-                    borderRadius: "14px",
-                    padding: "20px 22px",
-                    marginBottom: "16px",
-                    textAlign: "left",
-                    position: "relative",
-                    overflow: "hidden",
-                  }}
-                >
-                  <div style={{ position: "absolute", top: "-20px", right: "-20px", width: "100px", height: "100px", borderRadius: "50%", background: "rgba(255,255,255,0.05)" }} />
-                  <div style={{ position: "absolute", bottom: "-30px", right: "20px", width: "80px", height: "80px", borderRadius: "50%", background: "rgba(255,255,255,0.05)" }} />
-                  <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.5)", marginBottom: "12px", fontWeight: 600, letterSpacing: "0.1em" }}>НОМЕР КАРТКИ</div>
+                <div style={{
+                  background: "linear-gradient(135deg, #1a2744, #2d4a8a)",
+                  borderRadius: 14,
+                  padding: "20px 22px",
+                  marginBottom: 16,
+                  textAlign: "left",
+                  position: "relative",
+                  overflow: "hidden",
+                }}>
+                  <div style={{ position: "absolute", top: -20, right: -20, width: 100, height: 100, borderRadius: "50%", background: "rgba(255,255,255,0.05)" }} />
+                  <div style={{ position: "absolute", bottom: -30, right: 20, width: 80, height: 80, borderRadius: "50%", background: "rgba(255,255,255,0.05)" }} />
+                  <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.5)", marginBottom: 12, fontWeight: 600, letterSpacing: "0.1em" }}>НОМЕР КАРТКИ</div>
                   <div style={{ fontSize: "22px", fontWeight: 800, color: "white", letterSpacing: "0.12em", fontFamily: "monospace" }}>
                     {formatCard(cardNumber)}
                   </div>
                   {cardName && (
-                    <div style={{ fontSize: "12px", color: "rgba(255,255,255,0.6)", marginTop: "12px", fontWeight: 600, letterSpacing: "0.05em" }}>
+                    <div style={{ fontSize: "12px", color: "rgba(255,255,255,0.6)", marginTop: 12, fontWeight: 600, letterSpacing: "0.05em" }}>
                       {cardName.toUpperCase()}
                     </div>
                   )}
@@ -136,8 +128,8 @@ export default function DonateButton({ cardNumber, cardName, cardBank, donateLab
                   onClick={copyCard}
                   style={{
                     width: "100%",
-                    padding: "13px",
-                    borderRadius: "12px",
+                    padding: "12px",
+                    borderRadius: 12,
                     background: copied ? "#16a34a" : "linear-gradient(135deg,#f59e0b,#f46f10)",
                     color: "white",
                     border: "none",
@@ -145,7 +137,7 @@ export default function DonateButton({ cardNumber, cardName, cardBank, donateLab
                     fontSize: "14px",
                     cursor: "pointer",
                     transition: "background 0.2s",
-                    marginBottom: "12px",
+                    marginBottom: 12,
                   }}
                 >
                   {copied ? "✓ Скопійовано!" : "📋 Скопіювати номер картки"}
@@ -156,7 +148,7 @@ export default function DonateButton({ cardNumber, cardName, cardBank, donateLab
                 </p>
               </>
             ) : (
-              <div style={{ padding: "20px", background: "#f9fafb", borderRadius: "12px", color: "#6b7280", fontSize: "14px" }}>
+              <div style={{ padding: "20px", background: "#f9fafb", borderRadius: 12, color: "#6b7280", fontSize: "14px" }}>
                 Реквізити для поповнення ще не вказані.<br />
                 Зверніться до адміністратора клубу.
               </div>

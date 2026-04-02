@@ -17,9 +17,9 @@ export default function AgeGroupSwitcher({ orangeColor }: { orangeColor: string 
   }
 
   const btnBase: React.CSSProperties = {
-    padding: "8px 20px",
+    padding: "4px 10px",
     borderRadius: "6px",
-    fontSize: "24px",
+    fontSize: "12px",
     fontWeight: 700,
     cursor: "pointer",
     border: "none",

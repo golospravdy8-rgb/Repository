@@ -25,43 +25,43 @@ export default async function ContactsPage() {
   const youtube = settings["contacts.youtube"] || "";
 
   return (
-    <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
-      <h1 className="text-xl font-black mb-1" style={{ color: "var(--color-heading)" }}>
+    <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-2">
+      <h1 className="text-base font-black mb-1" style={{ color: "var(--color-heading)" }}>
         Контакти
       </h1>
 
-      <div className="bg-white rounded-xl shadow p-8 space-y-6">
+      <div className="bg-white rounded-xl shadow px-6 py-4 space-y-3">
         <div>
-          <h2 className="text-xl font-bold mb-2" style={{ color: "var(--color-heading)" }}>{title}</h2>
-          <p className="text-gray-500">{subtitle}</p>
+          <h2 className="text-base font-bold mb-0.5" style={{ color: "var(--color-heading)" }}>{title}</h2>
+          <p className="text-gray-500 text-sm">{subtitle}</p>
         </div>
 
-        <div className="space-y-4 text-gray-700">
-          <div className="flex items-start gap-3">
-            <span className="text-xl mt-0.5">📍</span>
+        <div className="space-y-2 text-gray-700">
+          <div className="flex items-start gap-2">
+            <span className="text-base mt-0.5">📍</span>
             <div>
-              <div className="font-semibold">Адреса</div>
-              <div className="text-gray-500">{address}</div>
+              <div className="font-semibold text-sm">Адреса</div>
+              <div className="text-gray-500 text-sm">{address}</div>
             </div>
           </div>
 
-          <div className="flex items-start gap-3">
-            <span className="text-xl mt-0.5">📧</span>
+          <div className="flex items-start gap-2">
+            <span className="text-base mt-0.5">📧</span>
             <div>
-              <div className="font-semibold">Email</div>
-              <a href={`mailto:${email}`} className="text-orange-500 hover:text-orange-600">
+              <div className="font-semibold text-sm">Email</div>
+              <a href={`mailto:${email}`} className="text-orange-500 hover:text-orange-600 text-sm">
                 {email}
               </a>
             </div>
           </div>
 
-          <div className="flex items-start gap-3">
-            <span className="text-xl mt-0.5">🌐</span>
+          <div className="flex items-start gap-2">
+            <span className="text-base mt-0.5">🌐</span>
             <div>
-              <div className="font-semibold">Сайт</div>
+              <div className="font-semibold text-sm">Сайт</div>
               <a
                 href={website.startsWith("http") ? website : `https://${website}`}
-                className="text-orange-500 hover:text-orange-600"
+                className="text-orange-500 hover:text-orange-600 text-sm"
                 target="_blank"
                 rel="noopener noreferrer"
               >
@@ -72,15 +72,15 @@ export default async function ContactsPage() {
         </div>
 
         {(facebook || instagram || youtube) && (
-          <div className="border-t pt-6">
-            <div className="font-semibold mb-3 text-gray-700">Соціальні мережі</div>
-            <div className="flex gap-3 flex-wrap">
+          <div className="border-t pt-3">
+            <div className="font-semibold text-sm mb-2 text-gray-700">Соціальні мережі</div>
+            <div className="flex gap-2 flex-wrap">
               {facebook && (
                 <a
                   href={facebook}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="px-4 py-2 rounded-lg text-white text-sm font-semibold transition-opacity hover:opacity-90"
+                  className="px-3 py-1 rounded-lg text-white text-xs font-semibold transition-opacity hover:opacity-90"
                   style={{ backgroundColor: "#1877f2" }}
                 >
                   Facebook
@@ -91,7 +91,7 @@ export default async function ContactsPage() {
                   href={instagram}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="px-4 py-2 rounded-lg text-white text-sm font-semibold transition-opacity hover:opacity-90"
+                  className="px-3 py-1 rounded-lg text-white text-xs font-semibold transition-opacity hover:opacity-90"
                   style={{ background: "linear-gradient(45deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888)" }}
                 >
                   Instagram
@@ -102,7 +102,7 @@ export default async function ContactsPage() {
                   href={youtube}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="px-4 py-2 rounded-lg text-white text-sm font-semibold transition-opacity hover:opacity-90"
+                  className="px-3 py-1 rounded-lg text-white text-xs font-semibold transition-opacity hover:opacity-90"
                   style={{ backgroundColor: "#ff0000" }}
                 >
                   YouTube

@@ -58,8 +58,8 @@ function ListingCard({ item, currentUser, onDelete }: { item: Listing; currentUs
   const isOwner = currentUser?.name === item.seller;
   return (
     <div style={{ backgroundColor: "white", borderRadius: 16, overflow: "hidden", boxShadow: "0 2px 12px rgba(0,0,0,0.08)", border: "1px solid #f0f0f0", display: "flex", flexDirection: "column" }}>
-      <div style={{ height: 160, background: item.imageUrl ? "none" : "#1e2a4a", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 52, overflow: "hidden" }}>
-        {item.imageUrl ? <img src={item.imageUrl} alt={item.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : item.emoji}
+      <div style={{ height: 200, background: item.imageUrl ? "#f8fafc" : "#1e2a4a", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 52, overflow: "hidden" }}>
+        {item.imageUrl ? <img src={item.imageUrl} alt={item.title} style={{ width: "100%", height: "100%", objectFit: "contain", padding: 8 }} /> : item.emoji}
       </div>
       <div style={{ padding: 16, flex: 1, display: "flex", flexDirection: "column" }}>
         <div style={{ fontWeight: 700, color: "#1e2a4a", fontSize: 15, marginBottom: 6 }}>{item.title}</div>
@@ -129,8 +129,8 @@ function AuctionCard({ item, onOpen }: { item: AuctionItem; onOpen: (i: AuctionI
     <div onClick={() => onOpen(item)} style={{ background: "linear-gradient(145deg,#111118,#0d0d14)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 20, overflow: "hidden", cursor: "pointer", transition: "transform .2s,box-shadow .2s" }}
       onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.transform = "translateY(-6px)"; (e.currentTarget as HTMLDivElement).style.boxShadow = "0 12px 40px rgba(13,110,253,0.25)"; }}
       onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.transform = "none"; (e.currentTarget as HTMLDivElement).style.boxShadow = "none"; }}>
-      <div style={{ position: "relative", height: 160, background: "linear-gradient(135deg,#0d0d20,#1a1a35)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 56, overflow: "hidden" }}>
-        {item.imageUrl ? <img src={item.imageUrl} alt={item.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : item.emoji}
+      <div style={{ position: "relative", height: 200, background: item.imageUrl ? "#0d0d20" : "linear-gradient(135deg,#0d0d20,#1a1a35)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 56, overflow: "hidden" }}>
+        {item.imageUrl ? <img src={item.imageUrl} alt={item.title} style={{ width: "100%", height: "100%", objectFit: "contain", padding: 8 }} /> : item.emoji}
         {!isOver && <span style={{ position: "absolute", top: 12, left: 12, background: "#dc3545", color: "white", fontSize: 10, fontWeight: 800, padding: "3px 8px", borderRadius: 4 }}>LIVE</span>}
         <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, background: "linear-gradient(0deg,rgba(0,0,0,0.9),transparent)", padding: "8px 12px", fontSize: 13, color: isOver ? "#ef4444" : "#60a5fa" }}>⏱ <Countdown endsAt={item.endsAt} /></div>
       </div>
@@ -175,7 +175,7 @@ function BidModal({ item, seller, onClose, onBid }: { item: AuctionItem | null; 
           <div><div style={{ fontSize: 20, fontWeight: 800, color: "#f0f0f5" }}>{item.title}</div><div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>{item.category} · {item.seller}</div></div>
           <button onClick={onClose} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", fontSize: 22, cursor: "pointer" }}>✕</button>
         </div>
-        <div style={{ marginBottom: 16, background: "linear-gradient(135deg,#0d0d20,#1a1a35)", borderRadius: 16, height: 140, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
+        <div style={{ marginBottom: 16, background: "linear-gradient(135deg,#0d0d20,#1a1a35)", borderRadius: 16, height: 220, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", padding: 12 }}>
           {item.imageUrl ? <img src={item.imageUrl} alt={item.title} style={{ maxHeight: "100%", maxWidth: "100%", objectFit: "contain" }} /> : <span style={{ fontSize: 72 }}>{item.emoji}</span>}
         </div>
         {item.description && <p style={{ color: "rgba(255,255,255,0.6)", fontSize: 14, marginBottom: 20 }}>{item.description}</p>}
@@ -289,8 +289,8 @@ function LoginPrompt({ onClose }: { onClose: () => void }) {
       <div style={{ background: "white", borderRadius: 20, padding: 32, maxWidth: 400, width: "100%", textAlign: "center" }}>
         <div style={{ fontSize: 48, marginBottom: 16 }}>🔐</div>
         <h3 style={{ fontSize: 20, fontWeight: 800, color: "#1e2a4a", marginBottom: 8 }}>Потрібна реєстрація</h3>
-        <p style={{ color: "#6b7280", fontSize: 14, marginBottom: 24 }}>Для публікації оголошень та участі в аукціоні увійдіть через головний сайт ЛДБЛ</p>
-        <a href="http://localhost:3006" style={{ display: "block", padding: "12px 24px", background: "#f46f10", color: "white", borderRadius: 12, fontWeight: 700, textDecoration: "none", marginBottom: 12 }}>Увійти через ЛДБЛ →</a>
+        <p style={{ color: "#6b7280", fontSize: 14, marginBottom: 24 }}>Для публікації оголошень та участі в аукціоні увійдіть через головний сайт ДЮБЛ</p>
+        <a href="http://localhost:3006" style={{ display: "block", padding: "12px 24px", background: "#f46f10", color: "white", borderRadius: 12, fontWeight: 700, textDecoration: "none", marginBottom: 12 }}>Увійти через ДЮБЛ →</a>
         <button onClick={onClose} style={{ width: "100%", padding: 10, border: "1px solid #e5e7eb", borderRadius: 10, cursor: "pointer", background: "white", color: "#6b7280", fontSize: 14 }}>Скасувати</button>
       </div>
     </div>
@@ -348,7 +348,7 @@ export default function MarketplacePage() {
       <style>{`@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(220,53,69,.5)}50%{box-shadow:0 0 0 6px rgba(220,53,69,0)}} *{box-sizing:border-box} body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}`}</style>
       <div style={{ maxWidth: 1200, margin: "0 auto", padding: "32px 24px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 28, flexWrap: "wrap", gap: 12 }}>
-          <h1 style={{ fontSize: 26, fontWeight: 800, color: tab === "auction" ? "#f0f0f5" : "#1e2a4a", margin: 0 }}>{tab === "marketplace" ? "Барахолка ЛДБЛ" : "Аукціон ЛДБЛ"}</h1>
+          <h1 style={{ fontSize: 26, fontWeight: 800, color: tab === "auction" ? "#f0f0f5" : "#1e2a4a", margin: 0 }}>{tab === "marketplace" ? "Барахолка ДЮБЛ" : "Аукціон ДЮБЛ"}</h1>
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             {currentUser && <span style={{ fontSize: 13, color: "#6b7280", padding: "6px 12px", background: "#f1f5f9", borderRadius: 8 }}>👤 {currentUser.name}</span>}
             <button onClick={() => setTab("marketplace")} style={{ padding: "10px 22px", borderRadius: 12, fontWeight: 700, fontSize: 14, cursor: "pointer", border: "none", background: tab === "marketplace" ? "#f46f10" : "#e5e7eb", color: tab === "marketplace" ? "white" : "#374151" }}>Барахолка</button>
@@ -386,9 +386,9 @@ export default function MarketplacePage() {
         {tab === "auction" && (
           <div style={{ background: "linear-gradient(180deg,#0a0a0f,#0d0d1a)", borderRadius: 20, padding: 28, minHeight: 600 }}>
             <div style={{ textAlign: "center", marginBottom: 28 }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: "#3b82f6", textTransform: "uppercase", letterSpacing: 2, marginBottom: 8 }}>ЛДБЛ · Офіційний аукціон</div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: "#3b82f6", textTransform: "uppercase", letterSpacing: 2, marginBottom: 8 }}>ДЮБЛ · Офіційний аукціон</div>
               <h2 style={{ fontSize: 30, fontWeight: 800, color: "#f0f0f5", margin: "0 0 8px" }}>Ставки на спортивні лоти</h2>
-              <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 14, margin: "0 0 20px" }}>Рідкісні речі, підписані форми, офіційний інвентар ЛДБЛ</p>
+              <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 14, margin: "0 0 20px" }}>Рідкісні речі, підписані форми, офіційний інвентар ДЮБЛ</p>
               <button onClick={() => requireAuth(() => setShowAddAuction(true))} style={{ padding: "12px 28px", background: "linear-gradient(135deg,#0d6efd,#3b82f6)", color: "white", border: "none", borderRadius: 12, fontWeight: 800, fontSize: 14, cursor: "pointer", boxShadow: "0 0 24px rgba(13,110,253,0.5)" }}>Додати товар на аукціон</button>
             </div>
             <div style={{ display: "flex", gap: 12, marginBottom: 16 }}>

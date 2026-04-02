@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { requireAuth } from "@/lib/require-auth";
 import { writeFile, mkdir, readFile } from "fs/promises";
 import path from "path";
 
@@ -15,7 +15,7 @@ async function writeGallery(data: object) {
   await writeFile(GALLERY_PATH, JSON.stringify(data, null, 2), "utf-8");
 }
 
-// GET /api/gallery — return current gallery data
+// GET /api/gallery — return current gallery data (public)
 export async function GET() {
   const gallery = await readGallery();
   return NextResponse.json(gallery);
@@ -23,8 +23,11 @@ export async function GET() {
 
 // POST /api/gallery — upload a photo to an album
 export async function POST(req: NextRequest) {
-  const session = await auth();
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const adminToken = req.cookies.get("admin_token")?.value;
+  console.log("[gallery POST] admin_token cookie:", adminToken, "all cookies:", req.cookies.getAll().map(c => c.name));
+  try { await requireAuth(); } catch {
+    return NextResponse.json({ error: "Unauthorized", debug_cookie: adminToken ?? "MISSING" }, { status: 401 });
+  }
 
   const formData = await req.formData();
   const file = formData.get("file") as File | null;
@@ -60,8 +63,9 @@ export async function POST(req: NextRequest) {
 
 // DELETE /api/gallery — remove a photo from an album
 export async function DELETE(req: NextRequest) {
-  const session = await auth();
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  try { await requireAuth(); } catch {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
   const { gameId, url } = await req.json() as { gameId: number; url: string };
   if (!gameId || !url) return NextResponse.json({ error: "Missing params" }, { status: 400 });
@@ -81,8 +85,9 @@ export async function DELETE(req: NextRequest) {
 
 // PATCH /api/gallery — set cover photo
 export async function PATCH(req: NextRequest) {
-  const session = await auth();
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  try { await requireAuth(); } catch {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
   const { gameId, url } = await req.json() as { gameId: number; url: string };
 

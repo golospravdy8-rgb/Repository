@@ -2,41 +2,12 @@ import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
+import { calculateRating, getRatingTier, BADGES } from "@/lib/achievements";
 
 export const dynamic = "force-dynamic";
 
-function calculateRating(games: { points: number; rebounds: number; assists: number; steals: number; blocks: number }[]) {
-  if (!games.length) return 60;
-  const n = games.length;
-  const avg = {
-    pts: games.reduce((s, g) => s + g.points, 0) / n,
-    reb: games.reduce((s, g) => s + g.rebounds, 0) / n,
-    ast: games.reduce((s, g) => s + g.assists, 0) / n,
-    stl: games.reduce((s, g) => s + g.steals, 0) / n,
-    blk: games.reduce((s, g) => s + g.blocks, 0) / n,
-  };
-  return Math.min(99, Math.round(50 + avg.pts * 1.8 + avg.reb * 1.2 + avg.ast * 1.5 + avg.stl * 2.0 + avg.blk * 1.8));
-}
-
-const BADGES = [
-  { id: "top-scorer", name: "Снайпер", icon: "🏹", description: "Набрав 20+ очок в одній грі", color: "#ffd700", check: (stats: {points:number;rebounds:number;assists:number;steals:number;blocks:number}[]) => stats.some((g) => g.points >= 20) },
-  { id: "triple-double", name: "Трипл-дабл", icon: "⭐", description: "10+ очок, підбирань та передач в одній грі", color: "#f46f10", check: (stats: {points:number;rebounds:number;assists:number;steals:number;blocks:number}[]) => stats.some((g) => g.points >= 10 && g.rebounds >= 10 && g.assists >= 10) },
-  { id: "iron-defense", name: "Залізний захист", icon: "🛡️", description: "5+ блок-шотів в одній грі", color: "#4a90d9", check: (stats: {points:number;rebounds:number;assists:number;steals:number;blocks:number}[]) => stats.some((g) => g.blocks >= 5) },
-  { id: "playmaker", name: "Розігруючий", icon: "🎯", description: "7+ передач в одній грі", color: "#7c3aed", check: (stats: {points:number;rebounds:number;assists:number;steals:number;blocks:number}[]) => stats.some((g) => g.assists >= 7) },
-  { id: "rebounder", name: "Король підбирань", icon: "💪", description: "10+ підбирань в одній грі", color: "#059669", check: (stats: {points:number;rebounds:number;assists:number;steals:number;blocks:number}[]) => stats.some((g) => g.rebounds >= 10) },
-  {
-    id: "consistent", name: "Стабільний", icon: "📈", description: "10+ очок у 3 іграх поспіль", color: "#d97706",
-    check: (stats: {points:number;rebounds:number;assists:number;steals:number;blocks:number}[]) => {
-      let streak = 0;
-      for (const g of stats) { if (g.points >= 10) { streak++; if (streak >= 3) return true; } else streak = 0; }
-      return false;
-    },
-  },
-  { id: "team-player", name: "Командний гравець", icon: "🤝", description: "Середнє 5+ передач за сезон", color: "#0891b2", check: (stats: {points:number;rebounds:number;assists:number;steals:number;blocks:number}[]) => stats.length > 0 && stats.reduce((s, g) => s + g.assists, 0) / stats.length >= 5 },
-];
-
 const TIER_STYLES = {
-  gold: { background: "linear-gradient(135deg, #b8860b, #ffd700, #b8860b)", border: "2px solid #ffd700", textColor: "#4a3000", badgeColor: "#b8860b" },
+  gold:   { background: "linear-gradient(135deg, #b8860b, #ffd700, #b8860b)", border: "2px solid #ffd700", textColor: "#4a3000", badgeColor: "#b8860b" },
   silver: { background: "linear-gradient(135deg, #708090, #c0c0c0, #708090)", border: "2px solid #c0c0c0", textColor: "#2d3748", badgeColor: "#708090" },
   bronze: { background: "linear-gradient(135deg, #8B4513, #cd7f32, #8B4513)", border: "2px solid #cd7f32", textColor: "#2d1b00", badgeColor: "#8B4513" },
 };
@@ -45,31 +16,56 @@ export default async function PlayerProfilePage({ params }: { params: { id: stri
   const playerId = parseInt(params.id);
   if (isNaN(playerId)) notFound();
 
-  const player = await prisma.player.findUnique({
-    where: { id: playerId },
-    include: {
-      team: true,
-      boxScores: {
-        include: { game: { select: { id: true, scheduledAt: true, homeTeam: { select: { name: true } }, awayTeam: { select: { name: true } }, homeScore: true, awayScore: true, homeTeamId: true } } },
-        orderBy: { game: { scheduledAt: "asc" } },
+  const [player, seasonMvp] = await Promise.all([
+    prisma.player.findUnique({
+      where: { id: playerId },
+      include: {
+        team: { include: { season: true } },
+        boxScores: {
+          include: { game: { select: { id: true, scheduledAt: true, homeTeam: { select: { name: true } }, awayTeam: { select: { name: true } }, homeScore: true, awayScore: true, homeTeamId: true } } },
+          orderBy: { game: { scheduledAt: "asc" } },
+        },
       },
-    },
-  }).catch(() => null);
+    }).catch(() => null),
+    // Find MVP of the season: player with highest rating in same season
+    prisma.player.findFirst({
+      where: {},
+      select: { id: true },
+    }).catch(() => null), // placeholder — computed below
+  ]);
 
   if (!player) notFound();
 
   const rating = calculateRating(player.boxScores);
-  const tier = rating >= 85 ? "gold" : rating >= 75 ? "silver" : "bronze";
+  const tier = getRatingTier(rating);
   const style = TIER_STYLES[tier];
 
-  const earnedBadges = BADGES.filter((b) => b.check(player.boxScores));
-  const lockedBadges = BADGES.filter((b) => !b.check(player.boxScores));
+  // TODO: achievements model not in schema — use empty set
+  const unlockedIds = new Set<string>();
+  const earnedBadges = BADGES.filter((b) => unlockedIds.has(b.id));
+  const lockedBadges = BADGES.filter((b) => !unlockedIds.has(b.id));
+
+  // Find MVP of this player's season
+  let isMvp = false;
+  try {
+    const seasonPlayers = await prisma.player.findMany({
+      where: { team: { seasonId: player.team.seasonId } },
+      include: {
+        boxScores: { select: { points: true, rebounds: true, assists: true, steals: true, blocks: true } },
+      },
+    });
+    const rated = seasonPlayers.map((p) => ({ id: p.id, rating: calculateRating(p.boxScores) }));
+    rated.sort((a, b) => b.rating - a.rating);
+    isMvp = rated.length > 0 && rated[0].id === playerId;
+  } catch {}
 
   const avgPts = player.boxScores.length ? (player.boxScores.reduce((s, g) => s + g.points, 0) / player.boxScores.length).toFixed(1) : "0";
   const avgReb = player.boxScores.length ? (player.boxScores.reduce((s, g) => s + g.rebounds, 0) / player.boxScores.length).toFixed(1) : "0";
   const avgAst = player.boxScores.length ? (player.boxScores.reduce((s, g) => s + g.assists, 0) / player.boxScores.length).toFixed(1) : "0";
   const avgStl = player.boxScores.length ? (player.boxScores.reduce((s, g) => s + g.steals, 0) / player.boxScores.length).toFixed(1) : "0";
   const avgBlk = player.boxScores.length ? (player.boxScores.reduce((s, g) => s + g.blocks, 0) / player.boxScores.length).toFixed(1) : "0";
+
+  const tierMedal = tier === "gold" ? "🥇" : tier === "silver" ? "🥈" : "🥉";
 
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
@@ -78,12 +74,13 @@ export default async function PlayerProfilePage({ params }: { params: { id: stri
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
         {/* FIFA Card */}
         <div className="flex justify-center">
-          <div
-            className="w-52 rounded-2xl overflow-hidden shadow-2xl"
-            style={{ background: style.background, border: style.border }}
-          >
+          <div className="w-52 rounded-2xl overflow-hidden shadow-2xl" style={{ background: style.background, border: style.border }}>
             <div className="px-4 pt-4 pb-1 flex items-center justify-between">
-              <div className="font-black text-3xl" style={{ color: style.textColor }}>{rating}</div>
+              <div className="flex items-center gap-1">
+                <div className="font-black text-3xl" style={{ color: style.textColor }}>{rating}</div>
+                <span className="text-lg">{tierMedal}</span>
+                {isMvp && <span className="text-lg" title="MVP сезону">👑</span>}
+              </div>
               <div>
                 <div className="text-xs font-bold px-2 py-0.5 rounded text-white text-center" style={{ backgroundColor: style.badgeColor }}>{player.position || "—"}</div>
                 <div className="text-xs text-center mt-0.5 font-bold opacity-70" style={{ color: style.textColor }}>#{player.number}</div>
@@ -120,8 +117,15 @@ export default async function PlayerProfilePage({ params }: { params: { id: stri
         {/* Stats summary */}
         <div className="md:col-span-2 space-y-6">
           <div>
-            <h1 className="text-3xl font-black text-gray-900">{player.firstName} {player.lastName}</h1>
+            <h1 className="text-3xl font-black text-gray-900 flex items-center gap-2">
+              {player.firstName} {player.lastName}
+              {isMvp && <span className="text-2xl" title="MVP сезону">👑</span>}
+            </h1>
             <p className="text-gray-500">{player.team.name} · #{player.number} · {player.position}</p>
+            <p className="text-sm font-semibold mt-1 flex items-center gap-1" style={{ color: tier === "gold" ? "#b8860b" : tier === "silver" ? "#708090" : "#8B4513" }}>
+              {tierMedal} Рейтинг {rating} — {tier === "gold" ? "Золото" : tier === "silver" ? "Срібло" : "Бронза"}
+              {isMvp && <span className="ml-2 text-orange-600">· MVP сезону 👑</span>}
+            </p>
           </div>
 
           <div className="grid grid-cols-5 gap-3">
@@ -135,12 +139,12 @@ export default async function PlayerProfilePage({ params }: { params: { id: stri
 
           {/* Badges */}
           <div className="bg-white rounded-xl shadow p-5">
-            <h3 className="font-black text-gray-800 mb-4">🏅 Досягнення</h3>
+            <h3 className="font-black text-gray-800 mb-4">🏅 Досягнення ({earnedBadges.length}/{BADGES.length})</h3>
             <div className="flex flex-wrap gap-2">
               {earnedBadges.map((badge) => (
                 <div
                   key={badge.id}
-                  className="group relative flex items-center gap-1.5 px-3 py-1.5 rounded-full text-white text-xs font-bold"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-white text-xs font-bold"
                   style={{ backgroundColor: badge.color }}
                   title={badge.description}
                 >
@@ -160,6 +164,9 @@ export default async function PlayerProfilePage({ params }: { params: { id: stri
                 </div>
               ))}
             </div>
+            {earnedBadges.length === 0 && (
+              <p className="text-sm text-gray-400 mt-1">Поки немає досягнень. Грай — і отримуй значки!</p>
+            )}
           </div>
         </div>
       </div>

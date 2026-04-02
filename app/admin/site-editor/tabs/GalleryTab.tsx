@@ -41,7 +41,7 @@ function AlbumEditor({ album: initialAlbum, game }: { album: Album; game: GameRo
       fd.append("file", file);
       fd.append("gameId", String(initialAlbum.gameId));
       try {
-        const res = await fetch("/api/gallery", { method: "POST", body: fd });
+        const res = await fetch("/api/gallery", { method: "POST", body: fd, credentials: "include" });
         const data = await res.json();
         if (res.ok && data.url) {
           newUrls.push(data.url);
@@ -66,6 +66,7 @@ function AlbumEditor({ album: initialAlbum, game }: { album: Album; game: GameRo
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ gameId: initialAlbum.gameId, url }),
+      credentials: "include",
     });
     if (res.ok) {
       const updated = photos.filter((p) => p !== url);
@@ -79,6 +80,7 @@ function AlbumEditor({ album: initialAlbum, game }: { album: Album; game: GameRo
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ gameId: initialAlbum.gameId, url }),
+      credentials: "include",
     });
     if (res.ok) setCover(url);
   }

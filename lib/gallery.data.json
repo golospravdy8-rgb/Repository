@@ -3,44 +3,15 @@
     {
       "gameId": 1,
       "photos": [
-        "/uploads/gallery-1-1774214910189.jpg",
-        "/uploads/gallery-1-1774214910219.jpg",
-        "/uploads/gallery-1-1774214910242.jpg",
-        "/uploads/gallery-1-1774214910264.jpg",
-        "/uploads/gallery-1-1774214910288.jpg"
+        "/uploads/gallery-1-1774894807564.jpg",
+        "/uploads/gallery-1-1774894819034.jpg",
+        "/uploads/gallery-1-1774894827110.jpg",
+        "/uploads/gallery-1-1774894836925.jpg",
+        "/uploads/gallery-1-1774894844773.jpg",
+        "/uploads/gallery-1-1774894852239.jpg"
       ],
-      "coverPhoto": "/uploads/gallery-1-1774214910189.jpg",
+      "coverPhoto": "/uploads/gallery-1-1774894807564.jpg",
       "createdAt": "2026-02-28"
-    },
-    {
-      "gameId": 2,
-      "photos": [],
-      "coverPhoto": null,
-      "createdAt": "2026-02-28"
-    },
-    {
-      "gameId": 3,
-      "photos": [],
-      "coverPhoto": null,
-      "createdAt": "2026-03-07"
-    },
-    {
-      "gameId": 4,
-      "photos": [],
-      "coverPhoto": null,
-      "createdAt": "2026-03-07"
-    },
-    {
-      "gameId": 5,
-      "photos": [],
-      "coverPhoto": null,
-      "createdAt": "2026-03-14"
-    },
-    {
-      "gameId": 6,
-      "photos": [],
-      "coverPhoto": null,
-      "createdAt": "2026-03-14"
     }
   ]
 }

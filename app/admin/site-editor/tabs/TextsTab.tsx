@@ -206,7 +206,7 @@ const TextsTab = forwardRef<SaveHandle, { settings: Record<string, string> }>(
               {field("hero.title", "Заголовок Hero")}
               {field("hero.subtitle", "Підзаголовок Hero", true)}
               {field("hero.ctaPrimary", "Текст кнопки (основна)")}
-              {field("hero.ctaSecondary", "Текст кнопки (вторинна)")}
+              {field("hero.ctaSecondary", "Кнопка Hero (вторинна)")}
             </div>
           </section>
 

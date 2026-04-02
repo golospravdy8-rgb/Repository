@@ -11,12 +11,23 @@ const ContactsTab = forwardRef<SaveHandle, { settings: Record<string, string> }>
 
     const [title, setTitle] = useState(settings["contacts.title"] ?? "Баскетбол у Львові — Ліга ESCULAB");
     const [subtitle, setSubtitle] = useState(settings["contacts.subtitle"] ?? "Офіційна баскетбольна ліга міста Львова");
-    const [address, setAddress] = useState(settings["contacts.address"] ?? "м. Львів, вул. Спортивна");
-    const [email, setEmail] = useState(settings["contacts.email"] ?? "info@basket.lviv.ua");
-    const [website, setWebsite] = useState(settings["contacts.website"] ?? "basket.lviv.ua");
-    const [facebook, setFacebook] = useState(settings["contacts.facebook"] ?? "");
-    const [instagram, setInstagram] = useState(settings["contacts.instagram"] ?? "");
+    const [address, setAddress] = useState(
+      settings["contacts.address"] || settings["contact.address"] || "м. Львів, вул. Спортивна"
+    );
+    const [email, setEmail] = useState(
+      settings["contacts.email"] || settings["contact.email"] || "info@basket.lviv.ua"
+    );
+    const [website, setWebsite] = useState(
+      settings["contacts.website"] || settings["contact.website"] || "basket.lviv.ua"
+    );
+    const [facebook, setFacebook] = useState(
+      settings["contacts.facebook"] || settings["social.facebook"] || ""
+    );
+    const [instagram, setInstagram] = useState(
+      settings["contacts.instagram"] || settings["social.instagram"] || ""
+    );
     const [youtube, setYoutube] = useState(settings["contacts.youtube"] ?? "");
+    const [telegram, setTelegram] = useState(settings["social.telegram"] ?? "");
     const [cardNumber, setCardNumber] = useState(settings["donate.cardNumber"] ?? "");
     const [cardName, setCardName] = useState(settings["donate.cardName"] ?? "");
     const [cardBank, setCardBank] = useState(settings["donate.cardBank"] ?? "");
@@ -25,18 +36,29 @@ const ContactsTab = forwardRef<SaveHandle, { settings: Record<string, string> }>
     const handleSave = () => {
       startTransition(async () => {
         await updateSiteTexts({
-          "contacts.title": title,
+          // contacts.* — для сторінки /contacts
+          "contacts.title":    title,
           "contacts.subtitle": subtitle,
-          "contacts.address": address,
-          "contacts.email": email,
-          "contacts.website": website,
+          "contacts.address":  address,
+          "contacts.email":    email,
+          "contacts.website":  website,
           "contacts.facebook": facebook,
           "contacts.instagram": instagram,
-          "contacts.youtube": youtube,
+          "contacts.youtube":  youtube,
+          // contact.* (singular) — для FooterWrapper головного сайту
+          "contact.address":   address,
+          "contact.email":     email,
+          "contact.website":   website,
+          // social.* — для micro-apps та FooterWrapper
+          "social.facebook":   facebook,
+          "social.instagram":  instagram,
+          "social.telegram":   telegram,
+          "social.youtube":    youtube,
+          // donate
           "donate.cardNumber": cardNumber,
-          "donate.cardName": cardName,
-          "donate.cardBank": cardBank,
-          "donate.label": donateLabel,
+          "donate.cardName":   cardName,
+          "donate.cardBank":   cardBank,
+          "donate.label":      donateLabel,
         });
         setSaved(true);
         setTimeout(() => setSaved(false), 2000);
@@ -103,7 +125,7 @@ const ContactsTab = forwardRef<SaveHandle, { settings: Record<string, string> }>
         {/* Social links */}
         <div className="border-t pt-5">
           <div className="text-sm font-semibold text-gray-700 mb-3">Соціальні мережі</div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="flex items-center gap-2 text-sm font-semibold mb-1" style={{ color: "#1877f2" }}>
                 <span className="w-4 h-4 rounded inline-block" style={{ backgroundColor: "#1877f2" }} />
@@ -133,6 +155,20 @@ const ContactsTab = forwardRef<SaveHandle, { settings: Record<string, string> }>
             </div>
 
             <div>
+              <label className="flex items-center gap-2 text-sm font-semibold mb-1" style={{ color: "#0088cc" }}>
+                <span className="w-4 h-4 rounded inline-block" style={{ backgroundColor: "#0088cc" }} />
+                Telegram URL
+              </label>
+              <input
+                type="url"
+                placeholder="https://t.me/..."
+                value={telegram}
+                onChange={(e) => setTelegram(e.target.value)}
+                className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300"
+              />
+            </div>
+
+            <div>
               <label className="flex items-center gap-2 text-sm font-semibold mb-1" style={{ color: "#ff0000" }}>
                 <span className="w-4 h-4 rounded inline-block" style={{ backgroundColor: "#ff0000" }} />
                 YouTube URL
@@ -146,6 +182,9 @@ const ContactsTab = forwardRef<SaveHandle, { settings: Record<string, string> }>
               />
             </div>
           </div>
+          <p className="text-xs text-gray-400 mt-2">
+            Соцмережі відображаються у футері всіх сервісів (Барахолка, Курси, Магазин, Новини) та на сторінці Контакти.
+          </p>
         </div>
 
         {/* Donate / Bank card */}
@@ -226,33 +265,34 @@ const ContactsTab = forwardRef<SaveHandle, { settings: Record<string, string> }>
               {website && <span>🌐 {website}</span>}
             </div>
             <div className="flex gap-2 flex-wrap pt-1">
-              <a
-                href={facebook || "#"}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="px-4 py-1.5 rounded-lg text-white text-xs font-semibold"
-                style={{ backgroundColor: "#1877f2", opacity: facebook ? 1 : 0.4 }}
-              >
-                Facebook
-              </a>
-              <a
-                href={instagram || "#"}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="px-4 py-1.5 rounded-lg text-white text-xs font-semibold"
-                style={{ background: "linear-gradient(45deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888)", opacity: instagram ? 1 : 0.4 }}
-              >
-                Instagram
-              </a>
-              <a
-                href={youtube || "#"}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="px-4 py-1.5 rounded-lg text-white text-xs font-semibold"
-                style={{ backgroundColor: "#ff0000", opacity: youtube ? 1 : 0.4 }}
-              >
-                YouTube
-              </a>
+              {facebook && (
+                <a href={facebook} target="_blank" rel="noopener noreferrer"
+                  className="px-4 py-1.5 rounded-lg text-white text-xs font-semibold"
+                  style={{ backgroundColor: "#1877f2" }}>
+                  Facebook
+                </a>
+              )}
+              {instagram && (
+                <a href={instagram} target="_blank" rel="noopener noreferrer"
+                  className="px-4 py-1.5 rounded-lg text-white text-xs font-semibold"
+                  style={{ background: "linear-gradient(45deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888)" }}>
+                  Instagram
+                </a>
+              )}
+              {telegram && (
+                <a href={telegram} target="_blank" rel="noopener noreferrer"
+                  className="px-4 py-1.5 rounded-lg text-white text-xs font-semibold"
+                  style={{ backgroundColor: "#0088cc" }}>
+                  Telegram
+                </a>
+              )}
+              {youtube && (
+                <a href={youtube} target="_blank" rel="noopener noreferrer"
+                  className="px-4 py-1.5 rounded-lg text-white text-xs font-semibold"
+                  style={{ backgroundColor: "#ff0000" }}>
+                  YouTube
+                </a>
+              )}
             </div>
           </div>
         </div>

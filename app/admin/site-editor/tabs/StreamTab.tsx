@@ -27,12 +27,18 @@ export default function StreamTab({ settings }: { settings: Record<string, strin
   const [testStatus, setTestStatus] = useState<string | null>(null);
   const [testing, setTesting] = useState(false);
 
+  // Channel ID validation: must start with UC and be 24 chars, or be empty
+  const channelIdTrimmed = channelId.trim();
+  const channelIdIsEmail = channelIdTrimmed.includes("@");
+  const channelIdValid = !channelIdTrimmed || (channelIdTrimmed.startsWith("UC") && channelIdTrimmed.length === 24);
+
   const handleSave = () => {
     startTransition(async () => {
       await updateSiteTexts({
         "stream.enabled": enabled ? "true" : "false",
         "stream.showOnHome": showOnHome ? "true" : "false",
-        "stream.youtubeChannelId": channelId.trim(),
+        // Don't save invalid channel ID (email etc.)
+        "stream.youtubeChannelId": channelIdValid ? channelIdTrimmed : "",
         "stream.youtubeApiKey": apiKey.trim(),
         "stream.title": title.trim(),
         "stream.description": description.trim(),
@@ -110,11 +116,26 @@ export default function StreamTab({ settings }: { settings: Record<string, strin
         <div>
           <label className="block text-sm font-semibold text-gray-700 mb-1">YouTube Channel ID</label>
           <input
-            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-orange-400"
+            className={`w-full border rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-orange-400 ${
+              channelIdTrimmed && !channelIdValid ? "border-red-400 bg-red-50" : "border-gray-200"
+            }`}
             placeholder="UCxxxxxxxxxxxxxxxxxxxxxx"
             value={channelId}
             onChange={(e) => setChannelId(e.target.value)}
           />
+          {channelIdIsEmail && (
+            <p className="text-xs text-red-500 mt-1 font-medium">
+              ❌ Це email-адреса, не Channel ID. Channel ID починається з &quot;UC&quot; і містить 24 символи.
+            </p>
+          )}
+          {channelIdTrimmed && !channelIdIsEmail && !channelIdValid && (
+            <p className="text-xs text-red-500 mt-1 font-medium">
+              ❌ Невірний формат. Channel ID: &quot;UC&quot; + 22 символи (всього 24).
+            </p>
+          )}
+          {channelIdValid && channelIdTrimmed && (
+            <p className="text-xs text-green-600 mt-1 font-medium">✓ Формат Channel ID правильний</p>
+          )}
           <p className="text-xs text-gray-400 mt-1">
             Знайти: сторінка каналу → Про канал → Поділитись → Копіювати ID каналу
           </p>
@@ -139,7 +160,7 @@ export default function StreamTab({ settings }: { settings: Record<string, strin
         </div>
 
         {/* Test button */}
-        {channelId && apiKey && (
+        {channelIdValid && channelIdTrimmed && (
           <div className="flex items-center gap-3">
             <button
               onClick={handleTest}

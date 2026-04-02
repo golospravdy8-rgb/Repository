@@ -9,6 +9,7 @@ type Contact = {
   lastName: string;
   refCode: string | null;
   hp: number;
+  role: string;
   createdAt: string;
 };
 
@@ -27,13 +28,33 @@ export default function GuestContactsTab() {
   const handleDelete = async (c: Contact) => {
     if (!confirm(`Видалити контакт ${c.firstName} ${c.lastName} (${c.phone})?`)) return;
     setDeletingId(c.id);
-    await fetch("/api/guest-contacts", {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: c.id }),
-    });
-    setContacts((prev) => prev.filter((x) => x.id !== c.id));
-    setDeletingId(null);
+    try {
+      const response = await fetch("/api/guest-contacts", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: c.id }),
+      });
+      if (!response.ok) {
+        let errorMsg = "Не вдалося видалити контакт";
+        const contentType = response.headers.get("content-type");
+        if (contentType?.includes("application/json")) {
+          try {
+            const error = await response.json();
+            errorMsg = error.error || errorMsg;
+          } catch {
+            errorMsg = `Помилка сервера (${response.status})`;
+          }
+        }
+        alert(`Помилка: ${errorMsg}`);
+        setDeletingId(null);
+        return;
+      }
+      setContacts((prev) => prev.filter((x) => x.id !== c.id));
+    } catch (err) {
+      alert(`Помилка мережі: ${err instanceof Error ? err.message : "Unknown error"}`);
+    } finally {
+      setDeletingId(null);
+    }
   };
 
   return (
@@ -65,6 +86,7 @@ export default function GuestContactsTab() {
                 <th className="px-4 py-3 font-semibold">Ім&apos;я</th>
                 <th className="px-4 py-3 font-semibold">Прізвище</th>
                 <th className="px-4 py-3 font-semibold">Телефон</th>
+                <th className="px-4 py-3 font-semibold">Роль</th>
                 <th className="px-4 py-3 font-semibold">HP</th>
                 <th className="px-4 py-3 font-semibold">Реферал</th>
                 <th className="px-4 py-3 font-semibold">Дата</th>
@@ -78,6 +100,15 @@ export default function GuestContactsTab() {
                   <td className="px-4 py-3 font-medium text-gray-800">{c.firstName}</td>
                   <td className="px-4 py-3 font-medium text-gray-800">{c.lastName}</td>
                   <td className="px-4 py-3 font-mono text-gray-600">{c.phone}</td>
+                  <td className="px-4 py-3">
+                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                      c.role === "parent" ? "bg-blue-100 text-blue-700" :
+                      c.role === "player" ? "bg-green-100 text-green-700" :
+                      "bg-gray-100 text-gray-600"
+                    }`}>
+                      {c.role === "parent" ? "👨‍👩‍👦 батько/мати" : c.role === "player" ? "🏀 гравець" : "гість"}
+                    </span>
+                  </td>
                   <td className="px-4 py-3">
                     <span className="font-bold text-orange-600">{c.hp} HP</span>
                   </td>

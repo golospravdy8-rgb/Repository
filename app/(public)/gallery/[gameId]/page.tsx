@@ -5,7 +5,12 @@ import Link from "next/link";
 export const dynamic = "force-dynamic";
 
 export default async function GameGalleryPage({ params }: { params: { gameId: string } }) {
-  const galleryData: any = JSON.parse(require('fs').readFileSync(require('path').join(process.cwd(), 'lib', 'gallery.data.json'), 'utf-8'));
+  let galleryData: any = { albums: [] };
+  try {
+    galleryData = JSON.parse(require('fs').readFileSync(require('path').join(process.cwd(), 'lib', 'gallery.data.json'), 'utf-8'));
+  } catch {
+    notFound();
+  }
   const gameId = parseInt(params.gameId);
   if (isNaN(gameId)) notFound();
 
@@ -43,7 +48,12 @@ export default async function GameGalleryPage({ params }: { params: { gameId: st
           {album.photos.map((photo: string, i: number) => (
             <div key={i} className="break-inside-avoid rounded-xl overflow-hidden shadow hover:shadow-md transition-shadow">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={photo} alt={`Фото ${i + 1}`} className="w-full object-cover" />
+              <img
+                src={photo}
+                alt={`Фото ${i + 1}`}
+                className="w-full object-cover"
+                onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+              />
             </div>
           ))}
         </div>

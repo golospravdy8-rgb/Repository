@@ -1,6 +1,9 @@
 /** @type {import("next").NextConfig} */
 const nextConfig = {
   output: "standalone",
+  basePath: "/shop",
+  assetPrefix: "/shop",
+  transpilePackages: ["@basket-lviv/ui"],
   async rewrites() {
     return [
       {
