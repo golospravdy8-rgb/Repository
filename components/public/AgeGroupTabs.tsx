@@ -18,12 +18,9 @@ export default function AgeGroupTabs({ variant = "light" }: AgeGroupTabsProps) {
     router.push(`${pathname}?${params.toString()}`);
   };
 
-  const containerClass = variant === "dark"
-    ? "flex gap-2 bg-white/15 backdrop-blur-sm p-1.5 rounded-full"
-    : "flex gap-2 bg-white/10 backdrop-blur-md p-1.5 rounded-full";
-
-  const activeClass = "bg-orange-500 text-white font-semibold rounded-2xl px-5 py-2.5 text-sm transition-all duration-150 min-h-[44px] flex items-center justify-center";
-  const inactiveClass = "bg-white/10 hover:bg-white/20 text-white border border-white/30 rounded-2xl px-5 py-2.5 text-sm transition-all duration-150 min-h-[44px] flex items-center justify-center";
+  const containerClass = "flex gap-2 bg-white/10 backdrop-blur-md p-1.5 rounded-3xl";
+  const activeClass = "bg-orange-500 text-white font-semibold rounded-2xl px-6 py-3 min-h-[44px] flex items-center justify-center transition-all duration-150";
+  const inactiveClass = "bg-white/10 hover:bg-white/20 text-white border border-white/30 rounded-2xl px-6 py-3 min-h-[44px] flex items-center justify-center transition-all duration-150";
 
   return (
     <div className={containerClass}>

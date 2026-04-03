@@ -283,10 +283,10 @@ export default async function HomePage({ searchParams }: { searchParams: { ag?: 
           </div>
           )}
 
-          {/* Кнопки U-14/U-16 — під карточками, зліва */}
-          <div className="px-4 sm:px-6 py-3 flex items-center justify-between border-t border-gray-200">
+          {/* Кнопки U-14/U-16 — під карточками */}
+          <div className="px-4 sm:px-6 py-4 flex items-center justify-between">
             <Suspense fallback={null}>
-              <AgeGroupTabs variant="light" />
+              <AgeGroupTabs />
             </Suspense>
             <Link href={`/schedule?ag=${ag}`} className="text-sm font-bold hover:opacity-80" style={{ color: "#f97316", textDecoration: "none" }}>
               Всі ігри →
