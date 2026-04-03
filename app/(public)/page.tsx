@@ -171,14 +171,14 @@ export default async function HomePage({ searchParams }: { searchParams: { ag?: 
           <div className="flex flex-wrap gap-2 justify-center mb-3">
             <Link
               href={`/schedule?ag=${ag}`}
-              className="px-4 py-1.5 rounded-lg font-bold text-sm transition-colors"
+              className="px-4 py-2 rounded-lg font-bold text-sm sm:text-base transition-colors min-h-[44px] flex items-center"
               style={{ backgroundColor: btnSchedule, color: "white" }}
             >
               {settings["hero.ctaPrimary"] || "Переглянути розклад"}
             </Link>
             <Link
               href={`/standings?ag=${ag}`}
-              className="px-4 py-1.5 rounded-lg font-bold text-sm transition-colors"
+              className="px-4 py-2 rounded-lg font-bold text-sm sm:text-base transition-colors min-h-[44px] flex items-center"
               style={{ backgroundColor: btnSchedule, color: "white" }}
             >
               {settings["hero.ctaSecondary"] || "Таблиця змагань"}
@@ -203,7 +203,7 @@ export default async function HomePage({ searchParams }: { searchParams: { ag?: 
 
           {/* Cards strip — full width, no top padding, horizontal scroll */}
           {liveOrUpcoming.length > 0 && (
-          <div style={{ display: "flex", gap: 0, overflowX: "auto", scrollbarWidth: "none", msOverflowStyle: "none" } as React.CSSProperties}>
+          <div className="overflow-x-auto -mx-4 px-4" style={{ display: "flex", gap: 0, scrollbarWidth: "none", msOverflowStyle: "none" } as React.CSSProperties}>
             {liveOrUpcoming.map((g) => {
               const isFinal = g.status === "FINAL";
               const isLive  = g.status === "LIVE";
@@ -217,7 +217,7 @@ export default async function HomePage({ searchParams }: { searchParams: { ag?: 
               const dateShort = new Date(g.scheduledAt).toLocaleDateString("uk-UA", { day: "2-digit", month: "2-digit", year: "numeric" });
               return (
                 <Link key={g.id} href={`/game/${g.id}`} style={{ textDecoration: "none", flexShrink: 0, display: "block" }}>
-                  <div style={{ background: "#fff", borderRight: "1px solid #e2e8f0", width: 200, cursor: "pointer" }}>
+                  <div style={{ background: "#fff", borderRight: "1px solid #e2e8f0", width: 'clamp(160px, 44vw, 200px)', cursor: "pointer" }}>
 
                     {/* Зона 1 — СІРА смуга, БІЛИЙ текст */}
                     <div style={{ background: "#6b7280", padding: "5px 10px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -240,7 +240,7 @@ export default async function HomePage({ searchParams }: { searchParams: { ag?: 
                               ? <img src={g.homeTeam.logoUrl} alt="" style={{ width: 22, height: 22, objectFit: "contain" }} />
                               : <span style={{ fontSize: 11, fontWeight: 800, color: "#94a3b8" }}>{g.homeTeam.name[0]}</span>}
                           </div>
-                          <span style={{ fontSize: 13, fontWeight: homeWins ? 700 : 500, color: homeWins ? "#0f172a" : "#94a3b8", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          <span style={{ fontSize: 13, fontWeight: homeWins ? 700 : 500, color: "#000000", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                             {(g.homeTeam.name.charAt(0).toUpperCase() + g.homeTeam.name.slice(1, 3))}
                           </span>
                         </div>
@@ -257,7 +257,7 @@ export default async function HomePage({ searchParams }: { searchParams: { ag?: 
                               ? <img src={g.awayTeam.logoUrl} alt="" style={{ width: 22, height: 22, objectFit: "contain" }} />
                               : <span style={{ fontSize: 11, fontWeight: 800, color: "#94a3b8" }}>{g.awayTeam.name[0]}</span>}
                           </div>
-                          <span style={{ fontSize: 13, fontWeight: awayWins ? 700 : 500, color: awayWins ? "#f97316" : "#94a3b8", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          <span style={{ fontSize: 13, fontWeight: awayWins ? 700 : 500, color: "#000000", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                             {(g.awayTeam.name.charAt(0).toUpperCase() + g.awayTeam.name.slice(1, 3))}
                           </span>
                         </div>
@@ -284,11 +284,11 @@ export default async function HomePage({ searchParams }: { searchParams: { ag?: 
           )}
 
           {/* Кнопки U-14/U-16 — під карточками, зліва */}
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 14px" }}>
+          <div className="px-4 sm:px-6 py-3 flex items-center justify-between border-t border-gray-200">
             <Suspense fallback={null}>
               <AgeGroupTabs variant="light" />
             </Suspense>
-            <Link href={`/schedule?ag=${ag}`} style={{ color: "#f97316", fontSize: 12, fontWeight: 700, textDecoration: "none" }}>
+            <Link href={`/schedule?ag=${ag}`} className="text-sm font-bold hover:opacity-80" style={{ color: "#f97316", textDecoration: "none" }}>
               Всі ігри →
             </Link>
           </div>
