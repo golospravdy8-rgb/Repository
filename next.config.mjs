@@ -3,6 +3,7 @@ const nextConfig = {
   experimental: {
     workerThreads: false,
     cpus: 1,
+    turbo: false,
   },
   eslint: {
     ignoreDuringBuilds: true,
