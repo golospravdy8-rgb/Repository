@@ -34,17 +34,18 @@ model Team {
 }
 
 model Player {
-  id         Int         @id @default(autoincrement())
-  number     Int
-  firstName  String
-  lastName   String
-  position   String?
-  teamId     Int
-  photoUrl   String?
-  boxScores  BoxScore[]
-  gameEvents GameEvent[]
-  mvpVotes   ChatMvpVote[]
-  team       Team        @relation(fields: [teamId], references: [id])
+  id            Int                 @id @default(autoincrement())
+  number        Int
+  firstName     String
+  lastName      String
+  position      String?
+  teamId        Int
+  photoUrl      String?
+  boxScores     BoxScore[]
+  gameEvents    GameEvent[]
+  mvpVotes      ChatMvpVote[]
+  achievements  PlayerAchievement[]
+  team          Team                @relation(fields: [teamId], references: [id])
 }
 
 model Game {
@@ -358,4 +359,96 @@ model ChatOnline {
   lastSeen DateTime @default(now())
   name     String   @default("")
   role     String   @default("player")
+}
+
+model ChatRoom {
+  id        String   @id @default("general")
+  slowMode  Boolean  @default(false)
+  updatedAt DateTime @updatedAt
+}
+
+model ChatDailySpin {
+  id        Int      @id @default(autoincrement())
+  phone     String
+  day       String
+  hpGained  Int
+  createdAt DateTime @default(now())
+
+  @@unique([phone, day])
+}
+
+model ChatGameAttendance {
+  id        Int      @id @default(autoincrement())
+  gameId    Int
+  phone     String
+  name      String
+  createdAt DateTime @default(now())
+
+  @@unique([gameId, phone])
+}
+
+model ChatStreak {
+  id            Int      @id @default(autoincrement())
+  phone         String   @unique
+  currentStreak Int      @default(0)
+  lastVisit     String   @default("")
+  updatedAt     DateTime @updatedAt
+}
+
+model GameRsvp {
+  id          Int      @id @default(autoincrement())
+  gameId      Int
+  phone       String
+  name        String   @default("")
+  role        String   @default("parent")
+  childTeamId Int?
+  createdAt   DateTime @default(now())
+
+  @@unique([gameId, phone])
+  @@index([gameId])
+}
+
+model MatchPrediction {
+  id           Int      @id @default(autoincrement())
+  gameId       Int
+  phone        String
+  name         String   @default("")
+  role         String   @default("parent")
+  homeScore    Int
+  awayScore    Int
+  isCorrect    Boolean?
+  pointsEarned Int      @default(0)
+  createdAt    DateTime @default(now())
+
+  @@unique([gameId, phone])
+  @@index([gameId])
+}
+
+model MediaLike {
+  id        Int      @id @default(autoincrement())
+  phone     String
+  mediaType String
+  mediaKey  String
+  createdAt DateTime @default(now())
+
+  @@unique([phone, mediaType, mediaKey])
+}
+
+model PlayerAchievement {
+  id         Int      @id @default(autoincrement())
+  playerId   Int
+  badgeId    String
+  unlockedAt DateTime @default(now())
+  player     Player   @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@unique([playerId, badgeId])
+}
+
+model PlaygroundCheckin {
+  id        Int       @id @default(autoincrement())
+  phone     String    @unique
+  name      String
+  status    String    // "їду" | "їду_20" | "потрібен_1"
+  checkinAt DateTime  @default(now())
+  resetAt   DateTime?
 }
