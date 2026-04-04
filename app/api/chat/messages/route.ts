@@ -36,8 +36,11 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  // TODO: roomId field not in ChatMessage schema — use empty where for now
-  const roomWhere: Prisma.ChatMessageWhereInput = {};
+  // Build where filter: general catches NULL and "general"; parents catches "parents"
+  const roomWhere: Prisma.ChatMessageWhereInput =
+    room === "general"
+      ? { OR: [{ roomId: "general" }, { roomId: undefined }] }
+      : { roomId: room };
 
   const [messages, pinned, mods] = await Promise.all([
     prisma.chatMessage.findMany({
@@ -58,6 +61,7 @@ export async function GET(req: NextRequest) {
       phone: m.phone,
       name: m.name,
       text: m.text,
+      roomId: m.roomId,
       createdAt: m.createdAt.toISOString(),
       isMod: modPhones.has(m.phone),
       replyTo: m.replyTo

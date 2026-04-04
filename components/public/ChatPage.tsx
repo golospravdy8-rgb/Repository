@@ -173,7 +173,7 @@ interface User {
   isMod: boolean;
   warns: number;
   isLeaguePlayer: boolean;
-  mvpVote: number | null; // playerId voted this month, or null
+  mvpVote: string | null; // player name voted this month, or null
 }
 
 interface Reaction {
@@ -199,32 +199,10 @@ interface ChatMessage {
   reactions: Reaction[];
 }
 
-interface MvpPlayer {
-  id: number;
-  firstName: string;
-  lastName: string;
-  photoUrl: string | null;
-  position: string | null;
-  team: { name: string };
-}
-
-interface MvpLeader {
-  player: MvpPlayer;
-  totalVotes: number;
-  votesByChat: { balacka: number; batky: number };
-}
-
-interface MvpData {
-  currentLeader: MvpLeader | null;
-  allResults: { player: MvpPlayer; votes: number }[];
-  userVote: number | null;
-  isActive: boolean;
-  month: string;
-}
-
 // ── Main Component ────────────────────────────────────────────────────────
 export default function ChatPage() {
   const [step, setStep] = useState<"checking" | "form" | "chat">("checking");
+  const [formMode, setFormMode] = useState<"choose" | "player" | "parent">("choose");
   const [user, setUser] = useState<User | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [pinnedMessage, setPinnedMessage] = useState<string | null>(null);
@@ -237,9 +215,8 @@ export default function ChatPage() {
   const [showPinForm, setShowPinForm] = useState(false);
   const [notification, setNotification] = useState<string | null>(null);
   const [showMvp, setShowMvp] = useState(false);
-  const [players, setPlayers] = useState<MvpPlayer[]>([]);
-  const [members, setMembers] = useState<{ phone: string; firstName: string; lastName: string; hp: number; role: string; isMod: boolean; isOnline: boolean; isBanned: boolean; bannedUntil?: string | null }[]>([]);
-  const [banPopup, setBanPopup] = useState<{ phone: string; name: string; isBanned: boolean; bannedUntil?: string | null; x: number; y: number } | null>(null);
+  const [players, setPlayers] = useState<{ id: number; firstName: string; lastName: string }[]>([]);
+  const [members, setMembers] = useState<{ phone: string; firstName: string; lastName: string; hp: number; role: string; isMod: boolean; isOnline: boolean }[]>([]);
   const [refCodeFromUrl, setRefCodeFromUrl] = useState<string | null>(null);
   const [showHpRules, setShowHpRules] = useState(false);
   const [showHpModal, setShowHpModal] = useState(false);
@@ -262,7 +239,7 @@ export default function ChatPage() {
   const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
   const [shopItems, setShopItems] = useState<{ id: number; name: string; description: string; emoji: string; price: number; oldPrice: number | null; category: string; badge: string | null; imageUrl: string | null; sizes: string | null; inStock: boolean; chatPriority: boolean; showInChat: boolean; sortOrder: number }[]>([]);
   const [shopTicker, setShopTicker] = useState(0);
-  const [mvpData, setMvpData] = useState<MvpData | null>(null);
+  const [mvpResults, setMvpResults] = useState<{ playerName: string; votes: number; photoUrl?: string | null }[]>([]);
   const [nextGame, setNextGame] = useState<{ id: number; homeTeam: { name: string }; awayTeam: { name: string }; scheduledAt: string; season: { name: string } } | null>(null);
   const [gameAttendees, setGameAttendees] = useState<{ phone: string; name: string }[]>([]);
   const [showNextGame, setShowNextGame] = useState(false);
@@ -275,12 +252,8 @@ export default function ChatPage() {
   const [activeRoom, setActiveRoom] = useState<"general" | "parents">("general");
   const [isParent, setIsParent] = useState(false);
   const [regSuccess, setRegSuccess] = useState<{ firstName: string; hp: number; refLink: string; isNew: boolean } | null>(null);
+  const [teams, setTeams] = useState<{ id: number; name: string; shortName: string }[]>([]);
   const [formSubmitting, setFormSubmitting] = useState(false);
-  // Simple registration form state
-  const [regMode, setRegMode] = useState<"choose" | "player" | "parent">("choose");
-  const [regFirstName, setRegFirstName] = useState("");
-  const [regLastName, setRegLastName] = useState("");
-  const [regPhone, setRegPhone] = useState("");
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [leaderboardMode, setLeaderboardMode] = useState<"alltime" | "weekly">("weekly");
   const [leaderboard, setLeaderboard] = useState<{ phone: string; firstName: string; lastName: string; hp: number; weeklyHp?: number | null }[]>([]);
@@ -291,7 +264,6 @@ export default function ChatPage() {
   const inputRef = useRef<HTMLInputElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
-
 
   const notify = useCallback((msg: string) => {
     setNotification(msg);
@@ -334,13 +306,22 @@ export default function ChatPage() {
       } catch {}
     }
 
-    // 3. Not logged in — set regMode from ?mode param
-    if (mode === "parent") setRegMode("parent");
-    else if (mode === "player") setRegMode("player");
+    // 3. Not logged in — set formMode from ?mode param
+    if (mode === "parent") setFormMode("parent");
+    else if (mode === "player") setFormMode("player");
     // else stays "choose"
 
     setStep("form");
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Load teams for parent registration ───────────────────────────────
+  useEffect(() => {
+    if (step !== "form") return;
+    fetch("/api/teams")
+      .then((r) => r.json())
+      .then((d) => setTeams(d.teams ?? []))
+      .catch(() => {});
+  }, [step]);
 
   // ── Shop ticker load ──────────────────────────────────────────────────
   useEffect(() => {
@@ -423,10 +404,9 @@ export default function ChatPage() {
         .then((d) => {
           if (d?.contact?.role === "parent") {
             setIsParent(true);
-            // Auto-switch to parents room if ?room=parents or ?mode=parent in URL
+            // Auto-switch to parents room if ?room=parents in URL
             const roomParam = new URLSearchParams(window.location.search).get("room");
-            const modeParam = new URLSearchParams(window.location.search).get("mode");
-            if (roomParam === "parents" || modeParam === "parent") setActiveRoom("parents");
+            if (roomParam === "parents") setActiveRoom("parents");
           }
         })
         .catch(() => {});
@@ -467,29 +447,24 @@ export default function ChatPage() {
   // ── Load players for MVP ───────────────────────────────────────────────
   useEffect(() => {
     if (step !== "chat") return;
-    fetch("/api/players?ageGroup=younger")
+    fetch("/api/players?limit=100")
       .then((r) => r.json())
-      .then((d) => {
-        const all: MvpPlayer[] = d.players ?? [];
-        const withPhoto = all.filter((p) => p.photoUrl);
-        setPlayers(withPhoto.length >= 3 ? withPhoto : all);
-      })
+      .then((d) => setPlayers(d.players ?? []))
       .catch(() => {});
   }, [step]);
 
-  // ── Load MVP data for current month ──────────────────────────────────
-  const loadMvpData = useCallback((phone?: string) => {
-    const q = phone ? `?phone=${encodeURIComponent(phone)}` : "";
-    fetch(`/api/mvp-vote${q}`)
+  // ── Load MVP vote results for current month ───────────────────────────
+  const loadMvpResults = useCallback(() => {
+    fetch("/api/chat/mvp-results")
       .then((r) => r.json())
-      .then((d) => setMvpData(d))
+      .then((d) => setMvpResults(d.results ?? []))
       .catch(() => {});
   }, []);
 
   useEffect(() => {
     if (step !== "chat") return;
-    loadMvpData(user?.phone);
-  }, [step, user?.phone, loadMvpData]); // eslint-disable-line react-hooks/exhaustive-deps
+    loadMvpResults();
+  }, [step, loadMvpResults]);
 
   // ── Load next game (within 24h) ───────────────────────────────────────
   useEffect(() => {
@@ -622,7 +597,7 @@ export default function ChatPage() {
       setUser((u) => u ? { ...u, warns: ev.count ?? 0 } : u);
     }
     if (ev.type === "mvp_vote") {
-      loadMvpData(user?.phone);
+      loadMvpResults();
     }
   }
 
@@ -732,27 +707,6 @@ export default function ChatPage() {
     notify(`${action} виконано`);
   }
 
-  async function handleBanAction(targetPhone: string, minutes: number | null, unban?: boolean) {
-    if (!user) return;
-    setBanPopup(null);
-    if (unban) {
-      await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "unban", phone: user.phone, targetPhone }),
-      });
-      notify("🔓 Бан знято");
-    } else {
-      await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "ban", phone: user.phone, targetPhone, minutes }),
-      });
-      const label = minutes === 5 ? "5 хвилин" : minutes === 1440 ? "1 день" : "1 рік";
-      notify(`🔨 Користувача заблоковано на ${label}`);
-    }
-  }
-
   async function handlePin() {
     if (!user) return;
     await fetch("/api/chat", {
@@ -764,23 +718,21 @@ export default function ChatPage() {
     setPinInput("");
   }
 
-  async function handleMvpVote(playerId: number, chatTab: "balacka" | "batky") {
+  async function handleMvpVote(playerName: string) {
     if (!user) return;
-    const res = await fetch("/api/mvp-vote", {
+    const res = await fetch("/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ playerId, phone: user.phone, chatTab }),
+      body: JSON.stringify({ action: "mvp_vote", voterPhone: user.phone, playerName }),
     });
     const data = await res.json();
-    if (data.alreadyVoted || res.status === 409) {
-      notify(`Ви вже голосували цього місяця`);
-    } else if (data.success) {
-      setUser((u) => u ? { ...u, mvpVote: playerId } : u);
-      const p = players.find((pl) => pl.id === playerId);
-      const name = p ? `${p.firstName} ${p.lastName}` : "гравця";
-      notify(`✅ Ваш голос за ${name} прийнято!`);
-      loadMvpData(user.phone);
+    if (data.alreadyVoted) {
+      notify(`Ви вже голосували цього місяця: ${data.playerName}`);
+    } else {
+      setUser((u) => u ? { ...u, mvpVote: playerName } : u);
+      notify(`✅ Ваш голос за ${playerName} прийнято!`);
     }
+    setShowMvp(false);
   }
 
   async function handleSpin() {
@@ -913,10 +865,7 @@ export default function ChatPage() {
     setUser(null);
     setMessages([]);
     localStorage.removeItem(LS_KEY);
-    setRegMode("choose");
-    setRegFirstName("");
-    setRegLastName("");
-    setRegPhone("");
+    setFormMode("choose");
     setRegSuccess(null);
     setFormSubmitting(false);
     setStep("form");
@@ -943,182 +892,344 @@ export default function ChatPage() {
 
   // ── Render: form ──────────────────────────────────────────────────────
   if (step === "form") {
-    const inp: React.CSSProperties = { width: "100%", padding: "12px 14px", borderRadius: "10px", background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.14)", color: "white", fontSize: "15px", fontFamily: "Exo 2, sans-serif", boxSizing: "border-box", outline: "none" };
-    const lbl: React.CSSProperties = { display: "block", fontSize: "12px", color: "#94a3b8", marginBottom: "5px", fontWeight: 600 };
 
-    // ── Player form ───────────────────────────────────────────────────
-    if (regMode === "player") {
+    // ── Choose screen ──────────────────────────────────────────────────
+    if (formMode === "choose") {
+      const inp: React.CSSProperties = { width: "100%", padding: "10px 13px", borderRadius: "8px", background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.15)", color: "white", fontSize: "14px", fontFamily: "Exo 2, sans-serif", boxSizing: "border-box", outline: "none" };
+      const lbl: React.CSSProperties = { display: "block", fontSize: "11px", color: "#94a3b8", marginBottom: "4px", fontWeight: 600 };
+      const expanded = formMode === "choose" ? (typeof window !== "undefined" ? (window as Window & { __chatExpanded?: string }).__chatExpanded : undefined) : undefined;
+      void expanded; // suppress unused warning — we use DOM state via ref below
+
       return (
         <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: "16px", background: "linear-gradient(135deg, #0f172a 0%, #1e3a5f 100%)" }}>
-          <div style={{ width: "100%", maxWidth: "420px", background: "#1a2744", borderRadius: "20px", overflow: "hidden", boxShadow: "0 25px 50px rgba(0,0,0,0.5)" }}>
-            <div style={{ padding: "28px 24px 20px", textAlign: "center" }}>
-              <div style={{ fontSize: "44px", marginBottom: "8px" }}>🏀</div>
-              <h1 style={{ color: "white", fontWeight: 800, fontSize: "22px", margin: "0 0 4px", fontFamily: "Exo 2, sans-serif" }}>Балачка ЛДБЛ</h1>
-              <p style={{ color: "#94a3b8", fontSize: "13px", margin: 0 }}>Введіть своє ім'я та телефон</p>
+          <div style={{ width: "100%", maxWidth: "680px" }}>
+            <div style={{ textAlign: "center", marginBottom: "28px" }}>
+              <div style={{ fontSize: "44px", marginBottom: "6px" }}>🏀</div>
+              <h1 style={{ color: "white", fontWeight: 800, fontSize: "24px", margin: "0 0 4px", fontFamily: "Exo 2, sans-serif" }}>Оберіть як ви хочете увійти</h1>
+              <p style={{ color: "#94a3b8", fontSize: "13px", margin: 0 }}>Basket Lviv · Балачка та чат батьків</p>
             </div>
             {notification && (
-              <div style={{ margin: "0 24px 12px", padding: "10px 14px", background: "rgba(239,68,68,0.15)", borderRadius: "8px", color: "#fca5a5", fontSize: "13px" }}>
+              <div style={{ margin: "0 0 16px", padding: "10px 14px", background: "rgba(239,68,68,0.15)", borderRadius: "8px", color: "#fca5a5", fontSize: "13px", textAlign: "center" }}>
                 {notification}
               </div>
             )}
-            <div style={{ padding: "0 24px 28px", display: "flex", flexDirection: "column", gap: "12px" }}>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
-                <div>
-                  <label style={lbl}>Ім'я *</label>
-                  <input type="text" value={regFirstName} onChange={e => setRegFirstName(e.target.value)} placeholder="Ваше ім'я" style={inp} autoFocus />
+
+            <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+
+              {/* ── Картка БАТЬКО ── */}
+              <div style={{ background: "#1e3a5f", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "20px", overflow: "hidden" }}>
+                {/* Header row */}
+                <div style={{ padding: "20px 24px", display: "flex", alignItems: "center", gap: "14px" }}>
+                  <span style={{ fontSize: "36px", flexShrink: 0 }}>👨‍👩‍👦</span>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ color: "white", fontWeight: 800, fontSize: "18px", fontFamily: "Exo 2, sans-serif" }}>Я БАТЬКО</div>
+                    <div style={{ color: "#94a3b8", fontSize: "12px", marginTop: "2px" }}>Реєстрація · Доступ до чату батьків</div>
+                  </div>
                 </div>
-                <div>
-                  <label style={lbl}>Прізвище *</label>
-                  <input type="text" value={regLastName} onChange={e => setRegLastName(e.target.value)} placeholder="Прізвище" style={inp} />
+                {/* Form */}
+                <form
+                  onSubmit={async (e) => {
+                    e.preventDefault();
+                    if (formSubmitting) return;
+                    const fd = new FormData(e.currentTarget);
+                    const firstName = (fd.get("p_firstName") as string || "").trim();
+                    const lastName = (fd.get("p_lastName") as string || "").trim();
+                    const phone = (fd.get("p_phone") as string || "").trim();
+                    const childTeamId = fd.get("p_childTeamId") as string || null;
+                    if (!firstName || !lastName || !phone) { notify("Заповніть всі обов'язкові поля"); return; }
+                    if (!/^\+380\d{9}$/.test(phone)) { notify("Телефон у форматі +380XXXXXXXXX (9 цифр після +380)"); return; }
+                    setFormSubmitting(true);
+                    try {
+                      const res = await fetch("/api/parents/register", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ phone, firstName, lastName, childTeamId }),
+                      });
+                      const data = await res.json();
+                      if (!res.ok) { notify(data.error || "Помилка реєстрації"); setFormSubmitting(false); return; }
+                      if (data.token) localStorage.setItem("parent_token", data.token);
+                      if (data.contact) localStorage.setItem("parent_data", JSON.stringify({ contact: data.contact }));
+                      setIsParent(true);
+                      setActiveRoom("parents");
+                      if (data.refLink) setRegSuccess({ firstName, hp: data.contact?.hp ?? 25, refLink: data.refLink, isNew: true });
+                      doLogin(phone, firstName, lastName);
+                    } catch { notify("Помилка з'єднання"); setFormSubmitting(false); }
+                  }}
+                  style={{ padding: "0 24px 24px", display: "flex", flexDirection: "column", gap: "10px" }}
+                >
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                    <div><label style={lbl}>Ваше ім'я *</label><input name="p_firstName" type="text" required placeholder="Ваше ім'я" style={inp} /></div>
+                    <div><label style={lbl}>Прізвище *</label><input name="p_lastName" type="text" required placeholder="Ваше прізвище" style={inp} /></div>
+                  </div>
+                  <div>
+                    <label style={lbl}>Номер телефону *</label>
+                    <input name="p_phone" type="tel" required placeholder="+380XXXXXXXXX" style={inp} />
+                  </div>
+                  {teams.length > 0 && (
+                    <div>
+                      <label style={lbl}>Команда дитини</label>
+                      <select name="p_childTeamId" style={{ ...inp, appearance: "none", WebkitAppearance: "none" }}>
+                        <option value="">— Оберіть команду (необов'язково) —</option>
+                        {teams.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                      </select>
+                    </div>
+                  )}
+                  <button type="submit" disabled={formSubmitting} style={{ padding: "12px", background: formSubmitting ? "#64748b" : "#f97316", color: "white", border: "none", borderRadius: "10px", cursor: formSubmitting ? "not-allowed" : "pointer", fontWeight: 800, fontSize: "14px", fontFamily: "Exo 2, sans-serif", marginTop: "4px" }}>
+                    {formSubmitting ? "Реєстрація..." : "Зареєструватись як батько"}
+                  </button>
+                </form>
+              </div>
+
+              {/* ── Картка ГРАВЕЦЬ ── */}
+              <div style={{ background: "#1a2744", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "20px", overflow: "hidden" }}>
+                {/* Header row */}
+                <div style={{ padding: "20px 24px", display: "flex", alignItems: "center", gap: "14px" }}>
+                  <span style={{ fontSize: "36px", flexShrink: 0 }}>🏀</span>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ color: "white", fontWeight: 800, fontSize: "18px", fontFamily: "Exo 2, sans-serif" }}>Я ГРАВЕЦЬ</div>
+                    <div style={{ color: "#94a3b8", fontSize: "12px", marginTop: "2px" }}>Вхід · Балачка ЛДБЛ</div>
+                  </div>
                 </div>
+                {/* Form */}
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (formSubmitting) return;
+                    const fd = new FormData(e.currentTarget);
+                    const firstName = (fd.get("g_firstName") as string || "").trim();
+                    const lastName = (fd.get("g_lastName") as string || "").trim();
+                    const phone = (fd.get("g_phone") as string || "").trim();
+                    if (!firstName || !lastName || !phone) { notify("Заповніть всі поля"); return; }
+                    if (!/^\+380\d{9}$/.test(phone)) { notify("Телефон у форматі +380XXXXXXXXX (9 цифр після +380)"); return; }
+                    setFormSubmitting(true);
+                    localStorage.setItem(LS_KEY, JSON.stringify({ phone, firstName, lastName }));
+                    doLogin(phone, firstName, lastName, refCodeFromUrl ?? undefined, true).finally(() => setFormSubmitting(false));
+                  }}
+                  style={{ padding: "0 24px 24px", display: "flex", flexDirection: "column", gap: "10px" }}
+                >
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                    <div><label style={lbl}>Ім'я *</label><input name="g_firstName" type="text" required placeholder="Ваше ім'я" style={inp} /></div>
+                    <div><label style={lbl}>Прізвище *</label><input name="g_lastName" type="text" required placeholder="Ваше прізвище" style={inp} /></div>
+                  </div>
+                  <div>
+                    <label style={lbl}>Номер телефону *</label>
+                    <input name="g_phone" type="tel" required placeholder="+380XXXXXXXXX" style={inp} />
+                  </div>
+                  {teams.length > 0 && (
+                    <div>
+                      <label style={lbl}>Команда</label>
+                      <select name="g_teamId" style={{ ...inp, appearance: "none", WebkitAppearance: "none" }}>
+                        <option value="">— Оберіть команду (необов'язково) —</option>
+                        {teams.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                      </select>
+                    </div>
+                  )}
+                  {refCodeFromUrl && (
+                    <div style={{ background: "rgba(244,111,16,0.12)", border: "1px solid rgba(244,111,16,0.3)", borderRadius: "8px", padding: "9px 12px", fontSize: "12px", color: "#f46f10" }}>
+                      🔗 Вас запросив учасник — він отримає бонус HP
+                    </div>
+                  )}
+                  <button type="submit" disabled={formSubmitting} style={{ padding: "12px", background: formSubmitting ? "#334155" : "#2563eb", color: "white", border: "none", borderRadius: "10px", cursor: formSubmitting ? "not-allowed" : "pointer", fontWeight: 800, fontSize: "14px", fontFamily: "Exo 2, sans-serif", marginTop: "4px" }}>
+                    {formSubmitting ? "Вхід..." : "Увійти як гравець"}
+                  </button>
+                </form>
+              </div>
+
+            </div>
+            <p style={{ textAlign: "center", color: "#475569", fontSize: "12px", marginTop: "16px" }}>
+              <a href="/" style={{ color: "#475569", textDecoration: "none" }}>← На головну</a>
+            </p>
+          </div>
+        </div>
+      );
+    }
+
+    // ── Parent registration form ───────────────────────────────────────
+    if (formMode === "parent") {
+      const inputStyle: React.CSSProperties = { width: "100%", padding: "11px 14px", borderRadius: "9px", background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.14)", color: "white", fontSize: "14px", fontFamily: "Exo 2, sans-serif", boxSizing: "border-box", outline: "none" };
+      return (
+        <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: "16px", background: "linear-gradient(135deg, #0f172a 0%, #1e3a5f 100%)" }}>
+          <div style={{ width: "100%", maxWidth: "440px", background: "#1e3a5f", borderRadius: "20px", overflow: "hidden", boxShadow: "0 25px 50px rgba(0,0,0,0.5)" }}>
+            <div style={{ padding: "28px 24px 16px", textAlign: "center" }}>
+              <div style={{ fontSize: "44px" }}>👨‍👩‍👦</div>
+              <h1 style={{ color: "white", fontWeight: 800, fontSize: "22px", margin: "8px 0 4px", fontFamily: "Exo 2, sans-serif" }}>Реєстрація батька</h1>
+              <p style={{ color: "#94a3b8", fontSize: "13px", margin: 0 }}>Доступ до чату батьків ЛДБЛ</p>
+            </div>
+            {notification && (
+              <div style={{ margin: "0 24px 16px", padding: "10px 14px", background: "rgba(239,68,68,0.15)", borderRadius: "8px", color: "#fca5a5", fontSize: "13px" }}>
+                {notification}
+              </div>
+            )}
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                if (formSubmitting) return;
+                const fd = new FormData(e.currentTarget);
+                const phone = (fd.get("phone") as string || "").trim();
+                const firstName = (fd.get("firstName") as string || "").trim();
+                const lastName = (fd.get("lastName") as string || "").trim();
+                const childTeamId = fd.get("childTeamId") as string || null;
+                if (!phone || !firstName || !lastName) { notify("Заповніть всі обов'язкові поля"); return; }
+                setFormSubmitting(true);
+                try {
+                  const res = await fetch("/api/parents/register", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ phone, firstName, lastName, childTeamId }),
+                  });
+                  const data = await res.json();
+                  if (!res.ok) { notify(data.error || "Помилка реєстрації"); setFormSubmitting(false); return; }
+                  if (data.token) localStorage.setItem("parent_token", data.token);
+                  if (data.contact) localStorage.setItem("parent_data", JSON.stringify({ contact: data.contact }));
+                  setIsParent(true);
+                  setActiveRoom("parents");
+                  if (data.refLink) {
+                    setRegSuccess({ firstName, hp: data.contact?.hp ?? 25, refLink: data.refLink, isNew: true });
+                  }
+                  doLogin(phone, firstName, lastName);
+                } catch { notify("Помилка з'єднання"); setFormSubmitting(false); }
+              }}
+              style={{ padding: "8px 24px 32px", display: "flex", flexDirection: "column", gap: "14px" }}
+            >
+              <div>
+                <label style={{ display: "block", fontSize: "12px", color: "#94a3b8", marginBottom: "5px" }}>Ім'я *</label>
+                <input name="firstName" type="text" required placeholder="Іван" style={inputStyle} />
               </div>
               <div>
-                <label style={lbl}>Номер телефону *</label>
-                <input type="tel" value={regPhone} onChange={e => setRegPhone(e.target.value)} placeholder="+380XXXXXXXXX" style={inp} />
+                <label style={{ display: "block", fontSize: "12px", color: "#94a3b8", marginBottom: "5px" }}>Прізвище *</label>
+                <input name="lastName" type="text" required placeholder="Петренко" style={inputStyle} />
               </div>
-              {refCodeFromUrl && (
-                <div style={{ background: "rgba(244,111,16,0.12)", border: "1px solid rgba(244,111,16,0.3)", borderRadius: "8px", padding: "9px 12px", fontSize: "12px", color: "#f46f10" }}>
-                  🔗 Вас запросив учасник — він отримає бонус HP
+              <div>
+                <label style={{ display: "block", fontSize: "12px", color: "#94a3b8", marginBottom: "5px" }}>Номер телефону *</label>
+                <input name="phone" type="tel" required placeholder="+380XXXXXXXXX" style={inputStyle} />
+              </div>
+              <div>
+                <label style={{ display: "block", fontSize: "12px", color: "#94a3b8", marginBottom: "5px" }}>Команда дитини</label>
+                <select name="childTeamId" style={{ ...inputStyle, appearance: "none", WebkitAppearance: "none" }}>
+                  <option value="">— Оберіть команду (необов'язково) —</option>
+                  {teams.map((t) => (
+                    <option key={t.id} value={t.id}>{t.name}</option>
+                  ))}
+                </select>
+              </div>
+              <button type="submit" disabled={formSubmitting} style={{ padding: "12px", background: formSubmitting ? "#64748b" : "#f97316", color: "white", border: "none", borderRadius: "10px", cursor: formSubmitting ? "not-allowed" : "pointer", fontWeight: 800, fontSize: "15px", fontFamily: "Exo 2, sans-serif", marginTop: "4px" }}>
+                {formSubmitting ? "Реєстрація..." : "Зареєструватись як батько"}
+              </button>
+              <button type="button" onClick={() => setFormMode("choose")} style={{ padding: "10px", background: "transparent", color: "#64748b", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "10px", cursor: "pointer", fontSize: "13px", fontFamily: "Exo 2, sans-serif" }}>
+                ← Назад
+              </button>
+            </form>
+          </div>
+        </div>
+      );
+    }
+
+    // ── Player login form ─────────────────────────────────────────────
+    {
+      const inp2: React.CSSProperties = { width: "100%", padding: "11px 14px", borderRadius: "9px", background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.14)", color: "white", fontSize: "14px", fontFamily: "Exo 2, sans-serif", boxSizing: "border-box", outline: "none" };
+      const lbl2: React.CSSProperties = { display: "block", fontSize: "12px", color: "#94a3b8", marginBottom: "5px" };
+      return (
+      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: "16px", background: "linear-gradient(135deg, #0f172a 0%, #1e3a5f 100%)" }}>
+        <div style={{ width: "100%", maxWidth: "440px", background: "#1a2744", borderRadius: "20px", overflow: "hidden", boxShadow: "0 25px 50px rgba(0,0,0,0.5)" }}>
+          <div style={{ padding: "28px 24px 16px", textAlign: "center" }}>
+            <div style={{ fontSize: "44px" }}>🏀</div>
+            <h1 style={{ color: "white", fontWeight: 800, fontSize: "22px", margin: "8px 0 4px", fontFamily: "Exo 2, sans-serif" }}>Я ГРАВЕЦЬ</h1>
+            <p style={{ color: "#94a3b8", fontSize: "13px", margin: 0 }}>Чат фанів Basket Lviv</p>
+          </div>
+          {notification && (
+            <div style={{ margin: "0 24px 16px", padding: "10px 14px", background: "rgba(239,68,68,0.15)", borderRadius: "8px", color: "#fca5a5", fontSize: "13px" }}>
+              {notification}
+            </div>
+          )}
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (formSubmitting) return;
+              const fd = new FormData(e.currentTarget);
+              const firstName = (fd.get("firstName") as string || "").trim();
+              const lastName = (fd.get("lastName") as string || "").trim();
+              const phone = (fd.get("phone") as string || "").trim();
+              if (!firstName || !lastName || !phone) { notify("Заповніть всі поля"); return; }
+              if (!/^\+380\d{9}$/.test(phone)) { notify("Телефон у форматі +380XXXXXXXXX (9 цифр після +380)"); return; }
+              setFormSubmitting(true);
+              localStorage.setItem(LS_KEY, JSON.stringify({ phone, firstName, lastName }));
+              doLogin(phone, firstName, lastName, refCodeFromUrl ?? undefined, true).finally(() => setFormSubmitting(false));
+            }}
+            style={{ padding: "8px 24px 32px", display: "flex", flexDirection: "column", gap: "12px" }}
+          >
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+              <div><label style={lbl2}>Ім'я *</label><input name="firstName" type="text" required placeholder="Ваше ім'я" style={inp2} /></div>
+              <div><label style={lbl2}>Прізвище *</label><input name="lastName" type="text" required placeholder="Ваше прізвище" style={inp2} /></div>
+            </div>
+            <div>
+              <label style={lbl2}>Номер телефону *</label>
+              <input name="phone" type="tel" required placeholder="+380XXXXXXXXX" style={inp2} />
+            </div>
+            {teams.length > 0 && (
+              <div>
+                <label style={lbl2}>Команда</label>
+                <select name="teamId" style={{ ...inp2, appearance: "none", WebkitAppearance: "none" }}>
+                  <option value="">— Оберіть команду (необов'язково) —</option>
+                  {teams.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                </select>
+              </div>
+            )}
+            {refCodeFromUrl && (
+              <div style={{ background: "rgba(244,111,16,0.12)", border: "1px solid rgba(244,111,16,0.3)", borderRadius: "9px", padding: "10px 14px", fontSize: "12px", color: "#f46f10" }}>
+                🔗 Вас запросив учасник — при реєстрації він отримає бонус HP
+              </div>
+            )}
+            <button type="submit" disabled={formSubmitting} style={{ padding: "12px", background: formSubmitting ? "#334155" : "#2563eb", color: "white", border: "none", borderRadius: "10px", cursor: formSubmitting ? "not-allowed" : "pointer", fontWeight: 800, fontSize: "15px", fontFamily: "Exo 2, sans-serif", marginTop: "4px" }}>
+              {formSubmitting ? "Вхід..." : "Увійти до чату"}
+            </button>
+            <button type="button" onClick={() => setFormMode("choose")} style={{ padding: "10px", background: "transparent", color: "#64748b", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "10px", cursor: "pointer", fontSize: "13px", fontFamily: "Exo 2, sans-serif" }}>
+              ← Назад
+            </button>
+            <p style={{ textAlign: "center", fontSize: "12px", color: "#475569", margin: 0 }}>
+              Якщо реєструвались — введіть той самий номер телефону
+            </p>
+            {/* HP Rules */}
+            <div style={{ borderTop: "1px solid rgba(255,255,255,0.07)", paddingTop: "12px" }}>
+              <button
+                type="button"
+                onClick={() => setShowHpRules((v) => !v)}
+                style={{ display: "flex", alignItems: "center", gap: "6px", background: "none", border: "none", color: "#64748b", fontSize: "12px", cursor: "pointer", fontFamily: "Exo 2, sans-serif", padding: 0 }}
+              >
+                <span style={{ width: 16, height: 16, borderRadius: "50%", border: "1px solid #475569", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: "10px", fontWeight: 700, color: "#64748b", flexShrink: 0 }}>?</span>
+                {showHpRules ? "Сховати правила HP" : "⚡ Правила нарахування HP"}
+              </button>
+              {showHpRules && (
+                <div style={{ marginTop: "10px", background: "rgba(255,255,255,0.04)", borderRadius: "10px", padding: "12px", fontSize: "12px", color: "#94a3b8", lineHeight: "1.6" }}>
+                  <p style={{ margin: "0 0 8px", fontWeight: 700, color: "#e2e8f0" }}>⚡ Як отримати HP:</p>
+                  <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "1px solid rgba(255,255,255,0.07)", paddingBottom: "6px", marginBottom: "6px" }}>
+                    <span>🆕 Реєстрація в чаті ЛДБЛ</span>
+                    <span style={{ color: "#f46f10", fontWeight: 700 }}>+25 HP</span>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "1px solid rgba(255,255,255,0.07)", paddingBottom: "6px", marginBottom: "6px" }}>
+                    <span>🔗 Хтось зареєструвався за вашим посиланням</span>
+                    <span style={{ color: "#f46f10", fontWeight: 700 }}>+50 HP</span>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "1px solid rgba(255,255,255,0.07)", paddingBottom: "6px", marginBottom: "8px" }}>
+                    <span>☀️ Зайшов на сайт + написав в чаті (раз на добу)</span>
+                    <span style={{ color: "#f46f10", fontWeight: 700 }}>+15 HP</span>
+                  </div>
+                  <p style={{ margin: "0 0 4px", fontWeight: 700, color: "#e2e8f0" }}>🏆 Звання за HP:</p>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px" }}>
+                    {[["🔥", "100+ HP «Легенда»"], ["👑", "300+ HP «Рекрутер»"], ["🏆", "1000+ HP «Амбасадор»"]].map(([icon, label]) => (
+                      <span key={label} style={{ background: "rgba(255,255,255,0.05)", borderRadius: "6px", padding: "3px 8px" }}>{icon} {label}</span>
+                    ))}
+                  </div>
+                  <p style={{ margin: "8px 0 0", color: "#475569", fontSize: "11px" }}>
+                    Реферальне посилання доступне після входу в чаті (права колонка)
+                  </p>
                 </div>
               )}
-              <button
-                type="button"
-                disabled={formSubmitting}
-                onClick={async () => {
-                  if (formSubmitting) return;
-                  const firstName = regFirstName.trim();
-                  const lastName = regLastName.trim();
-                  const phone = regPhone.trim();
-                  if (!firstName || !lastName || !phone) { notify("Заповніть всі поля"); return; }
-                  setFormSubmitting(true);
-                  localStorage.setItem(LS_KEY, JSON.stringify({ phone, firstName, lastName }));
-                  doLogin(phone, firstName, lastName, refCodeFromUrl ?? undefined, true).finally(() => setFormSubmitting(false));
-                }}
-                style={{ padding: "13px", background: formSubmitting ? "#334155" : "#2563eb", color: "white", border: "none", borderRadius: "10px", cursor: formSubmitting ? "not-allowed" : "pointer", fontWeight: 800, fontSize: "15px", fontFamily: "Exo 2, sans-serif", marginTop: "4px" }}
-              >
-                {formSubmitting ? "Вхід..." : "Увійти до чату"}
-              </button>
-              <button type="button" onClick={() => setRegMode("choose")} style={{ padding: "10px", background: "transparent", color: "#64748b", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "10px", cursor: "pointer", fontSize: "13px", fontFamily: "Exo 2, sans-serif" }}>
-                ← Назад
-              </button>
             </div>
-          </div>
-        </div>
-      );
-    }
-
-    // ── Parent form ───────────────────────────────────────────────────
-    if (regMode === "parent") {
-      return (
-        <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: "16px", background: "linear-gradient(135deg, #0f172a 0%, #1e3a5f 100%)" }}>
-          <div style={{ width: "100%", maxWidth: "420px", background: "#1e3a5f", borderRadius: "20px", overflow: "hidden", boxShadow: "0 25px 50px rgba(0,0,0,0.5)" }}>
-            <div style={{ padding: "28px 24px 20px", textAlign: "center" }}>
-              <div style={{ fontSize: "44px", marginBottom: "8px" }}>👨‍👩‍👦</div>
-              <h1 style={{ color: "white", fontWeight: 800, fontSize: "22px", margin: "0 0 4px", fontFamily: "Exo 2, sans-serif" }}>Чат батьків</h1>
-              <p style={{ color: "#94a3b8", fontSize: "13px", margin: 0 }}>Введіть своє ім'я та телефон</p>
-            </div>
-            {notification && (
-              <div style={{ margin: "0 24px 12px", padding: "10px 14px", background: "rgba(239,68,68,0.15)", borderRadius: "8px", color: "#fca5a5", fontSize: "13px" }}>
-                {notification}
-              </div>
-            )}
-            <div style={{ padding: "0 24px 28px", display: "flex", flexDirection: "column", gap: "12px" }}>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
-                <div>
-                  <label style={lbl}>Ваше ім'я *</label>
-                  <input type="text" value={regFirstName} onChange={e => setRegFirstName(e.target.value)} placeholder="Ваше ім'я" style={inp} autoFocus />
-                </div>
-                <div>
-                  <label style={lbl}>Прізвище *</label>
-                  <input type="text" value={regLastName} onChange={e => setRegLastName(e.target.value)} placeholder="Прізвище" style={inp} />
-                </div>
-              </div>
-              <div>
-                <label style={lbl}>Номер телефону *</label>
-                <input type="tel" value={regPhone} onChange={e => setRegPhone(e.target.value)} placeholder="+380XXXXXXXXX" style={inp} />
-              </div>
-              <button
-                type="button"
-                disabled={formSubmitting}
-                onClick={async () => {
-                  if (formSubmitting) return;
-                  const firstName = regFirstName.trim();
-                  const lastName = regLastName.trim();
-                  const phone = regPhone.trim();
-                  if (!firstName || !lastName || !phone) { notify("Заповніть всі поля"); return; }
-                  setFormSubmitting(true);
-                  try {
-                    const res = await fetch("/api/parents/register", {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({ phone, firstName, lastName }),
-                    });
-                    const data = await res.json();
-                    if (!res.ok) { notify(data.error || "Помилка реєстрації"); setFormSubmitting(false); return; }
-                    if (data.token) localStorage.setItem("parent_token", data.token);
-                    if (data.contact) localStorage.setItem("parent_data", JSON.stringify({ contact: data.contact }));
-                    setIsParent(true);
-                    setActiveRoom("parents");
-                    if (data.refLink) setRegSuccess({ firstName, hp: data.contact?.hp ?? 25, refLink: data.refLink, isNew: true });
-                    doLogin(phone, firstName, lastName);
-                  } catch { notify("Помилка з'єднання"); setFormSubmitting(false); }
-                }}
-                style={{ padding: "13px", background: formSubmitting ? "#64748b" : "#f97316", color: "white", border: "none", borderRadius: "10px", cursor: formSubmitting ? "not-allowed" : "pointer", fontWeight: 800, fontSize: "15px", fontFamily: "Exo 2, sans-serif", marginTop: "4px" }}
-              >
-                {formSubmitting ? "Реєстрація..." : "Увійти до чату батьків"}
-              </button>
-              <button type="button" onClick={() => setRegMode("choose")} style={{ padding: "10px", background: "transparent", color: "#64748b", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "10px", cursor: "pointer", fontSize: "13px", fontFamily: "Exo 2, sans-serif" }}>
-                ← Назад
-              </button>
-            </div>
-          </div>
-        </div>
-      );
-    }
-
-    // ── Choose screen ─────────────────────────────────────────────────
-    return (
-      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: "16px", background: "linear-gradient(135deg, #0f172a 0%, #1e3a5f 100%)" }}>
-        <div style={{ width: "100%", maxWidth: "460px" }}>
-          <div style={{ textAlign: "center", marginBottom: "28px" }}>
-            <div style={{ fontSize: "48px", marginBottom: "8px" }}>🏀</div>
-            <h1 style={{ color: "white", fontWeight: 800, fontSize: "24px", margin: "0 0 4px", fontFamily: "Exo 2, sans-serif" }}>Basket Lviv · Чат</h1>
-            <p style={{ color: "#94a3b8", fontSize: "13px", margin: 0 }}>Оберіть розділ для входу</p>
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-            <button
-              type="button"
-              onClick={() => { setRegFirstName(""); setRegLastName(""); setRegPhone(""); setRegMode("player"); }}
-              style={{ padding: "22px 24px", background: "#1a2744", border: "2px solid rgba(255,255,255,0.1)", borderRadius: "18px", color: "white", cursor: "pointer", display: "flex", alignItems: "center", gap: "16px", textAlign: "left" }}
-              onMouseEnter={e => (e.currentTarget.style.borderColor = "#2563eb")}
-              onMouseLeave={e => (e.currentTarget.style.borderColor = "rgba(255,255,255,0.1)")}
-            >
-              <span style={{ fontSize: "38px", flexShrink: 0 }}>🏀</span>
-              <div>
-                <div style={{ fontWeight: 800, fontSize: "17px", fontFamily: "Exo 2, sans-serif", marginBottom: "3px" }}>Балачка</div>
-                <div style={{ color: "#94a3b8", fontSize: "13px" }}>Загальний чат ЛДБЛ — для всіх</div>
-              </div>
-            </button>
-            <button
-              type="button"
-              onClick={() => { setRegFirstName(""); setRegLastName(""); setRegPhone(""); setRegMode("parent"); }}
-              style={{ padding: "22px 24px", background: "#1e3a5f", border: "2px solid rgba(255,255,255,0.1)", borderRadius: "18px", color: "white", cursor: "pointer", display: "flex", alignItems: "center", gap: "16px", textAlign: "left" }}
-              onMouseEnter={e => (e.currentTarget.style.borderColor = "#f97316")}
-              onMouseLeave={e => (e.currentTarget.style.borderColor = "rgba(255,255,255,0.1)")}
-            >
-              <span style={{ fontSize: "38px", flexShrink: 0 }}>👨‍👩‍👦</span>
-              <div>
-                <div style={{ fontWeight: 800, fontSize: "17px", fontFamily: "Exo 2, sans-serif", marginBottom: "3px" }}>Чат батьків</div>
-                <div style={{ color: "#94a3b8", fontSize: "13px" }}>Приватний чат для батьків гравців</div>
-              </div>
-            </button>
-          </div>
-          <p style={{ textAlign: "center", color: "#475569", fontSize: "12px", marginTop: "16px" }}>
-            <a href="/" style={{ color: "#475569", textDecoration: "none" }}>← На головну</a>
-          </p>
+          </form>
         </div>
       </div>
     );
+    }
   }
 
   // ── Render: chat ──────────────────────────────────────────────────────
@@ -1213,16 +1324,9 @@ export default function ChatPage() {
           {/* MVP — обидві вкладки */}
           <button
             onClick={() => setShowMvp(true)}
-            style={{ background: "#f46f10", color: "white", border: "none", borderRadius: "8px", padding: "4px 12px", fontSize: "13px", cursor: "pointer", fontWeight: 700, fontFamily: "Exo 2, sans-serif", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: "6px" }}
+            style={{ background: "#f46f10", color: "white", border: "none", borderRadius: "8px", padding: "4px 12px", fontSize: "13px", cursor: "pointer", fontWeight: 700, fontFamily: "Exo 2, sans-serif", whiteSpace: "nowrap" }}
           >
-            {mvpData && !mvpData.isActive && mvpData.currentLeader?.player?.photoUrl ? (
-              <img
-                src={mvpData.currentLeader.player.photoUrl}
-                alt="MVP"
-                style={{ width: "20px", height: "20px", borderRadius: "50%", objectFit: "contain", border: "1px solid rgba(255,255,255,0.5)" }}
-              />
-            ) : null}
-            🏅 MVP
+            🏅 Гравець MVP місяця
           </button>
 
           {activeRoom === "general" ? (
@@ -1468,49 +1572,6 @@ export default function ChatPage() {
         );
       })()}
 
-      {/* ── Ban popup (moderator only) ────────────────────────────────────── */}
-      {banPopup && (
-        <>
-          <div style={{ position: "fixed", inset: 0, zIndex: 59 }} onClick={() => setBanPopup(null)} />
-          <div
-            style={{
-              position: "fixed",
-              zIndex: 60,
-              top: Math.min(banPopup.y, window.innerHeight - 240),
-              left: Math.max(4, Math.min(banPopup.x, window.innerWidth - 210)),
-              background: "#1e2a4a",
-              border: "1px solid rgba(255,255,255,0.09)",
-              borderRadius: "12px",
-              padding: "4px 0",
-              minWidth: "195px",
-              boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div style={{ padding: "9px 14px 7px", fontFamily: "Exo 2, sans-serif", fontWeight: 700, fontSize: "13px", color: "white" }}>
-              {banPopup.name || "Учасник"}
-            </div>
-            <div style={{ height: "1px", background: "rgba(255,255,255,0.06)", margin: "0 0 4px" }} />
-            {banPopup.isBanned && banPopup.bannedUntil && (
-              <div style={{ padding: "4px 14px 6px", fontFamily: "Exo 2, sans-serif", fontSize: "11px", color: "#f87171" }}>
-                До: {new Date(banPopup.bannedUntil).toLocaleString("uk-UA", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
-              </div>
-            )}
-            {banPopup.isBanned ? (
-              <CtxItem onClick={() => handleBanAction(banPopup.phone, null, true)}>🔓 Розбанити</CtxItem>
-            ) : (
-              <>
-                <CtxItem onClick={() => handleBanAction(banPopup.phone, 5)} danger>🔨 Бан 5 хвилин</CtxItem>
-                <CtxItem onClick={() => handleBanAction(banPopup.phone, 1440)} danger>🔨 Бан 1 день</CtxItem>
-                <CtxItem onClick={() => handleBanAction(banPopup.phone, 525600)} danger>🔨 Бан 1 рік</CtxItem>
-              </>
-            )}
-            <div style={{ height: "1px", background: "rgba(255,255,255,0.06)", margin: "4px 0" }} />
-            <CtxItem onClick={() => setBanPopup(null)}>❌ Скасувати</CtxItem>
-          </div>
-        </>
-      )}
-
       {/* ── Reply preview ─────────────────────────────────────────────────── */}
       {replyTo && (
         <div style={{ background: "rgba(244,111,16,0.07)", borderTop: "1px solid rgba(244,111,16,0.18)", padding: "7px 16px", flexShrink: 0, display: "flex", alignItems: "center", gap: "8px" }}>
@@ -1628,154 +1689,83 @@ export default function ChatPage() {
       {showMvp && (() => {
         const monthNames = ["Січень","Лютий","Березень","Квітень","Травень","Червень","Липень","Серпень","Вересень","Жовтень","Листопад","Грудень"];
         const now = new Date();
-        const currentMonth = now.toISOString().slice(0, 7);
         const monthLabel = `${monthNames[now.getMonth()]} ${now.getFullYear()}`;
-
-        const isActive = mvpData?.isActive !== false;
-        const leader = mvpData?.currentLeader ?? null;
-        const userVoteId = mvpData?.userVote ?? user?.mvpVote ?? null;
-        const votedPlayer = userVoteId ? players.find((p) => p.id === userVoteId) : null;
-        const votedPlayerName = votedPlayer ? `${votedPlayer.firstName} ${votedPlayer.lastName}` : null;
-
-        // Determine state
-        // State C: month ended (not active) AND there is a leader
-        const isMonthEnded = !isActive && leader !== null;
-        // State B: voted this month
-        const hasVoted = !!userVoteId;
-        // State A: active + not voted
-
-        const chatTab: "balacka" | "batky" = activeRoom === "parents" ? "batky" : "balacka";
-
-        const vWords = (n: number) => n === 1 ? "голос" : n < 5 ? "голоси" : "голосів";
-
-        const PlayerPhoto = ({ player, size = 80 }: { player: MvpPlayer; size?: number }) => (
-          <div style={{ width: size, height: size, borderRadius: "50%", overflow: "hidden", background: "#0f1829", border: "3px solid #f46f10", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-            {player.photoUrl ? (
-              <img src={player.photoUrl} alt={`${player.firstName} ${player.lastName}`} style={{ width: "100%", height: "100%", objectFit: "contain" }} />
-            ) : (
-              <span style={{ fontSize: size * 0.4 }}>🏀</span>
-            )}
-          </div>
-        );
-
+        const topMvp = mvpResults[0] ?? null;
         return (
-          <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", padding: "16px" }}
+          <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", padding: "16px" }}
             onClick={(e) => { if (e.target === e.currentTarget) setShowMvp(false); }}>
-            <div style={{ background: "#1e2a4a", borderRadius: "20px", width: "100%", maxWidth: "420px", padding: "24px", maxHeight: "88vh", display: "flex", flexDirection: "column", fontFamily: "Exo 2, sans-serif" }}>
-
-              {/* Header */}
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
-                <h2 style={{ margin: 0, fontSize: "18px", fontWeight: 800 }}>🏅 Гравець MVP місяця</h2>
+            <div style={{ background: "#1e2a4a", borderRadius: "20px", width: "100%", maxWidth: "400px", padding: "24px", maxHeight: "85vh", display: "flex", flexDirection: "column" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+                <h2 style={{ margin: 0, fontSize: "18px", fontWeight: 800, fontFamily: "Exo 2, sans-serif" }}>🏅 Гравець MVP місяця</h2>
                 <button onClick={() => setShowMvp(false)} style={{ background: "none", border: "none", color: "#94a3b8", fontSize: "24px", cursor: "pointer", lineHeight: 1 }}>×</button>
               </div>
 
-              {/* ─── State C: Month ended, show winner ─── */}
-              {isMonthEnded && leader && (() => {
-                const [y, m] = (mvpData?.month ?? currentMonth).split("-");
-                const winLabel = `${monthNames[parseInt(m) - 1]} ${y}`;
-                return (
-                  <div style={{ textAlign: "center" }}>
-                    <div style={{ fontSize: "22px", fontWeight: 900, color: "#fbbf24", marginBottom: "16px" }}>🏆 MVP {winLabel}</div>
-                    <div style={{ display: "flex", justifyContent: "center", marginBottom: "14px" }}>
-                      <PlayerPhoto player={leader.player} size={110} />
+              {/* MVP поточного місяця */}
+              <div style={{ marginBottom: "16px", padding: "14px", background: "rgba(244,111,16,0.08)", border: "1px solid rgba(244,111,16,0.25)", borderRadius: "14px" }}>
+                <div style={{ fontSize: "11px", color: "#f46f10", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "10px", fontFamily: "Exo 2, sans-serif" }}>
+                  📅 {monthLabel}
+                </div>
+                {topMvp ? (
+                  <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
+                    <div style={{ width: "54px", height: "54px", borderRadius: "50%", overflow: "hidden", background: "#0f1829", border: "2px solid #f46f10", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      {topMvp.photoUrl ? (
+                        <img src={topMvp.photoUrl} alt={topMvp.playerName} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                      ) : (
+                        <span style={{ fontSize: "26px" }}>🏀</span>
+                      )}
                     </div>
-                    <div style={{ fontSize: "20px", fontWeight: 800, color: "white", marginBottom: "4px" }}>{leader.player.firstName} {leader.player.lastName}</div>
-                    {leader.player.team && <div style={{ fontSize: "13px", color: "#94a3b8", marginBottom: "2px" }}>{leader.player.team.name}</div>}
-                    {leader.player.position && <div style={{ fontSize: "12px", color: "#64748b", marginBottom: "12px" }}>{leader.player.position}</div>}
-                    <div style={{ fontSize: "16px", color: "#f46f10", fontWeight: 700, marginBottom: "8px" }}>🗳️ {leader.totalVotes} {vWords(leader.totalVotes)}</div>
-                    <div style={{ fontSize: "13px", color: "#94a3b8" }}>Балачка: {leader.votesByChat.balacka} | Батьки: {leader.votesByChat.batky}</div>
-                  </div>
-                );
-              })()}
-
-              {/* ─── State B: Voted — show checkmark + leader ─── */}
-              {isActive && hasVoted && leader && (
-                <div style={{ overflowY: "auto", flex: 1 }}>
-                  <div style={{ textAlign: "center", marginBottom: "16px" }}>
-                    <div style={{ fontSize: "40px", marginBottom: "6px" }}>✅</div>
-                    <div style={{ color: "#94a3b8", fontSize: "14px" }}>Ви вже проголосували цього місяця</div>
-                    {votedPlayerName && <div style={{ color: "#f46f10", fontWeight: 700, marginTop: "4px", fontSize: "15px" }}>Ваш вибір: {votedPlayerName}</div>}
-                  </div>
-
-                  {/* Current leader */}
-                  <div style={{ background: "rgba(244,111,16,0.08)", border: "1px solid rgba(244,111,16,0.3)", borderRadius: "16px", padding: "16px", textAlign: "center" }}>
-                    <div style={{ fontSize: "11px", color: "#f46f10", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "12px" }}>📊 Поточний лідер</div>
-                    <div style={{ display: "flex", justifyContent: "center", marginBottom: "10px" }}>
-                      <PlayerPhoto player={leader.player} size={90} />
+                    <div>
+                      <div style={{ fontSize: "16px", fontWeight: 800, color: "white", fontFamily: "Exo 2, sans-serif" }}>{topMvp.playerName}</div>
+                      <div style={{ fontSize: "13px", color: "#f46f10", fontWeight: 700, fontFamily: "Exo 2, sans-serif" }}>🗳️ {topMvp.votes} голос{topMvp.votes === 1 ? "" : topMvp.votes < 5 ? "и" : "ів"}</div>
                     </div>
-                    <div style={{ fontSize: "18px", fontWeight: 800, color: "white", marginBottom: "2px" }}>{leader.player.firstName} {leader.player.lastName}</div>
-                    {leader.player.team && <div style={{ fontSize: "12px", color: "#94a3b8", marginBottom: "2px" }}>{leader.player.team.name}</div>}
-                    {leader.player.position && <div style={{ fontSize: "11px", color: "#64748b", marginBottom: "10px" }}>{leader.player.position}</div>}
-                    <div style={{ fontSize: "15px", color: "#f46f10", fontWeight: 700, marginBottom: "6px" }}>🗳️ {leader.totalVotes} {vWords(leader.totalVotes)}</div>
-                    <div style={{ fontSize: "12px", color: "#94a3b8" }}>Балачка: {leader.votesByChat.balacka} | Батьки: {leader.votesByChat.batky}</div>
                   </div>
+                ) : (
+                  <div style={{ color: "#64748b", fontSize: "13px", fontFamily: "Exo 2, sans-serif" }}>Голосування ще не розпочато</div>
+                )}
+              </div>
 
-                  {/* Other results */}
-                  {(mvpData?.allResults?.length ?? 0) > 1 && (
-                    <div style={{ marginTop: "14px" }}>
-                      <div style={{ fontSize: "11px", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "8px" }}>Інші результати</div>
-                      {mvpData!.allResults.slice(1, 5).map((r, i) => (
-                        <div key={r.player.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", color: "#94a3b8", fontSize: "13px", marginBottom: "5px", padding: "4px 0" }}>
-                          <span>{i + 2}. {r.player.firstName} {r.player.lastName}</span>
-                          <span style={{ color: "#f46f10", fontWeight: 700 }}>{r.votes} гол.</span>
+              {user!.mvpVote ? (
+                <div style={{ textAlign: "center", padding: "12px 0" }}>
+                  <div style={{ fontSize: "36px", marginBottom: "8px" }}>✅</div>
+                  <p style={{ color: "#94a3b8", margin: 0, fontFamily: "Exo 2, sans-serif", fontSize: "14px" }}>Ви вже проголосували цього місяця</p>
+                  <p style={{ fontWeight: 700, color: "#f46f10", margin: "8px 0 0", fontFamily: "Exo 2, sans-serif" }}>Ваш вибір: {user!.mvpVote}</p>
+                  {/* Поточні результати */}
+                  {mvpResults.length > 1 && (
+                    <div style={{ marginTop: "14px", textAlign: "left" }}>
+                      {mvpResults.slice(1, 5).map((r, i) => (
+                        <div key={r.playerName} style={{ display: "flex", justifyContent: "space-between", color: "#94a3b8", fontSize: "12px", marginBottom: "3px", fontFamily: "Exo 2, sans-serif" }}>
+                          <span>{i + 2}. {r.playerName}</span>
+                          <span style={{ color: "#f46f10" }}>{r.votes} гол.</span>
                         </div>
                       ))}
                     </div>
                   )}
                 </div>
-              )}
-
-              {/* ─── State B (voted) but no leader yet ─── */}
-              {isActive && hasVoted && !leader && (
-                <div style={{ textAlign: "center", padding: "20px 0" }}>
-                  <div style={{ fontSize: "40px", marginBottom: "8px" }}>✅</div>
-                  <div style={{ color: "#94a3b8", fontSize: "14px" }}>Ви вже проголосували цього місяця</div>
-                  {votedPlayerName && <div style={{ color: "#f46f10", fontWeight: 700, marginTop: "6px" }}>Ваш вибір: {votedPlayerName}</div>}
-                </div>
-              )}
-
-              {/* ─── State A: Active + not voted — show player list ─── */}
-              {isActive && !hasVoted && (
+              ) : (
                 <>
-                  <div style={{ fontSize: "13px", color: "#94a3b8", marginBottom: "12px" }}>
-                    📅 {monthLabel} — виберіть найкращого гравця:
-                  </div>
-                  <div style={{ overflowY: "auto", flex: 1, display: "flex", flexDirection: "column", gap: "8px" }}>
+                  <p style={{ color: "#94a3b8", fontSize: "13px", margin: "0 0 10px", fontFamily: "Exo 2, sans-serif" }}>
+                    Виберіть найкращого гравця місяця:
+                  </p>
+                  <div style={{ overflowY: "auto", flex: 1, display: "flex", flexDirection: "column", gap: "6px" }}>
                     {players.length === 0 ? (
-                      <div style={{ color: "#64748b", textAlign: "center", padding: "20px 0" }}>Список гравців не завантажено</div>
+                      <div style={{ color: "#64748b", textAlign: "center", padding: "20px 0", fontFamily: "Exo 2, sans-serif" }}>Список гравців не завантажено</div>
                     ) : players.map((p) => {
-                      const voteInfo = mvpData?.allResults?.find((r) => r.player.id === p.id);
+                      const name = `${p.firstName} ${p.lastName}`;
+                      const voteInfo = mvpResults.find((r) => r.playerName === name);
                       return (
-                        <button key={p.id}
-                          onClick={() => handleMvpVote(p.id, chatTab)}
-                          style={{ padding: "10px 14px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.09)", borderRadius: "12px", color: "white", cursor: "pointer", textAlign: "left", fontSize: "14px", fontFamily: "Exo 2, sans-serif", transition: "background 0.15s", display: "flex", alignItems: "center", gap: "12px" }}
+                        <button key={p.id} onClick={() => handleMvpVote(name)}
+                          style={{ padding: "10px 14px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.09)", borderRadius: "9px", color: "white", cursor: "pointer", textAlign: "left", fontSize: "14px", fontFamily: "Exo 2, sans-serif", transition: "background 0.15s", display: "flex", justifyContent: "space-between", alignItems: "center" }}
                           onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(244,111,16,0.15)"; }}
                           onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(255,255,255,0.05)"; }}
                         >
-                          <div style={{ width: "40px", height: "40px", borderRadius: "50%", overflow: "hidden", background: "#0f1829", border: "2px solid rgba(244,111,16,0.4)", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                            {p.photoUrl ? (
-                              <img src={p.photoUrl} alt={`${p.firstName} ${p.lastName}`} style={{ width: "100%", height: "100%", objectFit: "contain" }} />
-                            ) : (
-                              <span style={{ fontSize: "20px" }}>🏀</span>
-                            )}
-                          </div>
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ fontWeight: 700 }}>{p.firstName} {p.lastName}</div>
-                            <div style={{ fontSize: "12px", color: "#64748b" }}>{p.team?.name}{p.position ? ` · ${p.position}` : ""}</div>
-                          </div>
-                          {voteInfo && <span style={{ fontSize: "12px", color: "#f46f10", fontWeight: 700, flexShrink: 0 }}>{voteInfo.votes} гол.</span>}
+                          <span>🏀 {name}</span>
+                          {voteInfo && <span style={{ fontSize: "12px", color: "#f46f10", fontWeight: 700 }}>{voteInfo.votes} гол.</span>}
                         </button>
                       );
                     })}
                   </div>
                 </>
               )}
-
-              {/* ─── State A: Active + not voted + no players ─── */}
-              {isActive && !hasVoted && players.length === 0 && (
-                <div style={{ color: "#64748b", textAlign: "center", padding: "20px 0" }}>Завантаження...</div>
-              )}
-
             </div>
           </div>
         );
@@ -2439,9 +2429,8 @@ export default function ChatPage() {
         {/* List — full height */}
         <div style={{ flex: 1, overflowY: "auto", padding: "8px 0" }}>
           {(() => {
-              const mvpLeader = mvpData?.currentLeader ?? null;
-              const mvpName = mvpLeader ? `${mvpLeader.player.firstName} ${mvpLeader.player.lastName}` : null;
-              const mvpVotes = mvpLeader?.totalVotes ?? 0;
+              const mvpName = mvpResults[0]?.playerName ?? null;
+              const mvpVotes = mvpResults[0]?.votes ?? 0;
               return members
                 .slice()
                 .sort((a, b) => {
@@ -2456,18 +2445,12 @@ export default function ChatPage() {
                   const av = getAvatar(member.hp ?? 0);
                   const avatarBg = isMvp ? "#b45309" : av ? "#1e3a5f" : isOnline ? "#15803d" : "#1e293b";
                   const avatarContent = isMvp ? "🏆" : av ? av.emoji : (member.firstName?.[0] || "?").toUpperCase();
-                  const isClickableByMod = user?.isMod && member.phone !== user?.phone && !member.isMod;
                   return (
                     <div
                       key={member.phone}
-                      style={{ display: "flex", alignItems: "center", gap: "10px", padding: "7px 14px", cursor: isClickableByMod ? "pointer" : "default", transition: "background 0.15s", background: isMvp ? "rgba(244,111,16,0.06)" : "transparent" }}
+                      style={{ display: "flex", alignItems: "center", gap: "10px", padding: "7px 14px", cursor: "default", transition: "background 0.15s", background: isMvp ? "rgba(244,111,16,0.06)" : "transparent" }}
                       onMouseEnter={(e) => (e.currentTarget.style.background = isMvp ? "rgba(244,111,16,0.12)" : "rgba(255,255,255,0.04)")}
                       onMouseLeave={(e) => (e.currentTarget.style.background = isMvp ? "rgba(244,111,16,0.06)" : "transparent")}
-                      onClick={(e) => {
-                        if (!isClickableByMod) return;
-                        const rect = e.currentTarget.getBoundingClientRect();
-                        setBanPopup({ phone: member.phone, name: `${member.firstName} ${member.lastName}`.trim(), isBanned: member.isBanned, bannedUntil: member.bannedUntil, x: rect.right + 8, y: rect.top });
-                      }}
                     >
                       {/* Avatar with online dot */}
                       <div style={{ position: "relative", flexShrink: 0 }}>
@@ -2482,7 +2465,6 @@ export default function ChatPage() {
                         <div style={{ fontFamily: "Exo 2, sans-serif", fontSize: "13px", fontWeight: isMvp ? 800 : 600, color: isMvp ? "#fbbf24" : isOnline ? "white" : "#6b7280", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                           {getBadge(member.hp ?? 0) && <span style={{ marginRight: "3px" }}>{getBadge(member.hp ?? 0)}</span>}
                           {member.isMod && <span style={{ marginRight: "3px" }} title="Модератор">🛡️</span>}
-                          {member.isBanned && user?.isMod && <span style={{ marginRight: "3px" }} title="Заблокований">🚫</span>}
                           {fullName || "Без імені"}
                         </div>
                         <div style={{ display: "flex", alignItems: "center", gap: "4px", flexWrap: "wrap" }}>

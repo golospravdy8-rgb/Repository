@@ -106,16 +106,12 @@ export async function POST(req: NextRequest) {
       prisma.chatModerator.findUnique({ where: { phone } }),
       prisma.chatWarn.count({ where: { phone } }),
       prisma.chatPinnedMessage.findFirst(),
-      prisma.$queryRaw<{ slowMode: boolean }[]>`SELECT "slowMode" FROM "ChatRoom" WHERE id = 'general' LIMIT 1`.catch(() => [] as { slowMode: boolean }[]),
+      prisma.$queryRaw<{ slowMode: boolean }[]>`SELECT "slowMode" FROM "ChatRoom" WHERE id = 'general' LIMIT 1`,
     ]);
 
-    // Current month MVP vote (use raw SQL — Prisma client has stale schema)
+    // Current month MVP vote
     const month = new Date().toISOString().slice(0, 7);
-    const mvpRows = await prisma.$queryRawUnsafe<{ player_id: number }[]>(
-      `SELECT "playerId" as player_id FROM "ChatMvpVote" WHERE "voterPhone" = $1 AND month = $2 LIMIT 1`,
-      phone, month
-    ).catch(() => [] as { player_id: number }[]);
-    const mvpVoteId = mvpRows.length > 0 ? Number(mvpRows[0].player_id) : null;
+    const mvpVote = await prisma.chatMvpVote.findUnique({ where: { voterPhone_month: { voterPhone: phone, month } } }).catch(() => null);
 
     const origin = req.headers.get("origin") || process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_SITE_URL || "https://basket-lviv.com";
     const refLink = `${origin}/chat?ref=${encodeURIComponent(phone)}`;
@@ -126,7 +122,7 @@ export async function POST(req: NextRequest) {
       isMod: !!isMod,
       warns,
       pinnedMessage: pinned?.text ?? null,
-      mvpVote: mvpVoteId,
+      mvpVote: mvpVote ? mvpVote.playerName : null,
       refLink,
       isNewUser: !existing,
       slowMode: room[0]?.slowMode ?? false,
@@ -163,7 +159,7 @@ export async function POST(req: NextRequest) {
     const isMod = !!(await prisma.chatModerator.findUnique({ where: { phone } }));
 
     const msg = await prisma.chatMessage.create({
-      data: { phone, name, text: text.trim().slice(0, 500), replyToId: replyToId ?? null },
+      data: { phone, name, text: text.trim().slice(0, 500), replyToId: replyToId ?? null, roomId },
       include: { replyTo: true, reactions: true },
     });
 
@@ -216,27 +212,21 @@ export async function POST(req: NextRequest) {
     return Response.json({ ok: true });
   }
 
-  // ── MVP vote (legacy action — new API is /api/mvp-vote, used by frontend) ──
+  // ── MVP vote ──────────────────────────────────────────────────────────────
   if (action === "mvp_vote") {
-    const { voterPhone, playerId, chatTab } = body;
-    if (!voterPhone || !playerId)
-      return Response.json({ error: "voterPhone, playerId required" }, { status: 400 });
+    const { voterPhone, playerName } = body;
+    if (!voterPhone || !playerName)
+      return Response.json({ error: "voterPhone, playerName required" }, { status: 400 });
 
     const month = new Date().toISOString().slice(0, 7);
-    const tab = chatTab || "balacka";
     try {
-      await prisma.$executeRawUnsafe(
-        `INSERT INTO "ChatMvpVote" ("voterPhone", "playerId", month, "chatTab", "createdAt") VALUES ($1, $2, $3, $4, NOW())`,
-        voterPhone, Number(playerId), month, tab
-      );
-      broadcast({ type: "mvp_vote", voterPhone, playerId });
-      return Response.json({ ok: true, playerId });
+      await prisma.chatMvpVote.create({ data: { voterPhone, playerName, month } });
+      broadcast({ type: "mvp_vote", voterPhone, playerName });
+      return Response.json({ ok: true, playerName });
     } catch {
-      const rows = await prisma.$queryRawUnsafe<{ player_id: number }[]>(
-        `SELECT "playerId" as player_id FROM "ChatMvpVote" WHERE "voterPhone" = $1 AND month = $2 LIMIT 1`,
-        voterPhone, month
-      ).catch(() => [] as { player_id: number }[]);
-      return Response.json({ ok: false, alreadyVoted: true, playerId: rows.length > 0 ? Number(rows[0].player_id) : null });
+      // unique constraint — already voted this month
+      const existing = await prisma.chatMvpVote.findUnique({ where: { voterPhone_month: { voterPhone, month } } });
+      return Response.json({ ok: false, alreadyVoted: true, playerName: existing?.playerName ?? "" });
     }
   }
 
@@ -405,50 +395,48 @@ export async function POST(req: NextRequest) {
   }
 
   // ── daily spin ───────────────────────────────────────────────────────────
-  // TODO: chatDailySpin model not in schema — spin feature disabled
-  // if (action === "spin") {
-  //   if (!phone) return Response.json({ error: "phone required" }, { status: 400 });
-  //
-  //   const today = new Date().toISOString().slice(0, 10);
-  //   const existing = await prisma.chatDailySpin.findUnique({ where: { phone_day: { phone, day: today } } });
-  //   if (existing) {
-  //     return Response.json({ ok: false, alreadySpun: true, hpGained: existing.hpGained });
-  //   }
-  //
-  //   // Random HP: 5, 10, 15, 20, 25, 30, 50
-  //   const prizes = [5, 5, 10, 10, 15, 15, 20, 25, 30, 50];
-  //   const hpGained = prizes[Math.floor(Math.random() * prizes.length)];
-  //
-  //   await prisma.chatDailySpin.create({ data: { phone, day: today, hpGained } });
-  //   await prisma.guestContact.updateMany({ where: { phone }, data: { hp: { increment: hpGained } } });
-  //   const guest = await prisma.guestContact.findUnique({ where: { phone }, select: { hp: true } });
-  //
-  //   return Response.json({ ok: true, hpGained, newHp: guest?.hp ?? null });
-  // }
+  if (action === "spin") {
+    if (!phone) return Response.json({ error: "phone required" }, { status: 400 });
+
+    const today = new Date().toISOString().slice(0, 10);
+    const existing = await prisma.chatDailySpin.findUnique({ where: { phone_day: { phone, day: today } } });
+    if (existing) {
+      return Response.json({ ok: false, alreadySpun: true, hpGained: existing.hpGained });
+    }
+
+    // Random HP: 5, 10, 15, 20, 25, 30, 50
+    const prizes = [5, 5, 10, 10, 15, 15, 20, 25, 30, 50];
+    const hpGained = prizes[Math.floor(Math.random() * prizes.length)];
+
+    await prisma.chatDailySpin.create({ data: { phone, day: today, hpGained } });
+    await prisma.guestContact.updateMany({ where: { phone }, data: { hp: { increment: hpGained } } });
+    const guest = await prisma.guestContact.findUnique({ where: { phone }, select: { hp: true } });
+
+    return Response.json({ ok: true, hpGained, newHp: guest?.hp ?? null });
+  }
 
   // ── streak checkin ────────────────────────────────────────────────────────
-  // TODO: chatStreak model not in schema — checkin feature disabled
-  // if (action === "checkin") {
-  //   if (!phone) return Response.json({ error: "phone required" }, { status: 400 });
-  //
-  //   const today = new Date().toISOString().slice(0, 10);
-  //   const yesterday = new Date(Date.now() - 86400_000).toISOString().slice(0, 10);
-  //
-  //   const streak = await prisma.chatStreak.findUnique({ where: { phone } });
-  //   let currentStreak = 1;
-  //
-  //   if (streak) {
-  //     if (streak.lastVisit === today) {
-  //       return Response.json({ ok: true, streak: streak.currentStreak, alreadyChecked: true });
-  //     }
-  //     currentStreak = streak.lastVisit === yesterday ? streak.currentStreak + 1 : 1;
-  //     await prisma.chatStreak.update({ where: { phone }, data: { currentStreak, lastVisit: today } });
-  //   } else {
-  //     await prisma.chatStreak.create({ data: { phone, currentStreak: 1, lastVisit: today } });
-  //   }
-  //
-  //   return Response.json({ ok: true, streak: currentStreak });
-  // }
+  if (action === "checkin") {
+    if (!phone) return Response.json({ error: "phone required" }, { status: 400 });
+
+    const today = new Date().toISOString().slice(0, 10);
+    const yesterday = new Date(Date.now() - 86400_000).toISOString().slice(0, 10);
+
+    const streak = await prisma.chatStreak.findUnique({ where: { phone } });
+    let currentStreak = 1;
+
+    if (streak) {
+      if (streak.lastVisit === today) {
+        return Response.json({ ok: true, streak: streak.currentStreak, alreadyChecked: true });
+      }
+      currentStreak = streak.lastVisit === yesterday ? streak.currentStreak + 1 : 1;
+      await prisma.chatStreak.update({ where: { phone }, data: { currentStreak, lastVisit: today } });
+    } else {
+      await prisma.chatStreak.create({ data: { phone, currentStreak: 1, lastVisit: today } });
+    }
+
+    return Response.json({ ok: true, streak: currentStreak });
+  }
 
   return Response.json({ error: "Unknown action" }, { status: 400 });
 }

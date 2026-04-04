@@ -32,40 +32,36 @@ export async function GET(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-  try {
-    if (!await isAdmin(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    const { id } = await req.json();
-    if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
+  if (!await isAdmin(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { id } = await req.json();
+  if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
 
-    const contact = await prisma.guestContact.findUnique({ where: { id: Number(id) } });
-    if (!contact) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  const contact = await prisma.guestContact.findUnique({ where: { id: Number(id) } });
+  if (!contact) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-    const { phone } = contact;
+  const { phone } = contact;
 
-    // Каскадне видалення: повідомлення, реакції, бани, мути, варни, голоси, модератор, день першого повідомлення
-    await prisma.$transaction([
-      prisma.chatMessage.updateMany({
-        where: { phone },
-        data: { text: "[видалено]", name: "Видалений користувач" },
-      }),
-      prisma.chatReaction.deleteMany({ where: { phone } }),
-      prisma.chatBan.deleteMany({ where: { phone } }),
-      prisma.chatMute.deleteMany({ where: { phone } }),
-      prisma.chatWarn.deleteMany({ where: { phone } }),
-      prisma.chatDailyFirstMsg.deleteMany({ where: { phone } }),
-      prisma.chatMvpVote.deleteMany({ where: { voterPhone: phone } }),
-      prisma.chatModerator.deleteMany({ where: { phone } }),
-      prisma.guestContact.delete({ where: { id: Number(id) } }),
-    ]);
+  // Каскадне видалення: повідомлення, бани, мути, варни, стріки, голоси, RSVP, прогнози, модератор
+  await prisma.$transaction([
+    prisma.chatMessage.updateMany({
+      where: { phone },
+      data: { text: "[видалено]", name: "Видалений користувач" },
+    }),
+    prisma.chatReaction.deleteMany({ where: { phone } }),
+    prisma.chatBan.deleteMany({ where: { phone } }),
+    prisma.chatMute.deleteMany({ where: { phone } }),
+    prisma.chatWarn.deleteMany({ where: { phone } }),
+    prisma.chatStreak.deleteMany({ where: { phone } }),
+    prisma.chatDailyFirstMsg.deleteMany({ where: { phone } }),
+    prisma.chatMvpVote.deleteMany({ where: { voterPhone: phone } }),
+    prisma.chatModerator.deleteMany({ where: { phone } }),
+    prisma.gameRsvp.deleteMany({ where: { phone } }),
+    prisma.matchPrediction.deleteMany({ where: { phone } }),
+    prisma.chatDailySpin.deleteMany({ where: { phone } }),
+    prisma.guestContact.delete({ where: { id: Number(id) } }),
+  ]);
 
-    return NextResponse.json({ ok: true });
-  } catch (error) {
-    console.error("[DELETE /api/guest-contacts] Error:", error);
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Internal server error" },
-      { status: 500 }
-    );
-  }
+  return NextResponse.json({ ok: true });
 }
 
 // Called from chat server when user registers

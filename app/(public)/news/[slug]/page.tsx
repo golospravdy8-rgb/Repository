@@ -1,24 +1,17 @@
 import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import type { Metadata } from "next";
 
 export const dynamic = "force-dynamic";
-
-async function findNews(slug: string) {
-  const numericId = /^\d+$/.test(slug) ? parseInt(slug, 10) : null;
-  if (numericId) {
-    return prisma.news.findUnique({ where: { id: numericId } }).catch(() => null);
-  }
-  return prisma.news.findUnique({ where: { slug } }).catch(() => null);
-}
 
 export async function generateMetadata({
   params,
 }: {
   params: { slug: string };
 }): Promise<Metadata> {
-  const news = await findNews(params.slug);
+  const news = await prisma.news.findUnique({ where: { slug: params.slug } }).catch(() => null);
   if (!news) return { title: "Новину не знайдено" };
   return { title: `${news.title} — Ліга ESCULAB` };
 }
@@ -28,8 +21,11 @@ export default async function NewsSlugPage({
 }: {
   params: { slug: string };
 }) {
-  const news = await findNews(params.slug);
-  if (!news || !news.isPublished) notFound();
+  const news = await prisma.news.findUnique({
+    where: { slug: params.slug, isPublished: true },
+  }).catch(() => null);
+
+  if (!news) notFound();
 
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -47,11 +43,12 @@ export default async function NewsSlugPage({
         {news.imageUrl ? (
           <>
             <div className="relative w-full" style={{ height: "340px" }}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
+              <Image
                 src={news.imageUrl}
                 alt={news.title}
-                style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                fill
+                className="object-cover"
+                priority
               />
             </div>
             {/* Dark overlay title at bottom of image */}

@@ -1,11 +1,12 @@
 import Link from "next/link";
 import type { News } from "@prisma/client";
+import Image from "next/image";
 
 export default function NewsCard({ news }: { news: News }) {
   const excerpt = news.content.replace(/<[^>]*>/g, "").substring(0, 200);
 
   return (
-    <Link href={`/news/${news.slug || news.id}`} className="block group">
+    <Link href={`/news/${news.slug}`} className="block group">
       <div className="bg-white rounded-xl shadow hover:shadow-md transition-shadow overflow-hidden">
         {/* Original image: h-48 (192px) → ×0.75 = 144px */}
         {news.imageUrl ? (

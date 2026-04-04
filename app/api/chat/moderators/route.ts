@@ -8,7 +8,9 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   await requireAuth();
 
-  const mods = await prisma.chatModerator.findMany({ orderBy: { addedAt: "desc" } });
+  const mods = await prisma.$queryRaw<
+    { id: number; phone: string; name: string; assignedBy: string; addedAt: Date }[]
+  >`SELECT id, phone, name, "assignedBy", "addedAt" FROM "ChatModerator" ORDER BY "addedAt" DESC`;
 
   return NextResponse.json({
     moderators: mods.map((m) => ({

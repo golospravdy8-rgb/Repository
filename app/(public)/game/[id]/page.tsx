@@ -103,9 +103,11 @@ export default async function GamePage({ params }: { params: { id: string } }) {
         return {
           bs,
           stats: { ...stats, points: pts },
+          isStarter: bs.isStarter,
         };
       })
       .sort((a, b) => {
+        if (a.isStarter !== b.isStarter) return a.isStarter ? -1 : 1;
         return a.bs.player.number - b.bs.player.number;
       });
 
@@ -253,24 +255,24 @@ export default async function GamePage({ params }: { params: { id: string } }) {
               homeTeam: { name: game.homeTeam.name, shortName: game.homeTeam.shortName },
               awayTeam: { name: game.awayTeam.name, shortName: game.awayTeam.shortName },
               homeBox: {
-                players: homeBox.players.map(({ bs, stats }) => ({
+                players: homeBox.players.map(({ bs, stats, isStarter }) => ({
                   number: bs.player.number,
                   lastName: bs.player.lastName,
                   firstName: bs.player.firstName,
                   position: bs.player.position ?? null,
-                  isStarter: false,
+                  isStarter,
                   minutes: bs.minutes != null ? String(bs.minutes) : null,
                   stats,
                 })),
                 totals: homeBox.totals,
               },
               awayBox: {
-                players: awayBox.players.map(({ bs, stats }) => ({
+                players: awayBox.players.map(({ bs, stats, isStarter }) => ({
                   number: bs.player.number,
                   lastName: bs.player.lastName,
                   firstName: bs.player.firstName,
                   position: bs.player.position ?? null,
-                  isStarter: false,
+                  isStarter,
                   minutes: bs.minutes != null ? String(bs.minutes) : null,
                   stats,
                 })),
@@ -353,11 +355,21 @@ export default async function GamePage({ params }: { params: { id: string } }) {
                     </tr>
                   </thead>
                   <tbody>
-                    {box.players.map(({ bs, stats }, i) => {
+                    {box.players.map(({ bs, stats, isStarter }, i) => {
+                      const prevIsStarter = i > 0 ? box.players[i - 1].isStarter : true;
+                      const showBench = !isStarter && prevIsStarter;
                       return (
                         <>
+                          {showBench && (
+                            <tr key={`bench-${bs.id}`} className="bg-gray-50">
+                              <td colSpan={20} className="px-2 py-0.5 text-gray-400 font-semibold uppercase tracking-wider" style={{ fontSize: "9px" }}>
+                                Лавка
+                              </td>
+                            </tr>
+                          )}
                           <tr key={bs.id} className="border-b last:border-0 hover:bg-gray-50">
                             <td className="px-1.5 py-1 text-gray-400 font-medium">
+                              {isStarter && <span className="text-orange-400 mr-0.5">*</span>}
                               {bs.player.number}
                             </td>
                             <td className="px-1.5 py-1 font-semibold text-gray-800 whitespace-nowrap">

@@ -116,7 +116,7 @@ export default async function HomePage({ searchParams }: { searchParams: { ag?: 
   );
 
   // Fetch upcoming + recent finished games: next N scheduled/live + last 2 final
-  const liveOrUpcoming = season
+  const liveOrUpcoming = showLive && season
     ? await (async () => {
         const [upcoming, recent] = await Promise.all([
           prisma.game.findMany({
@@ -139,11 +139,13 @@ export default async function HomePage({ searchParams }: { searchParams: { ag?: 
       })()
     : [];
 
-  const news = await prisma.news.findMany({
-    where: { isPublished: true },
-    orderBy: { publishedAt: "desc" },
-    take: newsLimit,
-  }).catch(() => []);
+  const news = showNews
+    ? await prisma.news.findMany({
+        where: { isPublished: true },
+        orderBy: { publishedAt: "desc" },
+        take: newsLimit,
+      }).catch(() => [])
+    : [];
 
   const heroStyle: React.CSSProperties = heroBg
     ? { backgroundImage: `url(${heroBg})`, backgroundSize: "cover", backgroundPosition: "center" }
@@ -169,14 +171,14 @@ export default async function HomePage({ searchParams }: { searchParams: { ag?: 
           <div className="flex flex-wrap gap-2 justify-center mb-3">
             <Link
               href={`/schedule?ag=${ag}`}
-              className="px-4 py-2 rounded-lg font-bold text-sm sm:text-base transition-colors min-h-[44px] flex items-center"
+              className="px-4 py-1.5 rounded-lg font-bold text-sm transition-colors"
               style={{ backgroundColor: btnSchedule, color: "white" }}
             >
               {settings["hero.ctaPrimary"] || "Переглянути розклад"}
             </Link>
             <Link
               href={`/standings?ag=${ag}`}
-              className="px-4 py-2 rounded-lg font-bold text-sm sm:text-base transition-colors min-h-[44px] flex items-center"
+              className="px-4 py-1.5 rounded-lg font-bold text-sm transition-colors"
               style={{ backgroundColor: btnSchedule, color: "white" }}
             >
               {settings["hero.ctaSecondary"] || "Таблиця змагань"}
@@ -196,11 +198,12 @@ export default async function HomePage({ searchParams }: { searchParams: { ag?: 
       </section>
 
       {/* Scoreboard strip — flush below hero, full width, white bg */}
-      <div style={{ background: "#ffffff", borderBottom: "1px solid #e2e8f0" }}>
+      {showLive && (
+        <div style={{ background: "#ffffff", borderBottom: "1px solid #e2e8f0" }}>
 
           {/* Cards strip — full width, no top padding, horizontal scroll */}
           {liveOrUpcoming.length > 0 && (
-          <div className="overflow-x-auto -mx-4 px-4" style={{ display: "flex", gap: 0, scrollbarWidth: "none", msOverflowStyle: "none" } as React.CSSProperties}>
+          <div style={{ display: "flex", gap: 0, overflowX: "auto", scrollbarWidth: "none", msOverflowStyle: "none" } as React.CSSProperties}>
             {liveOrUpcoming.map((g) => {
               const isFinal = g.status === "FINAL";
               const isLive  = g.status === "LIVE";
@@ -214,7 +217,7 @@ export default async function HomePage({ searchParams }: { searchParams: { ag?: 
               const dateShort = new Date(g.scheduledAt).toLocaleDateString("uk-UA", { day: "2-digit", month: "2-digit", year: "numeric" });
               return (
                 <Link key={g.id} href={`/game/${g.id}`} style={{ textDecoration: "none", flexShrink: 0, display: "block" }}>
-                  <div style={{ background: "#fff", borderRight: "1px solid #e2e8f0", width: 'clamp(160px, 44vw, 200px)', cursor: "pointer" }}>
+                  <div style={{ background: "#fff", borderRight: "1px solid #e2e8f0", width: 200, cursor: "pointer" }}>
 
                     {/* Зона 1 — СІРА смуга, БІЛИЙ текст */}
                     <div style={{ background: "#6b7280", padding: "5px 10px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -237,7 +240,7 @@ export default async function HomePage({ searchParams }: { searchParams: { ag?: 
                               ? <img src={g.homeTeam.logoUrl} alt="" style={{ width: 22, height: 22, objectFit: "contain" }} />
                               : <span style={{ fontSize: 11, fontWeight: 800, color: "#94a3b8" }}>{g.homeTeam.name[0]}</span>}
                           </div>
-                          <span style={{ fontSize: 13, fontWeight: homeWins ? 700 : 500, color: "#000000", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          <span style={{ fontSize: 13, fontWeight: homeWins ? 700 : 500, color: homeWins ? "#0f172a" : "#94a3b8", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                             {(g.homeTeam.name.charAt(0).toUpperCase() + g.homeTeam.name.slice(1, 3))}
                           </span>
                         </div>
@@ -254,7 +257,7 @@ export default async function HomePage({ searchParams }: { searchParams: { ag?: 
                               ? <img src={g.awayTeam.logoUrl} alt="" style={{ width: 22, height: 22, objectFit: "contain" }} />
                               : <span style={{ fontSize: 11, fontWeight: 800, color: "#94a3b8" }}>{g.awayTeam.name[0]}</span>}
                           </div>
-                          <span style={{ fontSize: 13, fontWeight: awayWins ? 700 : 500, color: "#000000", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          <span style={{ fontSize: 13, fontWeight: awayWins ? 700 : 500, color: awayWins ? "#f97316" : "#94a3b8", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                             {(g.awayTeam.name.charAt(0).toUpperCase() + g.awayTeam.name.slice(1, 3))}
                           </span>
                         </div>
@@ -280,23 +283,26 @@ export default async function HomePage({ searchParams }: { searchParams: { ag?: 
           </div>
           )}
 
-          {/* Кнопки U-14/U-16 — під карточками */}
-          <div className="px-4 sm:px-6 py-4 flex items-center justify-between">
+          {/* Кнопки U-14/U-16 — під карточками, зліва */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 14px" }}>
             <Suspense fallback={null}>
-              <AgeGroupTabs />
+              <AgeGroupTabs variant="light" />
             </Suspense>
-            <Link href={`/schedule?ag=${ag}`} className="text-sm font-bold hover:opacity-80" style={{ color: "#f97316", textDecoration: "none" }}>
+            <Link href={`/schedule?ag=${ag}`} style={{ color: "#f97316", fontSize: 12, fontWeight: 700, textDecoration: "none" }}>
               Всі ігри →
             </Link>
           </div>
 
         </div>
+      )}
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-12">
-        {/* Age group switcher */}
-        <Suspense>
-          <AgeGroupTabs />
-        </Suspense>
+        {/* Age group switcher (only when showLive is false) */}
+        {!showLive && (
+          <Suspense>
+            <AgeGroupTabs />
+          </Suspense>
+        )}
 
         {/* YouTube Live Stream */}
         {settings["stream.showOnHome"] !== "false" && (
@@ -314,28 +320,31 @@ export default async function HomePage({ searchParams }: { searchParams: { ag?: 
         )}
 
         {/* Standings */}
-        <section>
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-black" style={{ color: navy }}>
-              {settings["home.standingsTitle"] || "Таблиця сезону"}
-            </h2>
-            <Link href={`/standings?ag=${ag}`} className="text-sm font-semibold hover:opacity-80" style={{ color: orange }}>
-              Повна таблиця →
-            </Link>
-          </div>
-          <StandingsTable limit={standingsLimit} ageGroup={ag} tableBg={tableBg} tableHeaderText={tableHeaderText} tableRowOdd={tableRowOdd} tableRowEven={tableRowEven} />
-        </section>
+        {showStandings && (
+          <section>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-black" style={{ color: navy }}>
+                {settings["home.standingsTitle"] || "Таблиця сезону"}
+              </h2>
+              <Link href={`/standings?ag=${ag}`} className="text-sm font-semibold hover:opacity-80" style={{ color: orange }}>
+                Повна таблиця →
+              </Link>
+            </div>
+            <StandingsTable limit={standingsLimit} ageGroup={ag} tableBg={tableBg} tableHeaderText={tableHeaderText} tableRowOdd={tableRowOdd} tableRowEven={tableRowEven} />
+          </section>
+        )}
 
         {/* Дошка пошани */}
-        <section>
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-black" style={{ color: navy }}>
-              {settings["home.honorRollTitle"] || "🏅 Дошка пошани — Гравці місяця"}
-            </h2>
-            <Link href={`/players?ag=${ag}`} className="text-sm font-semibold hover:opacity-80" style={{ color: orange }}>
-              Всі гравці →
-            </Link>
-          </div>
+        {honorTop3.length > 0 && (
+          <section>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-black" style={{ color: navy }}>
+                🏅 Дошка пошани — Гравці місяця
+              </h2>
+              <Link href={`/players?ag=${ag}`} className="text-sm font-semibold hover:opacity-80" style={{ color: orange }}>
+                Всі гравці →
+              </Link>
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
               {honorTop3.map(({ player, avgPts, games }, i) => {
                 if (!player) return null;
@@ -346,12 +355,12 @@ export default async function HomePage({ searchParams }: { searchParams: { ag?: 
                   <Link key={player.id} href={`/players/${player.id}`} style={{ textDecoration: "none" }}>
                     <div className="rounded-2xl shadow-lg overflow-hidden transition-transform hover:scale-105"
                       style={{ background: medalBg[i], border: `2px solid ${medalColors[i]}` }}>
-                      <div className="relative w-full h-72 flex items-center justify-center overflow-hidden">
+                      <div className="relative">
                         {player.photoUrl ? (
                           <img src={player.photoUrl} alt={`${player.firstName} ${player.lastName}`}
-                            className="w-full h-full object-contain object-center" />
+                            className="w-full h-48 object-cover object-top" />
                         ) : (
-                          <div className="w-full h-full flex items-center justify-center text-6xl"
+                          <div className="w-full h-48 flex items-center justify-center text-6xl"
                             style={{ background: `linear-gradient(135deg,${navy},${orange})` }}>
                             🏀
                           </div>
@@ -383,35 +392,27 @@ export default async function HomePage({ searchParams }: { searchParams: { ag?: 
                 );
               })}
             </div>
-            {honorTop3.length === 0 && (
-              <div className="bg-white rounded-xl shadow p-12 text-center text-gray-400">
-                Дошка пошани з'явиться після перших матчів цього місяця
-              </div>
-            )}
           </section>
+        )}
 
         {/* News */}
-        <section>
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-black" style={{ color: navy }}>
-              {settings["home.newsTitle"] || "Останні новини"}
-            </h2>
-            <Link href="/news" className="text-sm font-semibold hover:opacity-80" style={{ color: orange }}>
-              Всі новини →
-            </Link>
-          </div>
-          {news.length > 0 ? (
+        {showNews && news.length > 0 && (
+          <section>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-black" style={{ color: navy }}>
+                {settings["home.newsTitle"] || "Останні новини"}
+              </h2>
+              <Link href="/news" className="text-sm font-semibold hover:opacity-80" style={{ color: orange }}>
+                Всі новини →
+              </Link>
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {news.map((item) => (
                 <NewsCard key={item.id} news={item} />
               ))}
             </div>
-          ) : (
-            <div className="bg-white rounded-xl shadow p-12 text-center text-gray-400">
-              Новини скоро з'являться
-            </div>
-          )}
-        </section>
+          </section>
+        )}
       </div>
     </div>
   );

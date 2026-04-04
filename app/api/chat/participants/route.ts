@@ -61,15 +61,6 @@ export async function GET(req: NextRequest) {
   const mods = await prisma.chatModerator.findMany({ select: { phone: true } });
   const modSet = new Set(mods.map((m) => m.phone));
 
-  const phones = rows.map((r) => r.phone);
-  const bans = phones.length > 0
-    ? await prisma.chatBan.findMany({ where: { phone: { in: phones } }, select: { phone: true, bannedUntil: true } })
-    : [];
-  const now = new Date();
-  const activeBans = bans.filter((b) => !b.bannedUntil || b.bannedUntil > now);
-  const bannedSet = new Set(activeBans.map((b) => b.phone));
-  const banUntilMap = new Map(activeBans.map((b) => [b.phone, b.bannedUntil?.toISOString() ?? null]));
-
   return NextResponse.json({
     members: rows.map((r) => ({
       phone: r.phone,
@@ -79,8 +70,6 @@ export async function GET(req: NextRequest) {
       role: r.role,
       isMod: modSet.has(r.phone),
       isOnline: r.isonline,
-      isBanned: bannedSet.has(r.phone),
-      bannedUntil: banUntilMap.get(r.phone) ?? null,
     })),
   });
 }

@@ -7,10 +7,12 @@ export async function POST(req: NextRequest) {
   const { phone } = await req.json();
   if (!phone) return NextResponse.json({ error: "phone required" }, { status: 400 });
 
-  const mod = await prisma.chatModerator.findUnique({ where: { phone }, select: { name: true } });
-  const name = mod?.name ?? phone;
+  const mod = await prisma.$queryRaw<{ name: string }[]>`
+    SELECT name FROM "ChatModerator" WHERE phone = ${phone}
+  `;
+  const name = mod[0]?.name ?? phone;
 
-  await prisma.chatModerator.deleteMany({ where: { phone } });
+  await prisma.$executeRaw`DELETE FROM "ChatModerator" WHERE phone = ${phone}`;
 
   await prisma.chatModAction.create({
     data: {

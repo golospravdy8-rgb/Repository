@@ -18,21 +18,78 @@ export default function AgeGroupTabs({ variant = "light" }: AgeGroupTabsProps) {
     router.push(`${pathname}?${params.toString()}`);
   };
 
-  const containerClass = "flex gap-2 bg-white/10 backdrop-blur-md p-1.5 rounded-3xl";
-  const activeClass = "bg-orange-500 text-white font-semibold rounded-2xl px-6 py-3 min-h-[44px] flex items-center justify-center transition-all duration-150";
-  const inactiveClass = "bg-white/10 hover:bg-white/20 text-white border border-white/30 rounded-2xl px-6 py-3 min-h-[44px] flex items-center justify-center transition-all duration-150";
+  if (variant === "dark") {
+    return (
+      <div style={{ display: "flex", gap: 4 }}>
+        <button
+          onClick={() => switchTo("younger")}
+          style={{
+            padding: "4px 12px",
+            borderRadius: 6,
+            fontSize: 11,
+            fontWeight: 700,
+            border: "none",
+            cursor: "pointer",
+            background: ag === "younger" ? "#ffffff" : "rgba(255,255,255,0.15)",
+            color: ag === "younger" ? "#1e56c8" : "rgba(255,255,255,0.8)",
+            transition: "all 0.15s",
+          }}
+        >
+          U-14
+        </button>
+        <button
+          onClick={() => switchTo("older")}
+          style={{
+            padding: "4px 12px",
+            borderRadius: 6,
+            fontSize: 11,
+            fontWeight: 700,
+            border: "none",
+            cursor: "pointer",
+            background: ag === "older" ? "#ffffff" : "rgba(255,255,255,0.15)",
+            color: ag === "older" ? "#1e56c8" : "rgba(255,255,255,0.8)",
+            transition: "all 0.15s",
+          }}
+        >
+          U-16
+        </button>
+      </div>
+    );
+  }
 
   return (
-    <div className={containerClass}>
+    <div style={{ display: "flex", gap: 6 }}>
       <button
         onClick={() => switchTo("younger")}
-        className={ag === "younger" ? activeClass : inactiveClass}
+        style={{
+          padding: "4px 12px",
+          borderRadius: 6,
+          fontSize: 12,
+          fontWeight: 700,
+          border: "none",
+          cursor: "pointer",
+          transition: "all 0.15s",
+          ...(ag === "younger"
+            ? { backgroundColor: "#f97316", color: "white", boxShadow: "0 2px 6px rgba(249,115,22,0.35)" }
+            : { backgroundColor: "white", border: "1px solid #e5e7eb", color: "#6b7280" }),
+        }}
       >
         U-14
       </button>
       <button
         onClick={() => switchTo("older")}
-        className={ag === "older" ? activeClass : inactiveClass}
+        style={{
+          padding: "4px 12px",
+          borderRadius: 6,
+          fontSize: 12,
+          fontWeight: 700,
+          border: "none",
+          cursor: "pointer",
+          transition: "all 0.15s",
+          ...(ag === "older"
+            ? { backgroundColor: "#1a2744", color: "white", boxShadow: "0 2px 6px rgba(0,0,0,0.2)" }
+            : { backgroundColor: "white", border: "1px solid #e5e7eb", color: "#6b7280" }),
+        }}
       >
         U-16
       </button>

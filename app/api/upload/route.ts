@@ -7,7 +7,7 @@ import path from "path";
 
 
 const VALID_TYPES = ["logo", "ogImage", "heroBg", "headerBg", "footerBg", "pageBg"];
-const ENTITY_TYPES = ["team-logo", "player-photo", "news"];
+const ENTITY_TYPES = ["team-logo", "player-photo"];
 const MAX_SIZE_BYTES = 5 * 1024 * 1024; // 5MB
 
 export async function POST(req: NextRequest) {

@@ -8,15 +8,13 @@ export const metadata = { title: "Редактор сайту — Admin" };
 
 export default async function SiteEditorPage() {
   await requireAuth();
-
-  // Fetch data with fallbacks in case of errors
   const [allSettings, teams, players, games, news, shopProducts] = await Promise.all([
-    getAllSettings().catch(() => ({})),
-    getTeams().catch(() => []),
-    getPlayers().catch(() => []),
-    getGames().catch(() => []),
-    getNews().catch(() => []),
-    getShopProducts().catch(() => []),
+    getAllSettings(),
+    getTeams(),
+    getPlayers(),
+    getGames(),
+    getNews(),
+    getShopProducts(),
   ]);
 
   // Strip large base64 image values from settings passed to client

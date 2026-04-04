@@ -29,6 +29,7 @@ export default async function PlayersPage({
           include: {
             team: { select: { name: true } },
             boxScores: { select: { points: true, rebounds: true, assists: true, steals: true, blocks: true } },
+            achievements: { select: { badgeId: true } },
           },
           orderBy: [{ lastName: "asc" }],
         }).catch(() => [])
@@ -55,7 +56,7 @@ export default async function PlayersPage({
       const avgAst = p.boxScores.length ? Math.round(p.boxScores.reduce((s, g) => s + g.assists, 0) / n) : 0;
       const avgStl = p.boxScores.length ? Math.round(p.boxScores.reduce((s, g) => s + g.steals, 0) / n) : 0;
       const avgBlk = p.boxScores.length ? Math.round(p.boxScores.reduce((s, g) => s + g.blocks, 0) / n) : 0;
-      const achievementCount = 0; // TODO: achievements model not in schema
+      const achievementCount = p.achievements.length;
       return { ...p, rating, tier, avgPts, avgReb, avgAst, avgStl, avgBlk, achievementCount };
     })
     .sort((a, b) => b.rating - a.rating);

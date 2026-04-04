@@ -21,6 +21,7 @@ export default async function PlayerProfilePage({ params }: { params: { id: stri
       where: { id: playerId },
       include: {
         team: { include: { season: true } },
+        achievements: { select: { badgeId: true, unlockedAt: true }, orderBy: { unlockedAt: "asc" } },
         boxScores: {
           include: { game: { select: { id: true, scheduledAt: true, homeTeam: { select: { name: true } }, awayTeam: { select: { name: true } }, homeScore: true, awayScore: true, homeTeamId: true } } },
           orderBy: { game: { scheduledAt: "asc" } },
@@ -40,8 +41,7 @@ export default async function PlayerProfilePage({ params }: { params: { id: stri
   const tier = getRatingTier(rating);
   const style = TIER_STYLES[tier];
 
-  // TODO: achievements model not in schema — use empty set
-  const unlockedIds = new Set<string>();
+  const unlockedIds = new Set(player.achievements.map((a) => a.badgeId));
   const earnedBadges = BADGES.filter((b) => unlockedIds.has(b.id));
   const lockedBadges = BADGES.filter((b) => !unlockedIds.has(b.id));
 

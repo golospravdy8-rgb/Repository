@@ -75,14 +75,14 @@ export async function GET(_req: NextRequest, { params }: { params: { gameId: str
         const stats = calcPlayerStats(p.id);
         const hasData = bs || stats.points > 0 || stats.rebounds > 0 || stats.assists > 0 || stats.fouls > 0;
         if (!hasData) return null;
-        return { player: p, bs, stats };
+        return { player: p, bs, stats, isStarter: bs?.isStarter ?? false };
       })
-      .filter(Boolean) as { player: typeof homePlayers[0]; bs: typeof boxScores[0] | undefined; stats: ReturnType<typeof calcPlayerStats> }[];
+      .filter(Boolean) as { player: typeof homePlayers[0]; bs: typeof boxScores[0] | undefined; stats: ReturnType<typeof calcPlayerStats>; isStarter: boolean }[];
   }
 
   const quarterScores = calcQuarterScores(game.homeTeamId, game.awayTeamId);
-  const homeRows = buildTeamRows(homePlayers).sort((a, b) => a.player.number - b.player.number);
-  const awayRows = buildTeamRows(awayPlayers).sort((a, b) => a.player.number - b.player.number);
+  const homeRows = buildTeamRows(homePlayers).sort((a, b) => a.isStarter === b.isStarter ? a.player.number - b.player.number : a.isStarter ? -1 : 1);
+  const awayRows = buildTeamRows(awayPlayers).sort((a, b) => a.isStarter === b.isStarter ? a.player.number - b.player.number : a.isStarter ? -1 : 1);
 
   // Generate PDF
   const chunks: Buffer[] = [];
@@ -163,15 +163,15 @@ export async function GET(_req: NextRequest, { params }: { params: { gameId: str
     }
 
     function drawRow(
-      row: { player: typeof homePlayers[0]; bs: typeof boxScores[0] | undefined; stats: ReturnType<typeof calcPlayerStats> },
+      row: { player: typeof homePlayers[0]; bs: typeof boxScores[0] | undefined; stats: ReturnType<typeof calcPlayerStats>; isStarter: boolean },
       yy: number,
       even: boolean
     ) {
       doc.rect(L, yy, W, 13).fill(even ? "#f9fafb" : "white");
       doc.fillColor(navy).fontSize(7).font("Helvetica");
-      const { player: p, bs, stats } = row;
+      const { player: p, bs, stats, isStarter } = row;
       const values = [
-        `${p.number}`,
+        isStarter ? `*${p.number}` : `${p.number}`,
         `${p.lastName} ${p.firstName[0]}.`,
         p.position ?? "-",
         `${bs?.minutes ?? 0}`,
@@ -237,7 +237,15 @@ export async function GET(_req: NextRequest, { params }: { params: { gameId: str
     y = drawTeamHeader(game.homeTeam.name, y);
     y = drawTableHeader(y);
     let even = false;
+    let prevStarter: boolean | null = null;
     for (const row of homeRows) {
+      if (prevStarter === true && !row.isStarter) {
+        // Bench divider
+        doc.rect(L, y, W, 10).fill("#f1f5f9");
+        doc.fillColor("#94a3b8").fontSize(6.5).font("Helvetica-Bold").text("ЛАВКА", L + 4, y + 2);
+        y += 10;
+      }
+      prevStarter = row.isStarter;
       if (y > 530) { doc.addPage(); y = 30; y = drawTableHeader(y); }
       y = drawRow(row, y, even);
       even = !even;
@@ -250,7 +258,14 @@ export async function GET(_req: NextRequest, { params }: { params: { gameId: str
     y = drawTeamHeader(game.awayTeam.name, y);
     y = drawTableHeader(y);
     even = false;
+    prevStarter = null;
     for (const row of awayRows) {
+      if (prevStarter === true && !row.isStarter) {
+        doc.rect(L, y, W, 10).fill("#f1f5f9");
+        doc.fillColor("#94a3b8").fontSize(6.5).font("Helvetica-Bold").text("ЛАВКА", L + 4, y + 2);
+        y += 10;
+      }
+      prevStarter = row.isStarter;
       if (y > 530) { doc.addPage(); y = 30; y = drawTableHeader(y); }
       y = drawRow(row, y, even);
       even = !even;

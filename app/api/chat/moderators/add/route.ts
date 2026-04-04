@@ -13,11 +13,11 @@ export async function POST(req: NextRequest) {
     ? `${guest.firstName} ${guest.lastName}`.trim()
     : phone;
 
-  await prisma.chatModerator.upsert({
-    where: { phone },
-    update: { name },
-    create: { phone, name, assignedBy: "admin" },
-  });
+  await prisma.$executeRaw`
+    INSERT INTO "ChatModerator" (phone, name, "assignedBy", "addedAt")
+    VALUES (${phone}, ${name}, ${"admin"}, NOW())
+    ON CONFLICT (phone) DO UPDATE SET name = ${name}
+  `;
 
   await prisma.chatModAction.create({
     data: {

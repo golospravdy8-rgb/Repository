@@ -15,23 +15,11 @@ const CATEGORY_LABELS: Record<string, string> = {
 
 const EMPTY_FORM = { title: "", slug: "", content: "", category: "news", isPublished: true, imageUrl: "" };
 
-const CYRILLIC_MAP: Record<string, string> = {
-  а:"a",б:"b",в:"v",г:"h",ґ:"g",д:"d",е:"e",є:"ye",ж:"zh",з:"z",
-  и:"y",і:"i",ї:"yi",й:"j",к:"k",л:"l",м:"m",н:"n",о:"o",п:"p",
-  р:"r",с:"s",т:"t",у:"u",ф:"f",х:"kh",ц:"ts",ч:"ch",ш:"sh",щ:"shch",
-  ь:"",ю:"yu",я:"ya",ё:"yo",ъ:"",ы:"y",э:"e",
-};
-
 function slugify(text: string) {
   return text
     .toLowerCase()
-    .split("")
-    .map((c) => CYRILLIC_MAP[c] ?? c)
-    .join("")
     .replace(/\s+/g, "-")
     .replace(/[^\w-]/g, "")
-    .replace(/-+/g, "-")
-    .replace(/^-|-$/g, "")
     .slice(0, 80);
 }
 
