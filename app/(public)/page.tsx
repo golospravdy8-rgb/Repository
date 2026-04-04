@@ -116,7 +116,7 @@ export default async function HomePage({ searchParams }: { searchParams: { ag?: 
   );
 
   // Fetch upcoming + recent finished games: next N scheduled/live + last 2 final
-  const liveOrUpcoming = showLive && season
+  const liveOrUpcoming = season
     ? await (async () => {
         const [upcoming, recent] = await Promise.all([
           prisma.game.findMany({
@@ -139,13 +139,11 @@ export default async function HomePage({ searchParams }: { searchParams: { ag?: 
       })()
     : [];
 
-  const news = showNews
-    ? await prisma.news.findMany({
-        where: { isPublished: true },
-        orderBy: { publishedAt: "desc" },
-        take: newsLimit,
-      }).catch(() => [])
-    : [];
+  const news = await prisma.news.findMany({
+    where: { isPublished: true },
+    orderBy: { publishedAt: "desc" },
+    take: newsLimit,
+  }).catch(() => []);
 
   const heroStyle: React.CSSProperties = heroBg
     ? { backgroundImage: `url(${heroBg})`, backgroundSize: "cover", backgroundPosition: "center" }
@@ -198,8 +196,7 @@ export default async function HomePage({ searchParams }: { searchParams: { ag?: 
       </section>
 
       {/* Scoreboard strip — flush below hero, full width, white bg */}
-      {showLive && (
-        <div style={{ background: "#ffffff", borderBottom: "1px solid #e2e8f0" }}>
+      <div style={{ background: "#ffffff", borderBottom: "1px solid #e2e8f0" }}>
 
           {/* Cards strip — full width, no top padding, horizontal scroll */}
           {liveOrUpcoming.length > 0 && (
@@ -294,15 +291,12 @@ export default async function HomePage({ searchParams }: { searchParams: { ag?: 
           </div>
 
         </div>
-      )}
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-12">
-        {/* Age group switcher (only when showLive is false) */}
-        {!showLive && (
-          <Suspense>
-            <AgeGroupTabs />
-          </Suspense>
-        )}
+        {/* Age group switcher */}
+        <Suspense>
+          <AgeGroupTabs />
+        </Suspense>
 
         {/* YouTube Live Stream */}
         {settings["stream.showOnHome"] !== "false" && (
@@ -320,31 +314,28 @@ export default async function HomePage({ searchParams }: { searchParams: { ag?: 
         )}
 
         {/* Standings */}
-        {showStandings && (
-          <section>
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-black" style={{ color: navy }}>
-                {settings["home.standingsTitle"] || "Таблиця сезону"}
-              </h2>
-              <Link href={`/standings?ag=${ag}`} className="text-sm font-semibold hover:opacity-80" style={{ color: orange }}>
-                Повна таблиця →
-              </Link>
-            </div>
-            <StandingsTable limit={standingsLimit} ageGroup={ag} tableBg={tableBg} tableHeaderText={tableHeaderText} tableRowOdd={tableRowOdd} tableRowEven={tableRowEven} />
-          </section>
-        )}
+        <section>
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-2xl font-black" style={{ color: navy }}>
+              {settings["home.standingsTitle"] || "Таблиця сезону"}
+            </h2>
+            <Link href={`/standings?ag=${ag}`} className="text-sm font-semibold hover:opacity-80" style={{ color: orange }}>
+              Повна таблиця →
+            </Link>
+          </div>
+          <StandingsTable limit={standingsLimit} ageGroup={ag} tableBg={tableBg} tableHeaderText={tableHeaderText} tableRowOdd={tableRowOdd} tableRowEven={tableRowEven} />
+        </section>
 
         {/* Дошка пошани */}
-        {honorTop3.length > 0 && (
-          <section>
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-black" style={{ color: navy }}>
-                🏅 Дошка пошани — Гравці місяця
-              </h2>
-              <Link href={`/players?ag=${ag}`} className="text-sm font-semibold hover:opacity-80" style={{ color: orange }}>
-                Всі гравці →
-              </Link>
-            </div>
+        <section>
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-2xl font-black" style={{ color: navy }}>
+              {settings["home.honorRollTitle"] || "🏅 Дошка пошани — Гравці місяця"}
+            </h2>
+            <Link href={`/players?ag=${ag}`} className="text-sm font-semibold hover:opacity-80" style={{ color: orange }}>
+              Всі гравці →
+            </Link>
+          </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
               {honorTop3.map(({ player, avgPts, games }, i) => {
                 if (!player) return null;
@@ -392,27 +383,35 @@ export default async function HomePage({ searchParams }: { searchParams: { ag?: 
                 );
               })}
             </div>
+            {honorTop3.length === 0 && (
+              <div className="bg-white rounded-xl shadow p-12 text-center text-gray-400">
+                Дошка пошани з'явиться після перших матчів цього місяця
+              </div>
+            )}
           </section>
-        )}
 
         {/* News */}
-        {showNews && news.length > 0 && (
-          <section>
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-black" style={{ color: navy }}>
-                {settings["home.newsTitle"] || "Останні новини"}
-              </h2>
-              <Link href="/news" className="text-sm font-semibold hover:opacity-80" style={{ color: orange }}>
-                Всі новини →
-              </Link>
-            </div>
+        <section>
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-2xl font-black" style={{ color: navy }}>
+              {settings["home.newsTitle"] || "Останні новини"}
+            </h2>
+            <Link href="/news" className="text-sm font-semibold hover:opacity-80" style={{ color: orange }}>
+              Всі новини →
+            </Link>
+          </div>
+          {news.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {news.map((item) => (
                 <NewsCard key={item.id} news={item} />
               ))}
             </div>
-          </section>
-        )}
+          ) : (
+            <div className="bg-white rounded-xl shadow p-12 text-center text-gray-400">
+              Новини скоро з'являться
+            </div>
+          )}
+        </section>
       </div>
     </div>
   );
