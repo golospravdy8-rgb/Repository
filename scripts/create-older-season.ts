@@ -77,24 +77,23 @@ async function main() {
   console.log(`✓ Created 80 players for older group`);
 
   // 4. Create Games
-  const gameDate = (daysAgo: number, hour: number) => {
-    const d = new Date();
-    d.setDate(d.getDate() - daysAgo);
+  const gameDate = (day: number, hour: number) => {
+    const d = new Date(2026, 3, day); // April 2026
     d.setHours(hour, 0, 0, 0);
     return d;
   };
 
   const gamesData = [
-    { home: 0, away: 1, status: "FINAL", homeScore: 95, awayScore: 82, date: gameDate(21, 19) },
-    { home: 2, away: 3, status: "FINAL", homeScore: 88, awayScore: 79, date: gameDate(21, 20) },
-    { home: 4, away: 5, status: "FINAL", homeScore: 102, awayScore: 95, date: gameDate(14, 19) },
-    { home: 6, away: 7, status: "FINAL", homeScore: 91, awayScore: 73, date: gameDate(14, 20) },
-    { home: 1, away: 2, status: "FINAL", homeScore: 86, awayScore: 94, date: gameDate(7, 19) },
-    { home: 3, away: 4, status: "FINAL", homeScore: 80, awayScore: 76, date: gameDate(7, 20) },
-    { home: 0, away: 2, status: "SCHEDULED", homeScore: 0, awayScore: 0, date: gameDate(-7, 19) },
-    { home: 1, away: 3, status: "SCHEDULED", homeScore: 0, awayScore: 0, date: gameDate(-7, 20) },
-    { home: 4, away: 6, status: "SCHEDULED", homeScore: 0, awayScore: 0, date: gameDate(-14, 19) },
-    { home: 5, away: 7, status: "SCHEDULED", homeScore: 0, awayScore: 0, date: gameDate(-14, 20) },
+    { home: 0, away: 1, status: "FINAL", homeScore: 95, awayScore: 82, date: gameDate(2, 19) },
+    { home: 2, away: 3, status: "FINAL", homeScore: 88, awayScore: 79, date: gameDate(2, 20) },
+    { home: 4, away: 5, status: "FINAL", homeScore: 102, awayScore: 95, date: gameDate(5, 19) },
+    { home: 6, away: 7, status: "FINAL", homeScore: 91, awayScore: 73, date: gameDate(5, 20) },
+    { home: 1, away: 2, status: "FINAL", homeScore: 86, awayScore: 94, date: gameDate(10, 19) },
+    { home: 3, away: 4, status: "FINAL", homeScore: 80, awayScore: 76, date: gameDate(10, 20) },
+    { home: 0, away: 2, status: "SCHEDULED", homeScore: 0, awayScore: 0, date: gameDate(15, 19) },
+    { home: 1, away: 3, status: "SCHEDULED", homeScore: 0, awayScore: 0, date: gameDate(15, 20) },
+    { home: 4, away: 6, status: "SCHEDULED", homeScore: 0, awayScore: 0, date: gameDate(20, 19) },
+    { home: 5, away: 7, status: "SCHEDULED", homeScore: 0, awayScore: 0, date: gameDate(20, 20) },
   ];
 
   for (let i = 0; i < gamesData.length; i++) {
