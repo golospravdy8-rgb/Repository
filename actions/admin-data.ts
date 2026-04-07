@@ -145,6 +145,7 @@ export async function createGame(data: {
   if (data.status === "FINAL") await recalcStandings();
   revalidatePath("/admin/site-editor");
   revalidatePath("/розклад");
+  revalidatePath("/schedule");
   revalidatePath("/");
 }
 
@@ -157,6 +158,7 @@ export async function updateGame(
     status: string;
     homeScore: number;
     awayScore: number;
+    ageGroup?: string;
   }
 ) {
   await requireAuth();
@@ -175,6 +177,7 @@ export async function updateGame(
   await recalcStandings();
   revalidatePath("/admin/site-editor");
   revalidatePath("/розклад");
+  revalidatePath("/schedule");
   revalidatePath("/standings");
   revalidatePath("/змагання");
   revalidatePath("/");
@@ -188,6 +191,7 @@ export async function deleteGame(id: number) {
   await recalcStandings();
   revalidatePath("/admin/site-editor");
   revalidatePath("/розклад");
+  revalidatePath("/schedule");
   revalidatePath("/standings");
   revalidatePath("/");
 }

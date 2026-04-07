@@ -12,8 +12,9 @@ const TIER_STYLES = {
   bronze: { background: "linear-gradient(135deg, #8B4513, #cd7f32, #8B4513)", border: "2px solid #cd7f32", textColor: "#2d1b00", badgeColor: "#8B4513" },
 };
 
-export default async function PlayerProfilePage({ params }: { params: { id: string } }) {
-  const playerId = parseInt(params.id);
+export default async function PlayerProfilePage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const playerId = parseInt(id);
   if (isNaN(playerId)) notFound();
 
   const [player, seasonMvp] = await Promise.all([
@@ -206,7 +207,6 @@ export default async function PlayerProfilePage({ params }: { params: { id: stri
                     <td className="px-4 py-3 text-center text-gray-600">{bs.steals}</td>
                     <td className="px-4 py-3 text-center text-gray-600">{bs.blocks}</td>
                     <td className="px-4 py-3 text-center text-gray-600">{bs.fouls}</td>
-                    <td className="px-4 py-3 text-center text-gray-400">{bs.minutes}</td>
                   </tr>
                 ))}
               </tbody>

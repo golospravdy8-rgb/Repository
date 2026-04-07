@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import type { LeaderStats } from "@/lib/stats-calculator";
 
 type StatKey = "ppg" | "rpg" | "apg" | "spg" | "bpg";
@@ -22,7 +23,7 @@ export default function LeadersSection({ leaders }: { leaders: LeaderStats[] }) 
   return (
     <div>
       {/* Tabs */}
-      <div className="flex gap-1 mb-2 flex-wrap">
+      <div className="flex gap-1 mb-2 flex-wrap overflow-x-auto pb-2 snap-x snap-mandatory scrollbar-hide md:flex-wrap md:overflow-visible md:pb-0">
         {tabs.map((tab) => (
           <button
             key={tab.key}
@@ -46,9 +47,21 @@ export default function LeadersSection({ leaders }: { leaders: LeaderStats[] }) 
           style={{ backgroundColor: "#1a2744" }}
         >
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-full bg-orange-500 flex items-center justify-center text-xs font-black flex-shrink-0">
-              {top.firstName[0]}{top.lastName[0]}
-            </div>
+            {top.photoUrl ? (
+              <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 bg-gray-700">
+                <Image
+                  src={top.photoUrl}
+                  alt={`${top.firstName} ${top.lastName}`}
+                  width={32}
+                  height={32}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+            ) : (
+              <div className="w-8 h-8 rounded-full bg-orange-500 flex items-center justify-center text-xs font-black flex-shrink-0">
+                {top.firstName[0]}{top.lastName[0]}
+              </div>
+            )}
             <div className="flex-1">
               <div className="text-[9px] text-gray-300 uppercase tracking-wider">
                 Лідер — {tabs.find((t) => t.key === activeTab)?.label}
@@ -68,7 +81,7 @@ export default function LeadersSection({ leaders }: { leaders: LeaderStats[] }) 
       )}
 
       {/* Top 10 table */}
-      <div className="bg-white rounded-xl shadow overflow-hidden">
+      <div className="hidden md:block bg-white rounded-xl shadow overflow-hidden">
         <table className="w-full text-xs">
           <thead>
             <tr className="bg-gray-50 border-b text-gray-500 uppercase" style={{ fontSize: "9px" }}>
@@ -116,6 +129,88 @@ export default function LeadersSection({ leaders }: { leaders: LeaderStats[] }) 
             )}
           </tbody>
         </table>
+      </div>
+
+      {/* Mobile Premium Cards */}
+      <div className="md:hidden space-y-2">
+        {sorted.length > 0 ? (
+          sorted.map((player, i) => {
+            const medal = player.tier === "gold" ? "🥇" : player.tier === "silver" ? "🥈" : "🥉";
+            const medalColor = player.tier === "gold" ? "#b8860b" : player.tier === "silver" ? "#708090" : "#8B4513";
+            return (
+              <div
+                key={player.playerId}
+                className="rounded-3xl p-5 border"
+                style={{
+                  backgroundColor: "#1a2744",
+                  borderColor: "rgba(139, 92, 246, 0.35)",
+                  minHeight: "152px"
+                }}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-3 flex-1">
+                    {player.photoUrl ? (
+                      <div className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0 bg-gray-700">
+                        <Image
+                          src={player.photoUrl}
+                          alt={`${player.firstName} ${player.lastName}`}
+                          width={40}
+                          height={40}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    ) : (
+                      <div className="w-10 h-10 rounded-full bg-orange-500 flex items-center justify-center text-xs font-black flex-shrink-0 text-white">
+                        {player.firstName[0]}{player.lastName[0]}
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <div className="text-xs font-black text-white truncate">
+                        {player.firstName} {player.lastName}
+                      </div>
+                      <div className="text-orange-400 text-[10px] font-semibold truncate">{player.teamName}</div>
+                    </div>
+                  </div>
+                  <div className="text-right flex-shrink-0">
+                    <div className="text-[11px] font-black rounded-full w-8 h-8 flex items-center justify-center" style={{ color: medalColor, backgroundColor: "rgba(255,255,255,0.05)" }}>
+                      #{i + 1}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="border-t border-gray-700 my-3" style={{ borderColor: "rgba(139, 92, 246, 0.2)" }}></div>
+
+                <div className="grid grid-cols-3 gap-2 text-center">
+                  <div>
+                    <div className="text-[9px] text-gray-400 uppercase">Ігри</div>
+                    <div className="text-sm font-bold text-white">{player.gamesPlayed}</div>
+                  </div>
+                  <div>
+                    <div className="text-[9px] text-gray-400 uppercase">рейтинг</div>
+                    <div className="text-sm font-bold" style={{ color: medalColor }}>{player.rating}</div>
+                  </div>
+                  <div>
+                    <div className="text-[9px] text-gray-400 uppercase">{tabs.find((t) => t.key === activeTab)?.label}</div>
+                    <div className="text-sm font-bold text-orange-400">{player[activeTab]}</div>
+                  </div>
+                </div>
+              </div>
+            );
+          })
+        ) : (
+          <div
+            className="rounded-3xl p-6 text-center flex flex-col items-center justify-center min-h-96"
+            style={{
+              background: "linear-gradient(135deg, rgba(26, 39, 68, 0.9), rgba(26, 39, 68, 0.7))",
+              borderColor: "rgba(139, 92, 246, 0.35)",
+              border: "1px solid"
+            }}
+          >
+            <div className="text-5xl mb-3 animate-bounce">🏀</div>
+            <div className="text-white font-bold text-lg">Статистика ще не доступна</div>
+            <div className="text-gray-400 text-xs mt-2">Лідери сезону з'являться після перших ігор групи</div>
+          </div>
+        )}
       </div>
     </div>
   );

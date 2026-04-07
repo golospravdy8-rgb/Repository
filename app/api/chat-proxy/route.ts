@@ -9,7 +9,7 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const path = searchParams.get("path") || "";
 
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   const adminToken = cookieStore.get("admin_token")?.value ?? "";
 
   const res = await fetch(`${INTERNAL_BASE}${path}`, {
@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
   const path = searchParams.get("path") || "";
   const body = await req.json();
 
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   const adminToken = cookieStore.get("admin_token")?.value ?? "";
 
   const res = await fetch(`${INTERNAL_BASE}${path}`, {

@@ -69,16 +69,28 @@ export default function TeamsTab({ teams, players }: { teams: TeamRow[]; players
   };
 
   const handleSaveTeam = () => {
-    if (!teamForm.name.trim() || !teamForm.shortName.trim()) return;
+    const nameTrimmed = teamForm.name.trim();
+    const shortNameTrimmed = teamForm.shortName.trim();
+
+    if (!nameTrimmed || !shortNameTrimmed) {
+      alert(`Заповніть обов'язкові поля:\n${!nameTrimmed ? '- Назва команди\n' : ''}${!shortNameTrimmed ? '- Абревіатура' : ''}`);
+      return;
+    }
+
     startTransition(async () => {
-      if (editingTeam) {
-        await updateTeam(editingTeam.id, { name: teamForm.name, shortName: teamForm.shortName, logoUrl: teamForm.logoUrl, ageGroup: teamForm.ageGroup });
-      } else {
-        await createTeam({ name: teamForm.name, shortName: teamForm.shortName, logoUrl: teamForm.logoUrl, ageGroup: ageFilter });
+      try {
+        if (editingTeam) {
+          await updateTeam(editingTeam.id, { name: nameTrimmed, shortName: shortNameTrimmed, logoUrl: teamForm.logoUrl, ageGroup: teamForm.ageGroup });
+        } else {
+          await createTeam({ name: nameTrimmed, shortName: shortNameTrimmed, logoUrl: teamForm.logoUrl, ageGroup: ageFilter });
+        }
+        setTeamForm({ ...EMPTY_TEAM_FORM, ageGroup: ageFilter });
+        setEditingTeam(null);
+        router.refresh();
+      } catch (err) {
+        console.error("Помилка при збереженні команди:", err);
+        alert("Помилка при збереженні команди. Спробуйте ще раз.");
       }
-      setTeamForm({ ...EMPTY_TEAM_FORM, ageGroup: ageFilter });
-      setEditingTeam(null);
-      router.refresh();
     });
   };
 
@@ -288,15 +300,17 @@ export default function TeamsTab({ teams, players }: { teams: TeamRow[]; players
               <button
                 onClick={handleSaveTeam}
                 disabled={pending || uploadingLogo}
-                className="px-4 py-2 rounded-lg text-sm font-bold text-white disabled:opacity-50"
+                className="px-4 py-2 rounded-lg text-sm font-bold text-white disabled:opacity-50 transition-opacity"
                 style={{ backgroundColor: "#1a2744" }}
+                title={!teamForm.name.trim() || !teamForm.shortName.trim() ? "Заповніть обов'язкові поля" : ""}
               >
-                {editingTeam ? "Зберегти" : "Додати команду"}
+                {pending ? "Зберігаю..." : editingTeam ? "Зберегти" : "Додати команду"}
               </button>
               {editingTeam && (
                 <button
                   onClick={() => { setEditingTeam(null); setTeamForm({ ...EMPTY_TEAM_FORM, ageGroup: ageFilter }); }}
-                  className="px-4 py-2 rounded-lg text-sm border text-gray-600"
+                  className="px-4 py-2 rounded-lg text-sm border text-gray-600 hover:bg-gray-100 transition-colors"
+                  disabled={pending}
                 >
                   Скасувати
                 </button>

@@ -1,8 +1,0 @@
-{
-  "videos": [
-    { "id": 1, "gameId": 1, "title": "Хайлайти: Школа №30 vs Степові бізони", "type": "highlights", "url": "", "thumbnail": null, "duration": null, "publishedAt": "2026-02-28" },
-    { "id": 2, "gameId": 2, "title": "Хайлайти: Індійські леопарди vs Димчасті леопарди", "type": "highlights", "url": "", "thumbnail": null, "duration": null, "publishedAt": "2026-02-28" },
-    { "id": 3, "gameId": 3, "title": "Хайлайти: Ліцей Львівський vs КІВС Львів", "type": "highlights", "url": "", "thumbnail": null, "duration": null, "publishedAt": "2026-03-07" },
-    { "id": 4, "gameId": 4, "title": "Повний матч: Барси Школа №30 vs Коали Школа №7", "type": "full", "url": "", "thumbnail": null, "duration": null, "publishedAt": "2026-03-07" }
-  ]
-}

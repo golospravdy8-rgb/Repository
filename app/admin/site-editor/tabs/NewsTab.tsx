@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition, useRef } from "react";
+import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { createNews, updateNews, deleteNews } from "@/actions/admin-data";
 import type { NewsRow } from "../SiteEditorClient";
@@ -24,6 +25,7 @@ function slugify(text: string) {
 }
 
 export default function NewsTab({ news }: { news: NewsRow[] }) {
+  const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [form, setForm] = useState(EMPTY_FORM);
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -68,20 +70,34 @@ export default function NewsTab({ news }: { news: NewsRow[] }) {
     if (!form.title.trim()) return;
     const slug = form.slug.trim() || slugify(form.title);
     startTransition(async () => {
-      if (editingId) {
-        await updateNews(editingId, { ...form, slug });
-      } else {
-        await createNews({ ...form, slug });
+      try {
+        if (editingId) {
+          await updateNews(editingId, { ...form, slug });
+        } else {
+          await createNews({ ...form, slug });
+        }
+        setForm(EMPTY_FORM);
+        setEditingId(null);
+        setShowForm(false);
+        router.refresh();
+      } catch (err) {
+        console.error("Помилка при збереженні новини:", err);
+        alert("Помилка при збереженні новини. Спробуйте ще раз.");
       }
-      setForm(EMPTY_FORM);
-      setEditingId(null);
-      setShowForm(false);
     });
   };
 
   const handleDelete = (id: number) => {
     if (!confirm("Видалити новину?")) return;
-    startTransition(async () => { await deleteNews(id); });
+    startTransition(async () => {
+      try {
+        await deleteNews(id);
+        router.refresh();
+      } catch (err) {
+        console.error("Помилка при видаленні новини:", err);
+        alert("Помилка при видаленні новини. Спробуйте ще раз.");
+      }
+    });
   };
 
   return (

@@ -8,8 +8,9 @@ const scoreSchema = z.object({
   points: z.union([z.literal(1), z.literal(2), z.literal(3)]),
 });
 
-export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
-  const gameId = parseInt(params.id);
+export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const gameId = parseInt(id);
   const game = await prisma.game.findUnique({
     where: { id: gameId },
     select: {
@@ -27,8 +28,9 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   return NextResponse.json(game);
 }
 
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
-  const gameId = parseInt(params.id);
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const gameId = parseInt(id);
   const body = await req.json();
   const parsed = scoreSchema.safeParse(body);
 

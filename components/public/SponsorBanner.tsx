@@ -1,3 +1,17 @@
+"use client";
+
+import { useEffect, useState } from "react";
+
+interface Sponsor {
+  id: string;
+  name: string;
+  logo?: string;
+  slogan?: string;
+  url: string;
+  active: boolean;
+  positions: string[];
+  pages: string[];
+}
 
 interface SponsorBannerProps {
   position: "hero" | "page-top" | "sidebar" | "footer";
@@ -5,12 +19,25 @@ interface SponsorBannerProps {
 }
 
 export default function SponsorBanner({ position, pageType = "main" }: SponsorBannerProps) {
-  const sponsorsData: any = JSON.parse(require('fs').readFileSync(require('path').join(process.cwd(), 'lib', 'sponsors.data.json'), 'utf-8'));
-  const sponsors = sponsorsData.sponsors.filter((s: any) =>
-      s.active &&
-      s.positions.includes(position) &&
-      (s.pages.includes("all") || s.pages.includes(pageType))
-  );
+  const [sponsors, setSponsors] = useState<Sponsor[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadSponsors = async () => {
+      try {
+        const res = await fetch(`/api/sponsors?position=${position}&pageType=${pageType}`);
+        const data = await res.json();
+        setSponsors(data.sponsors || []);
+      } catch (error) {
+        console.error("Failed to load sponsors:", error);
+        setSponsors([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadSponsors();
+  }, [position, pageType]);
 
   const sizeMap = {
     hero: { width: "100%", maxWidth: "728px", height: "90px" },
@@ -20,6 +47,25 @@ export default function SponsorBanner({ position, pageType = "main" }: SponsorBa
   };
 
   const size = sizeMap[position];
+
+  if (loading) {
+    return (
+      <div
+        style={{
+          ...size,
+          margin: "0 auto",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          border: "1px solid #e5e7eb",
+          borderRadius: "8px",
+          backgroundColor: "#f3f4f6",
+        }}
+      >
+        <span style={{ fontSize: "12px", color: "#9ca3af" }}>Завантаження...</span>
+      </div>
+    );
+  }
 
   if (!sponsors.length) {
     return (

@@ -78,7 +78,8 @@ function HeaderInner({
       }}
       className="text-white shadow-lg"
     >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8" style={{ overflow: "hidden" }}>
+      {/* DESKTOP: Traditional layout */}
+      <div className="hidden md:block max-w-7xl mx-auto px-4 sm:px-6 lg:px-8" style={{ overflow: "hidden" }}>
         <div
           className={`flex items-center ${centered ? "justify-center" : "justify-between"}`}
           style={{ minHeight: `${headerHeight}px`, paddingTop: "8px", paddingBottom: "8px" }}
@@ -87,11 +88,22 @@ function HeaderInner({
           <Link href={withAg("/")} className="flex items-center gap-2 flex-shrink-0" style={{ marginLeft: "-8px" }}>
             {logoUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <div style={{ width: "44px", height: "44px", borderRadius: "50%", overflow: "hidden", flexShrink: 0, backgroundColor: "#fff" }}>
+              <div style={{
+                width: "52px",
+                height: "52px",
+                borderRadius: "50%",
+                overflow: "hidden",
+                flexShrink: 0,
+                backgroundColor: "#f0f0f0",
+                padding: "5px",
+                border: "1.5px solid rgba(0,0,0,0.1)",
+                boxShadow: "0 1px 4px rgba(0,0,0,0.15)",
+                boxSizing: "border-box"
+              }}>
                 <img
                   src={logoUrl}
                   alt={siteName}
-                  style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                  style={{ width: "100%", height: "100%", objectFit: "contain", display: "block" }}
                   onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
                 />
               </div>
@@ -104,14 +116,14 @@ function HeaderInner({
               </div>
             )}
             <div className="leading-tight flex flex-col items-center">
-              <div className="font-bold tracking-wide" style={{ fontSize: "1.1rem", lineHeight: 1.3 }}>{siteName}</div>
-              <div style={{ fontSize: "0.65rem", lineHeight: 1.3, color: "rgba(255,255,255,0.85)" }}>{tagline}</div>
+              <div className="font-bold tracking-tighter text-base md:text-[1.1rem]" style={{ lineHeight: 1.25 }}>{siteName}</div>
+              <div className="hidden md:block" style={{ fontSize: "0.65rem", lineHeight: 1.3, color: "rgba(255,255,255,0.85)" }}>{tagline}</div>
             </div>
           </Link>
 
           {/* Desktop nav */}
           {!centered && (
-            <nav className="hidden md:flex items-center gap-0 flex-nowrap justify-end flex-1 min-w-0" style={{ marginLeft: "12px" }}>
+            <nav className="flex items-center gap-0 flex-nowrap justify-end flex-1 min-w-0" style={{ marginLeft: "12px" }}>
               {visibleLinks.map((link) => {
                 const active = isActive(link.href);
                 return (
@@ -134,29 +146,86 @@ function HeaderInner({
               </div>
             </nav>
           )}
+        </div>
+      </div>
 
-          {/* Mobile: switcher + burger */}
-          {!centered && (
-            <div className="md:hidden flex items-center gap-2">
-              <Suspense fallback={null}>
-                <AgeGroupSwitcher orangeColor={orangeColor} />
-              </Suspense>
-              <button
-                className="p-2 rounded hover:bg-white/10"
-                onClick={() => setMenuOpen(!menuOpen)}
-                aria-label="Menu"
+      {/* MOBILE: Restructured layout */}
+      <div className="md:hidden max-w-7xl mx-auto px-4 sm:px-6 lg:px-8" style={{ overflow: "hidden" }}>
+        {/* Top row: Menu + Chat buttons */}
+        {!centered && (
+          <div className="flex items-center justify-between pt-2 pb-2">
+            {/* Menu button */}
+            <button
+              className="p-2 rounded hover:bg-white/10"
+              onClick={() => setMenuOpen(!menuOpen)}
+              aria-label="Menu"
+            >
+              <div className="w-6 h-0.5 bg-white mb-1.5"></div>
+              <div className="w-6 h-0.5 bg-white mb-1.5"></div>
+              <div className="w-6 h-0.5 bg-white"></div>
+            </button>
+
+            {/* Chat button */}
+            <Link
+              href="/chat"
+              className="px-3 py-1.5 text-xs bg-black border border-cyan-400 text-cyan-400 font-bold rounded-full hover:shadow-[0_0_15px_rgba(34,211,238,0.6)] transition duration-300 inline-block"
+            >
+              💬 Балачка
+            </Link>
+          </div>
+        )}
+
+        {/* Season badge row */}
+        <div className="flex justify-center py-2">
+          <span className="inline-block px-3 py-1 bg-gradient-to-r from-orange-500 to-orange-600 text-white font-semibold text-[11px] rounded-full shadow-[0_0_15px_rgba(255,77,0,0.5)] whitespace-nowrap">
+            ⚡ СЕЗОН 2025-2026
+          </span>
+        </div>
+
+        {/* Logo and sitename */}
+        <div
+          className="flex items-center justify-center pb-3"
+          style={{ paddingTop: "8px" }}
+        >
+          <Link href={withAg("/")} className="flex items-center gap-2 flex-shrink-0" style={{ marginLeft: "-8px" }}>
+            {logoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <div style={{
+                width: "52px",
+                height: "52px",
+                borderRadius: "50%",
+                overflow: "hidden",
+                flexShrink: 0,
+                backgroundColor: "#f0f0f0",
+                padding: "5px",
+                border: "1.5px solid rgba(0,0,0,0.1)",
+                boxShadow: "0 1px 4px rgba(0,0,0,0.15)",
+                boxSizing: "border-box"
+              }}>
+                <img
+                  src={logoUrl}
+                  alt={siteName}
+                  style={{ width: "100%", height: "100%", objectFit: "contain", display: "block" }}
+                  onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+                />
+              </div>
+            ) : (
+              <div
+                className="w-11 h-11 rounded-full flex items-center justify-center font-bold text-sm"
+                style={{ backgroundColor: orangeColor }}
               >
-                <div className="w-6 h-0.5 bg-white mb-1.5"></div>
-                <div className="w-6 h-0.5 bg-white mb-1.5"></div>
-                <div className="w-6 h-0.5 bg-white"></div>
-              </button>
+                {logoText}
+              </div>
+            )}
+            <div className="leading-tight flex flex-col items-center">
+              <div className="font-bold tracking-tighter text-base" style={{ lineHeight: 1.25 }}>{siteName}</div>
             </div>
-          )}
+          </Link>
         </div>
 
         {/* Mobile menu */}
         {menuOpen && !centered && (
-          <div className="md:hidden pb-4 border-t border-white/10 pt-3">
+          <div className="pb-4 border-t border-white/10 pt-3">
             {visibleLinks.map((link) => {
               const active = isActive(link.href);
               return (

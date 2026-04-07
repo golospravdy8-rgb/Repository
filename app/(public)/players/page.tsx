@@ -17,9 +17,10 @@ const TIER = {
 export default async function PlayersPage({
   searchParams,
 }: {
-  searchParams: { team?: string; position?: string; ag?: string };
+  searchParams: Promise<{ team?: string; position?: string; ag?: string }>;
 }) {
-  const ag = searchParams.ag === "older" ? "older" : "younger";
+  const params = await searchParams;
+  const ag = params.ag === "older" ? "older" : "younger";
   const season = await prisma.season.findFirst({ where: { isActive: true, ageGroup: ag } }).catch(() => null);
 
   const [players, allTeams] = await Promise.all([
@@ -61,9 +62,8 @@ export default async function PlayersPage({
     })
     .sort((a, b) => b.rating - a.rating);
 
-  const activeTeam = decodeURIComponent((searchParams.team || "").replace(/\+/g, " "));
-  const activePosition = decodeURIComponent((searchParams.position || "").replace(/\+/g, " "));
-  // const hasFilter = !!(activeTeam || activePosition);
+  const activeTeam = decodeURIComponent((params.team || "").replace(/\+/g, " "));
+  const activePosition = decodeURIComponent((params.position || "").replace(/\+/g, " "));
 
   const filtered = playersWithRating.filter((p) => {
     if (activeTeam && p.team.name !== activeTeam) return false;

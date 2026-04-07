@@ -3,8 +3,9 @@ import { prisma } from "@/lib/prisma";
 // @ts-expect-error pdfkit types
 import PDFDocument from "pdfkit";
 
-export async function GET(_req: NextRequest, { params }: { params: { gameId: string } }) {
-  const gameId = parseInt(params.gameId);
+export async function GET(_req: NextRequest, { params }: { params: Promise<{ gameId: string }> }) {
+  const { gameId: gameIdStr } = await params;
+  const gameId = parseInt(gameIdStr);
   if (isNaN(gameId)) return NextResponse.json({ error: "Invalid game ID" }, { status: 400 });
 
   const game = await prisma.game.findUnique({
@@ -126,7 +127,6 @@ export async function GET(_req: NextRequest, { params }: { params: { gameId: str
       { label: "№", w: 22 },
       { label: "Гравець", w: 90 },
       { label: "Поз", w: 22 },
-      { label: "Хв", w: 20 },
       { label: "Оч", w: 22 },
       { label: "КП", w: 34 },
       { label: "%", w: 22 },
@@ -174,7 +174,6 @@ export async function GET(_req: NextRequest, { params }: { params: { gameId: str
         isStarter ? `*${p.number}` : `${p.number}`,
         `${p.lastName} ${p.firstName[0]}.`,
         p.position ?? "-",
-        `${bs?.minutes ?? 0}`,
         `${stats.points}`,
         stats.pctFg, stats.pctFgp,
         stats.pct2, stats.pct2p,

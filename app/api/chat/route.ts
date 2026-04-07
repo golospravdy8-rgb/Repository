@@ -111,7 +111,10 @@ export async function POST(req: NextRequest) {
 
     // Current month MVP vote
     const month = new Date().toISOString().slice(0, 7);
-    const mvpVote = await prisma.chatMvpVote.findUnique({ where: { voterPhone_month: { voterPhone: phone, month } } }).catch(() => null);
+    const mvpVote = await prisma.chatMvpVote.findUnique({
+      where: { voterPhone_month: { voterPhone: phone, month } },
+      include: { player: { select: { firstName: true, lastName: true } } }
+    }).catch(() => null);
 
     const origin = req.headers.get("origin") || process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_SITE_URL || "https://basket-lviv.com";
     const refLink = `${origin}/chat?ref=${encodeURIComponent(phone)}`;
@@ -122,7 +125,7 @@ export async function POST(req: NextRequest) {
       isMod: !!isMod,
       warns,
       pinnedMessage: pinned?.text ?? null,
-      mvpVote: mvpVote ? mvpVote.playerName : null,
+      mvpVote: mvpVote?.player ? `${mvpVote.player.firstName} ${mvpVote.player.lastName}` : null,
       refLink,
       isNewUser: !existing,
       slowMode: room[0]?.slowMode ?? false,
@@ -214,19 +217,29 @@ export async function POST(req: NextRequest) {
 
   // ── MVP vote ──────────────────────────────────────────────────────────────
   if (action === "mvp_vote") {
-    const { voterPhone, playerName } = body;
-    if (!voterPhone || !playerName)
-      return Response.json({ error: "voterPhone, playerName required" }, { status: 400 });
+    const { voterPhone, playerId } = body;
+    if (!voterPhone || !playerId)
+      return Response.json({ error: "voterPhone, playerId required" }, { status: 400 });
 
     const month = new Date().toISOString().slice(0, 7);
     try {
-      await prisma.chatMvpVote.create({ data: { voterPhone, playerName, month } });
+      // Check player exists
+      const player = await prisma.player.findUnique({ where: { id: playerId }, select: { firstName: true, lastName: true } });
+      if (!player) {
+        return Response.json({ error: "Player not found" }, { status: 404 });
+      }
+
+      await prisma.chatMvpVote.upsert({
+        where: { voterPhone_month: { voterPhone, month } },
+        update: { playerId },
+        create: { voterPhone, playerId, month }
+      });
+      const playerName = `${player.firstName} ${player.lastName}`;
       broadcast({ type: "mvp_vote", voterPhone, playerName });
       return Response.json({ ok: true, playerName });
-    } catch {
-      // unique constraint — already voted this month
-      const existing = await prisma.chatMvpVote.findUnique({ where: { voterPhone_month: { voterPhone, month } } });
-      return Response.json({ ok: false, alreadyVoted: true, playerName: existing?.playerName ?? "" });
+    } catch (error) {
+      console.error("MVP vote error:", error);
+      return Response.json({ ok: false, error: "Failed to submit vote" }, { status: 500 });
     }
   }
 

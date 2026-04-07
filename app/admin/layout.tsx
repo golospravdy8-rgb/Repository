@@ -20,6 +20,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   Дашборд
                 </Link>
                 <Link
+                  href="/admin/vip-requests"
+                  className="px-3 py-1.5 rounded text-xs font-medium text-gray-300 hover:text-white hover:bg-white/10 transition-colors"
+                >
+                  👑 VIP Заявки
+                </Link>
+                <Link
                   href="/admin/site-editor"
                   className="px-3 py-1.5 rounded text-xs font-medium text-gray-300 hover:text-white hover:bg-white/10 transition-colors"
                 >

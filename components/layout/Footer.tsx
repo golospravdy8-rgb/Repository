@@ -57,7 +57,7 @@ export default function Footer({
         backgroundColor: navyColor,
         ...(footerBg ? { backgroundImage: `url(${footerBg})`, backgroundSize: "cover", backgroundPosition: "center" } : {}),
       }}
-      className="mt-auto"
+      className="relative mt-auto"
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -69,7 +69,7 @@ export default function Footer({
                   <img src={logoUrl} alt={siteName} className="w-8 h-8 rounded-full object-cover" />
                 ) : (
                   <div
-                    className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs"
+                    className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs text-white"
                     style={{ backgroundColor: orangeColor }}
                   >
                     {logoText}
@@ -81,7 +81,7 @@ export default function Footer({
                 {about}
               </p>
 
-              {/* Соцмережі */}
+              {/* Соцмережі - Цветные круглые кнопки */}
               {hasSocial && (
                 <div className="flex gap-3 mt-4 flex-wrap">
                   {facebook && (
@@ -90,7 +90,7 @@ export default function Footer({
                       target="_blank"
                       rel="noopener noreferrer"
                       title="Facebook"
-                      className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white hover:opacity-80 transition-opacity"
+                      className="w-10 h-10 rounded-full flex items-center justify-center text-xs font-bold text-white hover:opacity-80 transition-opacity"
                       style={{ backgroundColor: "#1877f2" }}
                     >
                       f
@@ -102,7 +102,7 @@ export default function Footer({
                       target="_blank"
                       rel="noopener noreferrer"
                       title="Instagram"
-                      className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white hover:opacity-80 transition-opacity"
+                      className="w-10 h-10 rounded-full flex items-center justify-center text-xs font-bold text-white hover:opacity-80 transition-opacity"
                       style={{ background: "linear-gradient(45deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888)" }}
                     >
                       in
@@ -114,7 +114,7 @@ export default function Footer({
                       target="_blank"
                       rel="noopener noreferrer"
                       title="Telegram"
-                      className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white hover:opacity-80 transition-opacity"
+                      className="w-10 h-10 rounded-full flex items-center justify-center text-xs font-bold text-white hover:opacity-80 transition-opacity"
                       style={{ backgroundColor: "#0088cc" }}
                     >
                       tg
@@ -126,7 +126,7 @@ export default function Footer({
                       target="_blank"
                       rel="noopener noreferrer"
                       title="YouTube"
-                      className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white hover:opacity-80 transition-opacity"
+                      className="w-10 h-10 rounded-full flex items-center justify-center text-xs font-bold text-white hover:opacity-80 transition-opacity"
                       style={{ backgroundColor: "#ff0000" }}
                     >
                       yt
@@ -178,6 +178,7 @@ export default function Footer({
           © {new Date().getFullYear()} {copyright}
         </div>
       </div>
+
     </footer>
   );
 }

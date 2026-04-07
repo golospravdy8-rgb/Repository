@@ -27,6 +27,7 @@ export default function ScheduleTab({ games, teams }: { games: GameRow[]; teams:
   const [editingId, setEditingId] = useState<number | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [ageFilter, setAgeFilter] = useState<"younger" | "older">("younger");
+  const [error, setError] = useState<string | null>(null);
 
   // Determine ageGroup of a game by its home team
   const teamAgeMap: Record<number, string> = {};
@@ -55,7 +56,11 @@ export default function ScheduleTab({ games, teams }: { games: GameRow[]; teams:
   };
 
   const handleSave = () => {
-    if (!form.homeTeamId || !form.awayTeamId || !form.scheduledAt) return;
+    setError(null);
+    if (!form.homeTeamId || !form.awayTeamId || !form.scheduledAt) {
+      setError("Заповніть обов'язкові поля: команди та дату");
+      return;
+    }
     const data = {
       homeTeamId: Number(form.homeTeamId),
       awayTeamId: Number(form.awayTeamId),
@@ -66,23 +71,38 @@ export default function ScheduleTab({ games, teams }: { games: GameRow[]; teams:
       ageGroup: ageFilter,
     };
     startTransition(async () => {
-      if (editingId) {
-        await updateGame(editingId, data);
-      } else {
-        await createGame(data);
+      try {
+        if (editingId) {
+          await updateGame(editingId, data);
+        } else {
+          await createGame(data);
+        }
+        setForm(EMPTY_FORM);
+        setEditingId(null);
+        setShowForm(false);
+        setError(null);
+        router.refresh();
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Невідома помилка при збереженні матчу";
+        setError(message);
+        console.error("Error saving game:", err);
       }
-      setForm(EMPTY_FORM);
-      setEditingId(null);
-      setShowForm(false);
-      router.refresh();
     });
   };
 
   const handleDelete = (id: number) => {
     if (!confirm("Видалити матч?")) return;
+    setError(null);
     startTransition(async () => {
-      await deleteGame(id);
-      router.refresh();
+      try {
+        await deleteGame(id);
+        setError(null);
+        router.refresh();
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Невідома помилка при видаленні матчу";
+        setError(message);
+        console.error("Error deleting game:", err);
+      }
     });
   };
 
@@ -91,6 +111,21 @@ export default function ScheduleTab({ games, teams }: { games: GameRow[]; teams:
 
   return (
     <div className="space-y-5">
+      {/* Error message */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700 text-sm flex items-start justify-between">
+          <div>
+            <strong>⚠️ Помилка:</strong> {error}
+          </div>
+          <button
+            onClick={() => setError(null)}
+            className="text-red-500 hover:text-red-700 font-bold"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
       {/* Age group switcher */}
       <div className="flex items-center justify-between">
         <div className="flex gap-2">

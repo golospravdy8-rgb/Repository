@@ -8,7 +8,6 @@ interface PlayerRow {
   firstName: string;
   position: string | null;
   isStarter: boolean;
-  minutes: string | null;
   stats: {
     points: number;
     fmtFg: string; pctFg: string;
@@ -68,7 +67,6 @@ function teamTableHTML(
       <td style="${tdS}">${p.isStarter ? "★ " : ""}${p.number}</td>
       <td style="${tdS} text-align:left; font-weight:600;">${p.lastName} ${p.firstName[0]}.</td>
       <td style="${tdS}">${p.position ?? "-"}</td>
-      <td style="${tdS}">${p.minutes ?? "-"}</td>
       <td style="${tdS} font-weight:700; color:#0f172a;">${p.stats.points}</td>
       <td style="${tdS}">${p.stats.fmtFg}</td>
       <td style="${tdS} color:#94a3b8;">${p.stats.pctFg}</td>
@@ -102,7 +100,7 @@ function teamTableHTML(
       <table style="width:100%; border-collapse:collapse; font-size:11px;">
         <thead>
           <tr style="background:#1a2c56; color:#fff;">
-            ${["№","ГРАВЕЦЬ","ПОЗ","ХВ","ОЧ","КП","%","2О","%","3О","%","ШТ","%","НПД","ЗПД","ПДБ","ПЕР","ВТ","БЛК","ФОЛ"]
+            ${["№","ГРАВЕЦЬ","ПОЗ","ОЧ","КП","%","2О","%","3О","%","ШТ","%","НПД","ЗПД","ПДБ","ПЕР","ВТ","БЛК","ФОЛ"]
               .map((h, i) => `<th style="${thS}${i === 1 ? "text-align:left;" : ""}">${h}</th>`).join("")}
           </tr>
         </thead>
@@ -110,7 +108,7 @@ function teamTableHTML(
           ${starterRows}
           ${bench.length > 0 ? `
           <tr style="background:#e2e8f0;">
-            <td colspan="20" style="padding:4px 10px; font-size:10px; color:#64748b;
+            <td colspan="19" style="padding:4px 10px; font-size:10px; color:#64748b;
                 font-weight:600; letter-spacing:.05em;">ЛАВКА</td>
           </tr>
           ${benchRows}` : ""}
@@ -247,14 +245,20 @@ function buildProtocolHTML(data: GamePdfData): string {
 
 export default function GamePdfButton({ data }: { data: GamePdfData }) {
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   async function handleDownload() {
     setLoading(true);
+    setError(null);
     try {
       const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
         import("html2canvas"),
         import("jspdf"),
       ]);
+
+      if (!html2canvas || !jsPDF) {
+        throw new Error("Помилка завантаження необхідних модулів");
+      }
 
       // Створюємо прихований контейнер
       const container = document.createElement("div");
@@ -269,88 +273,114 @@ export default function GamePdfButton({ data }: { data: GamePdfData }) {
       container.innerHTML = buildProtocolHTML(data);
       document.body.appendChild(container);
 
-      // Чекаємо рендеринг
-      await new Promise((r) => setTimeout(r, 150));
+      try {
+        // Чекаємо рендеринг
+        await new Promise((r) => setTimeout(r, 200));
 
-      const canvas = await html2canvas(container, {
-        scale: 2,
-        useCORS: true,
-        logging: false,
-        backgroundColor: "#ffffff",
-      });
+        const canvas = await html2canvas(container, {
+          scale: 2,
+          useCORS: true,
+          logging: false,
+          backgroundColor: "#ffffff",
+          allowTaint: true,
+          imageTimeout: 5000,
+        });
 
-      document.body.removeChild(container);
+        const imgW = canvas.width;
+        const imgH = canvas.height;
 
-      const imgW = canvas.width;
-      const imgH = canvas.height;
+        // A4 landscape у px при 96dpi
+        const pdfW = imgW / 2;
+        const pdfH = imgH / 2;
 
-      // A4 landscape у px при 96dpi
-      const pdfW = imgW / 2;
-      const pdfH = imgH / 2;
+        const pdf = new jsPDF({
+          orientation: pdfW > pdfH ? "landscape" : "portrait",
+          unit: "px",
+          format: [pdfW, pdfH],
+          hotfixes: ["px_scaling"],
+        });
 
-      const pdf = new jsPDF({
-        orientation: pdfW > pdfH ? "landscape" : "portrait",
-        unit: "px",
-        format: [pdfW, pdfH],
-        hotfixes: ["px_scaling"],
-      });
+        pdf.addImage(
+          canvas.toDataURL("image/jpeg", 0.95),
+          "JPEG",
+          0, 0,
+          pdfW, pdfH,
+        );
 
-      pdf.addImage(
-        canvas.toDataURL("image/jpeg", 0.95),
-        "JPEG",
-        0, 0,
-        pdfW, pdfH,
-      );
+        const dateFile = new Date(data.scheduledAt)
+          .toLocaleDateString("uk-UA", { day: "2-digit", month: "2-digit", year: "numeric" })
+          .replace(/\./g, "-");
 
-      const dateFile = new Date(data.scheduledAt)
-        .toLocaleDateString("uk-UA", { day: "2-digit", month: "2-digit", year: "numeric" })
-        .replace(/\./g, "-");
-
-      pdf.save(
-        `protokol-gry-${data.id}-${data.homeTeam.shortName}-vs-${data.awayTeam.shortName}-${dateFile}.pdf`
-      );
+        pdf.save(
+          `protokol-gry-${data.id}-${data.homeTeam.shortName}-vs-${data.awayTeam.shortName}-${dateFile}.pdf`
+        );
+      } finally {
+        if (document.body.contains(container)) {
+          document.body.removeChild(container);
+        }
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "Невідома помилка";
+      setError(`Помилка генерації PDF: ${errorMessage}`);
+      console.error("PDF generation error:", err);
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <button
-      onClick={handleDownload}
-      disabled={loading}
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: "7px",
-        padding: "8px 18px",
-        background: loading ? "#fb923c" : "#f97316",
-        color: "#fff",
-        border: "none",
-        borderRadius: "8px",
-        fontWeight: 700,
-        fontSize: "13px",
-        cursor: loading ? "not-allowed" : "pointer",
-        fontFamily: "inherit",
-        transition: "background 0.15s",
-        whiteSpace: "nowrap",
-      }}
-    >
-      {loading ? (
-        <>
-          <span style={{
-            display: "inline-block",
-            width: 13, height: 13,
-            border: "2px solid rgba(255,255,255,0.35)",
-            borderTopColor: "#fff",
-            borderRadius: "50%",
-            animation: "pdfSpin 0.7s linear infinite",
-          }} />
-          Генерація PDF...
-        </>
-      ) : (
-        <>📄 Завантажити протокол PDF</>
+    <div style={{ display: "inline-flex", flexDirection: "column", gap: "8px", alignItems: "flex-start" }}>
+      <button
+        onClick={handleDownload}
+        disabled={loading}
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: "7px",
+          padding: "8px 18px",
+          background: loading ? "#fb923c" : error ? "#dc2626" : "#f97316",
+          color: "#fff",
+          border: "none",
+          borderRadius: "8px",
+          fontWeight: 700,
+          fontSize: "13px",
+          cursor: loading || error ? "not-allowed" : "pointer",
+          fontFamily: "inherit",
+          transition: "background 0.15s",
+          whiteSpace: "nowrap",
+        }}
+      >
+        {loading ? (
+          <>
+            <span style={{
+              display: "inline-block",
+              width: 13, height: 13,
+              border: "2px solid rgba(255,255,255,0.35)",
+              borderTopColor: "#fff",
+              borderRadius: "50%",
+              animation: "pdfSpin 0.7s linear infinite",
+            }} />
+            Генерація PDF...
+          </>
+        ) : error ? (
+          <>❌ Помилка</>
+        ) : (
+          <>📄 Завантажити протокол PDF</>
+        )}
+        <style>{`@keyframes pdfSpin { to { transform: rotate(360deg); } }`}</style>
+      </button>
+      {error && (
+        <div style={{
+          fontSize: "12px",
+          color: "#dc2626",
+          backgroundColor: "#fee2e2",
+          padding: "6px 10px",
+          borderRadius: "4px",
+          maxWidth: "300px",
+        }}>
+          {error}
+        </div>
       )}
-      <style>{`@keyframes pdfSpin { to { transform: rotate(360deg); } }`}</style>
-    </button>
+    </div>
   );
 }

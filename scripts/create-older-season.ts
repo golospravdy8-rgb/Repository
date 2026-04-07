@@ -135,7 +135,6 @@ async function main() {
           steals: Math.floor(Math.random() * 5),
           blocks: Math.floor(Math.random() * 4),
           fouls: Math.floor(Math.random() * 5),
-          minutes: 20 + Math.floor(Math.random() * 20),
         },
       });
     }
@@ -152,7 +151,6 @@ async function main() {
           steals: Math.floor(Math.random() * 5),
           blocks: Math.floor(Math.random() * 4),
           fouls: Math.floor(Math.random() * 5),
-          minutes: 20 + Math.floor(Math.random() * 20),
         },
       });
     }

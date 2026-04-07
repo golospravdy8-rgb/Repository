@@ -45,14 +45,17 @@ function calcPlayerStats(
   };
 }
 
-export default async function GamePage({ params }: { params: { id: string } }) {
-  const gameId = parseInt(params.id);
+export default async function GamePage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const gameId = parseInt(id);
   if (isNaN(gameId)) notFound();
 
   const game = await prisma.game.findUnique({
     where: { id: gameId },
     include: {
-      homeTeam: true,
+      homeTeam: {
+        include: { season: true }
+      },
       awayTeam: true,
       events: {
         include: { player: true },
@@ -71,6 +74,9 @@ export default async function GamePage({ params }: { params: { id: string } }) {
   const isFinal = game.status === "FINAL";
   const isScheduled = game.status === "SCHEDULED";
   const hasScore = isFinal || isLive;
+
+  // Get age group from season
+  const ageGroup = game.homeTeam.season?.ageGroup || "unknown";
 
   // Quarter scores from events
   const quarterScores = [1, 2, 3, 4].map((q) => {
@@ -158,32 +164,50 @@ export default async function GamePage({ params }: { params: { id: string } }) {
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+      {/* Back button */}
+      <div className="mb-4">
+        <Link href="/schedule" className="inline-flex items-center gap-2 text-sm text-orange-500 hover:text-orange-600 font-semibold">
+          ← До розкладу
+        </Link>
+      </div>
+
       {/* Score header */}
       <div className="bg-white rounded-xl shadow overflow-hidden mb-3">
         <div
           className="px-4 py-2 flex items-center justify-between text-white text-xs"
           style={{ backgroundColor: "#1a2744" }}
         >
-          <span className="font-semibold">
-            {new Date(game.scheduledAt).toLocaleDateString("uk-UA", {
-              day: "numeric",
-              month: "long",
-              year: "numeric",
-            })}
+          <div className="flex items-center gap-3">
+            <span className="font-semibold">
+              {new Date(game.scheduledAt).toLocaleDateString("uk-UA", {
+                day: "numeric",
+                month: "long",
+                year: "numeric",
+              })}
+              {isScheduled && (
+                <span className="ml-2 opacity-75">
+                  {new Date(game.scheduledAt).toLocaleTimeString("uk-UA", { hour: "2-digit", minute: "2-digit" })}
+                </span>
+              )}
+            </span>
+            <span className="opacity-60">•</span>
+            <span className="text-orange-400 font-semibold">
+              {ageGroup === "younger" ? "U-14" : ageGroup === "older" ? "U-16" : "Ліга"}
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
             {isScheduled && (
-              <span className="ml-2 opacity-75">
-                {new Date(game.scheduledAt).toLocaleTimeString("uk-UA", { hour: "2-digit", minute: "2-digit" })}
+              <span className="bg-blue-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+                ЗАПЛАНОВАНО
               </span>
             )}
-          </span>
-          <div className="flex items-center gap-2">
             {isLive && (
               <span className="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full animate-pulse">
                 LIVE • Q{game.quarter}
               </span>
             )}
             {isFinal && (
-              <span className="bg-white/20 text-xs px-2 py-0.5 rounded-full">ФІНАЛ</span>
+              <span className="bg-orange-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">ЗАВЕРШЕНО</span>
             )}
           </div>
         </div>
@@ -261,7 +285,6 @@ export default async function GamePage({ params }: { params: { id: string } }) {
                   firstName: bs.player.firstName,
                   position: bs.player.position ?? null,
                   isStarter,
-                  minutes: bs.minutes != null ? String(bs.minutes) : null,
                   stats,
                 })),
                 totals: homeBox.totals,
@@ -273,7 +296,6 @@ export default async function GamePage({ params }: { params: { id: string } }) {
                   firstName: bs.player.firstName,
                   position: bs.player.position ?? null,
                   isStarter,
-                  minutes: bs.minutes != null ? String(bs.minutes) : null,
                   stats,
                 })),
                 totals: awayBox.totals,
@@ -355,47 +377,51 @@ export default async function GamePage({ params }: { params: { id: string } }) {
                     </tr>
                   </thead>
                   <tbody>
-                    {box.players.map(({ bs, stats, isStarter }, i) => {
+                    {box.players.flatMap(({ bs, stats, isStarter }, i) => {
                       const prevIsStarter = i > 0 ? box.players[i - 1].isStarter : true;
                       const showBench = !isStarter && prevIsStarter;
-                      return (
-                        <>
-                          {showBench && (
-                            <tr key={`bench-${bs.id}`} className="bg-gray-50">
-                              <td colSpan={20} className="px-2 py-0.5 text-gray-400 font-semibold uppercase tracking-wider" style={{ fontSize: "9px" }}>
-                                Лавка
-                              </td>
-                            </tr>
-                          )}
-                          <tr key={bs.id} className="border-b last:border-0 hover:bg-gray-50">
-                            <td className="px-1.5 py-1 text-gray-400 font-medium">
-                              {isStarter && <span className="text-orange-400 mr-0.5">*</span>}
-                              {bs.player.number}
+                      const rows = [];
+
+                      if (showBench) {
+                        rows.push(
+                          <tr key={`bench-${bs.id}`} className="bg-gray-50">
+                            <td colSpan={20} className="px-2 py-0.5 text-gray-400 font-semibold uppercase tracking-wider" style={{ fontSize: "9px" }}>
+                              Лавка
                             </td>
-                            <td className="px-1.5 py-1 font-semibold text-gray-800 whitespace-nowrap">
-                              {bs.player.lastName} {bs.player.firstName[0]}.
-                            </td>
-                            <td className="px-1.5 py-1 text-center text-gray-400">{bs.player.position ?? "-"}</td>
-                            <td className="px-1.5 py-1 text-center text-gray-400">{bs.minutes || "-"}</td>
-                            <td className="px-1.5 py-1 text-center font-black" style={{ color: "#1a2744" }}>{stats.points}</td>
-                            <td className="px-1.5 py-1 text-center text-gray-600">{stats.fmtFg}</td>
-                            <td className="px-1.5 py-1 text-center text-gray-400">{stats.pctFg}</td>
-                            <td className="px-1.5 py-1 text-center text-gray-600">{stats.fmtFg2}</td>
-                            <td className="px-1.5 py-1 text-center text-gray-400">{stats.pctFg2}</td>
-                            <td className="px-1.5 py-1 text-center text-gray-600">{stats.fmtFg3}</td>
-                            <td className="px-1.5 py-1 text-center text-gray-400">{stats.pctFg3}</td>
-                            <td className="px-1.5 py-1 text-center text-gray-600">{stats.fmtFt}</td>
-                            <td className="px-1.5 py-1 text-center text-gray-400">{stats.pctFt}</td>
-                            <td className="px-1.5 py-1 text-center text-gray-600">{stats.reboundsOff || "-"}</td>
-                            <td className="px-1.5 py-1 text-center text-gray-600">{stats.reboundsDef || "-"}</td>
-                            <td className="px-1.5 py-1 text-center text-gray-600">{stats.rebounds || "-"}</td>
-                            <td className="px-1.5 py-1 text-center text-gray-600">{stats.assists || "-"}</td>
-                            <td className="px-1.5 py-1 text-center text-gray-600">{stats.turnovers || "-"}</td>
-                            <td className="px-1.5 py-1 text-center text-gray-600">{stats.blocks || "-"}</td>
-                            <td className="px-1.5 py-1 text-center text-red-500">{stats.fouls || "-"}</td>
                           </tr>
-                        </>
+                        );
+                      }
+
+                      rows.push(
+                        <tr key={bs.id} className="border-b last:border-0 hover:bg-gray-50">
+                          <td className="px-1.5 py-1 text-gray-400 font-medium">
+                            {isStarter && <span className="text-orange-400 mr-0.5">*</span>}
+                            {bs.player.number}
+                          </td>
+                          <td className="px-1.5 py-1 font-semibold text-gray-800 whitespace-nowrap">
+                            {bs.player.lastName} {bs.player.firstName[0]}.
+                          </td>
+                          <td className="px-1.5 py-1 text-center text-gray-400">{bs.player.position ?? "-"}</td>
+                          <td className="px-1.5 py-1 text-center font-black" style={{ color: "#1a2744" }}>{stats.points}</td>
+                          <td className="px-1.5 py-1 text-center text-gray-600">{stats.fmtFg}</td>
+                          <td className="px-1.5 py-1 text-center text-gray-400">{stats.pctFg}</td>
+                          <td className="px-1.5 py-1 text-center text-gray-600">{stats.fmtFg2}</td>
+                          <td className="px-1.5 py-1 text-center text-gray-400">{stats.pctFg2}</td>
+                          <td className="px-1.5 py-1 text-center text-gray-600">{stats.fmtFg3}</td>
+                          <td className="px-1.5 py-1 text-center text-gray-400">{stats.pctFg3}</td>
+                          <td className="px-1.5 py-1 text-center text-gray-600">{stats.fmtFt}</td>
+                          <td className="px-1.5 py-1 text-center text-gray-400">{stats.pctFt}</td>
+                          <td className="px-1.5 py-1 text-center text-gray-600">{stats.reboundsOff || "-"}</td>
+                          <td className="px-1.5 py-1 text-center text-gray-600">{stats.reboundsDef || "-"}</td>
+                          <td className="px-1.5 py-1 text-center text-gray-600">{stats.rebounds || "-"}</td>
+                          <td className="px-1.5 py-1 text-center text-gray-600">{stats.assists || "-"}</td>
+                          <td className="px-1.5 py-1 text-center text-gray-600">{stats.turnovers || "-"}</td>
+                          <td className="px-1.5 py-1 text-center text-gray-600">{stats.blocks || "-"}</td>
+                          <td className="px-1.5 py-1 text-center text-red-500">{stats.fouls || "-"}</td>
+                        </tr>
                       );
+
+                      return rows;
                     })}
                     {/* Totals row */}
                     <tr className="bg-slate-50 font-bold border-t border-gray-200">

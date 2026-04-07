@@ -6,8 +6,9 @@ import { Suspense } from "react";
 export const metadata = { title: "Команди — Ліга ESCULAB" };
 export const dynamic = "force-dynamic";
 
-export default async function TeamsPage({ searchParams }: { searchParams: { ag?: string } }) {
-  const ag = searchParams.ag === "older" ? "older" : "younger";
+export default async function TeamsPage({ searchParams }: { searchParams: Promise<{ ag?: string }> }) {
+  const params = await searchParams;
+  const ag = params.ag === "older" ? "older" : "younger";
   const label = ag === "older" ? "U-16" : "U-14";
 
   const season = await prisma.season.findFirst({ where: { isActive: true, ageGroup: ag } }).catch(() => null);

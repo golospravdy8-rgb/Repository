@@ -5,6 +5,23 @@ import { revalidatePath } from "next/cache";
 import { requireAuth } from "@/lib/require-auth";
 import { checkNewAchievements } from "@/lib/achievements";
 
+/**
+ * All possible boxScore fields that can be incremented by game events.
+ * Mapped to their corresponding database column names in the boxScore table.
+ */
+type BoxScoreField =
+  | "rebounds"      // General rebounds
+  | "reboundsOff"   // Offensive rebounds
+  | "reboundsDef"   // Defensive rebounds
+  | "assists"       // Assists
+  | "steals"        // Steals
+  | "blocks"        // Blocks
+  | "fouls"         // Fouls (personal, technical, unsportsmanlike)
+  | "turnovers"     // Turnovers
+  | "missedFg2"     // Missed 2-pointers
+  | "missedFg3"     // Missed 3-pointers
+  | "missedFt";     // Missed free throws
+
 export async function addPlayer(teamId: number, gameId: number, firstName: string, lastName: string, number: number, position: string) {
   await requireAuth();
   await prisma.player.create({
@@ -152,7 +169,7 @@ async function addStatEvent(
   teamId: number,
   playerId: number,
   eventType: string,
-  boxScoreField: "rebounds" | "assists" | "steals" | "blocks"
+  boxScoreField: BoxScoreField
 ): Promise<{ newAchievements: string[] }> {
   const game = await prisma.game.findUnique({ where: { id: gameId } });
   if (!game || game.status !== "LIVE") throw new Error("Game not live");
@@ -324,7 +341,7 @@ export async function undoLastEvent(gameId: number) {
   }
 
   // Reverse stat events
-  const statMap: Record<string, "rebounds" | "reboundsOff" | "reboundsDef" | "assists" | "steals" | "blocks" | "fouls" | "turnovers" | "missedFg2" | "missedFg3" | "missedFt"> = {
+  const statMap: Record<string, BoxScoreField> = {
     REBOUND: "rebounds",
     REBOUND_OFF: "reboundsOff",
     REBOUND_DEF: "reboundsDef",

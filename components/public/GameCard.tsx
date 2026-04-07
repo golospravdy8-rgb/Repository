@@ -1,6 +1,9 @@
+"use client";
+
 import Link from "next/link";
 import Image from "next/image";
 import type { Game, Team, Season } from "@prisma/client";
+import { useState } from "react";
 
 type GameWithTeams = Game & { homeTeam: Team; awayTeam: Team; season?: Season | null };
 
@@ -24,6 +27,7 @@ function TeamLogo({ logoUrl, name }: { logoUrl: string | null; name: string }) {
 }
 
 export default function GameCard({ game }: { game: GameWithTeams }) {
+  const [shadow, setShadow] = useState("0 1px 3px rgba(0,0,0,0.08)");
   const isLive  = game.status === "LIVE";
   const isFinal = game.status === "FINAL";
   const hasScore = isFinal || isLive;
@@ -54,12 +58,12 @@ export default function GameCard({ game }: { game: GameWithTeams }) {
         borderRadius: 8,
         overflow: "hidden",
         width: 210,
-        boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
+        boxShadow: shadow,
         transition: "box-shadow 0.2s",
         cursor: "pointer",
       }}
-        onMouseEnter={(e) => (e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.15)")}
-        onMouseLeave={(e) => (e.currentTarget.style.boxShadow = "0 1px 3px rgba(0,0,0,0.08)")}
+        onMouseEnter={() => setShadow("0 4px 12px rgba(0,0,0,0.15)")}
+        onMouseLeave={() => setShadow("0 1px 3px rgba(0,0,0,0.08)")}
       >
 
         {/* ЗОНА 1 — світло-сіра: ліга + статус */}

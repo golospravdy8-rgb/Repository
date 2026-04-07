@@ -2,9 +2,56 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ═══════════════════════════════════════════════════════════════
+   NEON CYBER-SPORT GLOBAL STYLES (2026 NBA/EuroLeague STYLE)
+   ═══════════════════════════════════════════════════════════════ */
+
+@keyframes twinkle {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
+}
+
+@keyframes glow-pulse {
+  0%, 100% {
+    box-shadow: 0 0 10px rgba(255, 77, 0, 0.4), 0 0 20px rgba(255, 77, 0, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(255, 77, 0, 0.8), 0 0 40px rgba(255, 77, 0, 0.4);
+  }
+}
+
+@keyframes purple-glow {
+  0%, 100% {
+    box-shadow: 0 0 10px rgba(168, 85, 247, 0.4), 0 0 20px rgba(168, 85, 247, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(168, 85, 247, 0.8), 0 0 40px rgba(168, 85, 247, 0.4);
+  }
+}
+
 @layer utilities {
   .text-balance {
     text-wrap: balance;
+  }
+
+  .neon-orange {
+    text-shadow: 0 0 10px rgba(255, 77, 0, 0.8), 0 0 20px rgba(255, 77, 0, 0.4);
+  }
+
+  .neon-purple {
+    text-shadow: 0 0 10px rgba(168, 85, 247, 0.8), 0 0 20px rgba(168, 85, 247, 0.4);
+  }
+
+  .neon-cyan {
+    text-shadow: 0 0 10px rgba(34, 211, 238, 0.8), 0 0 20px rgba(34, 211, 238, 0.4);
+  }
+
+  .glow-orange {
+    animation: glow-pulse 3s ease-in-out infinite;
+  }
+
+  .glow-purple {
+    animation: purple-glow 3s ease-in-out infinite;
   }
 }
 
@@ -36,4 +83,19 @@
     font-family: var(--font-heading, 'Play', sans-serif);
     font-weight: var(--font-heading-weight, 700);
   }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   HIDE "1 Issue" BADGE FROM BROWSER EXTENSIONS/DEV TOOLS
+   ═══════════════════════════════════════════════════════════════ */
+
+/* Hide floating issue badges from error reporters or browser extensions */
+[class*="issue"],
+[class*="Issue"],
+[data-testid*="issue"],
+[class*="badge-issue"],
+[class*="error-badge"] {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
 }

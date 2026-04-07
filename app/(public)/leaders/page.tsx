@@ -5,21 +5,24 @@ import LeadersSection from "@/components/public/LeadersSection";
 export const metadata = { title: "Лідери — Ліга ESCULAB" };
 export const dynamic = "force-dynamic";
 
-export default async function LeadersPage({ searchParams }: { searchParams: { ag?: string } }) {
-  const ag = searchParams.ag === "older" ? "older" : "younger";
+export default async function LeadersPage({ searchParams }: { searchParams: Promise<{ ag?: string }> }) {
+  const params = await searchParams;
+  const ag = params.ag === "older" ? "older" : "younger";
   const label = ag === "older" ? "U-16" : "U-14";
 
   const season = await prisma.season.findFirst({ where: { isActive: true, ageGroup: ag } }).catch(() => null);
+  console.log(`[Leaders] ag=${ag}, season found:`, season?.id);
 
   const boxScores = season
     ? await prisma.boxScore.findMany({
         where: { game: { seasonId: season.id, status: "FINAL" } },
         include: {
-          player: { select: { firstName: true, lastName: true } },
+          player: { select: { firstName: true, lastName: true, photoUrl: true } },
           team: { select: { name: true, shortName: true } },
         },
       }).catch(() => [])
     : [];
+  console.log(`[Leaders] boxScores count:`, boxScores.length);
 
   const leaders = calculateLeaderStats(boxScores);
 

@@ -7,7 +7,7 @@ import path from "path";
 
 
 const VALID_TYPES = ["logo", "ogImage", "heroBg", "headerBg", "footerBg", "pageBg"];
-const ENTITY_TYPES = ["team-logo", "player-photo"];
+const ENTITY_TYPES = ["team-logo", "player-photo", "news"];
 const MAX_SIZE_BYTES = 5 * 1024 * 1024; // 5MB
 
 export async function POST(req: NextRequest) {
@@ -39,31 +39,51 @@ export async function POST(req: NextRequest) {
 
     const buffer = Buffer.from(await file.arrayBuffer());
 
+    // === NEW HERO BACKGROUND ARCHITECTURE (file-based, no base64) ===
+    if (VALID_TYPES.includes(cleanType)) {
+      // Save site image files (heroBg, logo, etc.) as real files in public/images/
+      const imagesDir = path.join(process.cwd(), "public", "images");
+      await mkdir(imagesDir, { recursive: true });
+
+      // Use fixed filename per type (hero-bg.jpg, logo.jpg, etc.)
+      const ext = file.name.split(".").pop() || "jpg";
+      const fileName = `${cleanType}.${ext}`;
+      const filePath = path.join(imagesDir, fileName);
+      await writeFile(filePath, buffer);
+
+      const url = `/images/${fileName}`;
+      await setSettings({ [`images.${cleanType}`]: url });
+
+      console.log("[upload] saved site image:", url);
+      revalidatePath("/", "layout");
+      return NextResponse.json({ url, ok: true });
+    }
+
+    // Entity types (team logos, player photos) — save in public/uploads/
     if (ENTITY_TYPES.includes(type)) {
-      // Зберігаємо файл на диск у public/uploads/ і повертаємо публічний URL
       const ext = file.name.split(".").pop() || "jpg";
       const fileName = `${type}-${Date.now()}.${ext}`;
       const uploadsDir = path.join(process.cwd(), "public", "uploads");
       await mkdir(uploadsDir, { recursive: true });
       await writeFile(path.join(uploadsDir, fileName), buffer);
       const url = `/uploads/${fileName}`;
-      console.log("[upload] saved file:", url);
+      console.log("[upload] saved entity file:", url);
       return NextResponse.json({ url, ok: true });
     }
 
+    // Banners — still use base64 for now (optional: refactor later)
     const mimeType = file.type || "image/png";
     const dataUrl = `data:${mimeType};base64,${buffer.toString("base64")}`;
 
-    if (VALID_TYPES.includes(cleanType)) {
-      await setSettings({ [`images.${cleanType}`]: dataUrl });
-    } else if (type.startsWith("banner-")) {
+    if (type.startsWith("banner-")) {
       const slot = type.replace("banner-", "");
       await setSettings({ [`banner.${slot}.img`]: dataUrl });
+      console.log("[upload] saved banner:", `banner.${slot}.img`);
+      revalidatePath("/", "layout");
+      return NextResponse.json({ url: dataUrl, ok: true });
     }
 
-    console.log("[upload] saved key:", `images.${cleanType}`, "dataUrl length:", dataUrl.length);
-    revalidatePath("/", "layout");
-    return NextResponse.json({ url: dataUrl, ok: true });
+    return NextResponse.json({ error: "Невідомий тип файлу" }, { status: 400 });
   } catch (err) {
     console.error("[upload] error:", err);
     return NextResponse.json({ error: String(err) }, { status: 500 });

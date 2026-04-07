@@ -9,9 +9,10 @@ export const dynamic = "force-dynamic";
 export async function generateMetadata({
   params,
 }: {
-  params: { slug: string };
+  params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
-  const news = await prisma.news.findUnique({ where: { slug: params.slug } }).catch(() => null);
+  const { slug } = await params;
+  const news = await prisma.news.findUnique({ where: { slug } }).catch(() => null);
   if (!news) return { title: "Новину не знайдено" };
   return { title: `${news.title} — Ліга ESCULAB` };
 }
@@ -19,10 +20,11 @@ export async function generateMetadata({
 export default async function NewsSlugPage({
   params,
 }: {
-  params: { slug: string };
+  params: Promise<{ slug: string }>;
 }) {
+  const { slug } = await params;
   const news = await prisma.news.findUnique({
-    where: { slug: params.slug, isPublished: true },
+    where: { slug, isPublished: true },
   }).catch(() => null);
 
   if (!news) notFound();

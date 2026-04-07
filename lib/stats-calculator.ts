@@ -7,6 +7,7 @@ export type LeaderStats = {
   lastName: string;
   teamName: string;
   teamShortName: string;
+  photoUrl: string | null;
   ppg: number;
   rpg: number;
   apg: number;
@@ -30,7 +31,7 @@ export function calculateVAL(boxScore: BoxScore): number {
 }
 
 type BoxScoreWithPlayer = BoxScore & {
-  player: { firstName: string; lastName: string };
+  player: { firstName: string; lastName: string; photoUrl: string | null };
   team: { name: string; shortName: string };
 };
 
@@ -38,6 +39,7 @@ export function calculateLeaderStats(boxScores: BoxScoreWithPlayer[]): LeaderSta
   const playerMap = new Map<number, {
     firstName: string;
     lastName: string;
+    photoUrl: string | null;
     teamName: string;
     teamShortName: string;
     points: number;
@@ -63,6 +65,7 @@ export function calculateLeaderStats(boxScores: BoxScoreWithPlayer[]): LeaderSta
       playerMap.set(bs.playerId, {
         firstName: bs.player.firstName,
         lastName: bs.player.lastName,
+        photoUrl: bs.player.photoUrl,
         teamName: bs.team.name,
         teamShortName: bs.team.shortName,
         points: bs.points,
@@ -87,6 +90,7 @@ export function calculateLeaderStats(boxScores: BoxScoreWithPlayer[]): LeaderSta
       lastName: data.lastName,
       teamName: data.teamName,
       teamShortName: data.teamShortName,
+      photoUrl: data.photoUrl,
       ppg: Math.round((data.points / g) * 10) / 10,
       rpg: Math.round((data.rebounds / g) * 10) / 10,
       apg: Math.round((data.assists / g) * 10) / 10,
