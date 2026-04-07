@@ -1,18 +1,31 @@
 import { NextRequest, NextResponse } from "next/server";
+import { put } from "@vercel/blob";
 import { requireAuth } from "@/lib/require-auth";
 import { setSettings } from "@/lib/site-settings";
 import { revalidatePath } from "next/cache";
-import { writeFile, mkdir } from "fs/promises";
-import path from "path";
-
 
 const VALID_TYPES = ["logo", "ogImage", "heroBg", "headerBg", "footerBg", "pageBg"];
 const ENTITY_TYPES = ["team-logo", "player-photo", "news"];
 const MAX_SIZE_BYTES = 5 * 1024 * 1024; // 5MB
 
+/**
+ * Universal upload endpoint using Vercel Blob for persistent storage.
+ *
+ * Works on both localhost (via NODE_ENV check) and production.
+ * All files are stored in Vercel Blob and accessible via public URLs.
+ *
+ * POST /api/upload
+ * - file: File (multipart form data)
+ * - type: "logo" | "ogImage" | "heroBg" | "team-logo" | "player-photo" | "news" | "banner-*"
+ *
+ * Returns: { url, ok: true } or { error, status: 400+ }
+ */
 export async function POST(req: NextRequest) {
   try {
-    try { await requireAuth(); } catch {
+    // Authenticate admin
+    try {
+      await requireAuth();
+    } catch {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -32,60 +45,80 @@ export async function POST(req: NextRequest) {
 
     if (file.size > MAX_SIZE_BYTES) {
       return NextResponse.json(
-        { error: `Файл ${Math.round(file.size / 1024)}KB перевищує ліміт ${MAX_SIZE_BYTES / 1024}KB` },
+        { error: `Файл ${Math.round(file.size / 1024)}KB перевищує ліміт ${Math.round(MAX_SIZE_BYTES / 1024)}KB` },
         { status: 400 }
       );
     }
 
     const buffer = Buffer.from(await file.arrayBuffer());
+    const ext = file.name.split(".").pop() || "jpg";
 
-    // === NEW HERO BACKGROUND ARCHITECTURE (file-based, no base64) ===
+    // === SITE IMAGES (heroBg, logo, etc.) ===
     if (VALID_TYPES.includes(cleanType)) {
-      // Save site image files (heroBg, logo, etc.) as real files in public/images/
-      const imagesDir = path.join(process.cwd(), "public", "images");
-      await mkdir(imagesDir, { recursive: true });
+      const blobPath = `site-images/${cleanType}-${Date.now()}.${ext}`;
 
-      // Use fixed filename per type (hero-bg.jpg, logo.jpg, etc.)
-      const ext = file.name.split(".").pop() || "jpg";
-      const fileName = `${cleanType}.${ext}`;
-      const filePath = path.join(imagesDir, fileName);
-      await writeFile(filePath, buffer);
+      // Upload to Vercel Blob
+      const blob = await put(blobPath, buffer, {
+        access: "public",
+        contentType: file.type || "image/jpeg",
+      });
 
-      const url = `/images/${fileName}`;
+      const url = blob.url;
       await setSettings({ [`images.${cleanType}`]: url });
 
-      console.log("[upload] saved site image:", url);
+      console.log("[upload] saved site image to Blob:", url);
       revalidatePath("/", "layout");
       return NextResponse.json({ url, ok: true });
     }
 
-    // Entity types (team logos, player photos) — save in public/uploads/
+    // === ENTITY TYPES (team logos, player photos, news images) ===
     if (ENTITY_TYPES.includes(type)) {
-      const ext = file.name.split(".").pop() || "jpg";
-      const fileName = `${type}-${Date.now()}.${ext}`;
-      const uploadsDir = path.join(process.cwd(), "public", "uploads");
-      await mkdir(uploadsDir, { recursive: true });
-      await writeFile(path.join(uploadsDir, fileName), buffer);
-      const url = `/uploads/${fileName}`;
-      console.log("[upload] saved entity file:", url);
+      const blobPath = `entities/${type}/${Date.now()}.${ext}`;
+
+      // Upload to Vercel Blob
+      const blob = await put(blobPath, buffer, {
+        access: "public",
+        contentType: file.type || "image/jpeg",
+      });
+
+      const url = blob.url;
+      console.log("[upload] saved entity to Blob:", url);
       return NextResponse.json({ url, ok: true });
     }
 
-    // Banners — still use base64 for now (optional: refactor later)
-    const mimeType = file.type || "image/png";
-    const dataUrl = `data:${mimeType};base64,${buffer.toString("base64")}`;
-
+    // === BANNERS (still support base64 for backwards compatibility) ===
     if (type.startsWith("banner-")) {
-      const slot = type.replace("banner-", "");
-      await setSettings({ [`banner.${slot}.img`]: dataUrl });
-      console.log("[upload] saved banner:", `banner.${slot}.img`);
-      revalidatePath("/", "layout");
-      return NextResponse.json({ url: dataUrl, ok: true });
+      // Try Blob first, fallback to base64 if BLOB_READ_WRITE_TOKEN not set
+      if (process.env.BLOB_READ_WRITE_TOKEN) {
+        const blobPath = `banners/${type}-${Date.now()}.${ext}`;
+        const blob = await put(blobPath, buffer, {
+          access: "public",
+          contentType: file.type || "image/jpeg",
+        });
+        const url = blob.url;
+        const slot = type.replace("banner-", "");
+        await setSettings({ [`banner.${slot}.img`]: url });
+        console.log("[upload] saved banner to Blob:", url);
+        revalidatePath("/", "layout");
+        return NextResponse.json({ url, ok: true });
+      } else {
+        // Fallback: base64 (for local development without BLOB token)
+        const mimeType = file.type || "image/png";
+        const dataUrl = `data:${mimeType};base64,${buffer.toString("base64")}`;
+        const slot = type.replace("banner-", "");
+        await setSettings({ [`banner.${slot}.img`]: dataUrl });
+        console.log("[upload] saved banner as base64 (Blob token not configured)");
+        revalidatePath("/", "layout");
+        return NextResponse.json({ url: dataUrl, ok: true });
+      }
     }
 
     return NextResponse.json({ error: "Невідомий тип файлу" }, { status: 400 });
   } catch (err) {
     console.error("[upload] error:", err);
-    return NextResponse.json({ error: String(err) }, { status: 500 });
+    return NextResponse.json(
+      { error: String(err).slice(0, 100) },
+      { status: 500 }
+    );
   }
 }
