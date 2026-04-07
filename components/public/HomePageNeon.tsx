@@ -346,6 +346,38 @@ export default function HomePageNeon({ season, standings = [], players = [], ag 
   // ═══════════════════════════════════════════════════════════════
   // TRANSMISSION / LIVE SECTION
   // ═══════════════════════════════════════════════════════════════
+  // STATIC SUBSCRIBE BOX — Always visible, never changes
+  // ═══════════════════════════════════════════════════════════════
+  const StaticSubscribeBox = () => {
+    const channelUrl = settings?.['stream.youtubeChannelId']
+      ? `https://www.youtube.com/channel/${settings['stream.youtubeChannelId']}`
+      : 'https://youtube.com';
+
+    return (
+      <div className="p-5 md:p-6 bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 border-2 border-orange-500 rounded-xl shadow-[0_0_30px_rgba(255,77,0,0.4)] hover:shadow-[0_0_40px_rgba(255,77,0,0.5)] transition-shadow duration-300 h-full flex flex-col justify-between">
+        <div>
+          <div className="flex items-center gap-2 mb-2.5">
+            <div className="w-5 h-5 bg-orange-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(255,77,0,0.8)]"></div>
+            <span className="text-orange-400 font-bold text-sm md:text-base">ТРАНСЛЯЦІЯ</span>
+          </div>
+          <h3 className="text-xl md:text-2xl font-black text-white mb-1.5">Прямий ефір</h3>
+          <p className="text-gray-300 text-xs md:text-sm mb-4">Дивіться матчі в прямому ефірі</p>
+        </div>
+        <a
+          href={channelUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="w-full px-4 md:px-6 py-2.5 md:py-3 bg-gradient-to-r from-red-600 to-red-700 text-white font-bold text-sm md:text-base rounded-lg hover:shadow-[0_0_25px_rgba(220,38,38,0.8)] transition duration-300 flex items-center justify-center gap-2"
+        >
+          ▶️ Підписатись на канал
+        </a>
+      </div>
+    );
+  };
+
+  // ═══════════════════════════════════════════════════════════════
+  // DYNAMIC LIVESTREAM SECTION — Countdown, live status, etc.
+  // ═══════════════════════════════════════════════════════════════
   const LiveSection = () => {
     // Prepare stream config from settings
     const streamConfig = {
@@ -362,15 +394,11 @@ export default function HomePageNeon({ season, standings = [], players = [], ag 
       <section className="bg-slate-950 py-8 px-4 border-y border-purple-500/30">
         <div className="max-w-7xl mx-auto">
           <div className="grid md:grid-cols-2 gap-6 items-center">
-            {/* LiveStreamWidget replaces the left box */}
-            <div>
-              <LiveStreamWidget config={streamConfig} />
-            </div>
+            {/* Left: Static Subscribe Box — Always shows subscribe button */}
+            <StaticSubscribeBox />
 
-            {/* Hologram court (visual element) — countdown/timer goes here */}
-            <div>
-              <LiveStreamWidget config={streamConfig} />
-            </div>
+            {/* Right: Dynamic Live Stream Widget — Shows countdown/live status */}
+            <LiveStreamWidget config={streamConfig} />
           </div>
         </div>
       </section>
