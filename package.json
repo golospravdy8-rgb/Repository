@@ -22,6 +22,7 @@
     "db:reset-teams": "npm run db:clean-teams && npm run db:seed-custom",
     "db:studio": "prisma studio",
     "db:fix-sequence": "node scripts/fix-sitesettings-sequence.js",
+    "db:migrate-images": "tsx scripts/migrate-images-to-blob.ts",
     "postinstall": "prisma generate",
     "auth": "node packages/auth/src/authServer.js",
     "marketplace": "npx next dev apps/marketplace -p 3007",
