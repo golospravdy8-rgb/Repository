@@ -8,10 +8,35 @@ import { requireAuth } from "@/lib/require-auth";
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage({ searchParams }: { searchParams: Promise<{ ag?: string }> }) {
-  await requireAuth();
+  try {
+    console.log("[dashboard] Page load started");
+
+    console.log("[dashboard] Checking auth...");
+    await requireAuth();
+    console.log("[dashboard] Auth passed");
+  } catch (authErr) {
+    console.error("[dashboard] Auth check failed:", authErr instanceof Error ? authErr.message : String(authErr));
+    throw authErr;
+  }
   const params = await searchParams;
   const ag = params.ag === "older" ? "older" : "younger";
 
+  try {
+    console.log("[dashboard] Testing DB connection...");
+    const testQuery = await prisma.game.findFirst({
+      select: { id: true },
+    });
+    console.log("[dashboard] DB connection OK");
+  } catch (dbErr) {
+    const msg = dbErr instanceof Error ? dbErr.message : String(dbErr);
+    console.error("[dashboard] DB connection FAILED:", msg, {
+      DATABASE_URL_exists: !!process.env.DATABASE_URL,
+      NODE_ENV: process.env.NODE_ENV,
+    });
+    throw dbErr;
+  }
+
+  console.log("[dashboard] Fetching dashboard data...");
   const [season, gamesCount, teamsCount, playersCount] = await Promise.all([
     prisma.season.findFirst({ where: { isActive: true, ageGroup: ag } }),
     prisma.game.count(),

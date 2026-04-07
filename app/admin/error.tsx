@@ -1,4 +1,5 @@
 "use client";
+import { useEffect } from "react";
 import Link from "next/link";
 
 export default function AdminError({
@@ -8,6 +9,15 @@ export default function AdminError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  useEffect(() => {
+    console.error("[admin/error.tsx] Error caught:", {
+      message: error.message,
+      digest: error.digest,
+      stack: error.stack,
+      timestamp: new Date().toISOString(),
+    });
+  }, [error]);
+
   return (
     <div style={{
       maxWidth: 480,
@@ -25,6 +35,18 @@ export default function AdminError({
       <p style={{ color: "#6b7280", fontSize: 14, margin: "0 0 20px" }}>
         Не вдалося завантажити розділ адміністрування.
       </p>
+
+      {process.env.NODE_ENV === "development" && (
+        <details style={{ background: "#f5f5f5", padding: "12px", borderRadius: "8px", marginBottom: "20px", textAlign: "left", fontSize: 12 }}>
+          <summary style={{ cursor: "pointer", fontWeight: "bold", color: "red", marginBottom: "8px" }}>
+            🔍 Error Details (Dev Only)
+          </summary>
+          <pre style={{ margin: "8px 0 0", fontSize: "11px", overflowX: "auto", background: "#fff", padding: "8px", borderRadius: "4px" }}>
+            {error.message}
+            {error.stack && "\n\n" + error.stack}
+          </pre>
+        </details>
+      )}
       <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
         <button
           onClick={reset}
