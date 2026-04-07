@@ -48,8 +48,10 @@ model Player {
   manualSteals    Int?
   boxScores       BoxScore[]
   gameEvents      GameEvent[]
+  videos          Video[]
   team            Team                @relation(fields: [teamId], references: [id])
   achievements    PlayerAchievement[]
+  mvpVotes        ChatMvpVote[]
 }
 
 model Game {
@@ -93,17 +95,12 @@ model BoxScore {
   steals      Int     @default(0)
   blocks      Int     @default(0)
   fouls       Int     @default(0)
-  minutes     Int     @default(0)
   isStarter   Boolean @default(false)
-  missedFg2   Int     @default(0)
-  missedFg3   Int     @default(0)
-  missedFt    Int     @default(0)
-  reboundsDef Int     @default(0)
-  reboundsOff Int     @default(0)
-  turnovers   Int     @default(0)
   game        Game    @relation(fields: [gameId], references: [id])
   player      Player  @relation(fields: [playerId], references: [id])
   team        Team    @relation(fields: [teamId], references: [id])
+
+  @@unique([gameId, playerId])
 }
 
 model Standing {
@@ -151,8 +148,10 @@ model Video {
   url         String
   thumbnail   String?
   type        String   @default("highlights")
+  playerId    Int?
   publishedAt DateTime @default(now())
   isPublished Boolean  @default(true)
+  player      Player?  @relation(fields: [playerId], references: [id], onDelete: SetNull)
 }
 
 model Review {
@@ -173,8 +172,12 @@ model GuestContact {
   createdAt      DateTime @default(now())
   avatarInitials String?
   childTeamId    Int?
+  playerId       Int?
   displayName    String?
   role           String   @default("guest")
+  vipStatus      Boolean  @default(false)
+  vipExpiresAt   DateTime?
+  telegramId     String?  // Telegram ID батька для сповіщень
 }
 
 model MvpVote {
@@ -259,11 +262,16 @@ model ChatPinnedMessage {
 model ChatMvpVote {
   id         Int      @id @default(autoincrement())
   voterPhone String
-  playerName String
+  playerId   Int?
   month      String
   createdAt  DateTime @default(now())
 
+  player     Player?  @relation(fields: [playerId], references: [id])
+
   @@unique([voterPhone, month])
+  @@index([playerId])
+  @@index([month])
+  @@index([month, playerId]) // Composite index for vote counting queries
 }
 
 model ChatDailyFirstMsg {

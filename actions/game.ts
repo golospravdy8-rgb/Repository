@@ -61,9 +61,6 @@ export async function addScore(
     }),
   ]);
 
-  // TODO: playerAchievement model not in schema yet
-  // const newAchievements = await syncAchievements(playerId);
-
   revalidatePath(`/game/${gameId}`);
   revalidatePath(`/admin/games/${gameId}`);
   revalidatePath(`/players/${playerId}`);
@@ -155,7 +152,7 @@ async function addStatEvent(
   teamId: number,
   playerId: number,
   eventType: string,
-  boxScoreField: "rebounds" | "reboundsOff" | "reboundsDef" | "assists" | "steals" | "blocks" | "turnovers" | "missedFg2" | "missedFg3" | "missedFt"
+  boxScoreField: "rebounds" | "assists" | "steals" | "blocks"
 ): Promise<{ newAchievements: string[] }> {
   const game = await prisma.game.findUnique({ where: { id: gameId } });
   if (!game || game.status !== "LIVE") throw new Error("Game not live");
@@ -164,17 +161,16 @@ async function addStatEvent(
     data: { gameId, teamId, playerId, type: eventType, quarter: game.quarter },
   });
 
-  const existing = await prisma.boxScore.findFirst({ where: { gameId, playerId } });
-  if (existing) {
-    await prisma.boxScore.update({
-      where: { id: existing.id },
-      data: { [boxScoreField]: { increment: 1 } },
-    });
-  } else {
-    await prisma.boxScore.create({
-      data: { gameId, playerId, teamId, [boxScoreField]: 1 },
-    });
-  }
+  // Use upsert for atomic increment operation with valid field names
+  const updateData: Record<string, { increment: number }> = {
+    [boxScoreField]: { increment: 1 },
+  };
+
+  await prisma.boxScore.upsert({
+    where: { gameId_playerId: { gameId, playerId } },
+    create: { gameId, playerId, teamId, [boxScoreField]: 1 },
+    update: updateData as any,
+  });
 
   // TODO: playerAchievement model not in schema yet
   // const newAchievements = await syncAchievements(playerId);
