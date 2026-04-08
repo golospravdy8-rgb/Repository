@@ -2,16 +2,12 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { formatDistanceToNow } from 'date-fns';
-import { uk } from 'date-fns/locale';
 
 interface VIPRequest {
   id: number;
   phone: string;
   firstName: string;
   lastName: string;
-  vipStatus: boolean;
-  vipExpiresAt: string | null;
   role: string;
   createdAt: string;
 }
@@ -100,8 +96,8 @@ export default function VIPRequestsPage() {
     );
   }
 
-  const pendingCount = requests.filter((r) => !r.vipStatus).length;
-  const activeCount = requests.filter((r) => r.vipStatus).length;
+  const pendingCount = requests.filter((r) => r.role === 'parent').length;
+  const activeCount = requests.filter((r) => r.role === 'vip').length;
 
   return (
     <div className="space-y-6">
@@ -182,35 +178,21 @@ export default function VIPRequestsPage() {
                     {request.phone}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    {request.vipStatus ? (
+                    {request.role === 'vip' ? (
                       <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                        ✅ Активний
+                        ✅ VIP Активний
                       </span>
                     ) : (
                       <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                        ⏳ Очікує
+                        ⏳ Батько
                       </span>
                     )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {request.vipExpiresAt ? (
-                      <div>
-                        <div className="font-medium text-gray-900">
-                          {new Date(request.vipExpiresAt).toLocaleDateString('uk-UA')}
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          {formatDistanceToNow(new Date(request.vipExpiresAt), {
-                            locale: uk,
-                            addSuffix: true,
-                          })}
-                        </div>
-                      </div>
-                    ) : (
-                      <span className="text-gray-400">—</span>
-                    )}
+                    <span className="text-gray-400">—</span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    {request.vipStatus ? (
+                    {request.role === 'vip' ? (
                       <button
                         onClick={() => handleDeactivate(request.id)}
                         disabled={activatingId === request.id}

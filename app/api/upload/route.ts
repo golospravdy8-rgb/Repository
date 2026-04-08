@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
 
       console.log("[upload] saved site image:", url);
       revalidatePath("/", "layout");
-      revalidateTag("site-settings", "layout");
+      revalidateTag("site-settings");
       return NextResponse.json({ url, ok: true });
     }
 
@@ -81,7 +81,7 @@ export async function POST(req: NextRequest) {
       await setSettings({ [`banner.${slot}.img`]: dataUrl });
       console.log("[upload] saved banner:", `banner.${slot}.img`);
       revalidatePath("/", "layout");
-      revalidateTag("site-settings", "layout");
+      revalidateTag("site-settings");
       return NextResponse.json({ url: dataUrl, ok: true });
     }
 
