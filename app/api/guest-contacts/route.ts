@@ -4,6 +4,9 @@ import { getJwtSecret } from "@/lib/auth-secret";
 import { prisma } from "@/lib/prisma";
 import { getSettings } from "@/lib/site-settings";
 
+export const dynamic = 'force-dynamic';
+
+
 async function isAdmin(req: NextRequest): Promise<boolean> {
   // 1. Simple cookie (set by /api/admin/login)
   const adminToken = req.cookies.get("admin_token")?.value;

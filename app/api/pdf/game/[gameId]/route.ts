@@ -3,6 +3,9 @@ import { prisma } from "@/lib/prisma";
 // @ts-expect-error pdfkit types
 import PDFDocument from "pdfkit";
 
+export const dynamic = 'force-dynamic';
+
+
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ gameId: string }> }) {
   const { gameId } = await params;
   const gameIdNum = parseInt(gameId);

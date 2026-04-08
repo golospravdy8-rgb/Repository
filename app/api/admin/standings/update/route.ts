@@ -3,6 +3,9 @@ import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/require-auth";
 import { z } from "zod";
 
+export const dynamic = 'force-dynamic';
+
+
 const schema = z.object({
   standingId: z.number().int().positive(),
   gamesPlayed: z.number().int().min(0),

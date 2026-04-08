@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
+export const dynamic = 'force-dynamic';
+
+
 // Идентификатор события "Порохова" (можно сделать переменной или конфигом)
 const POROKHOVA_GAME_ID = 999; // Специальный ID для события Порохова
 

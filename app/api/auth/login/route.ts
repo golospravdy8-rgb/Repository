@@ -4,6 +4,9 @@ import bcrypt from "bcryptjs";
 import { SignJWT } from "jose";
 import { getJwtSecret } from "@/lib/auth-secret";
 
+export const dynamic = 'force-dynamic';
+
+
 export async function POST(req: NextRequest) {
   try {
     const { email, password } = await req.json();

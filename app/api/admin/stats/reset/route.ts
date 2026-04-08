@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/require-auth";
 
+export const dynamic = 'force-dynamic';
+
+
 export async function POST(req: NextRequest) {
   await requireAuth();
   const { playerId } = await req.json();

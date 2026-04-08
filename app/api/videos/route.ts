@@ -4,6 +4,9 @@ import { prisma } from "@/lib/prisma";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 
+export const dynamic = 'force-dynamic';
+
+
 export async function GET() {
   const videos = await prisma.video.findMany({
     where: { isPublished: true },

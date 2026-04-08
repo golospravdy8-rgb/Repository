@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
+export const dynamic = 'force-dynamic';
+
+
 export async function GET() {
   const weekStart = new Date();
   weekStart.setDate(weekStart.getDate() - weekStart.getDay());
