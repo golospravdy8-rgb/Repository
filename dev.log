@@ -35,3 +35,78 @@
 - Experiments (use with caution):
   · cpus: 1
 
+[browser] [site-editor error] TypeError: cookieStore.get is not a function
+    at requireAuth (about://React/Server/D:%5Cn8n%5Cbasket-lviv%5C.next%5Cdev%5Cserver%5Cchunks%5Cssr%5C%5Broot-of-the-server%5D__0wetag8._.js?127:16:31)
+    at SiteEditorPage (about://React/Server/D:%5Cn8n%5Cbasket-lviv%5C.next%5Cdev%5Cserver%5Cchunks%5Cssr%5C%5Broot-of-the-server%5D__0hvxfp8._.js?128:70:167) (app/admin/site-editor/error.tsx:7:13)
+ HEAD /admin/login 200 in 927ms (next.js: 477ms, proxy.ts: 96ms, application-code: 355ms)
+prisma:query SELECT "public"."SiteSettings"."id", "public"."SiteSettings"."key", "public"."SiteSettings"."value", "public"."SiteSettings"."updatedAt" FROM "public"."SiteSettings" WHERE "public"."SiteSettings"."key" IN ($1,$2) OFFSET $3
+ GET /api/stream/status 200 in 1795ms (next.js: 166ms, application-code: 1629ms)
+prisma:query SELECT "public"."SiteSettings"."id", "public"."SiteSettings"."key", "public"."SiteSettings"."value", "public"."SiteSettings"."updatedAt" FROM "public"."SiteSettings" WHERE "public"."SiteSettings"."key" IN ($1,$2,$3) OFFSET $4
+prisma:query SELECT "public"."SiteSettings"."id", "public"."SiteSettings"."key", "public"."SiteSettings"."value", "public"."SiteSettings"."updatedAt" FROM "public"."SiteSettings" WHERE "public"."SiteSettings"."key" IN ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) OFFSET $16
+prisma:query SELECT "public"."SiteSettings"."id", "public"."SiteSettings"."key", "public"."SiteSettings"."value", "public"."SiteSettings"."updatedAt" FROM "public"."SiteSettings" WHERE "public"."SiteSettings"."key" IN ($1,$2,$3) OFFSET $4
+prisma:query SELECT "public"."Season"."id", "public"."Season"."name", "public"."Season"."isActive", "public"."Season"."ageGroup" FROM "public"."Season" WHERE ("public"."Season"."isActive" = $1 AND "public"."Season"."ageGroup" = $2) LIMIT $3 OFFSET $4
+prisma:query SELECT "public"."News"."id", "public"."News"."title", "public"."News"."slug", "public"."News"."content", "public"."News"."imageUrl", "public"."News"."publishedAt", "public"."News"."isPublished", "public"."News"."category" FROM "public"."News" WHERE 1=1 ORDER BY "public"."News"."publishedAt" DESC OFFSET $1
+prisma:query SELECT "public"."SiteSettings"."id", "public"."SiteSettings"."key", "public"."SiteSettings"."value", "public"."SiteSettings"."updatedAt" FROM "public"."SiteSettings" WHERE "public"."SiteSettings"."key" IN ($1,$2,$3) OFFSET $4
+prisma:query SELECT "public"."Game"."id", "public"."Game"."seasonId", "public"."Game"."homeTeamId", "public"."Game"."awayTeamId", "public"."Game"."scheduledAt", "public"."Game"."status", "public"."Game"."quarter", "public"."Game"."homeScore", "public"."Game"."awayScore" FROM "public"."Game" WHERE 1=1 ORDER BY "public"."Game"."scheduledAt" ASC OFFSET $1
+prisma:query SELECT "public"."Team"."id", "public"."Team"."name", "public"."Team"."shortName", "public"."Team"."logoUrl", "public"."Team"."seasonId", "public"."Team"."ageGroup", COALESCE("aggr_selection_0_Player"."_aggr_count_players", 0) AS "_aggr_count_players" FROM "public"."Team" LEFT JOIN (SELECT "public"."Player"."teamId", COUNT(*) AS "_aggr_count_players" FROM "public"."Player" WHERE 1=1 GROUP BY "public"."Player"."teamId") AS "aggr_selection_0_Player" ON ("public"."Team"."id" = "aggr_selection_0_Player"."teamId") LEFT JOIN "public"."Season" AS "j1" ON ("j1"."id") = ("public"."Team"."seasonId") WHERE ("j1"."isActive" = $1 AND ("j1"."id" IS NOT NULL)) ORDER BY "public"."Team"."ageGroup" ASC, "public"."Team"."name" ASC OFFSET $2
+prisma:query SELECT "public"."Player"."id", "public"."Player"."number", "public"."Player"."firstName", "public"."Player"."lastName", "public"."Player"."position", "public"."Player"."teamId", "public"."Player"."photoUrl", "public"."Player"."manualPoints", "public"."Player"."manualRebounds", "public"."Player"."manualAssists", "public"."Player"."manualBlocks", "public"."Player"."manualSteals" FROM "public"."Player" WHERE 1=1 ORDER BY "public"."Player"."teamId" ASC, "public"."Player"."lastName" ASC OFFSET $1
+prisma:query SELECT "public"."SiteSettings"."id", "public"."SiteSettings"."key", "public"."SiteSettings"."value", "public"."SiteSettings"."updatedAt" FROM "public"."SiteSettings" WHERE 1=1 OFFSET $1
+prisma:query SELECT "public"."SiteSettings"."id", "public"."SiteSettings"."key", "public"."SiteSettings"."value", "public"."SiteSettings"."updatedAt" FROM "public"."SiteSettings" WHERE "public"."SiteSettings"."key" IN ($1,$2,$3) OFFSET $4
+prisma:query SELECT "public"."ShopProduct"."id", "public"."ShopProduct"."name", "public"."ShopProduct"."description", "public"."ShopProduct"."price", "public"."ShopProduct"."oldPrice", "public"."ShopProduct"."category", "public"."ShopProduct"."emoji", "public"."ShopProduct"."badge", "public"."ShopProduct"."imageUrl", "public"."ShopProduct"."sizes", "public"."ShopProduct"."inStock", "public"."ShopProduct"."sortOrder", "public"."ShopProduct"."showInChat", "public"."ShopProduct"."chatPriority", "public"."ShopProduct"."createdAt", "public"."ShopProduct"."updatedAt" FROM "public"."ShopProduct" WHERE 1=1 ORDER BY "public"."ShopProduct"."sortOrder" ASC, "public"."ShopProduct"."createdAt" ASC OFFSET $1
+prisma:query SELECT "public"."SiteSettings"."id", "public"."SiteSettings"."key", "public"."SiteSettings"."value", "public"."SiteSettings"."updatedAt" FROM "public"."SiteSettings" WHERE "public"."SiteSettings"."key" IN ($1,$2,$3) OFFSET $4
+prisma:query SELECT "public"."News"."id", "public"."News"."title", "public"."News"."slug", "public"."News"."content", "public"."News"."imageUrl", "public"."News"."publishedAt", "public"."News"."isPublished", "public"."News"."category" FROM "public"."News" WHERE "public"."News"."isPublished" = $1 ORDER BY "public"."News"."publishedAt" DESC LIMIT $2 OFFSET $3
+prisma:query SELECT "public"."Team"."id", "public"."Team"."name", "public"."Team"."shortName", "public"."Team"."logoUrl", "public"."Team"."seasonId", "public"."Team"."ageGroup" FROM "public"."Team" WHERE "public"."Team"."id" IN ($1,$2,$3,$4,$5,$6,$7) OFFSET $8
+prisma:query SELECT "public"."Team"."id", "public"."Team"."name", "public"."Team"."shortName" FROM "public"."Team" WHERE "public"."Team"."id" IN ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) OFFSET $12
+prisma:query SELECT "public"."SiteSettings"."id", "public"."SiteSettings"."key", "public"."SiteSettings"."value", "public"."SiteSettings"."updatedAt" FROM "public"."SiteSettings" WHERE "public"."SiteSettings"."key" IN ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) OFFSET $16
+prisma:query SELECT "public"."SiteSettings"."id", "public"."SiteSettings"."key", "public"."SiteSettings"."value", "public"."SiteSettings"."updatedAt" FROM "public"."SiteSettings" WHERE "public"."SiteSettings"."key" IN ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30) OFFSET $31
+prisma:query SELECT "public"."SiteSettings"."id", "public"."SiteSettings"."key", "public"."SiteSettings"."value", "public"."SiteSettings"."updatedAt" FROM "public"."SiteSettings" WHERE "public"."SiteSettings"."key" IN ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41,$42,$43,$44,$45) OFFSET $46
+prisma:query SELECT "public"."Team"."id", "public"."Team"."name", "public"."Team"."shortName", "public"."Team"."logoUrl", "public"."Team"."seasonId", "public"."Team"."ageGroup" FROM "public"."Team" WHERE "public"."Team"."id" IN ($1,$2,$3,$4,$5,$6,$7) OFFSET $8
+ GET /admin/site-editor 200 in 2.7s (next.js: 561ms, proxy.ts: 217ms, application-code: 1947ms)
+prisma:query SELECT "public"."Game"."id", "public"."Game"."seasonId", "public"."Game"."homeTeamId", "public"."Game"."awayTeamId", "public"."Game"."scheduledAt", "public"."Game"."status", "public"."Game"."quarter", "public"."Game"."homeScore", "public"."Game"."awayScore" FROM "public"."Game" WHERE "public"."Game"."seasonId" = $1 ORDER BY "public"."Game"."scheduledAt" ASC OFFSET $2
+prisma:query SELECT "public"."Team"."id", "public"."Team"."name", "public"."Team"."shortName", "public"."Team"."logoUrl", "public"."Team"."seasonId", "public"."Team"."ageGroup" FROM "public"."Team" WHERE "public"."Team"."id" IN ($1,$2,$3,$4) OFFSET $5
+prisma:query SELECT "public"."Team"."id", "public"."Team"."name", "public"."Team"."shortName", "public"."Team"."logoUrl", "public"."Team"."seasonId", "public"."Team"."ageGroup" FROM "public"."Team" WHERE "public"."Team"."id" IN ($1,$2,$3,$4) OFFSET $5
+prisma:query SELECT "public"."Season"."id", "public"."Season"."name", "public"."Season"."isActive", "public"."Season"."ageGroup" FROM "public"."Season" WHERE "public"."Season"."id" IN ($1) OFFSET $2
+prisma:query SELECT SUM("public"."BoxScore"."points"), COUNT("public"."BoxScore"."gameId"), "public"."BoxScore"."playerId" FROM "public"."BoxScore" LEFT JOIN "public"."Game" AS "j1" ON ("j1"."id") = ("public"."BoxScore"."gameId") WHERE ("j1"."seasonId" = $1 AND "j1"."scheduledAt" >= $2 AND "j1"."status" = $3 AND ("j1"."id" IS NOT NULL)) GROUP BY "public"."BoxScore"."playerId" ORDER BY SUM("public"."BoxScore"."points") DESC LIMIT $4 OFFSET $5
+prisma:query SELECT "public"."Player"."id", "public"."Player"."firstName", "public"."Player"."lastName", "public"."Player"."photoUrl", "public"."Player"."position", "public"."Player"."teamId" FROM "public"."Player" WHERE "public"."Player"."id" IN ($1,$2,$3) OFFSET $4
+prisma:query SELECT "public"."Team"."id", "public"."Team"."name" FROM "public"."Team" WHERE "public"."Team"."id" IN ($1,$2) OFFSET $3
+ GET /?ag=younger 200 in 4.3s (next.js: 348ms, application-code: 4.0s)
+prisma:query SELECT "public"."SiteSettings"."id", "public"."SiteSettings"."key", "public"."SiteSettings"."value", "public"."SiteSettings"."updatedAt" FROM "public"."SiteSettings" WHERE "public"."SiteSettings"."key" IN ($1,$2) OFFSET $3
+ GET /api/stream/status 200 in 519ms (next.js: 5ms, application-code: 513ms)
+prisma:query SELECT "public"."SiteSettings"."id", "public"."SiteSettings"."key", "public"."SiteSettings"."value", "public"."SiteSettings"."updatedAt" FROM "public"."SiteSettings" WHERE "public"."SiteSettings"."key" IN ($1,$2) OFFSET $3
+ GET /api/stream/status 200 in 404ms (next.js: 2ms, application-code: 402ms)
+prisma:query SELECT 1
+prisma:query SELECT "public"."SiteSettings"."id", "public"."SiteSettings"."key", "public"."SiteSettings"."value", "public"."SiteSettings"."updatedAt" FROM "public"."SiteSettings" WHERE "public"."SiteSettings"."key" IN ($1,$2) OFFSET $3
+ GET /api/stream/status 200 in 536ms (next.js: 3ms, application-code: 533ms)
+prisma:query SELECT "public"."SiteSettings"."id", "public"."SiteSettings"."key", "public"."SiteSettings"."value", "public"."SiteSettings"."updatedAt" FROM "public"."SiteSettings" WHERE "public"."SiteSettings"."key" IN ($1,$2) OFFSET $3
+ GET /api/stream/status 200 in 433ms (next.js: 3ms, application-code: 430ms)
+prisma:query SELECT 1
+prisma:query SELECT "public"."SiteSettings"."id", "public"."SiteSettings"."key", "public"."SiteSettings"."value", "public"."SiteSettings"."updatedAt" FROM "public"."SiteSettings" WHERE "public"."SiteSettings"."key" IN ($1,$2) OFFSET $3
+ GET /api/stream/status 200 in 615ms (next.js: 72ms, application-code: 542ms)
+prisma:query SELECT "public"."SiteSettings"."id", "public"."SiteSettings"."key", "public"."SiteSettings"."value", "public"."SiteSettings"."updatedAt" FROM "public"."SiteSettings" WHERE "public"."SiteSettings"."key" IN ($1,$2) OFFSET $3
+ GET /api/stream/status 200 in 458ms (next.js: 1968µs, application-code: 456ms)
+prisma:query SELECT 1
+prisma:query SELECT "public"."SiteSettings"."id", "public"."SiteSettings"."key", "public"."SiteSettings"."value", "public"."SiteSettings"."updatedAt" FROM "public"."SiteSettings" WHERE "public"."SiteSettings"."key" IN ($1,$2) OFFSET $3
+ GET /api/stream/status 200 in 530ms (next.js: 2ms, application-code: 528ms)
+prisma:query SELECT 1
+prisma:query SELECT "public"."SiteSettings"."id", "public"."SiteSettings"."key", "public"."SiteSettings"."value", "public"."SiteSettings"."updatedAt" FROM "public"."SiteSettings" WHERE "public"."SiteSettings"."key" IN ($1,$2) OFFSET $3
+ GET /api/stream/status 200 in 538ms (next.js: 2ms, application-code: 536ms)
+prisma:query SELECT 1
+prisma:query SELECT "public"."SiteSettings"."id", "public"."SiteSettings"."key", "public"."SiteSettings"."value", "public"."SiteSettings"."updatedAt" FROM "public"."SiteSettings" WHERE "public"."SiteSettings"."key" IN ($1,$2) OFFSET $3
+ GET /api/stream/status 200 in 536ms (next.js: 3ms, application-code: 533ms)
+prisma:query SELECT 1
+prisma:query SELECT "public"."SiteSettings"."id", "public"."SiteSettings"."key", "public"."SiteSettings"."value", "public"."SiteSettings"."updatedAt" FROM "public"."SiteSettings" WHERE "public"."SiteSettings"."key" IN ($1,$2) OFFSET $3
+ GET /api/stream/status 200 in 535ms (next.js: 2ms, application-code: 533ms)
+prisma:query SELECT 1
+prisma:query SELECT "public"."SiteSettings"."id", "public"."SiteSettings"."key", "public"."SiteSettings"."value", "public"."SiteSettings"."updatedAt" FROM "public"."SiteSettings" WHERE "public"."SiteSettings"."key" IN ($1,$2) OFFSET $3
+ GET /api/stream/status 200 in 628ms (next.js: 2ms, application-code: 625ms)
+prisma:query SELECT "public"."SiteSettings"."id", "public"."SiteSettings"."key", "public"."SiteSettings"."value", "public"."SiteSettings"."updatedAt" FROM "public"."SiteSettings" WHERE "public"."SiteSettings"."key" IN ($1,$2) OFFSET $3
+ GET /api/stream/status 200 in 1340ms (next.js: 2ms, application-code: 1338ms)
+prisma:query SELECT 1
+prisma:query SELECT "public"."SiteSettings"."id", "public"."SiteSettings"."key", "public"."SiteSettings"."value", "public"."SiteSettings"."updatedAt" FROM "public"."SiteSettings" WHERE "public"."SiteSettings"."key" IN ($1,$2) OFFSET $3
+ GET /api/stream/status 200 in 560ms (next.js: 2ms, application-code: 558ms)
+prisma:query SELECT 1
+prisma:query SELECT "public"."SiteSettings"."id", "public"."SiteSettings"."key", "public"."SiteSettings"."value", "public"."SiteSettings"."updatedAt" FROM "public"."SiteSettings" WHERE "public"."SiteSettings"."key" IN ($1,$2) OFFSET $3
+ GET /api/stream/status 200 in 614ms (next.js: 2ms, application-code: 612ms)
+prisma:query SELECT 1
+prisma:query SELECT "public"."SiteSettings"."id", "public"."SiteSettings"."key", "public"."SiteSettings"."value", "public"."SiteSettings"."updatedAt" FROM "public"."SiteSettings" WHERE "public"."SiteSettings"."key" IN ($1,$2) OFFSET $3
+ GET /api/stream/status 200 in 607ms (next.js: 3ms, application-code: 605ms)
