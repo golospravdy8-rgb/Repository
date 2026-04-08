@@ -9,6 +9,8 @@ import { prisma } from "@/lib/prisma";
  * Приймає параметр phone (query або body)
  */
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(req: NextRequest) {
   try {
     // Отримати номер телефону із query параметра або з env

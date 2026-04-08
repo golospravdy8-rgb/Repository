@@ -8,6 +8,8 @@ import { prisma } from "@/lib/prisma";
  * Передбачається для адміна, який натискає посилання з Telegram сповіщення
  */
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(req: NextRequest) {
   try {
     const searchParams = req.nextUrl.searchParams;

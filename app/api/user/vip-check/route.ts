@@ -7,6 +7,8 @@ import { prisma } from '@/lib/prisma';
  * Перевірити чи VIP закінчилось і деактивувати якщо необхідно
  */
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(req: NextRequest) {
   try {
     const phone = req.cookies.get('user_phone')?.value ||

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { setSettings } from "@/lib/site-settings";
 import { revalidatePath } from "next/cache";
 
+export const dynamic = 'force-dynamic';
+
 const NEW_COLORS: Record<string, string> = {
   "colors.headerBg":        "#0f172a",
   "colors.headerText":      "#f8fafc",

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(req: NextRequest) {
   const ag = req.nextUrl.searchParams.get("ag") || "younger";
   const season = await prisma.season.findFirst({ where: { isActive: true, ageGroup: ag } }).catch(() => null);

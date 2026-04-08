@@ -8,6 +8,8 @@ import { prisma } from "@/lib/prisma";
  * Включає: голи, передачі, фоли, хвилини, прогрес по матчах
  */
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(req: NextRequest) {
   try {
     const playerId = req.nextUrl.searchParams.get("playerId");

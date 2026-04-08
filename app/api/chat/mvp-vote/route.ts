@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
+export const dynamic = 'force-dynamic';
+
 // Helper: Calculate voting period (1st-10th of current month)
 function getVotingPeriod(now: Date) {
   const year = now.getFullYear();

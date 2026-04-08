@@ -5,6 +5,8 @@ import { cookies } from "next/headers";
 // No dependency on external chat server (port 3011 is not needed).
 const INTERNAL_BASE = process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3006";
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const path = searchParams.get("path") || "";
