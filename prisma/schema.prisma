@@ -41,11 +41,6 @@ model Player {
   position        String?
   teamId          Int
   photoUrl        String?
-  manualPoints    Int?
-  manualRebounds  Int?
-  manualAssists   Int?
-  manualBlocks    Int?
-  manualSteals    Int?
   boxScores       BoxScore[]
   gameEvents      GameEvent[]
   team            Team                @relation(fields: [teamId], references: [id])

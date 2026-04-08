@@ -7,16 +7,21 @@ export async function POST(req: NextRequest) {
   const { playerId } = await req.json();
   if (!playerId) return NextResponse.json({ error: "playerId required" }, { status: 400 });
 
-  await prisma.$executeRaw`
-    UPDATE "Player"
-    SET
-      "manualPoints"   = NULL,
-      "manualRebounds" = NULL,
-      "manualAssists"  = NULL,
-      "manualBlocks"   = NULL,
-      "manualSteals"   = NULL
-    WHERE id = ${playerId}
-  `;
+  try {
+    await prisma.$executeRaw`
+      UPDATE "Player"
+      SET
+        "manualPoints"   = NULL,
+        "manualRebounds" = NULL,
+        "manualAssists"  = NULL,
+        "manualBlocks"   = NULL,
+        "manualSteals"   = NULL
+      WHERE id = ${playerId}
+    `;
+  } catch (err) {
+    // Manual stats columns don't exist, but that's okay - nothing to reset
+    console.log('Manual stats columns not available in database');
+  }
 
   return NextResponse.json({ ok: true });
 }

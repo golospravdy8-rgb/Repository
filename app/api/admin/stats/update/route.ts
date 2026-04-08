@@ -20,16 +20,22 @@ export async function POST(req: NextRequest) {
 
   const { playerId, points, rebounds, assists, blocks, steals } = parsed.data;
 
-  await prisma.$executeRaw`
-    UPDATE "Player"
-    SET
-      "manualPoints"   = ${points},
-      "manualRebounds" = ${rebounds},
-      "manualAssists"  = ${assists},
-      "manualBlocks"   = ${blocks},
-      "manualSteals"   = ${steals}
-    WHERE id = ${playerId}
-  `;
+  try {
+    await prisma.$executeRaw`
+      UPDATE "Player"
+      SET
+        "manualPoints"   = ${points},
+        "manualRebounds" = ${rebounds},
+        "manualAssists"  = ${assists},
+        "manualBlocks"   = ${blocks},
+        "manualSteals"   = ${steals}
+      WHERE id = ${playerId}
+    `;
+  } catch (err) {
+    // Manual stats columns don't exist in database
+    console.log('Manual stats columns not available in database:', err);
+    return NextResponse.json({ error: "Manual stats not supported in current database" }, { status: 501 });
+  }
 
   return NextResponse.json({ ok: true });
 }

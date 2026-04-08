@@ -21,15 +21,21 @@ export async function GET(req: NextRequest) {
     orderBy: [{ lastName: "asc" }],
   });
 
-  // Get manual overrides via raw SQL (bypasses stale Prisma client cache)
-  const manualRows = await prisma.$queryRaw<
-    { id: number; manualPoints: number | null; manualRebounds: number | null; manualAssists: number | null; manualBlocks: number | null; manualSteals: number | null }[]
-  >`
-    SELECT id, "manualPoints", "manualRebounds", "manualAssists", "manualBlocks", "manualSteals"
-    FROM "Player"
-    WHERE "teamId" IN (SELECT id FROM "Team" WHERE "seasonId" = ${season.id})
-  `;
-  const manualMap = new Map(manualRows.map(r => [r.id, r]));
+  // Get manual overrides via raw SQL (if columns exist)
+  let manualMap = new Map();
+  try {
+    const manualRows = await prisma.$queryRaw<
+      { id: number; manualPoints: number | null; manualRebounds: number | null; manualAssists: number | null; manualBlocks: number | null; manualSteals: number | null }[]
+    >`
+      SELECT id, "manualPoints", "manualRebounds", "manualAssists", "manualBlocks", "manualSteals"
+      FROM "Player"
+      WHERE "teamId" IN (SELECT id FROM "Team" WHERE "seasonId" = ${season.id})
+    `;
+    manualMap = new Map(manualRows.map(r => [r.id, r]));
+  } catch (err) {
+    // Manual stats columns don't exist in DB, skip them
+    console.log('Manual stats columns not available in database');
+  }
 
   const result = players.map(p => {
     const bs = p.boxScores;
