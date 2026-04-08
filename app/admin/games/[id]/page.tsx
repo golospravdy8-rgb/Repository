@@ -7,9 +7,8 @@ import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
-export default async function AdminGamePage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
-  const gameId = parseInt(id);
+export default async function AdminGamePage({ params }: { params: { id: string } }) {
+  const gameId = parseInt(params.id);
   if (isNaN(gameId)) notFound();
 
   const [game, settings] = await Promise.all([
