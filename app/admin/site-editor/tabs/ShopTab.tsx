@@ -64,7 +64,6 @@ export default function ShopTab({
   // Settings state
   const [tgBotToken, setTgBotToken] = useState(settings["shop.tgBotToken"] ?? "");
   const [tgChatId, setTgChatId] = useState(settings["shop.tgChatId"] ?? "");
-  const [tgAdminChatId, setTgAdminChatId] = useState(settings["vip.tgAdminChatId"] ?? "");
   const [cardNumber, setCardNumber] = useState(settings["donate.cardNumber"] ?? "4149510093172395");
   const [cardName, setCardName] = useState(settings["donate.cardName"] ?? "Христина Полякова");
   const [notifyEmail, setNotifyEmail] = useState(settings["shop.notifyEmail"] ?? "bclvivbasketball@gmail.com");
@@ -146,7 +145,6 @@ export default function ShopTab({
       await updateSiteTexts({
         "shop.tgBotToken": tgBotToken,
         "shop.tgChatId": tgChatId,
-        "vip.tgAdminChatId": tgAdminChatId,
         "donate.cardNumber": cardNumber,
         "donate.cardName": cardName,
         "shop.notifyEmail": notifyEmail,
@@ -254,23 +252,13 @@ export default function ShopTab({
                 />
               </div>
               <div>
-                <label className="text-xs text-gray-600 mb-1 block font-medium">Chat ID (замовлення в канал)</label>
+                <label className="text-xs text-gray-600 mb-1 block font-medium">Chat ID (ваш особистий Telegram ID)</label>
                 <input
                   className="w-full border rounded-lg px-3 py-2 text-sm font-mono"
                   placeholder="123456789"
                   value={tgChatId}
                   onChange={(e) => setTgChatId(e.target.value)}
                 />
-              </div>
-              <div>
-                <label className="text-xs text-gray-600 mb-1 block font-medium">📱 Telegram Admin Personal Chat ID</label>
-                <input
-                  className="w-full border rounded-lg px-3 py-2 text-sm font-mono"
-                  placeholder="123456789"
-                  value={tgAdminChatId}
-                  onChange={(e) => setTgAdminChatId(e.target.value)}
-                />
-                <p className="text-xs text-gray-500 mt-1">Ваш особистий Telegram ID (не канал). Отримайте через @userinfobot</p>
               </div>
             </div>
           </div>

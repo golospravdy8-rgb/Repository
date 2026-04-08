@@ -12,9 +12,8 @@ import HomePageNeon from "@/components/public/HomePageNeon";
 
 export const dynamic = "force-dynamic";
 
-export default async function HomePage({ searchParams }: { searchParams: Promise<{ ag?: string }> }) {
-  const params = await searchParams;
-  const ag = params.ag === "older" ? "older" : "younger";
+export default async function HomePage({ searchParams }: { searchParams: { ag?: string } }) {
+  const ag = searchParams.ag === "older" ? "older" : "younger";
   const season = await prisma.season.findFirst({ where: { isActive: true, ageGroup: ag } }).catch(() => null);
 
   const [settings, games, news] = await Promise.all([

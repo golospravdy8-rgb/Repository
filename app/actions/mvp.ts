@@ -6,36 +6,16 @@ import { z } from "zod";
 
 const submitMvpVoteSchema = z.object({
   phone: z.string().min(1, "Phone required"),
-  playerId: z.number().int().positive("Invalid player ID"),
+  playerName: z.string().min(1, "Player name required"),
 });
 
-export async function submitMvpVote(phone: string, playerId: number) {
+export async function submitMvpVote(phone: string, playerName: string) {
   try {
     // Validate input
-    const validated = submitMvpVoteSchema.parse({ phone, playerId });
+    const validated = submitMvpVoteSchema.parse({ phone, playerName });
 
     const now = new Date();
     const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-
-    // Verify player exists and belongs to an active season
-    const player = await prisma.player.findUnique({
-      where: { id: validated.playerId },
-      include: {
-        team: {
-          include: {
-            season: true,
-          },
-        },
-      },
-    });
-
-    if (!player) {
-      return { success: false, error: "Player not found" };
-    }
-
-    if (!player.team.season.isActive) {
-      return { success: false, error: "Player's season is not active" };
-    }
 
     // Upsert vote (only one vote per phone per month)
     await prisma.chatMvpVote.upsert({
@@ -45,10 +25,10 @@ export async function submitMvpVote(phone: string, playerId: number) {
           month,
         },
       },
-      update: { playerId: validated.playerId },
+      update: { playerName: validated.playerName },
       create: {
         voterPhone: validated.phone,
-        playerId: validated.playerId,
+        playerName: validated.playerName,
         month,
       },
     });

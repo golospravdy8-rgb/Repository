@@ -84,18 +84,3 @@
     font-weight: var(--font-heading-weight, 700);
   }
 }
-
-/* ═══════════════════════════════════════════════════════════════
-   HIDE "1 Issue" BADGE FROM BROWSER EXTENSIONS/DEV TOOLS
-   ═══════════════════════════════════════════════════════════════ */
-
-/* Hide floating issue badges from error reporters or browser extensions */
-[class*="issue"],
-[class*="Issue"],
-[data-testid*="issue"],
-[class*="badge-issue"],
-[class*="error-badge"] {
-  display: none !important;
-  visibility: hidden !important;
-  pointer-events: none !important;
-}

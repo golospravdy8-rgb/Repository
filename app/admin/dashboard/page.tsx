@@ -7,10 +7,9 @@ import { requireAuth } from "@/lib/require-auth";
 
 export const dynamic = "force-dynamic";
 
-export default async function DashboardPage({ searchParams }: { searchParams: Promise<{ ag?: string }> }) {
+export default async function DashboardPage({ searchParams }: { searchParams: { ag?: string } }) {
   await requireAuth();
-  const params = await searchParams;
-  const ag = params.ag === "older" ? "older" : "younger";
+  const ag = searchParams.ag === "older" ? "older" : "younger";
 
   const [season, gamesCount, teamsCount, playersCount] = await Promise.all([
     prisma.season.findFirst({ where: { isActive: true, ageGroup: ag } }),

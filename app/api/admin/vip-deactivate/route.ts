@@ -39,8 +39,6 @@ export async function POST(req: NextRequest) {
     const updated = await prisma.guestContact.update({
       where: { id: Number(userId) },
       data: {
-        vipStatus: false,
-        vipExpiresAt: null,
         role: 'parent', // Повернути роль на parent
       },
     });
@@ -84,7 +82,7 @@ export async function POST(req: NextRequest) {
         id: updated.id,
         phone: updated.phone,
         name: `${updated.firstName} ${updated.lastName}`,
-        vipStatus: updated.vipStatus,
+        role: updated.role,
       },
       message: `✅ VIP деактивовано для ${updated.firstName} ${updated.lastName}`,
     });

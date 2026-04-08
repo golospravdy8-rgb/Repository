@@ -4,7 +4,6 @@ import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import LiveStreamWidget from './LiveStreamWidget';
 
 interface HomePageNeonProps {
   season?: any;
@@ -23,32 +22,10 @@ export default function HomePageNeon({ season, standings = [], players = [], ag 
   // Mobile bottom sheets state
   const [showMenuSheet, setShowMenuSheet] = useState(false);
   const [showServicesSheet, setShowServicesSheet] = useState(false);
-  const [showDonateModal, setShowDonateModal] = useState(false);
-  const [donateCopied, setDonateCopied] = useState(false);
 
   // === HERO BACKGROUND — file-based architecture (no base64) ===
   const heroBgPath = settings?.['images.heroBg'];
   const hasHeroBg = heroBgPath && heroBgPath.startsWith('/images/');
-
-  // === DONATE MODAL HELPERS ===
-  const cardNumber = settings?.['donate.cardNumber'] || '';
-  const cardName = settings?.['donate.cardName'] || '';
-  const cardBank = settings?.['donate.cardBank'] || '';
-  const donateLabel = settings?.['donate.label'] || 'Допомогти клубу 💛';
-  const hasCard = !!cardNumber;
-
-  function copyCard() {
-    if (!cardNumber) return;
-    navigator.clipboard.writeText(cardNumber.replace(/\s/g, '')).then(() => {
-      setDonateCopied(true);
-      setTimeout(() => setDonateCopied(false), 2000);
-    });
-  }
-
-  function formatCard(raw: string) {
-    const digits = raw.replace(/\D/g, '');
-    return digits.match(/.{1,4}/g)?.join(' ') ?? raw;
-  }
 
   // ═══════════════════════════════════════════════════════════════
   // HERO SECTION
@@ -69,13 +46,13 @@ export default function HomePageNeon({ season, standings = [], players = [], ag 
       }
     >
       {/* Dark overlay for text readability when using background image */}
-      {hasHeroBg && <div className="absolute inset-0 bg-black/45 pointer-events-none" />}
+      {hasHeroBg && <div className="absolute inset-0 bg-black/45" />}
 
       {/* Neon fallback (градієнт + grid + stars) ТІЛЬКИ коли картинки нет */}
       {!hasHeroBg && (
-        <div className="absolute inset-0 bg-gradient-to-b from-slate-950 via-purple-950 to-slate-950 pointer-events-none">
+        <div className="absolute inset-0 bg-gradient-to-b from-slate-950 via-purple-950 to-slate-950">
           {/* Neon grid lines */}
-          <div className="absolute inset-0 opacity-10 pointer-events-none">
+          <div className="absolute inset-0 opacity-10">
             <div className="absolute top-0 left-1/4 w-px h-full bg-gradient-to-b from-purple-500 via-orange-500 to-transparent"></div>
             <div className="absolute top-0 right-1/4 w-px h-full bg-gradient-to-b from-cyan-500 via-purple-500 to-transparent"></div>
             <div className="absolute top-1/3 left-0 right-0 h-px bg-gradient-to-r from-transparent via-purple-500 to-transparent"></div>
@@ -118,19 +95,13 @@ export default function HomePageNeon({ season, standings = [], players = [], ag 
 
         {/* Primary Action Buttons (3-button row) — HIDDEN ON MOBILE */}
         <div className="hidden md:flex flex-col md:flex-row gap-2 justify-center mb-3 md:mb-4 items-center">
-          <button
-            onClick={() => router.push('/schedule')}
-            className="w-full md:w-auto px-5 md:px-6 py-2.5 md:py-3 text-sm md:text-[15px] bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-semibold rounded-lg hover:shadow-[0_0_20px_rgba(6,182,212,0.7)] transition duration-300 transform hover:scale-105 cursor-pointer">
+          <button className="w-full md:w-auto px-5 md:px-6 py-2.5 md:py-3 text-sm md:text-[15px] bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-semibold rounded-lg hover:shadow-[0_0_20px_rgba(6,182,212,0.7)] transition duration-300 transform hover:scale-105">
             📅 Розклад
           </button>
-          <button
-            onClick={() => router.push('/standings')}
-            className="w-full md:w-auto px-5 md:px-6 py-2.5 md:py-3 text-sm md:text-[15px] bg-gradient-to-r from-purple-500 to-pink-600 text-white font-semibold rounded-lg hover:shadow-[0_0_20px_rgba(168,85,247,0.7)] transition duration-300 transform hover:scale-105 cursor-pointer">
+          <button className="w-full md:w-auto px-5 md:px-6 py-2.5 md:py-3 text-sm md:text-[15px] bg-gradient-to-r from-purple-500 to-pink-600 text-white font-semibold rounded-lg hover:shadow-[0_0_20px_rgba(168,85,247,0.7)] transition duration-300 transform hover:scale-105">
             🏆 Таблиця
           </button>
-          <button
-            onClick={() => setShowDonateModal(true)}
-            className="w-full md:w-auto px-5 md:px-6 py-2.5 md:py-3 text-sm md:text-[15px] bg-gradient-to-r from-red-600 to-orange-600 text-white font-semibold rounded-lg hover:shadow-[0_0_20px_rgba(220,38,38,0.7)] transition duration-300 transform hover:scale-105 cursor-pointer">
+          <button className="w-full md:w-auto px-5 md:px-6 py-2.5 md:py-3 text-sm md:text-[15px] bg-gradient-to-r from-red-600 to-orange-600 text-white font-semibold rounded-lg hover:shadow-[0_0_20px_rgba(220,38,38,0.7)] transition duration-300 transform hover:scale-105">
             ❤️ Допомогти
           </button>
         </div>
@@ -153,36 +124,14 @@ export default function HomePageNeon({ season, standings = [], players = [], ag 
 
         {/* Action Pills — DESKTOP ONLY */}
         <div className="hidden md:flex flex-wrap gap-1.5 justify-center mb-2.5 md:mb-3">
-          <button
-            onClick={() => router.push('/marketplace')}
-            className="px-3 py-1.5 text-xs bg-gradient-to-r from-orange-500 to-orange-600 text-white font-bold rounded-full hover:shadow-[0_0_15px_rgba(255,77,0,0.8)] transition duration-300 cursor-pointer">
-            🏪 Барахолка
-          </button>
-          <button
-            onClick={() => router.push('/courses')}
-            className="px-3 py-1.5 text-xs bg-gradient-to-r from-orange-500 to-orange-600 text-white font-bold rounded-full hover:shadow-[0_0_15px_rgba(255,77,0,0.8)] transition duration-300 cursor-pointer">
-            🎓 Курси
-          </button>
-          <button
-            onClick={() => router.push('/shop')}
-            className="px-3 py-1.5 text-xs bg-gradient-to-r from-orange-500 to-orange-600 text-white font-bold rounded-full hover:shadow-[0_0_15px_rgba(255,77,0,0.8)] transition duration-300 cursor-pointer">
-            🛍️ Магазин
-          </button>
-          <button
-            onClick={() => router.push('/news')}
-            className="px-3 py-1.5 text-xs bg-gradient-to-r from-orange-500 to-orange-600 text-white font-bold rounded-full hover:shadow-[0_0_15px_rgba(255,77,0,0.8)] transition duration-300 cursor-pointer">
-            📰 Новини
-          </button>
-          <button
-            onClick={() => router.push('/media')}
-            className="px-3 py-1.5 text-xs bg-gradient-to-r from-orange-500 to-orange-600 text-white font-bold rounded-full hover:shadow-[0_0_15px_rgba(255,77,0,0.8)] transition duration-300 cursor-pointer">
-            📸 Медіа
-          </button>
-          <button
-            onClick={() => router.push('/reviews')}
-            className="px-3 py-1.5 text-xs bg-gradient-to-r from-orange-500 to-orange-600 text-white font-bold rounded-full hover:shadow-[0_0_15px_rgba(255,77,0,0.8)] transition duration-300 cursor-pointer">
-            ⭐ Відгуки
-          </button>
+          {['Барахолка', 'Курси', 'Магазин', 'новини', 'Медіа', 'Відгуки'].map((item) => (
+            <button
+              key={item}
+              className="px-3 py-1.5 text-xs bg-gradient-to-r from-orange-500 to-orange-600 text-white font-bold rounded-full hover:shadow-[0_0_15px_rgba(255,77,0,0.8)] transition duration-300"
+            >
+              {item}
+            </button>
+          ))}
         </div>
 
         {/* Chat & Age Group Section */}
@@ -195,36 +144,33 @@ export default function HomePageNeon({ season, standings = [], players = [], ag 
             >
               💬 Балачка
             </button>
-            <button
-              onClick={() => router.push('/chat')}
-              className="px-3 py-1.5 text-xs bg-black border border-purple-400 text-purple-400 font-bold rounded-full hover:shadow-[0_0_15px_rgba(168,85,247,0.6)] transition duration-300 cursor-pointer"
-            >
+            <button className="px-3 py-1.5 text-xs bg-black border border-purple-400 text-purple-400 font-bold rounded-full hover:shadow-[0_0_15px_rgba(168,85,247,0.6)] transition duration-300">
               👨‍👩‍👧‍👦 Батьки
             </button>
           </div>
 
           {/* Age Group Toggle - PROMINENT ON MOBILE */}
-          <div className="flex gap-2 justify-center mt-1 md:mt-3 relative z-10">
-            <button
-              onClick={() => router.push('/?ag=younger')}
-              className={`px-4 md:px-5 py-2 md:py-2.5 text-xs md:text-sm font-semibold rounded-lg transition-all duration-300 cursor-pointer ${
+          <div className="flex gap-2 justify-center mt-1 md:mt-3">
+            <Link
+              href="/?ag=younger"
+              className={`px-4 md:px-5 py-2 md:py-2.5 text-xs md:text-sm font-semibold rounded-lg transition-all duration-300 ${
                 currentAg === 'younger'
                   ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-[0_0_20px_rgba(255,77,0,0.8)]'
                   : 'bg-slate-900 text-orange-300 border border-orange-500/40 hover:bg-slate-800'
               }`}
             >
               🏀 U-14
-            </button>
-            <button
-              onClick={() => router.push('/?ag=older')}
-              className={`px-4 md:px-5 py-2 md:py-2.5 text-xs md:text-sm font-semibold rounded-lg transition-all duration-300 cursor-pointer ${
+            </Link>
+            <Link
+              href="/?ag=older"
+              className={`px-4 md:px-5 py-2 md:py-2.5 text-xs md:text-sm font-semibold rounded-lg transition-all duration-300 ${
                 currentAg === 'older'
                   ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-[0_0_20px_rgba(255,77,0,0.8)]'
                   : 'bg-slate-900 text-orange-300 border border-orange-500/40 hover:bg-slate-800'
               }`}
             >
               🏀 U-16
-            </button>
+            </Link>
           </div>
         </div>
       </div>
@@ -346,64 +292,36 @@ export default function HomePageNeon({ season, standings = [], players = [], ag 
   // ═══════════════════════════════════════════════════════════════
   // TRANSMISSION / LIVE SECTION
   // ═══════════════════════════════════════════════════════════════
-  // STATIC SUBSCRIBE BOX — Always visible, never changes
-  // ═══════════════════════════════════════════════════════════════
-  const StaticSubscribeBox = () => {
-    const channelUrl = settings?.['stream.youtubeChannelId']
-      ? `https://www.youtube.com/channel/${settings['stream.youtubeChannelId']}`
-      : 'https://youtube.com';
-
-    return (
-      <div className="p-5 md:p-6 bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 border-2 border-orange-500 rounded-xl shadow-[0_0_30px_rgba(255,77,0,0.4)] hover:shadow-[0_0_40px_rgba(255,77,0,0.5)] transition-shadow duration-300 h-full flex flex-col justify-between">
-        <div>
-          <div className="flex items-center gap-2 mb-2.5">
-            <div className="w-5 h-5 bg-orange-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(255,77,0,0.8)]"></div>
-            <span className="text-orange-400 font-bold text-sm md:text-base">ТРАНСЛЯЦІЯ</span>
+  const LiveSection = () => (
+    <section className="bg-slate-950 py-8 px-4 border-y border-purple-500/30">
+      <div className="max-w-7xl mx-auto">
+        <div className="grid md:grid-cols-2 gap-6 items-center">
+          {/* Live Box */}
+          <div className="p-5 md:p-6 bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 border-2 border-orange-500 rounded-xl shadow-[0_0_30px_rgba(255,77,0,0.4)] hover:shadow-[0_0_40px_rgba(255,77,0,0.5)] transition-shadow duration-300">
+            <div className="flex items-center gap-2 mb-2.5">
+              <div className="w-5 h-5 bg-orange-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(255,77,0,0.8)]"></div>
+              <span className="text-orange-400 font-bold text-sm md:text-base">ТРАНСЛЯЦІЯ</span>
+            </div>
+            <h3 className="text-xl md:text-2xl font-black text-white mb-1.5">Прямий ефір</h3>
+            <p className="text-gray-300 text-xs md:text-sm mb-4">Дивіться матч в прямому ефірі</p>
+            <button className="w-full px-4 md:px-6 py-2.5 md:py-3 bg-gradient-to-r from-red-600 to-red-700 text-white font-bold text-sm md:text-base rounded-lg hover:shadow-[0_0_25px_rgba(220,38,38,0.8)] transition duration-300 flex items-center justify-center gap-2">
+              ▶️ Підписатись на канал
+            </button>
           </div>
-          <h3 className="text-xl md:text-2xl font-black text-white mb-1.5">Прямий ефір</h3>
-          <p className="text-gray-300 text-xs md:text-sm mb-4">Дивіться матчі в прямому ефірі</p>
+
+          {/* Hologram court (visual element) */}
+          <div className="relative h-56 md:h-60 rounded-xl overflow-hidden border border-purple-500/50 bg-gradient-to-br from-purple-900/30 via-slate-900 to-slate-950 hover:border-purple-500/70 transition-colors duration-300">
+            <div className="absolute inset-0 flex items-center justify-center opacity-40">
+              <div className="text-center">
+                <div className="text-5xl md:text-6xl mb-2 md:mb-4">🏀</div>
+                <p className="text-purple-300 text-xs md:text-sm font-bold">Трансляція</p>
+              </div>
+            </div>
+          </div>
         </div>
-        <a
-          href={channelUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="w-full px-4 md:px-6 py-2.5 md:py-3 bg-gradient-to-r from-red-600 to-red-700 text-white font-bold text-sm md:text-base rounded-lg hover:shadow-[0_0_25px_rgba(220,38,38,0.8)] transition duration-300 flex items-center justify-center gap-2"
-        >
-          ▶️ Підписатись на канал
-        </a>
       </div>
-    );
-  };
-
-  // ═══════════════════════════════════════════════════════════════
-  // DYNAMIC LIVESTREAM SECTION — Countdown, live status, etc.
-  // ═══════════════════════════════════════════════════════════════
-  const LiveSection = () => {
-    // Prepare stream config from settings
-    const streamConfig = {
-      title: settings?.['stream.title'] || 'Прямий ефір',
-      description: settings?.['stream.description'] || 'Дивіться матч в прямому ефірі',
-      scheduledAt: settings?.['stream.scheduledAt'] || '',
-      pollIntervalSeconds: parseInt(settings?.['stream.pollIntervalSeconds'] || '30'),
-      countdownThresholdMinutes: parseInt(settings?.['stream.countdownThresholdMinutes'] || '60'),
-      channelId: settings?.['stream.youtubeChannelId'] || '',
-      pollingEnabled: settings?.['stream.enabled'] !== 'false',
-    };
-
-    return (
-      <section className="bg-slate-950 py-8 px-4 border-y border-purple-500/30">
-        <div className="max-w-7xl mx-auto">
-          <div className="grid md:grid-cols-2 gap-6 items-center">
-            {/* Left: Static Subscribe Box — Always shows subscribe button */}
-            <StaticSubscribeBox />
-
-            {/* Right: Dynamic Live Stream Widget — Shows countdown/live status */}
-            <LiveStreamWidget config={streamConfig} />
-          </div>
-        </div>
-      </section>
-    );
-  };
+    </section>
+  );
 
   // ═══════════════════════════════════════════════════════════════
   // STANDINGS TABLE (компактна, сучасна)
@@ -816,22 +734,16 @@ export default function HomePageNeon({ season, standings = [], players = [], ag 
               ⭐ Відгуки
             </Link>
             <button
-              onClick={() => {
-                setShowServicesSheet(false);
-                router.push('/chat?room=parents');
-              }}
-              className="w-full flex items-center justify-center px-4 py-3 text-white font-semibold bg-gradient-to-r from-purple-500/20 to-purple-600/20 border border-purple-500/30 rounded-lg hover:bg-purple-500/30 transition cursor-pointer"
+              onClick={() => setShowServicesSheet(false)}
+              className="w-full flex items-center justify-center px-4 py-3 text-white font-semibold bg-gradient-to-r from-purple-500/20 to-purple-600/20 border border-purple-500/30 rounded-lg hover:bg-purple-500/30 transition"
             >
-              👨‍👩‍👧‍👦 Батьки
+              👨‍👩‍👧‍👦 Чат батьків
             </button>
             <button
-              onClick={() => {
-                setShowServicesSheet(false);
-                setShowDonateModal(true);
-              }}
-              className="w-full flex items-center justify-center px-4 py-3 text-white font-semibold bg-gradient-to-r from-red-500/20 to-red-600/20 border border-red-500/30 rounded-lg hover:bg-red-500/30 transition cursor-pointer"
+              onClick={() => setShowServicesSheet(false)}
+              className="w-full flex items-center justify-center px-4 py-3 text-white font-semibold bg-gradient-to-r from-red-500/20 to-red-600/20 border border-red-500/30 rounded-lg hover:bg-red-500/30 transition"
             >
-              ❤️ Допомогти
+              ❤️ Допомогти клубу
             </button>
           </div>
 
@@ -871,110 +783,6 @@ export default function HomePageNeon({ season, standings = [], players = [], ag 
       >
         💬
       </button>
-
-      {/* Donate Modal */}
-      {showDonateModal && (
-        <div
-          onClick={() => setShowDonateModal(false)}
-          style={{
-            position: "fixed", inset: 0,
-            background: "rgba(0,0,0,0.6)",
-            zIndex: 9999,
-            display: "flex", alignItems: "center", justifyContent: "center",
-            padding: 16,
-          }}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              background: "white",
-              borderRadius: 20,
-              padding: "32px 28px",
-              maxWidth: 380,
-              width: "100%",
-              boxShadow: "0 20px 60px rgba(0,0,0,0.25)",
-              textAlign: "center",
-              position: "relative",
-            }}
-          >
-            <button
-              onClick={() => setShowDonateModal(false)}
-              style={{
-                position: "absolute", top: 14, right: 16,
-                background: "none", border: "none", fontSize: "24px",
-                color: "#9ca3af", cursor: "pointer", lineHeight: 1,
-              }}
-            >×</button>
-
-            <div style={{ fontSize: "48px", marginBottom: 8 }}>❤️</div>
-            <h2 style={{ fontSize: "22px", fontWeight: 800, color: "#1a2744", margin: "0 0 6px" }}>
-              Підтримати клуб
-            </h2>
-            <p style={{ fontSize: "14px", color: "#6b7280", margin: "0 0 24px" }}>
-              Ваша підтримка допомагає розвитку баскетболу у Львові
-            </p>
-
-            {hasCard ? (
-              <>
-                {cardBank && (
-                  <div style={{ fontSize: "13px", color: "#9ca3af", marginBottom: 6, fontWeight: 600 }}>
-                    {cardBank}
-                  </div>
-                )}
-                <div style={{
-                  background: "linear-gradient(135deg, #1a2744, #2d4a8a)",
-                  borderRadius: 14,
-                  padding: "20px 22px",
-                  marginBottom: 16,
-                  textAlign: "left",
-                  position: "relative",
-                  overflow: "hidden",
-                }}>
-                  <div style={{ position: "absolute", top: -20, right: -20, width: 100, height: 100, borderRadius: "50%", background: "rgba(255,255,255,0.05)" }} />
-                  <div style={{ position: "absolute", bottom: -30, right: 20, width: 80, height: 80, borderRadius: "50%", background: "rgba(255,255,255,0.05)" }} />
-                  <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.5)", marginBottom: 12, fontWeight: 600, letterSpacing: "0.1em" }}>НОМЕР КАРТКИ</div>
-                  <div style={{ fontSize: "22px", fontWeight: 800, color: "white", letterSpacing: "0.12em", fontFamily: "monospace" }}>
-                    {formatCard(cardNumber)}
-                  </div>
-                  {cardName && (
-                    <div style={{ fontSize: "12px", color: "rgba(255,255,255,0.6)", marginTop: 12, fontWeight: 600, letterSpacing: "0.05em" }}>
-                      {cardName.toUpperCase()}
-                    </div>
-                  )}
-                </div>
-
-                <button
-                  onClick={copyCard}
-                  style={{
-                    width: "100%",
-                    padding: "12px",
-                    borderRadius: 12,
-                    background: donateCopied ? "#16a34a" : "linear-gradient(135deg,#f59e0b,#f46f10)",
-                    color: "white",
-                    border: "none",
-                    fontWeight: 700,
-                    fontSize: "14px",
-                    cursor: "pointer",
-                    transition: "background 0.2s",
-                    marginBottom: 12,
-                  }}
-                >
-                  {donateCopied ? "✓ Скопійовано!" : "📋 Скопіювати номер картки"}
-                </button>
-
-                <p style={{ fontSize: "12px", color: "#9ca3af", margin: 0 }}>
-                  Скопіюйте номер та здійсніть переказ через додаток вашого банку
-                </p>
-              </>
-            ) : (
-              <div style={{ padding: "20px", background: "#f9fafb", borderRadius: 12, color: "#6b7280", fontSize: "14px" }}>
-                Реквізити для поповнення ще не вказані.<br />
-                Зверніться до адміністратора клубу.
-              </div>
-            )}
-          </div>
-        </div>
-      )}
 
       {/* Global styles */}
       <style jsx global>{`

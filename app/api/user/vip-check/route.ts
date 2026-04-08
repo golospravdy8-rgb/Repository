@@ -31,49 +31,19 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // Перевірити чи VIP закінчилось
-    const now = new Date();
-    const isExpired = user.vipExpiresAt && new Date(user.vipExpiresAt) < now;
-
-    // Якщо VIP закінчилось — деактивувати
-    if (isExpired && user.vipStatus) {
-      await prisma.guestContact.update({
-        where: { id: user.id },
-        data: {
-          vipStatus: false,
-          role: 'parent',
-        },
-      });
-
-      return NextResponse.json({
-        isVip: false,
-        isExpired: true,
-        expiredAt: user.vipExpiresAt,
-        message: '⚠️ Ваш VIP доступ закінчився',
-      });
-    }
-
-    // Перевірити чи буде закінчуватись за 3 дні
-    const daysUntilExpiry = user.vipExpiresAt
-      ? Math.floor((new Date(user.vipExpiresAt).getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
-      : null;
-
-    const willExpireSoon = daysUntilExpiry !== null && daysUntilExpiry <= 3 && daysUntilExpiry > 0;
+    const isVip = user.role === 'vip';
 
     return NextResponse.json({
-      isVip: user.vipStatus && user.role === 'vip',
+      isVip,
       isExpired: false,
-      willExpireSoon,
-      daysUntilExpiry,
-      expiresAt: user.vipExpiresAt,
+      willExpireSoon: false,
+      daysUntilExpiry: null,
       user: {
         id: user.id,
         phone: user.phone,
         firstName: user.firstName,
         lastName: user.lastName,
         role: user.role,
-        vipStatus: user.vipStatus,
-        telegramId: user.telegramId,
       },
     });
   } catch (error) {

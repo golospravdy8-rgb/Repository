@@ -24,8 +24,6 @@ export async function GET(req: NextRequest) {
         firstName: true,
         lastName: true,
         role: true,
-        vipStatus: true,
-        vipExpiresAt: true,
         createdAt: true,
       },
       orderBy: {
@@ -41,8 +39,6 @@ export async function GET(req: NextRequest) {
         phone: r.phone,
         firstName: r.firstName,
         lastName: r.lastName,
-        vipStatus: r.vipStatus,
-        vipExpiresAt: r.vipExpiresAt,
         role: r.role,
         createdAt: r.createdAt,
       })),

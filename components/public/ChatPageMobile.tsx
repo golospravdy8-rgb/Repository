@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef, useCallback, useOptimistic, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { loadPorokhovaParticipants, registerPorokhovaParticipant } from "@/actions/porokhova";
-import MvpModal from "./MvpModal";
 
 const LS_KEY = "ldbl_chat_user";
 
@@ -130,7 +129,6 @@ export default function ChatPageMobile({ user, messages: initialMessages, member
   const [leaderboard, setLeaderboard] = useState<{ phone: string; firstName: string; lastName: string; hp: number; weeklyHp?: number | null }[]>([]);
   const [leaderboardMode, setLeaderboardMode] = useState<"alltime" | "weekly">("weekly");
   const [leaderboardWeekStart, setLeaderboardWeekStart] = useState<string>("");
-  const [leaderboardLoading, setLeaderboardLoading] = useState(false);
   const [pollQuestion, setPollQuestion] = useState("");
   const [pollOptions, setPollOptions] = useState(["", ""]);
   const [spinDone, setSpinDone] = useState(false);
@@ -150,15 +148,13 @@ export default function ChatPageMobile({ user, messages: initialMessages, member
     setShowLeaderboard(true);
     setLeaderboardMode(mode);
     setLeaderboard([]);
-    setLeaderboardLoading(true);
     fetch(`/api/chat/leaderboard?mode=${mode}`)
       .then((r) => r.json())
       .then((d) => {
         setLeaderboard(d.leaderboard ?? []);
         setLeaderboardWeekStart(d.weekStart ?? "");
       })
-      .catch(() => {})
-      .finally(() => setLeaderboardLoading(false));
+      .catch(() => {});
   };
 
   // MOBILE ONLY — NEW 2026 APPROACH: Optimistic message update for instant UI feedback
@@ -642,14 +638,6 @@ export default function ChatPageMobile({ user, messages: initialMessages, member
 
       {/* ── INPUT AREA ────────────────────────────────────────────────── */}
       <div style={{ background: "#1e2a4a", borderTop: "1px solid rgba(255,255,255,0.08)", padding: "8px 12px", flexShrink: 0, display: "flex", gap: "6px", alignItems: "flex-end" }}>
-        {/* User avatar button (hidden on mobile) */}
-        <button
-          style={{ width: 32, height: 32, borderRadius: "50%", background: "#f46f10", border: "none", color: "white", fontSize: "14px", cursor: "pointer", flexShrink: 0, display: "none", alignItems: "center", justifyContent: "center", fontWeight: 700 }}
-          title={`${user.firstName} ${user.lastName}`}
-        >
-          {user.firstName?.[0]?.toUpperCase() || "?"}
-        </button>
-
         {/* Input */}
         <input
           ref={inputRef}
@@ -745,8 +733,31 @@ export default function ChatPageMobile({ user, messages: initialMessages, member
         </>
       )}
 
-      {/* ── MVP MODAL (using new TanStack Query polling component) ────────────────────────────────────────────────────── */}
-      <MvpModal phone={user.phone} isOpen={showMvp} onClose={() => setShowMvp(false)} />
+      {/* ── MVP MODAL ────────────────────────────────────────────────────── */}
+      {showMvp && (
+        <>
+          <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 40 }} onClick={() => setShowMvp(false)} />
+          <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, background: "#162035", borderTopLeftRadius: "16px", borderTopRightRadius: "16px", zIndex: 50, maxHeight: "80dvh", display: "flex", flexDirection: "column", animation: "slideUp 0.3s ease-out" }}>
+            <div style={{ padding: "12px", textAlign: "center" }}>
+              <div style={{ width: "40px", height: "4px", background: "rgba(255,255,255,0.3)", borderRadius: "2px", margin: "0 auto" }} />
+            </div>
+            <div style={{ padding: "12px 16px", borderBottom: "1px solid rgba(255,255,255,0.08)", flexShrink: 0 }}>
+              <h3 style={{ margin: "0", fontSize: "16px", fontWeight: 700 }}>🏅 MVP місяця</h3>
+            </div>
+            <div style={{ flex: 1, overflowY: "auto", padding: "12px 8px" }}>
+              {players.map((player) => (
+                <button
+                  key={player.id}
+                  onClick={() => handleMvpVote(player.firstName + " " + player.lastName)}
+                  style={{ width: "100%", padding: "12px", borderRadius: "8px", background: userMvpVote === player.firstName + " " + player.lastName ? "#f46f10" : "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", color: "#e2e8f0", fontSize: "13px", cursor: "pointer", marginBottom: "6px", textAlign: "left", fontWeight: userMvpVote === player.firstName + " " + player.lastName ? 700 : 400 }}
+                >
+                  {userMvpVote === player.firstName + " " + player.lastName && "✓ "}{player.firstName} {player.lastName}
+                </button>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
 
       {/* ── SPIN MODAL ────────────────────────────────────────────────────── */}
       {showSpin && (
@@ -969,13 +980,7 @@ export default function ChatPageMobile({ user, messages: initialMessages, member
               </div>
             </div>
             <div style={{ flex: 1, overflowY: "auto", padding: "12px 8px" }}>
-              {leaderboardLoading ? (
-                <div style={{ textAlign: "center", padding: "20px", color: "#94a3b8" }}>Завантаження...</div>
-              ) : leaderboard.length === 0 ? (
-                <div style={{ textAlign: "center", padding: "20px", color: "#94a3b8" }}>
-                  {leaderboardMode === "weekly" ? "Цього тижня ще немає активності" : "Немає даних"}
-                </div>
-              ) : leaderboard.map((u, idx) => (
+              {leaderboard.map((u, idx) => (
                 <div key={u.phone} style={{ padding: "12px", borderRadius: "8px", background: "rgba(255,255,255,0.04)", marginBottom: "6px", display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "13px" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                     <span style={{ fontWeight: 700, color: "#f46f10", width: "20px" }}>{idx + 1}</span>

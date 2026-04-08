@@ -5,9 +5,8 @@ import { Suspense } from "react";
 export const metadata = { title: "Розклад — ДБЛ" };
 export const dynamic = "force-dynamic";
 
-export default async function SchedulePage({ searchParams }: { searchParams: Promise<{ ag?: string }> }) {
-  const params = await searchParams;
-  const ag = params.ag === "older" ? "older" : "younger";
+export default function SchedulePage({ searchParams }: { searchParams: { ag?: string } }) {
+  const ag = searchParams.ag === "older" ? "older" : "younger";
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">

@@ -84,8 +84,13 @@ export default function MvpModal({ phone, isOpen, onClose }: MvpModalProps) {
       };
     });
 
+    // Get player name from allResults
+    const selectedPlayer = mvpData.allResults.find((p) => p.playerId === playerId);
+    if (!selectedPlayer) return;
+    const playerName = `${selectedPlayer.firstName} ${selectedPlayer.lastName}`;
+
     try {
-      const result = await submitMvpVote(phone, playerId);
+      const result = await submitMvpVote(phone, playerName);
       if (result.success) {
         setSubmitMessage("✅ Ваш голос записаний!");
         setTimeout(() => {

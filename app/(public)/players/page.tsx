@@ -17,10 +17,9 @@ const TIER = {
 export default async function PlayersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ team?: string; position?: string; ag?: string }>;
+  searchParams: { team?: string; position?: string; ag?: string };
 }) {
-  const params = await searchParams;
-  const ag = params.ag === "older" ? "older" : "younger";
+  const ag = searchParams.ag === "older" ? "older" : "younger";
   const season = await prisma.season.findFirst({ where: { isActive: true, ageGroup: ag } }).catch(() => null);
 
   const [players, allTeams] = await Promise.all([
@@ -62,8 +61,9 @@ export default async function PlayersPage({
     })
     .sort((a, b) => b.rating - a.rating);
 
-  const activeTeam = decodeURIComponent((params.team || "").replace(/\+/g, " "));
-  const activePosition = decodeURIComponent((params.position || "").replace(/\+/g, " "));
+  const activeTeam = decodeURIComponent((searchParams.team || "").replace(/\+/g, " "));
+  const activePosition = decodeURIComponent((searchParams.position || "").replace(/\+/g, " "));
+  // const hasFilter = !!(activeTeam || activePosition);
 
   const filtered = playersWithRating.filter((p) => {
     if (activeTeam && p.team.name !== activeTeam) return false;
@@ -251,7 +251,7 @@ export default async function PlayersPage({
         {filtered.map((player) => {
           const s = TIER[player.tier];
           return (
-            <Link key={player.id} href={`/players/${player.id}`} style={{ display: "block", textDecoration: "none" }}>
+            <Link key={player.id} href={`/logos/players/${player.id}`} style={{ display: "block", textDecoration: "none" }}>
               <div style={{ background: s.bg, border: `2px solid ${s.border}`, borderRadius: "14px", overflow: "hidden", height: "286px", display: "flex", flexDirection: "column" }}>
 
                 {/* Top row: rating + position */}

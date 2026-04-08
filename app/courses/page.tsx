@@ -2,9 +2,8 @@
 
 import { useState } from "react";
 
-// Telegram config — loaded from environment
-const TG_BOT = process.env.NEXT_PUBLIC_TG_BOT || "";
-const TG_CHAT = process.env.NEXT_PUBLIC_TG_CHAT || "";
+const TG_BOT = "7685937167:AAFfSNWb98RIshlHtOn9sId6M5DvH0FoV54";
+const TG_CHAT = "-1003522476963";
 
 const PROGRAMS = [
   {

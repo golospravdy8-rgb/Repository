@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
       boxScores: boxScores.map((bs) => ({ playerId: bs.playerId, playerName: bs.player.firstName, points: bs.points, rebounds: bs.rebounds, assists: bs.assists })),
       eventsCount: events.length,
       vipParentsCount: vipParents.length,
-      vipParents: vipParents.map((p) => ({ phone: p.phone, name: `${p.firstName} ${p.lastName}`, playerId: p.playerId, vipExpiresAt: p.vipExpiresAt })),
+      vipParents: vipParents.map((p) => ({ phone: p.phone, name: `${p.firstName} ${p.lastName}`, role: p.role })),
       adminsCount: admins.length,
       admins: admins.map((a) => ({ phone: a.phone, name: `${a.firstName} ${a.lastName}`, id: a.id })),
     });

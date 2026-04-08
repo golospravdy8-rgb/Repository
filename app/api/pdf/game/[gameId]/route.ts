@@ -4,12 +4,12 @@ import { prisma } from "@/lib/prisma";
 import PDFDocument from "pdfkit";
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ gameId: string }> }) {
-  const { gameId: gameIdStr } = await params;
-  const gameId = parseInt(gameIdStr);
-  if (isNaN(gameId)) return NextResponse.json({ error: "Invalid game ID" }, { status: 400 });
+  const { gameId } = await params;
+  const gameIdNum = parseInt(gameId);
+  if (isNaN(gameIdNum)) return NextResponse.json({ error: "Invalid game ID" }, { status: 400 });
 
   const game = await prisma.game.findUnique({
-    where: { id: gameId },
+    where: { id: gameIdNum },
     include: {
       homeTeam: true,
       awayTeam: true,
@@ -18,8 +18,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ gam
   if (!game) return NextResponse.json({ error: "Game not found" }, { status: 404 });
 
   const [events, boxScores, homePlayers, awayPlayers] = await Promise.all([
-    prisma.gameEvent.findMany({ where: { gameId }, orderBy: { createdAt: "asc" } }),
-    prisma.boxScore.findMany({ where: { gameId }, include: { player: true } }),
+    prisma.gameEvent.findMany({ where: { gameId: gameIdNum }, orderBy: { createdAt: "asc" } }),
+    prisma.boxScore.findMany({ where: { gameId: gameIdNum }, include: { player: true } }),
     prisma.player.findMany({ where: { teamId: game.homeTeamId }, orderBy: { number: "asc" } }),
     prisma.player.findMany({ where: { teamId: game.awayTeamId }, orderBy: { number: "asc" } }),
   ]);
@@ -127,6 +127,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ gam
       { label: "№", w: 22 },
       { label: "Гравець", w: 90 },
       { label: "Поз", w: 22 },
+      { label: "Хв", w: 20 },
       { label: "Оч", w: 22 },
       { label: "КП", w: 34 },
       { label: "%", w: 22 },
@@ -174,6 +175,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ gam
         isStarter ? `*${p.number}` : `${p.number}`,
         `${p.lastName} ${p.firstName[0]}.`,
         p.position ?? "-",
+        `${bs?.minutes ?? 0}`,
         `${stats.points}`,
         stats.pctFg, stats.pctFgp,
         stats.pct2, stats.pct2p,

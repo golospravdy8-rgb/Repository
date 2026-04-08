@@ -95,14 +95,14 @@ export async function GET(req: NextRequest) {
       orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
     });
 
-    // Step 3: Get vote counts for current month (by playerId)
+    // Step 3: Get vote counts for current month (by playerName)
     const voteCounts = await prisma.chatMvpVote.groupBy({
-      by: ["playerId"],
-      where: { month, playerId: { not: null } },
+      by: ["playerName"],
+      where: { month },
       _count: { id: true },
     });
 
-    const voteMap = new Map(voteCounts.map((vc) => [vc.playerId as number, vc._count.id]));
+    const voteMap = new Map(voteCounts.map((vc) => [vc.playerName, vc._count.id]));
 
     // Step 4: Build results with all players
     const allResults = allEligiblePlayers
@@ -114,7 +114,7 @@ export async function GET(req: NextRequest) {
         number: player.number,
         teamName: player.team.name,
         teamLogo: player.team.logoUrl,
-        votes: voteMap.get(player.id) || 0,
+        votes: voteMap.get(`${player.firstName} ${player.lastName}`) || 0,
       }))
       .sort((a, b) => {
         if (b.votes !== a.votes) return b.votes - a.votes;
@@ -141,17 +141,6 @@ export async function GET(req: NextRequest) {
           month,
         },
       },
-      include: {
-        player: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            photoUrl: true,
-            number: true,
-          },
-        },
-      },
     });
 
     const userHasVoted = !!userVote;
@@ -160,13 +149,9 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       currentLeader,
       allResults,
-      userVote: userVote?.player
+      userVote: userVote
         ? {
-            playerId: userVote.player.id,
-            firstName: userVote.player.firstName,
-            lastName: userVote.player.lastName,
-            photoUrl: userVote.player.photoUrl,
-            number: userVote.player.number,
+            playerName: userVote.playerName,
           }
         : null,
       month,
@@ -196,6 +181,17 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Fetch player to get full name
+    const player = await prisma.player.findUnique({
+      where: { id: playerId },
+    });
+
+    if (!player) {
+      return NextResponse.json({ error: "Player not found" }, { status: 404 });
+    }
+
+    const playerName = `${player.firstName} ${player.lastName}`;
+
     const now = new Date();
     const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
     const { votingStartsAt, votingEndsAt } = getVotingPeriod(now);
@@ -208,8 +204,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Check if player exists and belongs to an active season
-    const player = await prisma.player.findUnique({
+    // Check if player's season is active
+    const playerWithSeason = await prisma.player.findUnique({
       where: { id: playerId },
       include: {
         team: {
@@ -220,11 +216,7 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    if (!player) {
-      return NextResponse.json({ error: "Player not found" }, { status: 404 });
-    }
-
-    if (!player.team.season.isActive) {
+    if (!playerWithSeason || !playerWithSeason.team.season.isActive) {
       return NextResponse.json({ error: "Player's season is not active" }, { status: 400 });
     }
 
@@ -237,11 +229,11 @@ export async function POST(req: NextRequest) {
         },
       },
       update: {
-        playerId,
+        playerName,
       },
       create: {
         voterPhone: phone,
-        playerId,
+        playerName,
         month,
       },
     });

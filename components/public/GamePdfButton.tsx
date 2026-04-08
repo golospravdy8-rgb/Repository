@@ -8,6 +8,7 @@ interface PlayerRow {
   firstName: string;
   position: string | null;
   isStarter: boolean;
+  minutes: string | null;
   stats: {
     points: number;
     fmtFg: string; pctFg: string;
@@ -67,6 +68,7 @@ function teamTableHTML(
       <td style="${tdS}">${p.isStarter ? "★ " : ""}${p.number}</td>
       <td style="${tdS} text-align:left; font-weight:600;">${p.lastName} ${p.firstName[0]}.</td>
       <td style="${tdS}">${p.position ?? "-"}</td>
+      <td style="${tdS}">${p.minutes ?? "-"}</td>
       <td style="${tdS} font-weight:700; color:#0f172a;">${p.stats.points}</td>
       <td style="${tdS}">${p.stats.fmtFg}</td>
       <td style="${tdS} color:#94a3b8;">${p.stats.pctFg}</td>
@@ -100,7 +102,7 @@ function teamTableHTML(
       <table style="width:100%; border-collapse:collapse; font-size:11px;">
         <thead>
           <tr style="background:#1a2c56; color:#fff;">
-            ${["№","ГРАВЕЦЬ","ПОЗ","ОЧ","КП","%","2О","%","3О","%","ШТ","%","НПД","ЗПД","ПДБ","ПЕР","ВТ","БЛК","ФОЛ"]
+            ${["№","ГРАВЕЦЬ","ПОЗ","ХВ","ОЧ","КП","%","2О","%","3О","%","ШТ","%","НПД","ЗПД","ПДБ","ПЕР","ВТ","БЛК","ФОЛ"]
               .map((h, i) => `<th style="${thS}${i === 1 ? "text-align:left;" : ""}">${h}</th>`).join("")}
           </tr>
         </thead>
@@ -108,7 +110,7 @@ function teamTableHTML(
           ${starterRows}
           ${bench.length > 0 ? `
           <tr style="background:#e2e8f0;">
-            <td colspan="19" style="padding:4px 10px; font-size:10px; color:#64748b;
+            <td colspan="20" style="padding:4px 10px; font-size:10px; color:#64748b;
                 font-weight:600; letter-spacing:.05em;">ЛАВКА</td>
           </tr>
           ${benchRows}` : ""}

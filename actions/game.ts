@@ -5,23 +5,6 @@ import { revalidatePath } from "next/cache";
 import { requireAuth } from "@/lib/require-auth";
 import { checkNewAchievements } from "@/lib/achievements";
 
-/**
- * All possible boxScore fields that can be incremented by game events.
- * Mapped to their corresponding database column names in the boxScore table.
- */
-type BoxScoreField =
-  | "rebounds"      // General rebounds
-  | "reboundsOff"   // Offensive rebounds
-  | "reboundsDef"   // Defensive rebounds
-  | "assists"       // Assists
-  | "steals"        // Steals
-  | "blocks"        // Blocks
-  | "fouls"         // Fouls (personal, technical, unsportsmanlike)
-  | "turnovers"     // Turnovers
-  | "missedFg2"     // Missed 2-pointers
-  | "missedFg3"     // Missed 3-pointers
-  | "missedFt";     // Missed free throws
-
 export async function addPlayer(teamId: number, gameId: number, firstName: string, lastName: string, number: number, position: string) {
   await requireAuth();
   await prisma.player.create({
@@ -78,9 +61,12 @@ export async function addScore(
     }),
   ]);
 
+  // TODO: playerAchievement model not in schema yet
+  // const newAchievements = await syncAchievements(playerId);
+
   revalidatePath(`/game/${gameId}`);
   revalidatePath(`/admin/games/${gameId}`);
-  revalidatePath(`/players/${playerId}`);
+  revalidatePath(`/logos/players/${playerId}`);
 
   return { newAchievements: [] };
 }
@@ -169,7 +155,7 @@ async function addStatEvent(
   teamId: number,
   playerId: number,
   eventType: string,
-  boxScoreField: BoxScoreField
+  boxScoreField: "rebounds" | "reboundsOff" | "reboundsDef" | "assists" | "steals" | "blocks" | "turnovers" | "missedFg2" | "missedFg3" | "missedFt"
 ): Promise<{ newAchievements: string[] }> {
   const game = await prisma.game.findUnique({ where: { id: gameId } });
   if (!game || game.status !== "LIVE") throw new Error("Game not live");
@@ -178,23 +164,24 @@ async function addStatEvent(
     data: { gameId, teamId, playerId, type: eventType, quarter: game.quarter },
   });
 
-  // Use upsert for atomic increment operation with valid field names
-  const updateData: Record<string, { increment: number }> = {
-    [boxScoreField]: { increment: 1 },
-  };
-
-  await prisma.boxScore.upsert({
-    where: { gameId_playerId: { gameId, playerId } },
-    create: { gameId, playerId, teamId, [boxScoreField]: 1 },
-    update: updateData as any,
-  });
+  const existing = await prisma.boxScore.findFirst({ where: { gameId, playerId } });
+  if (existing) {
+    await prisma.boxScore.update({
+      where: { id: existing.id },
+      data: { [boxScoreField]: { increment: 1 } },
+    });
+  } else {
+    await prisma.boxScore.create({
+      data: { gameId, playerId, teamId, [boxScoreField]: 1 },
+    });
+  }
 
   // TODO: playerAchievement model not in schema yet
   // const newAchievements = await syncAchievements(playerId);
 
   revalidatePath(`/admin/games/${gameId}`);
   revalidatePath(`/game/${gameId}`);
-  revalidatePath(`/players/${playerId}`);
+  revalidatePath(`/logos/players/${playerId}`);
 
   return { newAchievements: [] };
 }
@@ -341,7 +328,7 @@ export async function undoLastEvent(gameId: number) {
   }
 
   // Reverse stat events
-  const statMap: Record<string, BoxScoreField> = {
+  const statMap: Record<string, "rebounds" | "reboundsOff" | "reboundsDef" | "assists" | "steals" | "blocks" | "fouls" | "turnovers" | "missedFg2" | "missedFg3" | "missedFt"> = {
     REBOUND: "rebounds",
     REBOUND_OFF: "reboundsOff",
     REBOUND_DEF: "reboundsDef",

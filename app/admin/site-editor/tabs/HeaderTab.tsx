@@ -71,7 +71,7 @@ const HeaderTab = forwardRef<SaveHandle, { settings: Record<string, string> }>(
 
         <div>
           <label className="block text-sm font-semibold text-gray-700 mb-2">
-            Стиль актив��ого пункту
+            Стиль актив  ого пункту
           </label>
           <div className="flex gap-3">
             {["underline", "background", "color"].map((style) => (

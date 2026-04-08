@@ -6,10 +6,9 @@ import { Suspense } from "react";
 export const metadata = { title: "Розклад — ДБЛ" };
 export const dynamic = "force-dynamic";
 
-export default async function SchedulePage({ searchParams }: { searchParams: Promise<{ ag?: string }> }) {
+export default async function SchedulePage({ searchParams }: { searchParams: { ag?: string } }) {
   try {
-    const params = await searchParams;
-    const ag = params.ag === "older" ? "older" : "younger";
+    const ag = searchParams.ag === "older" ? "older" : "younger";
     const season = await prisma.season.findFirst({ where: { isActive: true, ageGroup: ag } });
     const games = season
       ? await prisma.game.findMany({

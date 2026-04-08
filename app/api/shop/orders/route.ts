@@ -5,11 +5,10 @@ import nodemailer from "nodemailer";
 
 export const dynamic = "force-dynamic";
 
-// Load secrets from environment — must be set in .env.local or Vercel env
-const TG_BOT = process.env.TG_BOT || "";
-const TG_CHAT = process.env.TG_CHAT || "";
-const EMAIL_FROM = process.env.EMAIL_FROM || "";
-const EMAIL_PASS = process.env.EMAIL_PASS || "";
+const TG_BOT = "7685937167:AAFfSNWb98RIshlHtOn9sId6M5DvH0FoV54";
+const TG_CHAT = "-1003522476963";
+const EMAIL_FROM = "bclvivbasketball@gmail.com";
+const EMAIL_PASS = "umpqqbaevypjwgef";
 
 async function sendTelegram(text: string) {
   try {

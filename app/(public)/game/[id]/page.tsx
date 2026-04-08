@@ -45,17 +45,14 @@ function calcPlayerStats(
   };
 }
 
-export default async function GamePage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
-  const gameId = parseInt(id);
+export default async function GamePage({ params }: { params: { id: string } }) {
+  const gameId = parseInt(params.id);
   if (isNaN(gameId)) notFound();
 
   const game = await prisma.game.findUnique({
     where: { id: gameId },
     include: {
-      homeTeam: {
-        include: { season: true }
-      },
+      homeTeam: true,
       awayTeam: true,
       events: {
         include: { player: true },
@@ -74,9 +71,6 @@ export default async function GamePage({ params }: { params: Promise<{ id: strin
   const isFinal = game.status === "FINAL";
   const isScheduled = game.status === "SCHEDULED";
   const hasScore = isFinal || isLive;
-
-  // Get age group from season
-  const ageGroup = game.homeTeam.season?.ageGroup || "unknown";
 
   // Quarter scores from events
   const quarterScores = [1, 2, 3, 4].map((q) => {
@@ -164,50 +158,32 @@ export default async function GamePage({ params }: { params: Promise<{ id: strin
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-      {/* Back button */}
-      <div className="mb-4">
-        <Link href="/schedule" className="inline-flex items-center gap-2 text-sm text-orange-500 hover:text-orange-600 font-semibold">
-          ← До розкладу
-        </Link>
-      </div>
-
       {/* Score header */}
       <div className="bg-white rounded-xl shadow overflow-hidden mb-3">
         <div
           className="px-4 py-2 flex items-center justify-between text-white text-xs"
           style={{ backgroundColor: "#1a2744" }}
         >
-          <div className="flex items-center gap-3">
-            <span className="font-semibold">
-              {new Date(game.scheduledAt).toLocaleDateString("uk-UA", {
-                day: "numeric",
-                month: "long",
-                year: "numeric",
-              })}
-              {isScheduled && (
-                <span className="ml-2 opacity-75">
-                  {new Date(game.scheduledAt).toLocaleTimeString("uk-UA", { hour: "2-digit", minute: "2-digit" })}
-                </span>
-              )}
-            </span>
-            <span className="opacity-60">•</span>
-            <span className="text-orange-400 font-semibold">
-              {ageGroup === "younger" ? "U-14" : ageGroup === "older" ? "U-16" : "Ліга"}
-            </span>
-          </div>
-          <div className="flex items-center gap-2">
+          <span className="font-semibold">
+            {new Date(game.scheduledAt).toLocaleDateString("uk-UA", {
+              day: "numeric",
+              month: "long",
+              year: "numeric",
+            })}
             {isScheduled && (
-              <span className="bg-blue-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
-                ЗАПЛАНОВАНО
+              <span className="ml-2 opacity-75">
+                {new Date(game.scheduledAt).toLocaleTimeString("uk-UA", { hour: "2-digit", minute: "2-digit" })}
               </span>
             )}
+          </span>
+          <div className="flex items-center gap-2">
             {isLive && (
               <span className="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full animate-pulse">
                 LIVE • Q{game.quarter}
               </span>
             )}
             {isFinal && (
-              <span className="bg-orange-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">ЗАВЕРШЕНО</span>
+              <span className="bg-white/20 text-xs px-2 py-0.5 rounded-full">ФІНАЛ</span>
             )}
           </div>
         </div>
@@ -285,6 +261,7 @@ export default async function GamePage({ params }: { params: Promise<{ id: strin
                   firstName: bs.player.firstName,
                   position: bs.player.position ?? null,
                   isStarter,
+                  minutes: bs.minutes != null ? String(bs.minutes) : null,
                   stats,
                 })),
                 totals: homeBox.totals,
@@ -296,6 +273,7 @@ export default async function GamePage({ params }: { params: Promise<{ id: strin
                   firstName: bs.player.firstName,
                   position: bs.player.position ?? null,
                   isStarter,
+                  minutes: bs.minutes != null ? String(bs.minutes) : null,
                   stats,
                 })),
                 totals: awayBox.totals,
@@ -402,6 +380,7 @@ export default async function GamePage({ params }: { params: Promise<{ id: strin
                             {bs.player.lastName} {bs.player.firstName[0]}.
                           </td>
                           <td className="px-1.5 py-1 text-center text-gray-400">{bs.player.position ?? "-"}</td>
+                          <td className="px-1.5 py-1 text-center text-gray-400">{bs.minutes || "-"}</td>
                           <td className="px-1.5 py-1 text-center font-black" style={{ color: "#1a2744" }}>{stats.points}</td>
                           <td className="px-1.5 py-1 text-center text-gray-600">{stats.fmtFg}</td>
                           <td className="px-1.5 py-1 text-center text-gray-400">{stats.pctFg}</td>

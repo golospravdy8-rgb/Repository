@@ -57,8 +57,6 @@ export async function GET(req: NextRequest) {
     const updated = await prisma.guestContact.update({
       where: { id: admin.id },
       data: {
-        vipStatus: true,
-        vipExpiresAt: expiresAt,
         role: "admin",
       },
     });
@@ -71,8 +69,6 @@ export async function GET(req: NextRequest) {
         phone: updated.phone,
         role: updated.role,
         name: `${updated.firstName} ${updated.lastName}`,
-        vipStatus: updated.vipStatus,
-        vipExpiresAt: updated.vipExpiresAt,
       },
       instructions: {
         step1: `Add to cookie: user_phone = ${updated.phone}`,
@@ -129,8 +125,6 @@ export async function POST(req: NextRequest) {
     const updated = await prisma.guestContact.update({
       where: { id: admin.id },
       data: {
-        vipStatus: true,
-        vipExpiresAt: expiresAt,
         role: "admin",
       },
     });
@@ -143,8 +137,6 @@ export async function POST(req: NextRequest) {
         phone: updated.phone,
         role: updated.role,
         name: `${updated.firstName} ${updated.lastName}`,
-        vipStatus: updated.vipStatus,
-        vipExpiresAt: updated.vipExpiresAt,
       },
     });
   } catch (error) {

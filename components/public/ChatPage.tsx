@@ -260,7 +260,6 @@ export default function ChatPage() {
   const [leaderboardMode, setLeaderboardMode] = useState<"alltime" | "weekly">("weekly");
   const [leaderboard, setLeaderboard] = useState<{ phone: string; firstName: string; lastName: string; hp: number; weeklyHp?: number | null }[]>([]);
   const [leaderboardWeekStart, setLeaderboardWeekStart] = useState<string>("");
-  const [leaderboardLoading, setLeaderboardLoading] = useState(false);
   const esRef = useRef<EventSource | null>(null);
   const activeRoomRef = useRef<"general" | "parents">("general");
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -803,15 +802,13 @@ export default function ChatPage() {
     setShowLeaderboard(true);
     setLeaderboardMode(mode);
     setLeaderboard([]);
-    setLeaderboardLoading(true);
     fetch(`/api/chat/leaderboard?mode=${mode}`)
       .then((r) => r.json())
       .then((d) => {
         setLeaderboard(d.leaderboard ?? []);
         setLeaderboardWeekStart(d.weekStart ?? "");
       })
-      .catch(() => {})
-      .finally(() => setLeaderboardLoading(false));
+      .catch(() => {});
   }
 
   async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -1360,10 +1357,16 @@ export default function ChatPage() {
           💬 Балачка
         </button>
         <button
-          onClick={() => setActiveRoom("parents")}
+          onClick={() => {
+            if (isParent || (user && user.isLeaguePlayer)) {
+              setActiveRoom("parents");
+            } else {
+              notify("Зареєструйся як батько або гравець щоб приєднатись");
+            }
+          }}
           style={{ padding: "8px 16px", background: "none", border: "none", cursor: "pointer", fontFamily: "Exo 2, sans-serif", fontWeight: 700, fontSize: "13px", color: activeRoom === "parents" ? "#f46f10" : "#94a3b8", borderBottom: activeRoom === "parents" ? "2px solid #f46f10" : "2px solid transparent", transition: "all 0.15s", display: "flex", alignItems: "center", gap: "4px" }}
         >
-          👨‍👩‍👦 Батьки
+          👨‍👩‍👦 Батьки {!isParent && !user?.isLeaguePlayer && <span style={{ fontSize: "10px" }}>🔒</span>}
         </button>
       </div>
 
@@ -1893,47 +1896,25 @@ export default function ChatPage() {
 
       {/* ── Leaderboard Modal ────────────────────────────────────────────── */}
       {showLeaderboard && (
-        <div
-          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)", zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", padding: "16px" }}
-          onClick={(e) => { if (e.target === e.currentTarget) setShowLeaderboard(false); }}
-          onKeyDown={(e) => { if (e.key === "Escape") setShowLeaderboard(false); }}
-          role="presentation"
-        >
-          <div
-            style={{ background: "#1e2a4a", borderRadius: "20px", width: "100%", maxWidth: "360px", padding: "24px", fontFamily: "Exo 2, sans-serif" }}
-            role="dialog"
-            aria-labelledby="leaderboard-title"
-            aria-modal="true"
-          >
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)", zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", padding: "16px" }}
+          onClick={(e) => { if (e.target === e.currentTarget) setShowLeaderboard(false); }}>
+          <div style={{ background: "#1e2a4a", borderRadius: "20px", width: "100%", maxWidth: "360px", padding: "24px", fontFamily: "Exo 2, sans-serif" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
-              <h2 id="leaderboard-title" style={{ margin: 0, fontSize: "18px", fontWeight: 800 }}>🏅 Таблиця лідерів HP</h2>
-              <button
-                onClick={() => setShowLeaderboard(false)}
-                style={{ background: "none", border: "none", color: "#94a3b8", fontSize: "24px", cursor: "pointer", lineHeight: 1 }}
-                aria-label="Закрити"
-                title="Закрити (Esc)"
-              >
-                ×
-              </button>
+              <h2 style={{ margin: 0, fontSize: "18px", fontWeight: 800 }}>🏅 Таблиця лідерів HP</h2>
+              <button onClick={() => setShowLeaderboard(false)} style={{ background: "none", border: "none", color: "#94a3b8", fontSize: "24px", cursor: "pointer", lineHeight: 1 }}>×</button>
             </div>
 
             {/* Mode switcher */}
-            <div style={{ display: "flex", gap: 6, marginBottom: 16, background: "rgba(255,255,255,0.06)", borderRadius: 10, padding: 4 }} role="tablist">
+            <div style={{ display: "flex", gap: 6, marginBottom: 16, background: "rgba(255,255,255,0.06)", borderRadius: 10, padding: 4 }}>
               <button
                 onClick={() => openLeaderboard("weekly")}
                 style={{ flex: 1, padding: "6px 0", borderRadius: 7, fontSize: 12, fontWeight: 700, border: "none", cursor: "pointer", transition: "all 0.15s", background: leaderboardMode === "weekly" ? "#f46f10" : "transparent", color: leaderboardMode === "weekly" ? "white" : "#94a3b8" }}
-                role="tab"
-                aria-selected={leaderboardMode === "weekly"}
-                aria-controls="leaderboard-weekly"
               >
                 📅 Цей тиждень
               </button>
               <button
                 onClick={() => openLeaderboard("alltime")}
                 style={{ flex: 1, padding: "6px 0", borderRadius: 7, fontSize: 12, fontWeight: 700, border: "none", cursor: "pointer", transition: "all 0.15s", background: leaderboardMode === "alltime" ? "#0e7490" : "transparent", color: leaderboardMode === "alltime" ? "white" : "#94a3b8" }}
-                role="tab"
-                aria-selected={leaderboardMode === "alltime"}
-                aria-controls="leaderboard-alltime"
               >
                 🏆 Весь час
               </button>
@@ -1946,16 +1927,11 @@ export default function ChatPage() {
               </div>
             )}
 
-            <div id={leaderboardMode === "weekly" ? "leaderboard-weekly" : "leaderboard-alltime"} role="tabpanel">
-              {leaderboardLoading ? (
-                <div style={{ color: "#475569", textAlign: "center", padding: "20px 0" }} aria-live="polite">
-                  Завантаження...
-                </div>
-              ) : leaderboard.length === 0 ? (
-                <div style={{ color: "#475569", textAlign: "center", padding: "20px 0" }} aria-live="polite">
-                  {leaderboardMode === "weekly" ? "Цього тижня ще немає активності" : "Немає даних"}
-                </div>
-              ) : leaderboard.map((m, i) => {
+            {leaderboard.length === 0 ? (
+              <div style={{ color: "#475569", textAlign: "center", padding: "20px 0" }}>
+                {leaderboardMode === "weekly" ? "Цього тижня ще немає активності" : "Завантаження..."}
+              </div>
+            ) : leaderboard.map((m, i) => {
               const av = getAvatar(m.hp);
               const medals = ["🥇", "🥈", "🥉"];
               const isMe = m.phone === user!.phone;
@@ -1979,7 +1955,6 @@ export default function ChatPage() {
                 </div>
               );
             })}
-            </div>
           </div>
         </div>
       )}

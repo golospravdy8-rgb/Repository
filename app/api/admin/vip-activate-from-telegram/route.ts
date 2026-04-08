@@ -57,8 +57,6 @@ export async function GET(req: NextRequest) {
     const updated = await prisma.guestContact.update({
       where: { id: Number(userId) },
       data: {
-        vipStatus: true,
-        vipExpiresAt: expiresAt,
         role: "vip", // Встанови роль як VIP
       },
     });
@@ -116,8 +114,6 @@ export async function GET(req: NextRequest) {
         id: updated.id,
         phone: updated.phone,
         name: `${updated.firstName} ${updated.lastName}`,
-        vipStatus: updated.vipStatus,
-        vipExpiresAt: updated.vipExpiresAt,
       },
       message: `✅ VIP активовано для ${updated.firstName} ${updated.lastName} на ${durationDays} днів`,
     });

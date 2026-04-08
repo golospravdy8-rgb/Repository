@@ -1,7 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: false,
-  devIndicators: false,
   experimental: {
     workerThreads: false,
     cpus: 1,
