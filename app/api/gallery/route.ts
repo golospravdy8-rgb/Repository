@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/require-auth";
-import { writeFile, mkdir, readFile } from "fs/promises";
+import { writeFile, readFile } from "fs/promises";
 import path from "path";
+import { put } from "@vercel/blob";
 
 const GALLERY_PATH = path.join(process.cwd(), "lib", "gallery.data.json");
 const UPLOADS_DIR = path.join(process.cwd(), "public", "uploads");
@@ -48,17 +49,36 @@ export async function POST(req: NextRequest) {
   const bytes = await file.arrayBuffer();
   const buffer = Buffer.from(bytes);
   const ext = file.name.split(".").pop() ?? "jpg";
-  const filename = `gallery-${gameId}-${Date.now()}.${ext}`;
+  const uploadId = Math.random().toString(36).substring(7);
 
-  await mkdir(UPLOADS_DIR, { recursive: true });
-  await writeFile(path.join(UPLOADS_DIR, filename), buffer);
+  try {
+    const token = process.env.LOGOS_READ_WRITE_TOKEN;
+    if (!token) {
+      console.error("[gallery] LOGOS_READ_WRITE_TOKEN not found");
+      return NextResponse.json({ error: "Upload token not configured" }, { status: 500 });
+    }
 
-  const url = `/uploads/${filename}`;
-  album.photos.push(url);
-  if (!album.coverPhoto) album.coverPhoto = url;
+    const blobPath = `gallery/${gameId}/${uploadId}-${Date.now()}.${ext}`;
+    console.log(`[gallery ${uploadId}] Uploading to Vercel Blob: ${blobPath}`);
 
-  await writeGallery(gallery);
-  return NextResponse.json({ url, total: album.photos.length });
+    const blob = await put(blobPath, buffer, {
+      access: "public",
+      contentType: file.type || "image/jpeg",
+      token: token,
+    });
+
+    const url = blob.url;
+    album.photos.push(url);
+    if (!album.coverPhoto) album.coverPhoto = url;
+
+    await writeGallery(gallery);
+    console.log(`[gallery ${uploadId}] ✅ Photo saved: ${url}`);
+    return NextResponse.json({ url, total: album.photos.length });
+  } catch (blobErr) {
+    const errMsg = blobErr instanceof Error ? blobErr.message : String(blobErr);
+    console.error(`[gallery] Vercel Blob error: ${errMsg}`);
+    return NextResponse.json({ error: `Blob error: ${errMsg}` }, { status: 500 });
+  }
 }
 
 // DELETE /api/gallery — remove a photo from an album

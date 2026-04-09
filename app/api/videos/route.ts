@@ -1,11 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/require-auth";
 import { prisma } from "@/lib/prisma";
-import { writeFile, mkdir } from "fs/promises";
-import path from "path";
+import { put } from "@vercel/blob";
 
 export const dynamic = 'force-dynamic';
-
 
 export async function GET() {
   const videos = await prisma.video.findMany({
@@ -16,6 +14,9 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+  const uploadId = Math.random().toString(36).substring(7);
+  const startTime = Date.now();
+
   try { await requireAuth(); } catch {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -27,18 +28,38 @@ export async function POST(req: NextRequest) {
 
   if (!file) return NextResponse.json({ error: "No file" }, { status: 400 });
 
-  const bytes = await file.arrayBuffer();
-  const buffer = Buffer.from(bytes);
-  const ext = file.name.split(".").pop() ?? "mp4";
-  const filename = `video-${Date.now()}.${ext}`;
-  const uploadsDir = path.join(process.cwd(), "public", "uploads");
-  await mkdir(uploadsDir, { recursive: true });
-  await writeFile(path.join(uploadsDir, filename), buffer);
+  try {
+    const token = process.env.LOGOS_READ_WRITE_TOKEN;
+    if (!token) {
+      console.error(`[videos ${uploadId}] LOGOS_READ_WRITE_TOKEN not found`);
+      return NextResponse.json({ error: "Upload token not configured" }, { status: 500 });
+    }
 
-  const video = await prisma.video.create({
-    data: { title, url: `/uploads/${filename}`, type },
-  });
-  return NextResponse.json(video);
+    const bytes = await file.arrayBuffer();
+    const buffer = Buffer.from(bytes);
+    const ext = file.name.split(".").pop() ?? "mp4";
+    const blobPath = `videos/${uploadId}-${Date.now()}.${ext}`;
+
+    console.log(`[videos ${uploadId}] Uploading to Vercel Blob: ${blobPath}`);
+
+    const blob = await put(blobPath, buffer, {
+      access: "public",
+      contentType: file.type || "video/mp4",
+      token: token,
+    });
+
+    const url = blob.url;
+    const video = await prisma.video.create({
+      data: { title, url, type },
+    });
+
+    console.log(`[videos ${uploadId}] ✅ Video saved: ${url} (${Date.now() - startTime}ms)`);
+    return NextResponse.json(video);
+  } catch (blobErr) {
+    const errMsg = blobErr instanceof Error ? blobErr.message : String(blobErr);
+    console.error(`[videos ${uploadId}] Error: ${errMsg}`);
+    return NextResponse.json({ error: `Upload error: ${errMsg}` }, { status: 500 });
+  }
 }
 
 export async function DELETE(req: NextRequest) {

@@ -23,9 +23,9 @@ export default function HomePageNeon({ season, standings = [], players = [], ag 
   const [showMenuSheet, setShowMenuSheet] = useState(false);
   const [showServicesSheet, setShowServicesSheet] = useState(false);
 
-  // === HERO BACKGROUND — file-based architecture (no base64) ===
+  // === HERO BACKGROUND — supports both local paths and cloud URLs ===
   const heroBgPath = settings?.['images.heroBg'];
-  const hasHeroBg = heroBgPath && heroBgPath.startsWith('/images/');
+  const hasHeroBg = heroBgPath && (heroBgPath.startsWith('/images/') || heroBgPath.startsWith('https://'));
 
   // ═══════════════════════════════════════════════════════════════
   // HERO SECTION
