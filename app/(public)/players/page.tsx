@@ -251,7 +251,7 @@ export default async function PlayersPage({
         {filtered.map((player) => {
           const s = TIER[player.tier];
           return (
-            <Link key={player.id} href={`/logos/players/${player.id}`} style={{ display: "block", textDecoration: "none" }}>
+            <Link key={player.id} href={`/players/${player.id}`} style={{ display: "block", textDecoration: "none" }}>
               <div style={{ background: s.bg, border: `2px solid ${s.border}`, borderRadius: "14px", overflow: "hidden", height: "286px", display: "flex", flexDirection: "column" }}>
 
                 {/* Top row: rating + position */}
