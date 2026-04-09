@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useTransition } from "react";
 
 interface Review { id: number; author: string; text: string; createdAt: string; }
 
@@ -17,13 +17,35 @@ export default function ReviewsPage() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [msg, setMsg] = useState("");
   const [err, setErr] = useState("");
+  const [isPending, startTransition] = useTransition();
+  const [deletingId, setDeletingId] = useState<number | null>(null);
 
   useEffect(() => {
-    fetch("/api/reviews").then(r => r.json()).then(setReviews);
+    (async () => {
+      try {
+        const reviews = await fetch("/api/reviews").then(r => r.json());
+        setReviews(reviews);
+      } catch (e) {
+        console.error("Failed to fetch reviews:", e);
+      }
+    })();
+
     const name = getMyName();
     setMyName(name);
     setAuthor(name);
-    setIsAdmin(document.cookie.includes("admin_token=ldbl_admin_2025"));
+
+    // Check if user is admin by checking session/auth
+    const checkAdmin = async () => {
+      try {
+        const res = await fetch("/api/auth/session");
+        const session = await res.json();
+        setIsAdmin(!!session?.user?.isAdmin);
+      } catch {
+        // Fallback: check cookie
+        setIsAdmin(document.cookie.includes("admin_token=ldbl_admin_2025"));
+      }
+    };
+    checkAdmin();
   }, []);
 
   async function save() {
@@ -43,12 +65,29 @@ export default function ReviewsPage() {
   }
 
   async function remove(r: Review) {
-    if (!confirm("Видалити?")) return;
-    const res = await fetch(`/api/reviews/${r.id}`, {
-      method: "DELETE",
-      headers: { "x-author": myName },
+    if (!confirm("Видалити цей відгук?")) return;
+    setDeletingId(r.id);
+    startTransition(async () => {
+      try {
+        const res = await fetch(`/api/reviews/${r.id}`, {
+          method: "DELETE",
+          headers: { "x-author": myName },
+        });
+        if (res.ok) {
+          setReviews(prev => prev.filter(x => x.id !== r.id));
+          setMsg("✓ Видалено!");
+          setTimeout(() => setMsg(""), 2000);
+        } else {
+          setErr("Помилка видалення");
+          setTimeout(() => setErr(""), 2000);
+        }
+      } catch (e) {
+        setErr("Помилка видалення: " + String(e));
+        setTimeout(() => setErr(""), 2000);
+      } finally {
+        setDeletingId(null);
+      }
     });
-    if (res.ok) setReviews(prev => prev.filter(x => x.id !== r.id));
   }
 
   const canDelete = (r: Review) => isAdmin || (!!myName && myName === r.author);
@@ -77,8 +116,18 @@ export default function ReviewsPage() {
           {reviews.length === 0 ? (
             <div style={{ color: "#aaa", textAlign: "center", paddingTop: 60 }}>Поки що немає відгуків. Будьте першим!</div>
           ) : reviews.map(r => (
-            <div key={r.id} style={{ background: "#fff", borderRadius: 12, padding: "16px 20px", marginBottom: 12, boxShadow: "0 1px 5px rgba(0,0,0,0.07)" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+            <div
+              key={r.id}
+              style={{
+                background: "#fff",
+                borderRadius: 12,
+                padding: "16px 20px",
+                marginBottom: 12,
+                boxShadow: "0 1px 5px rgba(0,0,0,0.07)",
+                transition: "all 0.2s ease",
+                opacity: deletingId === r.id ? 0.5 : 1,
+              }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8, gap: 12 }}>
                 <div>
                   <strong style={{ fontSize: 15, color: "#1e2a4a" }}>{r.author}</strong>
                   <span style={{ fontSize: 12, color: "#aaa", marginLeft: 10 }}>
@@ -86,11 +135,40 @@ export default function ReviewsPage() {
                   </span>
                 </div>
                 {canDelete(r) && (
-                  <button onClick={() => remove(r)}
-                    style={{ background: "none", border: "1px solid #e5e7eb", borderRadius: 6, padding: "3px 10px", fontSize: 12, color: "#9ca3af", cursor: "pointer" }}
-                    onMouseOver={e => { e.currentTarget.style.color = "#dc2626"; e.currentTarget.style.borderColor = "#dc2626"; }}
-                    onMouseOut={e => { e.currentTarget.style.color = "#9ca3af"; e.currentTarget.style.borderColor = "#e5e7eb"; }}>
-                    🗑 Видалити
+                  <button
+                    onClick={() => remove(r)}
+                    disabled={isPending || deletingId === r.id}
+                    aria-label={`Видалити відгук від ${r.author}`}
+                    title="Видалити цей відгук"
+                    style={{
+                      background: "#fee2e2",
+                      border: "1px solid #fca5a5",
+                      borderRadius: 6,
+                      padding: "6px 12px",
+                      fontSize: 12,
+                      color: "#dc2626",
+                      fontWeight: 600,
+                      cursor: deletingId === r.id ? "wait" : "pointer",
+                      flexShrink: 0,
+                      transition: "all 0.2s ease",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "4px",
+                      opacity: deletingId === r.id ? 0.6 : 1,
+                    }}
+                    onMouseOver={e => {
+                      if (deletingId !== r.id && !isPending) {
+                        e.currentTarget.style.background = "#fecaca";
+                        e.currentTarget.style.borderColor = "#f87171";
+                        e.currentTarget.style.transform = "scale(1.05)";
+                      }
+                    }}
+                    onMouseOut={e => {
+                      e.currentTarget.style.background = "#fee2e2";
+                      e.currentTarget.style.borderColor = "#fca5a5";
+                      e.currentTarget.style.transform = "scale(1)";
+                    }}>
+                    {deletingId === r.id ? "⏳" : "🗑️"} {deletingId === r.id ? "Видаляю..." : "Видалити"}
                   </button>
                 )}
               </div>

@@ -20,6 +20,7 @@ import ShopTab from "./tabs/ShopTab";
 import ChatModeratorsTab from "./tabs/ChatModeratorsTab";
 import StatsTab from "./tabs/StatsTab";
 import StandingsManageTab from "./tabs/StandingsManageTab";
+import ReviewsTab from "./tabs/ReviewsTab";
 
 const TABS = [
   { id: "teams", label: "Команди та гравці" },
@@ -41,6 +42,7 @@ const TABS = [
   { id: "chat-mods", label: "🛡 Модератори чату" },
   { id: "stats", label: "📊 Статистика" },
   { id: "standings-manage", label: "🏆 Таблиця змагань" },
+  { id: "reviews", label: "💬 Відгуки" },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
@@ -74,7 +76,7 @@ export default function SiteEditorClient({
   const [saved, setSaved] = useState(false);
   const saveRef = useRef<SaveHandle>(null);
 
-  const isDataTab = activeTab === "teams" || activeTab === "schedule" || activeTab === "news" || activeTab === "gallery" || activeTab === "guest-contacts" || activeTab === "shop" || activeTab === "chat-mods" || activeTab === "stats" || activeTab === "standings-manage";
+  const isDataTab = activeTab === "teams" || activeTab === "schedule" || activeTab === "news" || activeTab === "gallery" || activeTab === "guest-contacts" || activeTab === "shop" || activeTab === "chat-mods" || activeTab === "stats" || activeTab === "standings-manage" || activeTab === "reviews";
 
   const handleGlobalSave = () => {
     if (isDataTab) return;
@@ -144,6 +146,7 @@ export default function SiteEditorClient({
           {activeTab === "chat-mods" && <ChatModeratorsTab settings={settings} shopProducts={shopProducts} />}
           {activeTab === "stats" && <StatsTab />}
           {activeTab === "standings-manage" && <StandingsManageTab />}
+          {activeTab === "reviews" && <ReviewsTab />}
         </div>
       </div>
     </div>
