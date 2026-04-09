@@ -47,7 +47,7 @@ interface TeamLogoUploaderProps {
  *
  * Особливості:
  * - Instant preview перед завантаженням (локальний)
- * - Progress bar (0-50% до відповіді сервера, потім 100%)
+ * - Progress bar (25% → 50% → 100%)
  * - Fallback на абревіатуру команди
  * - Детальна діагностика в console (без блокування UI)
  * - М'яка обробка помилок
@@ -230,11 +230,11 @@ export default function TeamLogoUploader({
       // ДІАГНОСТИКА: Категоризуємо помилку для користувача
       let userMessage = errorMsg;
       if (errorMsg.includes('LOGOS_READ_WRITE_TOKEN') || errorMsg.includes('Unauthorized') || errorMsg.includes('token')) {
-        userMessage = '⚠️ Помилка налаштування токена. Перевір LOGOS_READ_WRITE_TOKEN у Vercel Dashboard.';
+        userMessage = '⚠️  Помилка налаштування токена. Перевір LOGOS_READ_WRITE_TOKEN у Vercel Dashboard.';
       } else if (errorMsg.includes('401') || errorMsg.includes('403')) {
-        userMessage = '⚠️ Помилка автентифікації. Перевір токен у Vercel.';
+        userMessage = '⚠️  Помилка автентифікації. Перевір токен у Vercel.';
       } else if (errorMsg.includes('network') || errorMsg.includes('ENOTFOUND') || errorMsg.includes('ECONNREFUSED')) {
-        userMessage = '⚠️ Помилка мережі. Перевір з\'єднання з Vercel.';
+        userMessage = "⚠️  Помилка мережі. Перевір з'єднання з Vercel.";
       }
 
       // Показуємо помилку м'яко (не жорстким alert)

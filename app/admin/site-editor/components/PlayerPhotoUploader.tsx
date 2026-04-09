@@ -100,6 +100,8 @@ export default function PlayerPhotoUploader({
       formData.append('file', file);
       formData.append('filename', `player-photo-${Date.now()}`);
 
+      setProgress(25);
+
       const response = await fetch('/api/blob/upload', {
         method: 'POST',
         body: formData,
@@ -148,10 +150,10 @@ export default function PlayerPhotoUploader({
 
       // М'яка обробка помилки
       let userMessage = errorMsg;
-      if (errorMsg.includes('token') || errorMsg.includes('Unauthorized')) {
-        userMessage = '⚠️ Помилка налаштування токена. Перевір LOGOS_READ_WRITE_TOKEN.';
+      if (errorMsg.includes('token') || errorMsg.includes('Unauthorized') || errorMsg.includes('401') || errorMsg.includes('403')) {
+        userMessage = '⚠️  Помилка налаштування токена. Перевір LOGOS_READ_WRITE_TOKEN.';
       } else if (errorMsg.includes('network') || errorMsg.includes('ENOTFOUND')) {
-        userMessage = '⚠️ Помилка мережі. Перевір з\'єднання з Vercel.';
+        userMessage = "⚠️  Помилка мережі. Перевір з'єднання з Vercel.";
       }
 
       setError(userMessage);

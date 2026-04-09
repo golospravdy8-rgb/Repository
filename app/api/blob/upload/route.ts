@@ -6,8 +6,8 @@ export const runtime = 'nodejs';
 /**
  * POST /api/blob/upload
  *
- * Server-side загальновження логотипу на Vercel Blob з явною передачею токена.
- * Це найбільш надійний метод для користувацькиме перенесення (2026 best practice).
+ * Server-side завантаження логотипу на Vercel Blob з явною передачею токена.
+ * Це найбільш надійний метод для користувацьких завантажень (2026 best practice).
  *
  * Body (FormData):
  *   - file: File (обов'язково)
@@ -131,11 +131,11 @@ export async function POST(request: NextRequest) {
 
       // ДІАГНОСТИКА: Додаткова інформація про помилку
       if (blobErrorMsg.includes('401') || blobErrorMsg.includes('403') || blobErrorMsg.includes('Unauthorized')) {
-        console.error(`[Blob Upload ${requestId}] ⚠️  Помилка автентифікації! Токен може бути неправильним або просрочено.`);
+        console.error(`[Blob Upload ${requestId}] ⚠️ Помилка автентифікації! Токен може бути неправильним або просрочено.`);
         console.error(`[Blob Upload ${requestId}] Перевір: https://vercel.com/dashboard → Storage → Blob → View Token`);
       }
       if (blobErrorMsg.includes('ENOTFOUND') || blobErrorMsg.includes('ECONNREFUSED')) {
-        console.error(`[Blob Upload ${requestId}] ⚠️  Помилка мережі! Перевір з'єднання з vercel-storage.com`);
+        console.error(`[Blob Upload ${requestId}] ⚠️ Помилка мережі! Перевір з'єднання з vercel-storage.com`);
       }
 
       throw blobError;
@@ -174,7 +174,7 @@ export async function POST(request: NextRequest) {
       userFriendlyError = 'Помилка автентифікації. Перевір LOGOS_READ_WRITE_TOKEN у Vercel Environment Variables.';
       statusCode = 401;
     } else if (errorMessage.includes('network') || errorMessage.includes('ENOTFOUND') || errorMessage.includes('ECONNREFUSED')) {
-      userFriendlyError = 'Помилка мережі. Перевір з\'єднання з Vercel Blob (vercel-storage.com).';
+      userFriendlyError = "Помилка мережі. Перевір з'єднання з Vercel Blob (vercel-storage.com).";
     } else if (errorMessage.includes('Invalid token')) {
       userFriendlyError = 'Токен недійсний або просрочено. Оновіть LOGOS_READ_WRITE_TOKEN у Vercel Dashboard.';
     }
