@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
+import LiveStreamWidget from '@/components/public/LiveStreamWidget';
 
 interface HomePageNeonProps {
   season?: any;
@@ -301,36 +302,58 @@ export default function HomePageNeon({ season, standings = [], players = [], ag 
   // ═══════════════════════════════════════════════════════════════
   // TRANSMISSION / LIVE SECTION
   // ═══════════════════════════════════════════════════════════════
-  const LiveSection = () => (
-    <section className="bg-slate-950 py-8 px-4 border-y border-purple-500/30">
-      <div className="max-w-7xl mx-auto">
-        <div className="grid md:grid-cols-2 gap-6 items-center">
-          {/* Live Box */}
-          <div className="p-5 md:p-6 bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 border-2 border-orange-500 rounded-xl shadow-[0_0_30px_rgba(255,77,0,0.4)] hover:shadow-[0_0_40px_rgba(255,77,0,0.5)] transition-shadow duration-300">
-            <div className="flex items-center gap-2 mb-2.5">
-              <div className="w-5 h-5 bg-orange-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(255,77,0,0.8)]"></div>
-              <span className="text-orange-400 font-bold text-sm md:text-base">ТРАНСЛЯЦІЯ</span>
-            </div>
-            <h3 className="text-xl md:text-2xl font-black text-white mb-1.5">Прямий ефір</h3>
-            <p className="text-gray-300 text-xs md:text-sm mb-4">Дивіться матч в прямому ефірі</p>
-            <button className="w-full px-4 md:px-6 py-2.5 md:py-3 bg-gradient-to-r from-red-600 to-red-700 text-white font-bold text-sm md:text-base rounded-lg hover:shadow-[0_0_25px_rgba(220,38,38,0.8)] transition duration-300 flex items-center justify-center gap-2">
-              ▶️ Підписатись на канал
-            </button>
-          </div>
+  const LiveSection = () => {
+    // Prepare stream config from settings
+    const streamConfig = {
+      title: settings?.['stream.title'] || 'Матч сезону',
+      description: settings?.['stream.description'] || 'Дивіться матч в прямому ефірі',
+      scheduledAt: settings?.['stream.scheduledAt'] || '',
+      pollIntervalSeconds: parseInt(settings?.['stream.pollIntervalSeconds'] || '30'),
+      countdownThresholdMinutes: parseInt(settings?.['stream.countdownThresholdMinutes'] || '120'),
+      channelId: settings?.['stream.youtubeChannelId'] || '',
+      pollingEnabled: settings?.['stream.enabled'] === 'true',
+    };
 
-          {/* Hologram court (visual element) */}
-          <div className="relative h-56 md:h-60 rounded-xl overflow-hidden border border-purple-500/50 bg-gradient-to-br from-purple-900/30 via-slate-900 to-slate-950 hover:border-purple-500/70 transition-colors duration-300">
-            <div className="absolute inset-0 flex items-center justify-center opacity-40">
-              <div className="text-center">
-                <div className="text-5xl md:text-6xl mb-2 md:mb-4">🏀</div>
-                <p className="text-purple-300 text-xs md:text-sm font-bold">Трансляція</p>
+    return (
+      <section className="bg-slate-950 py-8 px-4 border-y border-purple-500/30">
+        <div className="max-w-7xl mx-auto">
+          <div className="grid md:grid-cols-2 gap-6 items-center">
+            {/* Left Box: Static "Прямий ефір" with subscribe button */}
+            <div className="p-5 md:p-6 bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 border-2 border-orange-500 rounded-xl shadow-[0_0_30px_rgba(255,77,0,0.4)] hover:shadow-[0_0_40px_rgba(255,77,0,0.5)] transition-shadow duration-300">
+              <div className="flex items-center gap-2 mb-2.5">
+                <div className="w-5 h-5 bg-orange-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(255,77,0,0.8)]"></div>
+                <span className="text-orange-400 font-bold text-sm md:text-base">ТРАНСЛЯЦІЯ</span>
               </div>
+              <h3 className="text-xl md:text-2xl font-black text-white mb-1.5">Прямий ефір</h3>
+              <p className="text-gray-300 text-xs md:text-sm mb-4">Дивіться матч в прямому ефірі</p>
+              <a
+                href={`https://www.youtube.com/channel/${streamConfig.channelId}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full px-4 md:px-6 py-2.5 md:py-3 bg-gradient-to-r from-red-600 to-red-700 text-white font-bold text-sm md:text-base rounded-lg hover:shadow-[0_0_25px_rgba(220,38,38,0.8)] transition duration-300 flex items-center justify-center gap-2"
+              >
+                ▶️ Підписатись на канал
+              </a>
+            </div>
+
+            {/* Right Box: Dynamic Live Stream Widget */}
+            <div className="relative rounded-xl overflow-hidden">
+              {streamConfig.channelId ? (
+                <LiveStreamWidget config={streamConfig} />
+              ) : (
+                <div className="relative h-56 md:h-60 rounded-xl border border-purple-500/50 bg-gradient-to-br from-purple-900/30 via-slate-900 to-slate-950 flex items-center justify-center">
+                  <div className="text-center opacity-40">
+                    <div className="text-5xl md:text-6xl mb-2 md:mb-4">🏀</div>
+                    <p className="text-purple-300 text-xs md:text-sm font-bold">Трансляція</p>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
-      </div>
-    </section>
-  );
+      </section>
+    );
+  };
 
   // ═══════════════════════════════════════════════════════════════
   // STANDINGS TABLE (компактна, сучасна)
