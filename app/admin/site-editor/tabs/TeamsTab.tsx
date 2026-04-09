@@ -1,8 +1,10 @@
 "use client";
 
-import { useState, useTransition, useRef } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { createTeam, updateTeam, deleteTeam, createPlayer, updatePlayer, deletePlayer } from "@/actions/admin-data";
+import TeamLogoUploader from "../components/TeamLogoUploader";
+import PlayerPhotoUploader from "../components/PlayerPhotoUploader";
 import type { TeamRow, PlayerRow } from "../SiteEditorClient";
 
 const POSITIONS = ["PG", "SG", "SF", "PF", "C"];
@@ -17,55 +19,19 @@ export default function TeamsTab({ teams, players }: { teams: TeamRow[]; players
   // Team form
   const [teamForm, setTeamForm] = useState(EMPTY_TEAM_FORM);
   const [editingTeam, setEditingTeam] = useState<TeamRow | null>(null);
-  const [uploadingLogo, setUploadingLogo] = useState(false);
-  const logoInputRef = useRef<HTMLInputElement>(null);
-  // Відстеження битих зображень (404/broken) по teamId
-  const [brokenLogos, setBrokenLogos] = useState<Set<number>>(new Set());
 
   // Player form
   const [playerForm, setPlayerForm] = useState({ firstName: "", lastName: "", number: "", position: "PG", teamId: "", photoUrl: "" });
   const [editingPlayer, setEditingPlayer] = useState<PlayerRow | null>(null);
   const [showPlayerForm, setShowPlayerForm] = useState(false);
-  const [uploadingPhoto, setUploadingPhoto] = useState(false);
-  const photoInputRef = useRef<HTMLInputElement>(null);
 
   const teamPlayers = activeTeamId ? players.filter((p) => p.teamId === activeTeamId) : [];
 
-  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    // Миттєвий локальний preview ще до завантаження
-    const localPreview = URL.createObjectURL(file);
-    setTeamForm((f) => ({ ...f, logoUrl: localPreview }));
-    setUploadingLogo(true);
-    try {
-      const fd = new FormData();
-      fd.append("file", file);
-      fd.append("type", "team-logo");
-      const res = await fetch("/api/upload", { method: "POST", body: fd });
-      if (!res.ok) {
-        const text = await res.text();
-        console.error("[upload] HTTP error", res.status, text);
-        // Скидаємо preview якщо upload не вдався
-        setTeamForm((f) => ({ ...f, logoUrl: "" }));
-        return;
-      }
-      const data = await res.json();
-      if (data.url) {
-        // Замінюємо blob URL на серверний шлях і звільняємо пам'ять
-        setTeamForm((f) => ({ ...f, logoUrl: data.url }));
-        URL.revokeObjectURL(localPreview);
-      } else {
-        console.error("[upload] no url in response:", data);
-        setTeamForm((f) => ({ ...f, logoUrl: "" }));
-      }
-    } catch (err) {
-      console.error("[upload] fetch error:", err);
-      setTeamForm((f) => ({ ...f, logoUrl: "" }));
-    } finally {
-      setUploadingLogo(false);
-      if (logoInputRef.current) logoInputRef.current.value = "";
-    }
+  /**
+   * Callback коли логотип успішно завантажено через Vercel Blob
+   */
+  const handleLogoUploadSuccess = (blobUrl: string) => {
+    setTeamForm((f) => ({ ...f, logoUrl: blobUrl }));
   };
 
   const handleSaveTeam = () => {
@@ -108,42 +74,11 @@ export default function TeamsTab({ teams, players }: { teams: TeamRow[]; players
     });
   };
 
-  const handlePlayerPhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    // Show instant local preview before upload completes
-    const localPreview = URL.createObjectURL(file);
-    setPlayerForm((f) => ({ ...f, photoUrl: localPreview }));
-    setUploadingPhoto(true);
-    try {
-      const fd = new FormData();
-      fd.append("file", file);
-      fd.append("type", "player-photo");
-      const res = await fetch("/api/upload", { method: "POST", body: fd });
-      if (!res.ok) {
-        const text = await res.text();
-        console.error("[upload] HTTP error", res.status, text);
-        setPlayerForm((f) => ({ ...f, photoUrl: "" }));
-        URL.revokeObjectURL(localPreview);
-        return;
-      }
-      const data = await res.json();
-      if (data.url) {
-        setPlayerForm((f) => ({ ...f, photoUrl: data.url }));
-        URL.revokeObjectURL(localPreview);
-      } else {
-        console.error("[upload] no url in response:", data);
-        setPlayerForm((f) => ({ ...f, photoUrl: "" }));
-        URL.revokeObjectURL(localPreview);
-      }
-    } catch (err) {
-      console.error("[upload] fetch error:", err);
-      setPlayerForm((f) => ({ ...f, photoUrl: "" }));
-      URL.revokeObjectURL(localPreview);
-    } finally {
-      setUploadingPhoto(false);
-      if (photoInputRef.current) photoInputRef.current.value = "";
-    }
+  /**
+   * Callback коли фото гравця успішно завантажено через Vercel Blob
+   */
+  const handlePlayerPhotoUploadSuccess = (blobUrl: string) => {
+    setPlayerForm((f) => ({ ...f, photoUrl: blobUrl }));
   };
 
   const handleSavePlayer = () => {
@@ -217,52 +152,17 @@ export default function TeamsTab({ teams, players }: { teams: TeamRow[]; players
         <h3 className="font-bold text-gray-700 mb-3">{editingTeam ? "Редагувати команду" : "Додати команду"}</h3>
 
         <div className="flex gap-4 flex-wrap items-start">
-          {/* Logo upload */}
-          <div className="flex flex-col items-center gap-2">
-            <div
-              className="w-16 h-16 rounded-xl border-2 border-dashed border-gray-300 overflow-hidden flex items-center justify-center bg-white cursor-pointer hover:border-orange-400 transition-colors flex-shrink-0"
-              onClick={() => logoInputRef.current?.click()}
-              title="Завантажити логотип"
-            >
-              {teamForm.logoUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={teamForm.logoUrl}
-                  alt="logo"
-                  className="object-cover w-full h-full"
-                  onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-                />
-              ) : (
-                <span className="text-gray-300 text-2xl font-black select-none">
-                  {teamForm.shortName || "БЛ"}
-                </span>
-              )}
-            </div>
-            <input
-              ref={logoInputRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={handleLogoUpload}
-            />
-            <button
-              type="button"
-              onClick={() => logoInputRef.current?.click()}
-              disabled={uploadingLogo}
-              className="text-xs text-gray-500 hover:text-orange-500 transition-colors disabled:opacity-50"
-            >
-              {uploadingLogo ? "Завантаження..." : teamForm.logoUrl ? "Змінити" : "Додати фото"}
-            </button>
-            {teamForm.logoUrl && (
-              <button
-                type="button"
-                onClick={() => setTeamForm((f) => ({ ...f, logoUrl: "" }))}
-                className="text-xs text-red-400 hover:text-red-600"
-              >
-                Видалити
-              </button>
-            )}
-          </div>
+          {/* Logo upload — Vercel Blob */}
+          <TeamLogoUploader
+            currentLogoUrl={teamForm.logoUrl}
+            shortName={teamForm.shortName || "БЛ"}
+            onLogoUploadSuccess={handleLogoUploadSuccess}
+            onError={(error) => {
+              console.error("[TeamsTab] Logo upload error:", error);
+              alert(`❌ Помилка: ${error}`);
+            }}
+            size={80}
+          />
 
           {/* Name + shortName + buttons */}
           <div className="flex flex-col gap-3 flex-1">
@@ -299,7 +199,7 @@ export default function TeamsTab({ teams, players }: { teams: TeamRow[]; players
             <div className="flex gap-2">
               <button
                 onClick={handleSaveTeam}
-                disabled={pending || uploadingLogo}
+                disabled={pending}
                 className="px-4 py-2 rounded-lg text-sm font-bold text-white disabled:opacity-50 transition-opacity"
                 style={{ backgroundColor: "#1a2744" }}
                 title={!teamForm.name.trim() || !teamForm.shortName.trim() ? "Заповніть обов'язкові поля" : ""}
@@ -332,13 +232,16 @@ export default function TeamsTab({ teams, players }: { teams: TeamRow[]; players
               <div className="flex items-center gap-3 min-w-0">
                 {/* Team logo or placeholder */}
                 <div className="w-10 h-10 rounded-lg overflow-hidden flex-shrink-0 border bg-gray-100 flex items-center justify-center">
-                  {team.logoUrl && !brokenLogos.has(team.id) ? (
+                  {team.logoUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={team.logoUrl}
                       alt={team.name}
                       className="object-cover w-full h-full"
-                      onError={() => setBrokenLogos((prev) => new Set(prev).add(team.id))}
+                      onError={(e) => {
+                        console.warn('[TeamsTab] Logo failed to load:', team.logoUrl);
+                        (e.target as HTMLImageElement).style.display = 'none';
+                      }}
                     />
                   ) : (
                     <span className="text-gray-400 text-xs font-bold">{team.shortName}</span>
@@ -397,39 +300,15 @@ export default function TeamsTab({ teams, players }: { teams: TeamRow[]; players
           {showPlayerForm && (
             <div className="bg-gray-50 rounded-lg p-3 mb-3 border space-y-3">
               <div className="flex gap-3 items-start">
-                {/* Photo upload */}
-                <div className="flex flex-col items-center gap-1 flex-shrink-0">
-                  <div
-                    className="w-16 h-16 rounded-full border-2 border-dashed border-gray-300 overflow-hidden flex items-center justify-center bg-white cursor-pointer hover:border-orange-400 transition-colors relative"
-                    onClick={() => !uploadingPhoto && photoInputRef.current?.click()}
-                    title="Завантажити фото"
-                  >
-                    {uploadingPhoto ? (
-                      <div className="flex items-center justify-center w-full h-full">
-                        <div className="w-5 h-5 border-2 border-orange-400 border-t-transparent rounded-full animate-spin" />
-                      </div>
-                    ) : playerForm.photoUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={playerForm.photoUrl} alt="photo" className="object-cover w-full h-full" />
-                    ) : (
-                      <span className="text-gray-300 text-2xl">👤</span>
-                    )}
-                  </div>
-                  <input ref={photoInputRef} type="file" accept="image/*" className="hidden" onChange={handlePlayerPhotoUpload} />
-                  <button
-                    type="button"
-                    onClick={() => !uploadingPhoto && photoInputRef.current?.click()}
-                    disabled={uploadingPhoto}
-                    className="text-xs text-gray-400 hover:text-orange-500 transition-colors disabled:opacity-50 whitespace-nowrap"
-                  >
-                    {uploadingPhoto ? "Завантаження..." : playerForm.photoUrl ? "Змінити" : "Додати фото"}
-                  </button>
-                  {playerForm.photoUrl && !uploadingPhoto && (
-                    <button type="button" onClick={() => setPlayerForm((f) => ({ ...f, photoUrl: "" }))} className="text-xs text-red-400 hover:text-red-600">
-                      Видалити
-                    </button>
-                  )}
-                </div>
+                {/* Photo upload — Vercel Blob */}
+                <PlayerPhotoUploader
+                  currentPhotoUrl={playerForm.photoUrl}
+                  onPhotoUploadSuccess={handlePlayerPhotoUploadSuccess}
+                  onError={(error) => {
+                    console.error("[TeamsTab] Player photo upload error:", error);
+                    alert(`❌ Помилка: ${error}`);
+                  }}
+                />
 
                 {/* Fields */}
                 <div className="flex gap-2 flex-wrap flex-1">
@@ -461,7 +340,7 @@ export default function TeamsTab({ teams, players }: { teams: TeamRow[]; players
                   </select>
                   <button
                     onClick={handleSavePlayer}
-                    disabled={pending || uploadingPhoto}
+                    disabled={pending}
                     className="px-3 py-1.5 rounded text-sm font-bold text-white disabled:opacity-50"
                     style={{ backgroundColor: "#1a2744" }}
                   >
