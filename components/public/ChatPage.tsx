@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import ChatPageMobile from "./ChatPageMobile";
+import ChatActivePoll, { ChatPollData } from "./ChatActivePoll";
+import { createChatPoll } from "@/actions/chat-poll";
 
 const LS_KEY = "ldbl_chat_user";
 const EMOJIS = ["👍", "❤️", "😂", "😮", "🔥", "🏀"];
@@ -226,10 +228,7 @@ export default function ChatPage() {
   const [showPoll, setShowPoll] = useState(false);
   const [pollQuestion, setPollQuestion] = useState("");
   const [pollOptions, setPollOptions] = useState(["", ""]);
-  const [activePoll, setActivePoll] = useState<{
-    id: string; question: string; options: string[];
-    votes: Record<string, string>; createdBy: string;
-  } | null>(null);
+  const [activePoll, setActivePoll] = useState<ChatPollData | null>(null);
   const [showPorokhova, setShowPorokhova] = useState(false);
   const [porokhovaList, setPorokhovaList] = useState<{
     phone: string; name: string; status: "їду" | "їду_20" | "потрібен_1"; checkinAt: string;
@@ -565,6 +564,29 @@ export default function ChatPage() {
     return () => clearInterval(pollInterval);
   }, [step]);
 
+  // ── Load active poll ───────────────────────────────────────────────────────
+  useEffect(() => {
+    if (step !== "chat") return;
+
+    const loadPoll = async () => {
+      try {
+        const res = await fetch("/api/chat/active-poll");
+        const data = await res.json();
+        if (data.poll) {
+          setActivePoll(data.poll);
+        } else {
+          setActivePoll(null);
+        }
+      } catch (err) {
+        console.error("[ChatPage] Load poll failed:", err);
+      }
+    };
+
+    loadPoll();
+    const interval = setInterval(loadPoll, 10000); // Refresh every 10s
+    return () => clearInterval(interval);
+  }, [step]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // ── SSE ────────────────────────────────────────────────────────────────
   useEffect(() => {
     if (step !== "chat") return;
@@ -610,6 +632,13 @@ export default function ChatPage() {
     }
     if (ev.type === "mvp_vote") {
       loadMvpResults();
+    }
+    if (ev.type === "poll_vote") {
+      // Refresh poll when someone votes
+      fetch("/api/chat/active-poll")
+        .then((r) => r.json())
+        .then((d) => d.poll && setActivePoll(d.poll))
+        .catch(() => {});
     }
   }
 
@@ -1500,6 +1529,16 @@ export default function ChatPage() {
 
       {/* ── Messages ─────────────────────────────────────────────────────── */}
       <div style={{ flex: 1, overflowY: "auto", padding: "12px 16px", display: "flex", flexDirection: "column", gap: "4px" }}>
+        {/* ── Active Poll Block ──────────────────────────────────────────── */}
+        {activePoll && user && (
+          <ChatActivePoll
+            poll={activePoll}
+            userPhone={user.phone}
+            userName={`${user.firstName} ${user.lastName}`}
+            onPollUpdated={(updated) => setActivePoll(updated)}
+          />
+        )}
+
         {messages.length === 0 && (
           <div style={{ textAlign: "center", color: "#475569", fontSize: "13px", marginTop: "48px" }}>
             Поки немає повідомлень. Будьте першим! 🏀
@@ -2065,14 +2104,22 @@ export default function ChatPage() {
                     style={{ flex: 1, padding: "10px", borderRadius: "8px", border: "1px solid #334", background: "transparent", color: "#aaa", cursor: "pointer" }}>
                     Скасувати
                   </button>
-                  <button onClick={() => {
+                  <button onClick={async () => {
                     const valid = pollOptions.filter((o) => o.trim());
-                    if (!pollQuestion.trim() || valid.length < 2) return;
-                    const poll = { id: Date.now().toString(), question: pollQuestion.trim(), options: valid, votes: {}, createdBy: `${user!.firstName} ${user!.lastName}` };
-                    setActivePoll(poll);
-                    sendSpecial(`[POLL:${JSON.stringify({ q: poll.question, opts: poll.options })}]`);
-                    setPollQuestion("");
-                    setPollOptions(["", ""]);
+                    if (!pollQuestion.trim() || valid.length < 2 || !user) return;
+                    const result = await createChatPoll(
+                      pollQuestion.trim(),
+                      valid,
+                      user.phone,
+                      `${user.firstName} ${user.lastName}`
+                    );
+                    if (result) {
+                      setActivePoll(result);
+                      sendSpecial(`[POLL:${JSON.stringify({ q: result.question, opts: result.options })}]`);
+                      setPollQuestion("");
+                      setPollOptions(["", ""]);
+                      setShowPoll(false);
+                    }
                   }}
                     style={{ flex: 1, padding: "10px", borderRadius: "8px", border: "none", background: "#2563eb", color: "white", fontWeight: 700, cursor: "pointer" }}>
                     Створити 🗳️

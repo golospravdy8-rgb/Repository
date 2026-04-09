@@ -299,6 +299,28 @@ model ChatOnline {
   @@index([lastSeen])
 }
 
+model ChatPoll {
+  id        Int          @id @default(autoincrement())
+  question  String
+  options   String[]
+  createdBy String
+  createdAt DateTime     @default(now())
+  isActive  Boolean      @default(true)
+  votes     ChatPollVote[]
+}
+
+model ChatPollVote {
+  id        Int       @id @default(autoincrement())
+  pollId    Int
+  voterPhone String
+  optionIdx Int
+  createdAt DateTime  @default(now())
+  poll      ChatPoll  @relation(fields: [pollId], references: [id], onDelete: Cascade)
+
+  @@unique([pollId, voterPhone])
+  @@index([pollId])
+}
+
 model PlayerAchievement {
   id         Int      @id @default(autoincrement())
   playerId   Int

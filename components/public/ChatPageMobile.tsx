@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback, useOptimistic, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { loadPorokhovaParticipants, registerPorokhovaParticipant } from "@/actions/porokhova";
-import ActivePollSidebar from "./ActivePollSidebar";
+import ChatActivePoll, { ChatPollData } from "./ChatActivePoll";
 
 const LS_KEY = "ldbl_chat_user";
 
@@ -132,8 +132,7 @@ export default function ChatPageMobile({ user, messages: initialMessages, member
   const [leaderboardWeekStart, setLeaderboardWeekStart] = useState<string>("");
   const [pollQuestion, setPollQuestion] = useState("");
   const [pollOptions, setPollOptions] = useState(["", ""]);
-  const [activePoll, setActivePoll] = useState<{ id: string; question: string; options: string[]; votes: Record<string, string>; createdBy: string } | null>(null);
-  const [isVotingInSidebar, setIsVotingInSidebar] = useState(false);
+  const [activePoll, setActivePoll] = useState<ChatPollData | null>(null);
   const [spinDone, setSpinDone] = useState(false);
   const [spinState, setSpinState] = useState<"idle" | "spinning" | "result">("idle");
   const [spinResult, setSpinResult] = useState<number | null>(null);
@@ -272,44 +271,27 @@ export default function ChatPageMobile({ user, messages: initialMessages, member
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [optimisticMessages]);
 
-  // MOBILE ONLY — NEW 2026: Extract active poll from latest poll message with votes
-  // Shows the most recent poll that has votes
+  // MOBILE ONLY — Load active poll from API
   useEffect(() => {
-    const pollMessages = optimisticMessages
-      .filter((msg) => msg.text.startsWith("[POLL:") && msg.text.endsWith("]"))
-      .reverse(); // Latest first
-
-    let foundActivePoll = null;
-    for (const msg of pollMessages) {
+    const loadPoll = async () => {
       try {
-        const pollData = JSON.parse(msg.text.slice(6, -1));
-        // Create a poll object with local storage voting state if exists
-        const pollKey = `poll_votes_${msg.id}`;
-        const storedVotes = localStorage.getItem(pollKey);
-        const votes = storedVotes ? JSON.parse(storedVotes) : {};
-
-        const poll = {
-          id: String(msg.id),
-          question: pollData.question,
-          options: pollData.options,
-          votes,
-          createdBy: msg.name,
-        };
-
-        // Only show polls that have at least one vote or are recent (< 1 hour old)
-        const msgDate = new Date(msg.createdAt || Date.now());
-        const isRecent = (Date.now() - msgDate.getTime()) < 3600000; // 1 hour
-        if (Object.keys(votes).length > 0 || isRecent) {
-          foundActivePoll = poll;
-          break;
+        const res = await fetch("/api/chat/active-poll");
+        const data = await res.json();
+        if (data.poll) {
+          setActivePoll(data.poll);
         }
-      } catch {
-        // Skip malformed polls
+      } catch (err) {
+        console.error("[ChatPageMobile] Load poll failed:", err);
       }
-    }
+    };
 
-    setActivePoll(foundActivePoll);
-  }, [optimisticMessages]);
+    // Load immediately
+    loadPoll();
+
+    // Refresh every 10 seconds for real-time updates
+    const interval = setInterval(loadPoll, 10000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Load players for MVP
   useEffect(() => {
@@ -327,29 +309,6 @@ export default function ChatPageMobile({ user, messages: initialMessages, member
       .catch(() => {});
   }, [showMvp]);
 
-  // MOBILE ONLY — NEW 2026: Handle poll vote from sidebar with optimistic update
-  const handlePollVoteFromSidebar = async (optionIndex: number) => {
-    if (!activePoll || activePoll.votes[user.phone] !== undefined) return;
-
-    setIsVotingInSidebar(true);
-    try {
-      // Optimistic update
-      const updatedVotes = { ...activePoll.votes, [user.phone]: String(optionIndex) };
-      setActivePoll({ ...activePoll, votes: updatedVotes });
-
-      // Persist to localStorage
-      const pollKey = `poll_votes_${activePoll.id}`;
-      localStorage.setItem(pollKey, JSON.stringify(updatedVotes));
-
-      console.log("[Poll] Vote recorded locally for option:", optionIndex);
-    } catch (err) {
-      console.error("[Poll] Vote failed:", err);
-      // Rollback on error
-      setActivePoll(activePoll);
-    } finally {
-      setIsVotingInSidebar(false);
-    }
-  };
 
   // MOBILE ONLY — NEW 2026 APPROACH: Load participants and restore user's previous choice
   useEffect(() => {
@@ -614,13 +573,15 @@ export default function ChatPageMobile({ user, messages: initialMessages, member
       {/* ── MESSAGES ──────────────────────────────────────────────────── */}
       {/* MOBILE ONLY — NEW 2026 APPROACH: Use optimisticMessages for real-time updates */}
       <div style={{ flex: 1, overflowY: "auto", padding: "12px 8px", display: "flex", flexDirection: "column", gap: "4px" }}>
-        {/* MOBILE ONLY — NEW 2026: Active Poll Sidebar */}
-        <ActivePollSidebar
-          poll={activePoll}
-          userPhone={user.phone}
-          onVote={handlePollVoteFromSidebar}
-          isVoting={isVotingInSidebar}
-        />
+        {/* MOBILE ONLY — Active Poll Block */}
+        {activePoll && (
+          <ChatActivePoll
+            poll={activePoll}
+            userPhone={user.phone}
+            userName={`${user.firstName} ${user.lastName}`}
+            onPollUpdated={(updated) => setActivePoll(updated)}
+          />
+        )}
 
         {optimisticMessages.length === 0 && (
           <div style={{ textAlign: "center", color: "#475569", fontSize: "13px", marginTop: "48px" }}>
