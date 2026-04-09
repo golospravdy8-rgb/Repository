@@ -4,43 +4,70 @@ import Link from "next/link";
 import { Suspense } from "react";
 import AgeGroupTabs from "./AgeGroupTabs";
 import { requireAuth } from "@/lib/require-auth";
+import type { Game, BoxScore, Season } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage({ searchParams }: { searchParams: { ag?: string } }) {
-  await requireAuth();
+  try {
+    await requireAuth();
+  } catch (error) {
+    console.error('[Dashboard] Auth error:', error);
+    throw error;
+  }
+
   const ag = searchParams.ag === "older" ? "older" : "younger";
 
-  const [season, gamesCount, teamsCount, playersCount] = await Promise.all([
-    prisma.season.findFirst({ where: { isActive: true, ageGroup: ag } }),
-    prisma.game.count(),
-    prisma.team.count(),
-    prisma.player.count(),
-  ]);
+  let season, gamesCount, teamsCount, playersCount;
+  try {
+    [season, gamesCount, teamsCount, playersCount] = await Promise.all([
+      prisma.season.findFirst({ where: { isActive: true, ageGroup: ag } }),
+      prisma.game.count(),
+      prisma.team.count(),
+      prisma.player.count(),
+    ]);
+  } catch (error) {
+    console.error('[Dashboard] Database error on stats:', error);
+    throw new Error(`Failed to load dashboard stats: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
 
-  const recentGames = season
-    ? await prisma.game.findMany({
+  let recentGames: (Game & { homeTeam: any; awayTeam: any })[] = [];
+  let liveGames: (Game & { homeTeam: any; awayTeam: any })[] = [];
+  let seasonBoxScores: (BoxScore & { player: any; team: any })[] = [];
+  let allLeaders: any[] = [];
+  let top5Leaders: any[] = [];
+
+  try {
+    if (season) {
+      recentGames = await prisma.game.findMany({
         where: { seasonId: season.id },
         include: { homeTeam: true, awayTeam: true },
         orderBy: { scheduledAt: "desc" },
         take: 10,
-      })
-    : [];
+      });
 
-  const liveGames = recentGames.filter((g) => g.status === "LIVE");
+      liveGames = recentGames.filter((g) => g.status === "LIVE");
 
-  // Top-5 leaders by points
-  const seasonBoxScores = season
-    ? await prisma.boxScore.findMany({
+      // Top-5 leaders by points
+      seasonBoxScores = await prisma.boxScore.findMany({
         where: { game: { seasonId: season.id, status: "FINAL" } },
         include: {
           player: { select: { firstName: true, lastName: true, photoUrl: true } },
           team: { select: { name: true, shortName: true } },
         },
-      })
-    : [];
-  const allLeaders = calculateLeaderStats(seasonBoxScores);
-  const top5Leaders = [...allLeaders].sort((a, b) => b.ppg - a.ppg).slice(0, 5);
+      });
+      allLeaders = calculateLeaderStats(seasonBoxScores);
+      top5Leaders = [...allLeaders].sort((a, b) => b.ppg - a.ppg).slice(0, 5);
+    }
+  } catch (error) {
+    console.error('[Dashboard] Database error on games/leaders:', error);
+    // Don't throw - allow dashboard to load with partial data
+    recentGames = [];
+    liveGames = [];
+    seasonBoxScores = [];
+    allLeaders = [];
+    top5Leaders = [];
+  }
 
   return (
     <div className="space-y-8">
