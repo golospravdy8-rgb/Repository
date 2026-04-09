@@ -124,13 +124,22 @@ export default function HomePageNeon({ season, standings = [], players = [], ag 
 
         {/* Action Pills — DESKTOP ONLY */}
         <div className="hidden md:flex flex-wrap gap-1.5 justify-center mb-2.5 md:mb-3">
-          {['Барахолка', 'Курси', 'Магазин', 'новини', 'Медіа', 'Відгуки'].map((item) => (
-            <button
-              key={item}
+          {[
+            { label: 'Барахолка', href: '/marketplace', icon: '🏪' },
+            { label: 'Курси', href: '/courses', icon: '🎓' },
+            { label: 'Магазин', href: '/shop', icon: '🛍️' },
+            { label: 'новини', href: '/news', icon: '📰' },
+            { label: 'Медіа', href: '/media', icon: '📸' },
+            { label: 'Відгуки', href: '/reviews', icon: '⭐' },
+          ].map(({ label, href, icon }) => (
+            <Link
+              key={label}
+              href={href}
               className="px-3 py-1.5 text-xs bg-gradient-to-r from-orange-500 to-orange-600 text-white font-bold rounded-full hover:shadow-[0_0_15px_rgba(255,77,0,0.8)] transition duration-300"
+              aria-label={`Перейти на ${label}`}
             >
-              {item}
-            </button>
+              {icon} {label}
+            </Link>
           ))}
         </div>
 
