@@ -23,3 +23,25 @@
 
  ✓ Starting...
  ✓ Ready in 3.5s
+ ○ Compiling /api/teams/add ...
+ ✓ Compiled /api/teams/add in 887ms (173 modules)
+ GET /api/teams/add 200 in 1050ms
+[/api/teams/add] Supabase error: {
+  code: 'PGRST204',
+  details: null,
+  hint: null,
+  message: "Could not find the 'description' column of 'teams' in the schema cache"
+}
+ POST /api/teams/add 500 in 577ms
+ ✓ Compiled in 106ms (173 modules)
+[/api/teams/add] Team added successfully: [
+  {
+    id: 2,
+    created_at: '2026-04-09T08:08:35.538314+00:00',
+    name: 'Test Team',
+    logo: null,
+    city: null
+  }
+]
+ POST /api/teams/add 201 in 277ms
+[?25h
