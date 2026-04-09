@@ -27,6 +27,11 @@ interface PlayerPhotoUploaderProps {
 /**
  * Компонент для завантаження фото гравця через Vercel Blob
  * (Аналогічно TeamLogoUploader, але для кругового фото)
+ *
+ * ВАЖЛИВО (2026 BEST PRACTICE):
+ * - Сервер явно передає LOGOS_READ_WRITE_TOKEN до @vercel/blob
+ * - Це гарантує успіх при кастомних префіксах токена
+ * - М'яка обробка помилок без жорстких alert'ів
  */
 export default function PlayerPhotoUploader({
   currentPhotoUrl,
@@ -38,6 +43,7 @@ export default function PlayerPhotoUploader({
   const [isUploading, setIsUploading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleClickPhoto = () => {
@@ -47,37 +53,53 @@ export default function PlayerPhotoUploader({
   };
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const uploadId = Math.random().toString(36).substring(7);
+    const startTime = Date.now();
+
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Валідація
+    // Очищуємо попередню помилку
+    setError(null);
+
+    console.log(`[PlayerPhotoUploader ${uploadId}] File selected:`, {
+      name: file.name,
+      type: file.type,
+      size: `${(file.size / 1024).toFixed(2)} KB`,
+    });
+
+    // Валідація на клієнті
     if (!file.type.startsWith('image/')) {
       const errorMsg = 'Виберіть зображення';
+      console.error(`[PlayerPhotoUploader ${uploadId}] ❌ Invalid file type: ${file.type}`);
+      setError(errorMsg);
       onError?.(errorMsg);
-      alert(errorMsg);
       return;
     }
 
-    const MAX_SIZE = 5 * 1024 * 1024;
+    const MAX_SIZE = 5 * 1024 * 1024; // 5MB
     if (file.size > MAX_SIZE) {
       const errorMsg = 'Файл занадто великий (макс 5MB)';
+      console.error(`[PlayerPhotoUploader ${uploadId}] ❌ File too large: ${file.size} bytes`);
+      setError(errorMsg);
       onError?.(errorMsg);
-      alert(errorMsg);
       return;
     }
 
     // Миттєвий preview
+    console.log(`[PlayerPhotoUploader ${uploadId}] Creating preview...`);
     const localPreview = URL.createObjectURL(file);
     setPreviewUrl(localPreview);
     setIsUploading(true);
     setProgress(0);
 
     try {
+      console.log(`[PlayerPhotoUploader ${uploadId}] Starting upload to /api/blob/upload...`);
+
       const formData = new FormData();
       formData.append('file', file);
       formData.append('filename', `player-photo-${Date.now()}`);
 
-      // Завантажуємо
       const response = await fetch('/api/blob/upload', {
         method: 'POST',
         body: formData,
@@ -85,17 +107,27 @@ export default function PlayerPhotoUploader({
 
       setProgress(50);
 
+      // Парсимо відповідь
+      let data;
+      try {
+        data = await response.json();
+      } catch (parseError) {
+        console.error(`[PlayerPhotoUploader ${uploadId}] Could not parse response as JSON`);
+        throw new Error(`Server error (status ${response.status})`);
+      }
+
       if (!response.ok) {
-        const data = await response.json();
+        console.warn(`[PlayerPhotoUploader ${uploadId}] ❌ HTTP error: ${response.status}`);
+        console.error(`[PlayerPhotoUploader ${uploadId}] Error response:`, data);
         throw new Error(data.error || `Upload failed (${response.status})`);
       }
 
-      const data = await response.json();
-
       if (!data.success || !data.url) {
-        throw new Error('No URL returned');
+        console.error(`[PlayerPhotoUploader ${uploadId}] ❌ Invalid response:`, data);
+        throw new Error('No URL returned from server');
       }
 
+      console.log(`[PlayerPhotoUploader ${uploadId}] ✅ Upload successful!`);
       setProgress(100);
       setPhotoUrl(data.url);
       URL.revokeObjectURL(localPreview);
@@ -103,12 +135,27 @@ export default function PlayerPhotoUploader({
 
       onPhotoUploadSuccess(data.url);
 
-      console.log('[PlayerPhotoUploader] Upload success:', data.url);
-    } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : 'Upload error';
-      console.error('[PlayerPhotoUploader] Error:', errorMsg);
+      console.log(`[PlayerPhotoUploader ${uploadId}] ✅ Complete (${Date.now() - startTime}ms)`);
+    } catch (errorObj) {
+      const errorMsg = errorObj instanceof Error ? errorObj.message : 'Upload error';
+      const errorStack = errorObj instanceof Error ? errorObj.stack : '';
+
+      console.error(`[PlayerPhotoUploader ${uploadId}] ❌ EXCEPTION:`, {
+        message: errorMsg,
+        stack: errorStack,
+        duration: `${Date.now() - startTime}ms`,
+      });
+
+      // М'яка обробка помилки
+      let userMessage = errorMsg;
+      if (errorMsg.includes('token') || errorMsg.includes('Unauthorized')) {
+        userMessage = '⚠️ Помилка налаштування токена. Перевір LOGOS_READ_WRITE_TOKEN.';
+      } else if (errorMsg.includes('network') || errorMsg.includes('ENOTFOUND')) {
+        userMessage = '⚠️ Помилка мережі. Перевір з\'єднання з Vercel.';
+      }
+
+      setError(userMessage);
       onError?.(errorMsg);
-      alert(`❌ Помилка: ${errorMsg}`);
       URL.revokeObjectURL(localPreview);
       setPreviewUrl(null);
     } finally {
@@ -117,12 +164,14 @@ export default function PlayerPhotoUploader({
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
+      console.log(`[PlayerPhotoUploader ${uploadId}] Cleanup completed`);
     }
   };
 
   const handleDeletePhoto = () => {
     setPhotoUrl('');
     setPreviewUrl(null);
+    setError(null);
     onPhotoUploadSuccess('');
   };
 
@@ -183,6 +232,13 @@ export default function PlayerPhotoUploader({
         >
           Видалити
         </button>
+      )}
+
+      {/* Помилка — показуємо м'яко, без жорстких alert */}
+      {error && !isUploading && (
+        <div className="text-xs text-red-500 text-center mt-1 max-w-xs">
+          {error}
+        </div>
       )}
     </div>
   );

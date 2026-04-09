@@ -39,12 +39,18 @@ interface TeamLogoUploaderProps {
 /**
  * Компонент для завантаження логотипу команди через Vercel Blob
  *
+ * ВАЖЛИВО (2026 BEST PRACTICE):
+ * - Сам НЕ читаємо токен (як раніше спробували)
+ * - Замість цього робимо fetch до /api/blob/upload
+ * - Сервер явно передає токен до @vercel/blob (гарантує успіх)
+ * - Це вирішує проблему "No token found" при кастомних префіксах (LOGOS_READ_WRITE_TOKEN)
+ *
  * Особливості:
- * - Direct client upload на Vercel Blob
- * - Instant preview перед завантаженням
- * - Progress bar
+ * - Instant preview перед завантаженням (локальний)
+ * - Progress bar (0-50% до відповіді сервера, потім 100%)
  * - Fallback на абревіатуру команди
- * - Оптимізовані зображення через Next.js Image
+ * - Детальна діагностика в console (без блокування UI)
+ * - М'яка обробка помилок
  */
 export default function TeamLogoUploader({
   currentLogoUrl,
@@ -58,71 +64,145 @@ export default function TeamLogoUploader({
   const [isUploading, setIsUploading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   /**
    * Обробник клацання на квадрат логотипу
    */
   const handleClickLogo = () => {
-    fileInputRef.current?.click();
+    console.log('[TeamLogoUploader] Logo square clicked');
+    console.log('[TeamLogoUploader] Upload method: Server-side (POST /api/blob/upload with explicit token)');
+    console.log('[TeamLogoUploader] fileInputRef:', fileInputRef.current ? 'exists' : 'NOT FOUND');
+
+    if (!fileInputRef.current) {
+      console.error('[TeamLogoUploader] ❌ ERROR: fileInputRef is null! Input не замонтований.');
+      // Не блокуємо UI жорстким alert — показуємо помилку в state
+      setError('Помилка компонента: input element не знайдено. Перезавантажте сторінку.');
+      return;
+    }
+
+    fileInputRef.current.click();
+    console.log('[TeamLogoUploader] File input triggered');
   };
 
   /**
    * Обробник вибору файлу
+   * ДІАГНОСТИКА: Детальне логування на кожному кроці
    */
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const uploadId = Math.random().toString(36).substring(7);
+    const startTime = Date.now();
 
-    // Валідація на клієнті
+    // Очищуємо попередню помилку
+    setError(null);
+
+    console.log(`[TeamLogoUploader ${uploadId}] File selection started`);
+
+    const file = e.target.files?.[0];
+
+    if (!file) {
+      console.warn(`[TeamLogoUploader ${uploadId}] No file selected (user cancelled)`);
+      return;
+    }
+
+    // ДІАГНОСТИКА: Лог про вибраний файл
+    console.log(`[TeamLogoUploader ${uploadId}] File selected:`, {
+      name: file.name,
+      type: file.type,
+      size: `${(file.size / 1024).toFixed(2)} KB`,
+      lastModified: new Date(file.lastModified).toISOString(),
+    });
+
+    // Валідація на клієнті (перед завантаженням)
     if (!file.type.startsWith('image/')) {
-      const errorMsg = 'Виберіть зображення (JPG, PNG, WebP тощо)';
+      const errorMsg = `Виберіть зображення (одержано: ${file.type})`;
+      console.error(`[TeamLogoUploader ${uploadId}] ❌ Invalid file type: ${file.type}`);
+      setError(errorMsg);
       onError?.(errorMsg);
-      alert(errorMsg);
       return;
     }
 
     const MAX_SIZE = 5 * 1024 * 1024; // 5MB
     if (file.size > MAX_SIZE) {
-      const errorMsg = 'Файл занадто великий (макс 5MB)';
+      const errorMsg = `Файл занадто великий (макс 5MB, одержано: ${(file.size / 1024 / 1024).toFixed(2)}MB)`;
+      console.error(`[TeamLogoUploader ${uploadId}] ❌ File too large: ${file.size} bytes`);
+      setError(errorMsg);
       onError?.(errorMsg);
-      alert(errorMsg);
       return;
     }
 
-    // Миттєвий preview (локальний blob URL)
+    // ДІАГНОСТИКА: Перед preview
+    console.log(`[TeamLogoUploader ${uploadId}] Creating local preview...`);
     const localPreview = URL.createObjectURL(file);
+    console.log(`[TeamLogoUploader ${uploadId}] Preview URL created:`, localPreview);
+
     setPreviewUrl(localPreview);
     setIsUploading(true);
     setProgress(0);
 
+    console.log(`[TeamLogoUploader ${uploadId}] State updated: isUploading=true, preview shown`);
+
     try {
       // Готуємо FormData
+      console.log(`[TeamLogoUploader ${uploadId}] Preparing FormData...`);
       const formData = new FormData();
       formData.append('file', file);
       formData.append('filename', `team-logo-${Date.now()}`);
 
-      // Завантажуємо на Vercel Blob
+      console.log(`[TeamLogoUploader ${uploadId}] FormData prepared`);
+
+      // ДІАГНОСТИКА: Перед fetch
+      console.log(`[TeamLogoUploader ${uploadId}] Starting fetch to /api/blob/upload...`);
+      setProgress(25);
+
       const response = await fetch('/api/blob/upload', {
         method: 'POST',
         body: formData,
+        // ВАЖЛИВО: НЕ встановлюємо Content-Type! Браузер сам встановить multipart/form-data
       });
 
-      // Симулюємо progress (реальний progress через XMLHttpRequest був би складніше)
+      console.log(`[TeamLogoUploader ${uploadId}] Response received:`, {
+        status: response.status,
+        statusText: response.statusText,
+        contentType: response.headers.get('content-type'),
+      });
+
       setProgress(50);
 
+      // Парсимо відповідь
+      let data;
+      try {
+        data = await response.json();
+      } catch (parseError) {
+        console.error(`[TeamLogoUploader ${uploadId}] Could not parse response as JSON`);
+        throw new Error(`Server error (status ${response.status}): Invalid response format`);
+      }
+
+      // Перевіряємо HTTP статус
       if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || `Upload failed (${response.status})`);
+        console.warn(`[TeamLogoUploader ${uploadId}] ❌ HTTP error: ${response.status}`);
+        console.error(`[TeamLogoUploader ${uploadId}] Error response:`, data);
+
+        // Витягуємо помилку зі сервера
+        const errorMsg = data.error || data.message || `Upload failed (status ${response.status})`;
+        throw new Error(errorMsg);
       }
 
-      const data = await response.json();
+      console.log(`[TeamLogoUploader ${uploadId}] Response parsed:`, {
+        success: data.success,
+        urlReceived: !!data.url,
+        pathname: data.pathname,
+      });
 
+      // Перевіряємо структуру успішної відповіді
       if (!data.success || !data.url) {
-        throw new Error('No URL returned from upload');
+        console.error(`[TeamLogoUploader ${uploadId}] ❌ Invalid response structure:`, data);
+        throw new Error('Server returned invalid response (no URL)');
       }
 
-      // Успішне завантаження
+      // ✅ Успішне завантаження
+      console.log(`[TeamLogoUploader ${uploadId}] ✅ Upload successful!`);
       setProgress(100);
       setLogoUrl(data.url);
 
@@ -133,16 +213,33 @@ export default function TeamLogoUploader({
       // Повідомляємо батьківський компонент
       onLogoUploadSuccess(data.url);
 
-      console.log('[TeamLogoUploader] Upload success:', {
+      console.log(`[TeamLogoUploader ${uploadId}] ✅ Complete:`, {
         url: data.url,
-        filename: data.pathname,
+        duration: `${Date.now() - startTime}ms`,
       });
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : 'Upload error';
-      console.error('[TeamLogoUploader] Error:', errorMsg);
+      const errorStack = error instanceof Error ? error.stack : '';
 
+      console.error(`[TeamLogoUploader ${uploadId}] ❌ EXCEPTION:`, {
+        message: errorMsg,
+        stack: errorStack,
+        duration: `${Date.now() - startTime}ms`,
+      });
+
+      // ДІАГНОСТИКА: Категоризуємо помилку для користувача
+      let userMessage = errorMsg;
+      if (errorMsg.includes('LOGOS_READ_WRITE_TOKEN') || errorMsg.includes('Unauthorized') || errorMsg.includes('token')) {
+        userMessage = '⚠️ Помилка налаштування токена. Перевір LOGOS_READ_WRITE_TOKEN у Vercel Dashboard.';
+      } else if (errorMsg.includes('401') || errorMsg.includes('403')) {
+        userMessage = '⚠️ Помилка автентифікації. Перевір токен у Vercel.';
+      } else if (errorMsg.includes('network') || errorMsg.includes('ENOTFOUND') || errorMsg.includes('ECONNREFUSED')) {
+        userMessage = '⚠️ Помилка мережі. Перевір з\'єднання з Vercel.';
+      }
+
+      // Показуємо помилку м'яко (не жорстким alert)
+      setError(userMessage);
       onError?.(errorMsg);
-      alert(`❌ Помилка завантаження: ${errorMsg}`);
 
       // Скидаємо preview при помилці
       URL.revokeObjectURL(localPreview);
@@ -155,6 +252,8 @@ export default function TeamLogoUploader({
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
+
+      console.log(`[TeamLogoUploader ${uploadId}] Cleanup completed, ready for next upload`);
     }
   };
 
@@ -164,6 +263,7 @@ export default function TeamLogoUploader({
   const handleDeleteLogo = () => {
     setLogoUrl('');
     setPreviewUrl(null);
+    setError(null);
     onLogoUploadSuccess('');
   };
 
@@ -255,6 +355,13 @@ export default function TeamLogoUploader({
             className="bg-orange-500 h-full transition-all"
             style={{ width: `${progress}%` }}
           />
+        </div>
+      )}
+
+      {/* Помилка — показуємо м'яко, без жорстких alert */}
+      {error && !isUploading && (
+        <div className="text-xs text-red-500 text-center mt-2 max-w-xs">
+          {error}
         </div>
       )}
     </div>
