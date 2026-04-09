@@ -1,0 +1,25 @@
+
+> basket-lviv@0.1.0 dev:safe
+> node scripts/dev-safe.js
+
+🔧 [DEV:SAFE] Starting safe development server on port 3006...
+
+🔍 Scanning for processes on ports 3006-3012...
+✨ Port cleanup complete!
+
+🚀 Starting Next.js development server...
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📍 Main App  → http://localhost:3006
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+(node:16532) [DEP0190] DeprecationWarning: Passing args to a child process with shell option true can lead to security vulnerabilities, as the arguments are not escaped, only concatenated.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+  ▲ Next.js 14.2.35
+  - Local:        http://localhost:3006
+  - Environments: .env.local, .env
+  - Experiments (use with caution):
+    · cpus
+
+ ✓ Starting...
+ ✓ Ready in 3.5s

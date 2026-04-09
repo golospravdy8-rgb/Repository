@@ -1,0 +1,27 @@
+[
+  {
+    "name": "Батьки",
+    "description": "Вetранская команда Ліги батьків",
+    "photoUrl": "https://example.com/batky.jpg"
+  },
+  {
+    "name": "U-14",
+    "description": "Команда до 14 років",
+    "photoUrl": "https://example.com/u14.jpg"
+  },
+  {
+    "name": "U-16",
+    "description": "Команда до 16 років",
+    "photoUrl": "https://example.com/u16.jpg"
+  },
+  {
+    "name": "U-18",
+    "description": "Команда до 18 років",
+    "photoUrl": "https://example.com/u18.jpg"
+  },
+  {
+    "name": "Студенти",
+    "description": "Студентська команда",
+    "photoUrl": null
+  }
+]
