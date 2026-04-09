@@ -2180,14 +2180,14 @@ export default function ChatPage() {
                 </p>
                 {activePoll.options.map((opt, i) => {
                   const total = Object.keys(activePoll.votes).length;
-                  const cnt = Object.values(activePoll.votes).filter((v) => v === String(i)).length;
+                  const cnt = Object.values(activePoll.votes).filter((v) => v === i).length;
                   const pct = total > 0 ? Math.round((cnt / total) * 100) : 0;
-                  const voted = activePoll.votes[user!.phone] === String(i);
+                  const voted = activePoll.votes[user!.phone] === i;
                   const hasVoted = user!.phone in activePoll.votes;
                   return (
                     <button key={i} onClick={() => {
                       if (hasVoted) return;
-                      setActivePoll({ ...activePoll, votes: { ...activePoll.votes, [user!.phone]: String(i) } });
+                      setActivePoll({ ...activePoll, votes: { ...activePoll.votes, [user!.phone]: i } });
                     }}
                       style={{ width: "100%", marginBottom: "8px", padding: "10px 14px", borderRadius: "8px", border: voted ? "2px solid #2563eb" : "1px solid #334", background: voted ? "rgba(37,99,235,0.15)" : "rgba(255,255,255,0.04)", color: "white", cursor: hasVoted ? "default" : "pointer", textAlign: "left", position: "relative", overflow: "hidden", fontSize: "14px" }}>
                       <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: `${pct}%`, background: "rgba(37,99,235,0.2)", transition: "width 0.3s" }} />
