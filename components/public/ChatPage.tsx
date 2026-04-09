@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useTransition } from "react";
 import ChatPageMobile from "./ChatPageMobile";
 import ChatActivePoll, { ChatPollData } from "./ChatActivePoll";
 import { createChatPoll } from "@/actions/chat-poll";
@@ -259,6 +259,7 @@ export default function ChatPage() {
   const [leaderboardMode, setLeaderboardMode] = useState<"alltime" | "weekly">("weekly");
   const [leaderboard, setLeaderboard] = useState<{ phone: string; firstName: string; lastName: string; hp: number; weeklyHp?: number | null }[]>([]);
   const [leaderboardWeekStart, setLeaderboardWeekStart] = useState<string>("");
+  const [isPending, startTransition] = useTransition();
   const esRef = useRef<EventSource | null>(null);
   const activeRoomRef = useRef<"general" | "parents">("general");
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -2104,25 +2105,71 @@ export default function ChatPage() {
                     style={{ flex: 1, padding: "10px", borderRadius: "8px", border: "1px solid #334", background: "transparent", color: "#aaa", cursor: "pointer" }}>
                     Скасувати
                   </button>
-                  <button onClick={async () => {
-                    const valid = pollOptions.filter((o) => o.trim());
-                    if (!pollQuestion.trim() || valid.length < 2 || !user) return;
-                    const result = await createChatPoll(
-                      pollQuestion.trim(),
-                      valid,
-                      user.phone,
-                      `${user.firstName} ${user.lastName}`
-                    );
-                    if (result) {
-                      setActivePoll(result);
-                      sendSpecial(`[POLL:${JSON.stringify({ q: result.question, opts: result.options })}]`);
-                      setPollQuestion("");
-                      setPollOptions(["", ""]);
-                      setShowPoll(false);
-                    }
-                  }}
-                    style={{ flex: 1, padding: "10px", borderRadius: "8px", border: "none", background: "#2563eb", color: "white", fontWeight: 700, cursor: "pointer" }}>
-                    Створити 🗳️
+                  <button
+                    onClick={() => {
+                      const valid = pollOptions.filter((o) => o.trim());
+                      if (!pollQuestion.trim()) {
+                        notify("Заповніть питання");
+                        return;
+                      }
+                      if (valid.length < 2) {
+                        notify("Потрібно мінімум 2 варіанти");
+                        return;
+                      }
+                      if (!user) {
+                        notify("Помилка: користувач не знайдений");
+                        return;
+                      }
+
+                      startTransition(async () => {
+                        try {
+                          const result = await createChatPoll(
+                            pollQuestion.trim(),
+                            valid,
+                            user.phone,
+                            `${user.firstName} ${user.lastName}`
+                          );
+
+                          if (!result) {
+                            notify("❌ Помилка створення опитування");
+                            console.error("[Poll] createChatPoll returned null");
+                            return;
+                          }
+
+                          setActivePoll(result);
+                          setPollQuestion("");
+                          setPollOptions(["", ""]);
+                          setShowPoll(false);
+                          notify("✅ Опитування створено!");
+
+                          try {
+                            await sendSpecial(
+                              `[POLL:${JSON.stringify({ q: result.question, opts: result.options })}]`
+                            );
+                          } catch (err) {
+                            console.error("[Poll] sendSpecial failed:", err);
+                          }
+                        } catch (err) {
+                          console.error("[Poll] Create failed:", err);
+                          notify(`❌ Помилка: ${err instanceof Error ? err.message : "невідома помилка"}`);
+                        }
+                      });
+                    }}
+                    disabled={isPending}
+                    style={{
+                      flex: 1,
+                      padding: "10px",
+                      borderRadius: "8px",
+                      border: "none",
+                      background: isPending ? "#9ca3af" : "#2563eb",
+                      color: "white",
+                      fontWeight: 700,
+                      cursor: isPending ? "wait" : "pointer",
+                      opacity: isPending ? 0.7 : 1,
+                      transition: "all 0.2s",
+                    }}
+                  >
+                    {isPending ? "⏳ Створюю..." : "Створити 🗳️"}
                   </button>
                 </div>
               </>
