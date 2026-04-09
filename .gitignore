@@ -61,3 +61,9 @@ import_data.sql
 # uploaded files (user content, not source)
 public/uploads/
 
+"DEPLOYMENT_FINAL_CHECKLIST.md" 
+"add-public-vars.js" 
+"setup-vercel-env*.js" 
+"vercel-env-setup.sh" 
+"rd" 
+"rm" 
