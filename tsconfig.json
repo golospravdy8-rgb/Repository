@@ -39,6 +39,9 @@
   "exclude": [
     "node_modules",
     "apps/**",
-    "packages/**"
+    "packages/**",
+    "prisma/**",
+    "scripts/**",
+    "tests/**"
   ]
 }
