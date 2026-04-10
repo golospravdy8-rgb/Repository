@@ -57,7 +57,14 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ ok: true, token, contact, refLink });
   } catch (error) {
-    console.error("[POST /api/parents/register] Error:", error);
+    console.error("[POST /api/parents/register] Error:", {
+      message: error instanceof Error ? error.message : String(error),
+      name: error instanceof Error ? error.name : "Unknown",
+      code: (error as any)?.code,
+      severity: (error as any)?.severity,
+      hint: (error as any)?.hint,
+      stack: error instanceof Error ? error.stack : null,
+    });
     return NextResponse.json(
       { error: "Помилка при реєстрації. Спробуйте пізніше." },
       { status: 500 }

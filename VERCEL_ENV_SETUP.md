@@ -2,18 +2,31 @@
 
 ## 🔴 Критичні переменные для basketball.lviv.ua
 
-### Database (Neon PostgreSQL)
+### Database (Neon PostgreSQL) — КРИТИЧНО!
+
+⚠️ **Холодний старт (cold start) на Vercel** → Neon goes idle → connection timeout.  
+**Рішення:** Використовувати POOLED connection з timeout параметрами.
+
 ```
-DATABASE_URL = "postgresql://neondb_owner:npg_...@ep-...-pooler.c-6.us-east-1.aws.neon.tech/neondb?channel_binding=require&sslmode=require"
-PRISMA_DATABASE_URL = "postgresql://neondb_owner:npg_...@ep-....c-6.us-east-1.aws.neon.tech/neondb?sslmode=require"
+DATABASE_URL="postgresql://neondb_owner:npg_XXXXX@ep-example-pooler.c-6.us-east-1.aws.neon.tech/neondb?sslmode=require&connect_timeout=15&pool_timeout=15"
+
+PRISMA_DATABASE_URL="postgresql://neondb_owner:npg_XXXXX@ep-example.c-6.us-east-1.aws.neon.tech/neondb?sslmode=require"
 ```
 
-**Де взяти?**
-- Logінься в Vercel Dashboard
-- Проєкт basket-lviv
-- Settings → Environment Variables
-- Шукай DATABASE_URL у development environment
-- Скопіюй іх та додай до production (якщо ще немаэ)
+**Ключові параметри:**
+- DATABASE_URL: POOLED endpoint (ep-...-**pooler**) + `&connect_timeout=15&pool_timeout=15`
+- PRISMA_DATABASE_URL: DIRECT endpoint (ep-... без pooler) — для migration
+
+**Де взяти? (Neon Dashboard)**
+1. Перейди в Project → Connection string
+2. Copy "Pooled connection string" (default)
+3. Додай параметри: `&connect_timeout=15&pool_timeout=15` в кінець
+4. Це буде DATABASE_URL
+5. Для PRISMA_DATABASE_URL копіюй "Direct connection string"
+
+**⚠️ Без цих параметрів:** 
+- Форма реєстрації батьків → помилка "Помилка при реєстрації. Спробуйте пізніше."
+- Всі API запити до БД → timeout
 
 ### Vercel Blob Storage
 ```
@@ -28,10 +41,16 @@ NEXTAUTH_URL = "https://basketball.lviv.ua"
 
 ## ⚠️ Проблеми, які були виявлені та виправлені
 
-### 1. Форма реєстрації батьків: "Помилка з'єднання" (ВИПРАВЛЕНО)
-- **Причина**: DATABASE_URL не встановлена на Vercel + немає error handling в API
-- **Виправлено**: Додав try-catch в `/api/parents/register`, покращив error logging
-- **Дія**: Переконайся, що DATABASE_URL встановлена в Vercel!
+### 1. Форма реєстрації батьків: "Помилка при реєстрації" (КРИТИЧНИЙ FIX)
+- **Причина**: Neon cold start timeout на Vercel (Neon goes idle → 30+ sec timeout)
+- **Виправлено**: 
+  - Додав детальніше error logging в `/api/parents/register`
+  - Оновив .env.example і VERCEL_ENV_SETUP.md з правильними Neon параметрами
+- **ДІЯ ОБОВ'ЯЗКОВО**: Встанови DATABASE_URL в Vercel з параметрами:
+  ```
+  DATABASE_URL="postgresql://...@ep-...-pooler.c-6.us-east-1.aws.neon.tech/neondb?sslmode=require&connect_timeout=15&pool_timeout=15"
+  ```
+  Без `&connect_timeout=15&pool_timeout=15` → форма не працює!
 
 ### 2. Сторінка матчу /game/[id]: "Матч не знайдено" (ВИПРАВЛЕНО)
 - **Причина**: ISR кешування (revalidate = 10) закешовував "не знайдено" на 10 сек
