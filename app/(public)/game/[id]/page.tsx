@@ -101,7 +101,7 @@ export default async function GamePage({ params }: { params: Promise<{ id: strin
 
   // Build per-player stats from events for LIVE/FINAL
   const g = game!;
-  function buildTeamBoxScore(teamId: number) {
+  const buildTeamBoxScore = (teamId: number) => {
     const players = g.boxScores
       .filter((bs) => bs.teamId === teamId)
       .map((bs) => {
@@ -156,7 +156,7 @@ export default async function GamePage({ params }: { params: Promise<{ id: strin
         pctFt: p(totals.ftMade, totals.ftAtt),
       },
     };
-  }
+  };
 
   const homeBox = hasScore ? buildTeamBoxScore(game.homeTeamId) : null;
   const awayBox = hasScore ? buildTeamBoxScore(game.awayTeamId) : null;
