@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
+export const runtime = 'nodejs';
 
 export const dynamic = 'force-dynamic';
 

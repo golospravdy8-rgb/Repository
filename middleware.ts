@@ -65,4 +65,7 @@ export default async function middleware(req: NextRequest) {
 
 export const config = {
   matcher: ["/admin/:path*", "/Media", "/Reviews", "/News", "/Schedule", "/Standings", "/Leaders", "/Teams", "/Players", "/Contacts"],
+  // Note: Middleware does not support runtime configuration in Next.js
+  // To avoid Edge Runtime issues with jose, ensure your deployment platform
+  // runs middleware on Node.js (Vercel does by default for middleware using Node APIs)
 };

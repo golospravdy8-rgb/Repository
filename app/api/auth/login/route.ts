@@ -4,6 +4,7 @@ import bcrypt from "bcryptjs";
 import { SignJWT } from "jose";
 import { getJwtSecret } from "@/lib/auth-secret";
 
+export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 

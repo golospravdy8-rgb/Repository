@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { PrismaClient } from "@prisma/client";
+export const runtime = 'nodejs';
 
 const prisma = new PrismaClient();
 

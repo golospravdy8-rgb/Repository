@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import nodemailer from "nodemailer";
+export const runtime = 'nodejs';
 
 export const dynamic = "force-dynamic";
 

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/require-auth";
+export const runtime = 'nodejs';
 
 export const dynamic = "force-dynamic";
 
