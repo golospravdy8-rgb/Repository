@@ -46,10 +46,16 @@ function calcPlayerStats(
   };
 }
 
-export default async function GamePage({ params }: { params: { id: string } }) {
+export default async function GamePage({ params }: { params: Promise<{ id: string }> | { id: string } }) {
+  // Next.js 15+: params is a Promise, need to await it
+  const resolvedParams = await Promise.resolve(params);
+
   try {
-    const gameId = parseInt(params.id);
-    if (isNaN(gameId)) notFound();
+    const gameId = parseInt(resolvedParams.id);
+    if (isNaN(gameId)) {
+      console.error(`[GamePage] Invalid game ID: ${resolvedParams.id}`);
+      notFound();
+    }
 
     const game = await prisma.game.findUnique({
       where: { id: gameId },
@@ -489,7 +495,13 @@ export default async function GamePage({ params }: { params: { id: string } }) {
     </div>
   );
   } catch (error) {
-    console.error(`[GamePage] Error loading game ${params.id}:`, error);
+    const gameId = typeof resolvedParams?.id === 'string' ? resolvedParams.id : 'unknown';
+    console.error(`[GamePage] Error loading game ${gameId}:`, {
+      message: error instanceof Error ? error.message : String(error),
+      code: (error as any)?.code,
+      name: error instanceof Error ? error.name : 'Unknown',
+      stack: error instanceof Error ? error.stack : null,
+    });
     notFound();
   }
 }

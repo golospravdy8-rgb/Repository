@@ -33,6 +33,13 @@ PRISMA_DATABASE_URL="postgresql://neondb_owner:npg_XXXXX@ep-example.c-6.us-east-
 LOGOS_READ_WRITE_TOKEN = "vercel_blob_rw_..."
 ```
 
+### Supabase (опціонально)
+```
+NEXT_PUBLIC_SUPABASE_URL = "https://dzsvgyetmdgykmujmxuu.supabase.co"
+NEXT_PUBLIC_SUPABASE_ANON_KEY = "sb_publishable_086iusJsMoX5QOr6FxqKFA_WBM1LMdB"
+```
+**Де взяти:** Supabase Dashboard → Settings → API
+
 ### NextAuth (Auth)
 ```
 NEXTAUTH_SECRET = "ldbl-dev-secret-32-chars-ok-2025!"
@@ -52,10 +59,14 @@ NEXTAUTH_URL = "https://basketball.lviv.ua"
   ```
   Без `&connect_timeout=15&pool_timeout=15` → форма не працює!
 
-### 2. Сторінка матчу /game/[id]: "Матч не знайдено" (ВИПРАВЛЕНО)
-- **Причина**: ISR кешування (revalidate = 10) закешовував "не знайдено" на 10 сек
-- **Виправлено**: Додав `force-dynamic`, встановив `revalidate = 0`, додав try-catch
-- **Результат**: Сторінка тепер завантажує свіжі дані при кожному запиті
+### 2. Сторінка матчу /game/[id]: "Матч не знайдено" (КРИТИЧНИЙ FIX)
+- **Причина 1**: ISR кешування (revalidate = 10) закешовував "не знайдено" на 10 сек
+- **Причина 2**: Next.js 14.2+ requires `await params` for dynamic routes (params is now a Promise)
+- **Виправлено**: 
+  - Додав `force-dynamic`, встановив `revalidate = 0`
+  - Додав `const resolvedParams = await Promise.resolve(params);` для Next.js 15+ compatibility
+  - Додав детальніше error logging
+- **Результат**: Сторінка тепер завантажує свіжі дані при кожному запиті, без кешування помилок
 
 ### 3. Logo upload не працює (ПОТРЕБУЄ ACTION)
 - **Причина**: LOGOS_READ_WRITE_TOKEN відсутній
