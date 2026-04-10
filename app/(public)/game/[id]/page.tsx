@@ -3,7 +3,8 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import GamePdfButton from "@/components/public/GamePdfButton";
 
-export const revalidate = 10;
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 function calcPlayerStats(
   events: { type: string; points?: number | null; playerId?: number | null; teamId: number; quarter: number }[],
@@ -46,26 +47,27 @@ function calcPlayerStats(
 }
 
 export default async function GamePage({ params }: { params: { id: string } }) {
-  const gameId = parseInt(params.id);
-  if (isNaN(gameId)) notFound();
+  try {
+    const gameId = parseInt(params.id);
+    if (isNaN(gameId)) notFound();
 
-  const game = await prisma.game.findUnique({
-    where: { id: gameId },
-    include: {
-      homeTeam: true,
-      awayTeam: true,
-      events: {
-        include: { player: true },
-        orderBy: { createdAt: "desc" },
-        take: 50,
+    const game = await prisma.game.findUnique({
+      where: { id: gameId },
+      include: {
+        homeTeam: true,
+        awayTeam: true,
+        events: {
+          include: { player: true },
+          orderBy: { createdAt: "desc" },
+          take: 50,
+        },
+        boxScores: {
+          include: { player: true, team: true },
+        },
       },
-      boxScores: {
-        include: { player: true, team: true },
-      },
-    },
-  }).catch(() => null);
+    }).catch(() => null);
 
-  if (!game) notFound();
+    if (!game) notFound();
 
   const isLive = game.status === "LIVE";
   const isFinal = game.status === "FINAL";
@@ -486,4 +488,8 @@ export default async function GamePage({ params }: { params: { id: string } }) {
 
     </div>
   );
+  } catch (error) {
+    console.error(`[GamePage] Error loading game ${params.id}:`, error);
+    notFound();
+  }
 }
