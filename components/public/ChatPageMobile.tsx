@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback, useOptimistic, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { loadPorokhovaParticipants, registerPorokhovaParticipant } from "@/actions/porokhova";
+import { createChatPoll, finishChatPoll } from "@/actions/chat-poll";
 import ChatActivePoll, { ChatPollData } from "./ChatActivePoll";
 
 const LS_KEY = "ldbl_chat_user";
@@ -243,22 +244,27 @@ export default function ChatPageMobile({ user, messages: initialMessages, member
       return;
     }
     setSending(true);
-    const pollData = { question: pollQuestion, options: pollOptions };
-    const messageText = `[POLL:${JSON.stringify(pollData)}]`;
 
     try {
-      const res = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "message", phone: user.phone, name: `${user.firstName} ${user.lastName}`, text: messageText, roomId: "general" }),  // MOBILE ONLY — FIX: Add roomId
-      });
-      if (!res.ok) throw new Error("Poll creation failed");
-      console.log("[Poll] Created successfully");  // MOBILE ONLY — FIX: Debug
+      // MOBILE FIX — Call createChatPoll (Server Action) instead of sending raw message
+      const result = await createChatPoll(
+        pollQuestion.trim(),
+        pollOptions.filter((opt) => opt.trim()),
+        user.phone,
+        `${user.firstName} ${user.lastName}`
+      );
+      if (!result) {
+        console.error("[Poll] createChatPoll returned null");
+        alert("❌ Помилка створення опитування");
+        return;
+      }
+      // MOBILE FIX — Set active poll immediately (same as desktop)
+      setActivePoll(result);
+      console.log("[Poll] Created successfully via createChatPoll");
     } catch (err) {
       console.error("[Poll] Creation failed:", err);
       alert("Помилка створення опитування");
     } finally {
-      // MOBILE ONLY — FIX: Move close to finally so it runs regardless of success/error
       setShowPoll(false);
       setPollQuestion("");
       setPollOptions(["", ""]);
@@ -367,6 +373,21 @@ export default function ChatPageMobile({ user, messages: initialMessages, member
           setLocalMessages((prev) =>
             prev.map((m) => (m.id === data.messageId ? { ...m, reactions: data.reactions } : m))
           );
+        } else if (data.type === "poll_created") {
+          // MOBILE ONLY — NEW: Poll created event - load active poll
+          fetch("/api/chat/active-poll")
+            .then((r) => r.json())
+            .then((d) => d.poll && setActivePoll(d.poll))
+            .catch(() => {});
+        } else if (data.type === "poll_vote") {
+          // MOBILE ONLY — NEW: Poll vote event - refresh poll stats
+          fetch("/api/chat/active-poll")
+            .then((r) => r.json())
+            .then((d) => d.poll && setActivePoll(d.poll))
+            .catch(() => {});
+        } else if (data.type === "poll_end") {
+          // MOBILE ONLY — NEW: Poll ended - hide poll block
+          setActivePoll(null);
         }
       } catch {
         // Ignore parse errors
@@ -570,18 +591,21 @@ export default function ChatPageMobile({ user, messages: initialMessages, member
         </div>
       </header>
 
-      {/* ── MESSAGES ──────────────────────────────────────────────────── */}
-      {/* MOBILE ONLY — NEW 2026 APPROACH: Use optimisticMessages for real-time updates */}
-      <div style={{ flex: 1, overflowY: "auto", padding: "12px 8px", display: "flex", flexDirection: "column", gap: "4px" }}>
-        {/* MOBILE ONLY — Active Poll Block */}
-        {activePoll && (
+      {/* MOBILE ONLY — PINNED Poll Block (OUTSIDE scrollable area) */}
+      {activePoll && (
+        <div style={{ background: "#1e2a4a", borderBottom: "1px solid rgba(255,255,255,0.08)", padding: "12px 8px", flexShrink: 0 }}>
           <ChatActivePoll
             poll={activePoll}
             userPhone={user.phone}
             userName={`${user.firstName} ${user.lastName}`}
             onPollUpdated={(updated) => setActivePoll(updated)}
           />
-        )}
+        </div>
+      )}
+
+      {/* ── MESSAGES ──────────────────────────────────────────────────── */}
+      {/* MOBILE ONLY — NEW 2026 APPROACH: Use optimisticMessages for real-time updates */}
+      <div style={{ flex: 1, overflowY: "auto", padding: "12px 8px", display: "flex", flexDirection: "column", gap: "4px" }}>
 
         {optimisticMessages.length === 0 && (
           <div style={{ textAlign: "center", color: "#475569", fontSize: "13px", marginTop: "48px" }}>
@@ -599,20 +623,17 @@ export default function ChatPageMobile({ user, messages: initialMessages, member
           const stickerUrl = isStickerOrGif ? msg.text.slice(msg.text.indexOf(":") + 1, -1) : null;
           // MOBILE ONLY — NEW: Support [POLL:...] format
           const isPoll = msg.text.startsWith("[POLL:") && msg.text.endsWith("]");
-          let pollData: { question: string; options: string[] } | null = null;
+
+          // MOBILE ONLY — FIX: Skip rendering poll messages - they're shown in pinned block
           if (isPoll) {
-            try {
-              pollData = JSON.parse(msg.text.slice(6, -1));
-            } catch {
-              pollData = null;
-            }
+            return null;
           }
 
           return (
             <div key={msg.id} style={{ display: "flex", flexDirection: isMe ? "row-reverse" : "row", gap: "6px", alignItems: "flex-end" }}>
               <div
                 style={{
-                  padding: isImage || isStickerOrGif || isPoll ? "0" : "8px 12px",
+                  padding: isImage || isStickerOrGif ? "0" : "8px 12px",
                   borderRadius: "12px",
                   fontSize: "15px",  // MOBILE ONLY — FIX: Увеличен с 13px на 15px для лучшей читаемости
                   maxWidth: "75%",
@@ -621,7 +642,7 @@ export default function ChatPageMobile({ user, messages: initialMessages, member
                   color: isMe ? "white" : "#e2e8f0",
                 }}
               >
-                {!isMe && !isImage && !isStickerOrGif && !isPoll && <div style={{ fontSize: "12px", color: "#94a3b8", marginBottom: "2px", fontWeight: 600 }}>{msg.name}</div>}  {/* MOBILE ONLY — FIX: fontSize 10px→12px, added fontWeight */}
+                {!isMe && !isImage && !isStickerOrGif && <div style={{ fontSize: "12px", color: "#94a3b8", marginBottom: "2px", fontWeight: 600 }}>{msg.name}</div>}  {/* MOBILE ONLY — FIX: fontSize 10px→12px, added fontWeight */}
                 {isImage ? (
                   <img
                     src={imageUrl!}
@@ -648,19 +669,6 @@ export default function ChatPageMobile({ user, messages: initialMessages, member
                     }}
                     style={{ maxWidth: "100%", maxHeight: "150px", borderRadius: "8px", objectFit: "contain", display: "block" }}
                   />
-                ) : isPoll && pollData ? (
-                  // MOBILE ONLY — NEW: Poll rendering with voting UI
-                  <div style={{ padding: "12px", borderRadius: "8px", background: "rgba(0,0,0,0.2)" }}>
-                    <div style={{ fontWeight: 600, marginBottom: "10px", fontSize: "14px" }}>{pollData.question}</div>
-                    <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                      {pollData.options.map((option, idx) => (
-                        <label key={idx} style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer", fontSize: "12px" }}>
-                          <input type="checkbox" style={{ width: "16px", height: "16px", cursor: "pointer" }} />
-                          <span>{option}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
                 ) : (
                   msg.text
                 )}

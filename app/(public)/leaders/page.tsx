@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { calculateLeaderStats } from "@/lib/stats-calculator";
 import LeadersSection from "@/components/public/LeadersSection";
@@ -30,7 +31,36 @@ export default async function LeadersPage({ searchParams }: { searchParams: { ag
       <h1 className="text-sm font-black mb-0.5" style={{ color: "var(--color-heading)" }}>
         Лідери сезону
       </h1>
-      <p className="text-gray-500 mb-2 text-xs">Вікова група: <span className="font-bold" style={{ color: "var(--color-accent)" }}>{label}</span></p>
+
+      {/* DESKTOP: Text display */}
+      <p className="hidden md:block text-gray-500 mb-2 text-xs">Вікова група: <span className="font-bold" style={{ color: "var(--color-accent)" }}>{label}</span></p>
+
+      {/* MOBILE: Age group toggle buttons */}
+      <div className="md:hidden flex gap-2 mb-3">
+        <Link
+          href="/leaders?ag=younger"
+          className={`flex-1 px-3 py-2 text-xs font-semibold rounded-lg transition-all ${
+            ag === 'younger'
+              ? 'text-white'
+              : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+          }`}
+          style={ag === 'younger' ? { backgroundColor: "#1a2744" } : {}}
+        >
+          🏀 U-14
+        </Link>
+        <Link
+          href="/leaders?ag=older"
+          className={`flex-1 px-3 py-2 text-xs font-semibold rounded-lg transition-all ${
+            ag === 'older'
+              ? 'text-white'
+              : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+          }`}
+          style={ag === 'older' ? { backgroundColor: "#1a2744" } : {}}
+        >
+          🏀 U-16
+        </Link>
+      </div>
+
       {leaders.length === 0 ? (
         <div className="bg-white rounded-xl shadow p-12 text-center text-gray-400">
           Статистика з&apos;явиться після перших ігор групи &quot;{label}&quot;

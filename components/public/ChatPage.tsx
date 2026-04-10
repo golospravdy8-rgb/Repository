@@ -3,10 +3,17 @@
 import { useState, useEffect, useRef, useCallback, useTransition } from "react";
 import ChatPageMobile from "./ChatPageMobile";
 import ChatActivePoll, { ChatPollData } from "./ChatActivePoll";
-import { createChatPoll } from "@/actions/chat-poll";
+import { createChatPoll, finishChatPoll } from "@/actions/chat-poll";
 
 const LS_KEY = "ldbl_chat_user";
 const EMOJIS = ["👍", "❤️", "😂", "😮", "🔥", "🏀"];
+
+// ── Helper: Get current mobile state synchronously (for render-time checks)
+// This prevents hydration mismatch by checking viewport immediately
+const getIsMobileNow = () => {
+  if (typeof window === "undefined") return false;
+  return window.innerWidth < 768;
+};
 
 
 // ── Stickers (pavanpatil45/Classic-Meme-Stickers) ─────────────────────────
@@ -204,6 +211,7 @@ interface ChatMessage {
 
 // ── Main Component ────────────────────────────────────────────────────────
 export default function ChatPage() {
+  const [mounted, setMounted] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [step, setStep] = useState<"checking" | "form" | "chat">("checking");
   const [formMode, setFormMode] = useState<"choose" | "player" | "parent">("choose");
@@ -270,6 +278,11 @@ export default function ChatPage() {
   const notify = useCallback((msg: string) => {
     setNotification(msg);
     setTimeout(() => setNotification(null), 4000);
+  }, []);
+
+  // ── Mounted guard for hydration safety ────────────────────────────────
+  useEffect(() => {
+    setMounted(true);
   }, []);
 
   // ── Detect mobile device ──────────────────────────────────────────────
@@ -1274,11 +1287,11 @@ export default function ChatPage() {
   }
 
   // ── Render: chat ──────────────────────────────────────────────────────
-  const badge = getBadge(user!.hp);
-  const userName = `${user!.firstName} ${user!.lastName}`;
-
   // ── Mobile layout ──────────────────────────────────────────────────────
-  if (isMobile && step === "chat" && user) {
+  // FIX: Use getIsMobileNow() for immediate viewport check (avoids race condition from useEffect)
+  if (mounted && step === "chat" && user && getIsMobileNow()) {
+    const badge = getBadge(user.hp);
+    const userName = `${user.firstName} ${user.lastName}`;
     return (
       <ChatPageMobile
         user={user}
@@ -1321,6 +1334,9 @@ export default function ChatPage() {
   }
 
   // ── Desktop layout ─────────────────────────────────────────────────────
+  const badge = user ? getBadge(user.hp) : "";
+  const userName = user ? `${user.firstName} ${user.lastName}` : "";
+
   return (
     <div style={{ display: "flex", flexDirection: "row", height: "100dvh", background: "#0f172a", color: "white", fontFamily: "Exo 2, sans-serif" }}>
 
@@ -2200,7 +2216,11 @@ export default function ChatPage() {
                   <button onClick={() => setShowPoll(false)}
                     style={{ flex: 1, padding: "10px", borderRadius: "8px", border: "1px solid #334", background: "transparent", color: "#aaa", cursor: "pointer" }}>Закрити</button>
                   {activePoll.createdBy === `${user!.firstName} ${user!.lastName}` && (
-                    <button onClick={() => { setActivePoll(null); setShowPoll(false); }}
+                    <button onClick={async () => {
+                      await finishChatPoll(activePoll.id);
+                      setActivePoll(null);
+                      setShowPoll(false);
+                    }}
                       style={{ flex: 1, padding: "10px", borderRadius: "8px", border: "none", background: "#7f1d1d", color: "white", cursor: "pointer" }}>🗑️ Завершити</button>
                   )}
                 </div>

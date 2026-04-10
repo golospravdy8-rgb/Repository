@@ -113,6 +113,24 @@ export async function voteOnChatPoll(
 }
 
 /**
+ * Finish/close an active poll
+ */
+export async function finishChatPoll(pollId: number): Promise<boolean> {
+  try {
+    await prisma.chatPoll.update({
+      where: { id: pollId },
+      data: { isActive: false },
+    });
+
+    revalidatePath("/chat");
+    return true;
+  } catch (err) {
+    console.error("[ChatPoll] Finish failed:", err);
+    return false;
+  }
+}
+
+/**
  * Get the most active poll (has votes and is recent)
  */
 export async function getActiveChatPoll(): Promise<ChatPollData | null> {
