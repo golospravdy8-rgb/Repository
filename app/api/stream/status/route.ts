@@ -68,7 +68,9 @@ async function getLiveViaRSS(channelId: string): Promise<{ id: string; title: st
 }
 
 /**
- * Fallback: check /channel/ID/live page directly for active stream
+ * Check for live stream via multiple methods:
+ * 1. Direct /live page with improved detection
+ * 2. Check for common broadcast patterns in JSON
  */
 async function getLiveViaChannelPage(channelId: string): Promise<{ id: string; title: string } | null> {
   try {
@@ -82,27 +84,37 @@ async function getLiveViaChannelPage(channelId: string): Promise<{ id: string; t
 
     const html = await res.text();
 
-    // Multiple ways YouTube indicates live stream:
+    // Enhanced live detection — multiple patterns YouTube uses
     const isLiveNow = html.includes('"isLiveNow":true');
-    const isLiveStatus = html.includes('"status":"LIVE"');
+    const isLiveStatus = html.includes('"status":"LIVE"') || html.includes('isLiveContent":true');
+    const hasLiveKeyword = html.includes('"isLive":true') || html.includes('liveNow');
     const hasLiveHeader = html.includes('data-app-index="3"');
 
-    if (!isLiveNow && !isLiveStatus && !hasLiveHeader) {
+    // Check for livestream data in initialData
+    const hasBroadcastData = html.includes('broadcastStatus') &&
+                            (html.includes('"LIVE"') || html.includes('currentBroadcastMonitor'));
+
+    if (!isLiveNow && !isLiveStatus && !hasLiveKeyword && !hasLiveHeader && !hasBroadcastData) {
       return null;
     }
 
-    // Extract video ID
+    // Extract video ID — try multiple patterns
     const videoIdMatch = html.match(/"videoId":"([^"]{11})"/) ||
-                        html.match(/watch\?v=([^"&]{11})/);
+                        html.match(/"video_id":"([^"]{11})"/) ||
+                        html.match(/watch\?v=([^"&]{11})/) ||
+                        html.match(/\/watch\?v=([A-Za-z0-9_-]{11})/);
+
     if (!videoIdMatch) return null;
 
-    // Extract title
+    // Extract title — try multiple patterns
     const titleMatch = html.match(/"videoDetails":\{[^}]*"title":"([^"]+)"/) ||
       html.match(/"title":\{"simpleText":"([^"]+)"/) ||
+      html.match(/"title":"([^"]+)".*?"isLive/) ||
       html.match(/<title>([^<|]+)/);
 
     const title = titleMatch ? titleMatch[1].replace(/\\u0026/g, "&").trim() : "";
 
+    console.log(`[stream] Live detected via channel page: ${videoIdMatch[1]} - ${title}`);
     return { id: videoIdMatch[1], title };
   } catch (e) {
     console.log(`[stream] Channel page check failed: ${e}`);
@@ -110,16 +122,41 @@ async function getLiveViaChannelPage(channelId: string): Promise<{ id: string; t
   }
 }
 
-export async function GET() {
-  // EMERGENCY TEST: Mock live stream for component verification
-  if (process.env.TEST_LIVE === "true") {
-    return NextResponse.json({
-      isLive: true,
-      videoId: "dQw4w9WgXcQ",
-      title: "Emergency Test Stream",
-    });
-  }
+/**
+ * Additional check: monitor YouTube's /live page for redirect
+ * If /channel/ID/live redirects to a video page, stream is likely active
+ */
+async function checkLivePageRedirect(channelId: string): Promise<{ id: string; title: string } | null> {
+  try {
+    const response = await fetch(
+      `https://www.youtube.com/channel/${channelId}/live`,
+      {
+        cache: "no-store",
+        headers: BROWSER_HEADERS,
+        redirect: "manual", // Don't follow redirects automatically
+      }
+    );
 
+    // If response is 302/303/307/308, user was redirected to active stream
+    if ([301, 302, 303, 307, 308].includes(response.status)) {
+      const location = response.headers.get("location");
+      if (location) {
+        console.log(`[stream] Redirect detected: ${location}`);
+        const videoIdMatch = location.match(/v=([A-Za-z0-9_-]{11})/);
+        if (videoIdMatch) {
+          return { id: videoIdMatch[1], title: "Live Stream" };
+        }
+      }
+    }
+
+    return null;
+  } catch (e) {
+    console.log(`[stream] Redirect check failed: ${e}`);
+    return null;
+  }
+}
+
+export async function GET() {
   const settings = await getSettings(["stream.enabled", "stream.youtubeChannelId"]);
 
   const enabled = settings["stream.enabled"] === "true";
@@ -130,23 +167,29 @@ export async function GET() {
   }
 
   try {
-    // Try RSS first (faster, more reliable)
+    // Strategy 1: Try RSS (fastest)
+    console.log(`[stream] Starting detection for ${channelId}`);
     let liveVideo = await getLiveViaRSS(channelId);
 
-    // Fallback to direct channel page check
+    // Strategy 2: Direct channel page check with enhanced detection
     if (!liveVideo) {
       liveVideo = await getLiveViaChannelPage(channelId);
     }
 
+    // Strategy 3: Check for /live page redirect (indicates active stream)
+    if (!liveVideo) {
+      liveVideo = await checkLivePageRedirect(channelId);
+    }
+
     if (liveVideo) {
-      console.log(`[stream] Live detected: ${liveVideo.id} - ${liveVideo.title}`);
+      console.log(`[stream] ✅ Live stream DETECTED: ${liveVideo.id} - ${liveVideo.title}`);
       return NextResponse.json({ isLive: true, videoId: liveVideo.id, title: liveVideo.title });
     }
 
-    console.log(`[stream] No active stream detected for ${channelId}`);
+    console.log(`[stream] ❌ No active stream detected for ${channelId}`);
     return NextResponse.json({ isLive: false, videoId: null });
   } catch (e) {
-    console.error(`[stream] Unexpected error: ${e}`);
+    console.error(`[stream] ❌ Unexpected error: ${e}`);
     return NextResponse.json({ isLive: false, videoId: null, error: "fetch_failed" });
   }
 }
