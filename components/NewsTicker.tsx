@@ -15,7 +15,8 @@ interface NewsTickerProps {
   id?: string;
 }
 
-const TOTAL_PAGINATION_DOTS = 12; // Завжди 12 точок, навіть якщо новин менше
+// ГАРАНТІЯ: Завжди ровно 12 точок внизу, незалежно від кількості новин
+const TOTAL_PAGINATION_DOTS = 12;
 
 export default function NewsTicker({ className = "", id }: NewsTickerProps) {
   const [news, setNews] = useState<NewsItem[]>([]);
@@ -24,7 +25,7 @@ export default function NewsTicker({ className = "", id }: NewsTickerProps) {
   const [error, setError] = useState<string | null>(null);
   const [fadeIn, setFadeIn] = useState(true);
 
-  // Загрузка новостей (максимум 12)
+  // Загрузка новостей з API (максимум 12)
   useEffect(() => {
     const fetchNews = async () => {
       try {
@@ -33,7 +34,7 @@ export default function NewsTicker({ className = "", id }: NewsTickerProps) {
         const data = await res.json();
 
         if (data.news && Array.isArray(data.news) && data.news.length > 0) {
-          // Ограничиваем до 12 новин максимум
+          // Ліміт 12 новин максимум
           const limitedNews = data.news.slice(0, TOTAL_PAGINATION_DOTS);
           setNews(limitedNews);
           setError(null);
@@ -53,13 +54,13 @@ export default function NewsTicker({ className = "", id }: NewsTickerProps) {
     fetchNews();
   }, []);
 
-  // Авторотация каждые 20 сек (циклирует по доступным новинам)
+  // Авто-ротація кожні 20 сек (циклит по реальній кількості новин)
   useEffect(() => {
     if (!news.length) return;
 
     const fadeOutTimer = setTimeout(() => setFadeIn(false), 19000);
     const rotateTimer = setTimeout(() => {
-      // Циклить по актуальному количеству новин, а не по 12
+      // ГАРАНТІЯ: циклит по news.length, не по 12 точках
       setCurrentIndex((prev) => (prev + 1) % news.length);
       setFadeIn(true);
     }, 19500);
@@ -70,7 +71,16 @@ export default function NewsTicker({ className = "", id }: NewsTickerProps) {
     };
   }, [currentIndex, news.length]);
 
-  // Placeholder состояние
+  // DEBUG: логування для дебагу
+  useEffect(() => {
+    if (news.length > 0) {
+      console.log(
+        `[NewsTicker] news: ${news.length}, dots: ${TOTAL_PAGINATION_DOTS}, current: ${currentIndex}`
+      );
+    }
+  }, [news.length, currentIndex]);
+
+  // Placeholder стан під час завантаження
   if (loading) {
     return (
       <div id={id} className={className}>
@@ -82,13 +92,14 @@ export default function NewsTicker({ className = "", id }: NewsTickerProps) {
     );
   }
 
+  // Пусто, якщо новин немає
   if (error || !news.length) {
     return (
       <div id={id} className={className}>
         <div style={styles.container}>
           <div style={styles.emptyState}>
             <span style={styles.emptyIcon}>📰</span>
-            <p style={styles.emptyText}>Новости баскетбола обновляются...</p>
+            <p style={styles.emptyText}>Новості оновлюються...</p>
           </div>
         </div>
       </div>
@@ -97,13 +108,6 @@ export default function NewsTicker({ className = "", id }: NewsTickerProps) {
 
   const currentNews = news[currentIndex];
   const hasImage = currentNews.imageUrl && currentNews.imageUrl !== "null";
-
-  // Debug: перевіряємо скільки новин і точок рендеримо
-  if (typeof window !== "undefined") {
-    console.log(
-      `[NewsTicker] news.length=${news.length}, currentIndex=${currentIndex}, will render ${TOTAL_PAGINATION_DOTS} dots`
-    );
-  }
 
   return (
     <div id={id} className={className}>
@@ -136,7 +140,7 @@ export default function NewsTicker({ className = "", id }: NewsTickerProps) {
       `}</style>
 
       <div style={styles.container} className="news-ticker-card">
-        {/* Изображение */}
+        {/* Зображення новини */}
         {hasImage && currentNews.imageUrl && (
           <div style={styles.imageWrapper}>
             <img
@@ -150,7 +154,7 @@ export default function NewsTicker({ className = "", id }: NewsTickerProps) {
           </div>
         )}
 
-        {/* Контент */}
+        {/* Контент новини */}
         <div style={styles.content}>
           {/* Дата */}
           <div style={styles.date}>
@@ -158,11 +162,9 @@ export default function NewsTicker({ className = "", id }: NewsTickerProps) {
           </div>
 
           {/* Заголовок */}
-          <h3 style={styles.title}>
-            {currentNews.title}
-          </h3>
+          <h3 style={styles.title}>{currentNews.title}</h3>
 
-          {/* Кнопка */}
+          {/* Кнопка читати повністю */}
           <a
             href={currentNews.link}
             target="_blank"
@@ -181,34 +183,38 @@ export default function NewsTicker({ className = "", id }: NewsTickerProps) {
           </a>
         </div>
 
-        {/* Индикатор страниц (точно 12 точек, кликабельные) */}
+        {/* ГАРАНТІЯ: 12 видимих точок внизу, ЗАВЖДИ */}
         <div style={styles.pagination}>
           {Array.from({ length: TOTAL_PAGINATION_DOTS }).map((_, i) => {
-            const isAvailable = i < news.length; // Есть ли новина для этой точки
-            const isActive = i === currentIndex;
+            // Визначаємо, чи доступна новина для цієї точки
+            const isAvailable = i < news.length;
+            const isActive = i === currentIndex && isAvailable;
 
             return (
               <div
-                key={i}
+                key={`dot-${i}`}
                 onClick={() => {
                   if (isAvailable) {
+                    // Точка 0–(news.length-1): активна, переходим на цю новину
                     setCurrentIndex(i);
                     setFadeIn(true);
                   } else if (news.length > 0) {
-                    // Если новина не доступна, прыгаем на последнюю доступную
+                    // Точка (news.length)–11: недоступна, переходим на останню доступну
                     setCurrentIndex(news.length - 1);
                     setFadeIn(true);
                   }
                 }}
                 style={{
                   ...styles.paginationDot,
+                  // Активна точка: оранжева, scale 1.3
                   background: isActive ? "#f97316" : "rgba(255,255,255,0.2)",
                   transform: isActive ? "scale(1.3)" : "scale(1)",
-                  opacity: isAvailable ? 1 : 0.4, // Приглушаем недоступные точки
+                  // Недостатна точка: приглушена, неклікабельна
+                  opacity: isAvailable ? 1 : 0.4,
                   cursor: isAvailable ? "pointer" : "default",
                   pointerEvents: isAvailable ? "auto" : "none",
                 }}
-                title={isAvailable ? `Новина ${i + 1}` : `Новина ${i + 1} (не доступна)`}
+                title={`Новина ${i + 1}${!isAvailable ? " (не доступна)" : ""}`}
               />
             );
           })}
@@ -218,7 +224,7 @@ export default function NewsTicker({ className = "", id }: NewsTickerProps) {
   );
 }
 
-// Стили
+// Стилі компонента
 const styles: Record<string, React.CSSProperties> = {
   container: {
     background: "#131f3a",
@@ -289,6 +295,7 @@ const styles: Record<string, React.CSSProperties> = {
     transition: "background 0.2s ease",
   },
 
+  // ГАРАНТІЯ: Flex контейнер для 12 видимих точок
   pagination: {
     display: "flex",
     flexWrap: "nowrap",
@@ -298,21 +305,22 @@ const styles: Record<string, React.CSSProperties> = {
     borderTop: "1px solid rgba(255,255,255,0.05)",
     width: "100%",
     overflow: "visible",
-    minHeight: "14px", // Гарантуємо мінімальну висоту для 12 точок
+    boxSizing: "border-box",
   },
 
+  // ГАРАНТІЯ: Кожна точка ніколи не обрізується
   paginationDot: {
     width: "6px",
     height: "6px",
     borderRadius: "50%",
-    cursor: "pointer",
     transition: "all 0.2s ease",
-    flexShrink: 0, // Забезпечуємо, що точки НЕ стискаються
+    flexShrink: 0, // НЕ обрізується
+    flexBasis: "6px", // Явна ширина
     minWidth: "6px",
     minHeight: "6px",
   },
 
-  // Skeleton
+  // Skeleton завантаження
   skeletonImage: {
     width: "100%",
     height: "160px",
@@ -328,6 +336,7 @@ const styles: Record<string, React.CSSProperties> = {
     gap: "8px",
   },
 
+  // Пусто стан
   emptyState: {
     display: "flex",
     flexDirection: "column",
