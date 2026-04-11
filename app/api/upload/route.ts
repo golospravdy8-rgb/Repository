@@ -79,7 +79,7 @@ export async function POST(req: NextRequest) {
       }
 
       // DEV: Local file system fallback
-      console.log(`[upload ${uploadId}] ℹ️ Token not configured, using local storage`);
+      console.log(`[upload ${uploadId}] ℹ️ Token not configured, trying local storage`);
       try {
         const ext = file.name.split(".").pop() || "jpg";
         const filename = `${cleanType}-${Date.now()}.${ext}`;
@@ -95,13 +95,26 @@ export async function POST(req: NextRequest) {
         revalidatePath("/", "layout");
         revalidateTag("site-settings");
         return NextResponse.json({ url, ok: true });
-      } catch (err) {
-        const errMsg = err instanceof Error ? err.message : String(err);
-        console.error(`[upload ${uploadId}] ❌ Local storage error: ${errMsg}`);
-        return NextResponse.json(
-          { error: `Local storage error: ${errMsg}` },
-          { status: 500 }
-        );
+      } catch (fsErr) {
+        // PROD: File system is read-only on Vercel, use base64 fallback
+        console.log(`[upload ${uploadId}] ℹ️ Local storage failed (read-only FS), using base64 storage`);
+        try {
+          const mimeType = file.type || "image/png";
+          const dataUrl = `data:${mimeType};base64,${buffer.toString("base64")}`;
+          await setSettings({ [`images.${cleanType}`]: dataUrl });
+
+          console.log(`[upload ${uploadId}] ✅ Site image saved as base64: ${cleanType} (${Date.now() - startTime}ms)`);
+          revalidatePath("/", "layout");
+          revalidateTag("site-settings");
+          return NextResponse.json({ url: dataUrl, ok: true });
+        } catch (base64Err) {
+          const errMsg = base64Err instanceof Error ? base64Err.message : String(base64Err);
+          console.error(`[upload ${uploadId}] ❌ Base64 storage error: ${errMsg}`);
+          return NextResponse.json(
+            { error: `Storage error: ${errMsg}` },
+            { status: 500 }
+          );
+        }
       }
     }
 
@@ -137,7 +150,7 @@ export async function POST(req: NextRequest) {
       }
 
       // DEV: Local file system fallback
-      console.log(`[upload ${uploadId}] ℹ️ Token not configured, using local storage`);
+      console.log(`[upload ${uploadId}] ℹ️ Token not configured, trying local storage`);
       try {
         const ext = file.name.split(".").pop() || "jpg";
         const filename = `${type}-${Date.now()}.${ext}`;
@@ -149,13 +162,22 @@ export async function POST(req: NextRequest) {
         const url = `/uploads/entity-files/${filename}`;
         console.log(`[upload ${uploadId}] ✅ Entity file saved locally: ${url} (${Date.now() - startTime}ms)`);
         return NextResponse.json({ url, ok: true });
-      } catch (err) {
-        const errMsg = err instanceof Error ? err.message : String(err);
-        console.error(`[upload ${uploadId}] ❌ Local storage error: ${errMsg}`);
-        return NextResponse.json(
-          { error: `Local storage error: ${errMsg}` },
-          { status: 500 }
-        );
+      } catch (fsErr) {
+        // PROD: File system is read-only on Vercel, use base64 fallback
+        console.log(`[upload ${uploadId}] ℹ️ Local storage failed (read-only FS), using base64 storage`);
+        try {
+          const mimeType = file.type || "image/png";
+          const dataUrl = `data:${mimeType};base64,${buffer.toString("base64")}`;
+          console.log(`[upload ${uploadId}] ✅ Entity file saved as base64: ${type} (${Date.now() - startTime}ms)`);
+          return NextResponse.json({ url: dataUrl, ok: true });
+        } catch (base64Err) {
+          const errMsg = base64Err instanceof Error ? base64Err.message : String(base64Err);
+          console.error(`[upload ${uploadId}] ❌ Base64 storage error: ${errMsg}`);
+          return NextResponse.json(
+            { error: `Storage error: ${errMsg}` },
+            { status: 500 }
+          );
+        }
       }
     }
 
