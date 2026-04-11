@@ -2,67 +2,59 @@ export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 import { NextResponse } from 'next/server'
-import { getSettings } from "@/lib/site-settings";
+import { getSettings } from '@/lib/site-settings'
 
 export async function GET() {
-  const settings = await getSettings(['stream.enabled', 'stream.youtubeChannelId', 'stream.pollIntervalSeconds'])
+  const envApiKey = process.env.YOUTUBE_API_KEY || 'NOT_SET'
+  const envChannelId = process.env.YOUTUBE_CHANNEL_ID || 'NOT_SET'
 
-  const enabled = settings["stream.enabled"] === "true"
-  const channelId = settings["stream.youtubeChannelId"] || 'NOT_SET'
-  const pollInterval = settings["stream.pollIntervalSeconds"] || '10'
+  const settings = await getSettings(['stream.youtubeChannelId', 'stream.youtubeApiKey', 'stream.enabled'])
+  const dbChannelId = settings['stream.youtubeChannelId'] || 'NOT_SET'
+  const dbApiKey = settings['stream.youtubeApiKey'] || 'NOT_SET'
+  const streamEnabled = settings['stream.enabled'] === 'true'
 
-  // Спробуй реальний запит до YouTube як робить основний код
-  let youtubeResponse = null
-  let youtubeError = null
-  let htmlSnippet = null
+  let liveResult = null
+  let error = null
 
-  if (enabled && channelId !== 'NOT_SET') {
-    try {
-      // Одна кешь YouTube HTML для /live сторінки
-      const liveUrl = `https://www.youtube.com/channel/${channelId}/live`
-      const BROWSER_HEADERS = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-        "Accept-Language": "uk-UA,uk;q=0.9,en;q=0.8",
+  // Use env vars if available, fall back to DB
+  const channelId = envChannelId !== 'NOT_SET' ? envChannelId : dbChannelId
+  const apiKey = envApiKey !== 'NOT_SET' ? envApiKey : dbApiKey
+
+  try {
+    const res = await fetch(
+      `https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${channelId}&eventType=live&type=video&key=${apiKey}`,
+      { cache: 'no-store' }
+    )
+    liveResult = await res.json()
+    if (liveResult.items && liveResult.items.length > 0) {
+      liveResult.firstVideo = {
+        videoId: liveResult.items[0].id.videoId,
+        title: liveResult.items[0].snippet.title,
+        channelTitle: liveResult.items[0].snippet.channelTitle
       }
-
-      const res = await fetch(liveUrl, {
-        cache: "no-store",
-        headers: BROWSER_HEADERS,
-        redirect: "follow",
-      })
-
-      if (!res.ok) {
-        youtubeError = `HTTP ${res.status}: ${res.statusText}`
-      } else {
-        const html = await res.text()
-        htmlSnippet = html.substring(0, 500)
-
-        const hasLiveNow = html.includes('"isLiveNow":true')
-        const videoIdMatch = html.match(/"videoId":"([^"]{11})"/)
-
-        youtubeResponse = {
-          statusCode: res.status,
-          hasLiveNow,
-          videoIdFound: videoIdMatch ? videoIdMatch[1] : null,
-          htmlLength: html.length,
-        }
-      }
-    } catch(e) {
-      youtubeError = String(e)
     }
+  } catch(e) {
+    error = String(e)
   }
 
   return NextResponse.json({
-    settings: {
-      enabled,
-      channelId,
-      pollIntervalSeconds: pollInterval,
+    environment: {
+      NODE_ENV: process.env.NODE_ENV,
+      VERCEL_ENV: process.env.VERCEL_ENV,
     },
-    youtubeCheck: {
-      response: youtubeResponse,
-      error: youtubeError,
-      htmlSnippet: htmlSnippet ? htmlSnippet.substring(0, 200) : null,
+    config: {
+      envApiKey: envApiKey !== 'NOT_SET' ? envApiKey.substring(0, 20) + '...' : 'NOT_SET',
+      envChannelId,
+      dbApiKey: dbApiKey !== 'NOT_SET' ? dbApiKey.substring(0, 20) + '...' : 'NOT_SET',
+      dbChannelId,
+      usedApiKey: apiKey !== 'NOT_SET' ? apiKey.substring(0, 20) + '...' : 'NOT_SET',
+      usedChannelId: channelId,
+      streamEnabled,
     },
-    timestamp: new Date().toISOString(),
+    liveSearchResult: {
+      itemsCount: liveResult?.items?.length || 0,
+      firstVideo: liveResult?.firstVideo || null,
+      error: error
+    }
   })
 }
