@@ -30,7 +30,7 @@ PRISMA_DATABASE_URL="postgresql://neondb_owner:npg_XXXXX@ep-example.c-6.us-east-
 
 ### Vercel Blob Storage
 ```
-LOGOS_READ_WRITE_TOKEN = "vercel_blob_rw_..."
+BLOB_READ_WRITE_TOKEN = "vercel_blob_rw_..."
 ```
 
 ### Supabase (опціонально)
@@ -69,7 +69,7 @@ NEXTAUTH_URL = "https://basketball.lviv.ua"
 - **Результат**: Сторінка тепер завантажує свіжі дані при кожному запиті, без кешування помилок
 
 ### 3. Logo upload не працює (ПОТРЕБУЄ ACTION)
-- **Причина**: LOGOS_READ_WRITE_TOKEN відсутній
+- **Причина**: BLOB_READ_WRITE_TOKEN відсутній
 - **Рішення**: Додай токен з Vercel → Storage → Blob
 
 ### 4. Дані матчів не відображаються на Vercel (ПОТРЕБУЄ ACTION)

@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
     const ext = file.name.split(".").pop() ?? "mp4";
-    const token = process.env.LOGOS_READ_WRITE_TOKEN;
+    const token = process.env.BLOB_READ_WRITE_TOKEN;
 
     // PROD: Try Vercel Blob if token available
     if (token) {
@@ -59,7 +59,7 @@ export async function POST(req: NextRequest) {
         console.error(`[videos ${uploadId}] Blob error: ${errMsg}, falling back to base64`);
       }
     } else {
-      console.log(`[videos ${uploadId}] ℹ️ No LOGOS_READ_WRITE_TOKEN, using base64 fallback`);
+      console.log(`[videos ${uploadId}] ℹ️ No BLOB_READ_WRITE_TOKEN, using base64 fallback`);
     }
 
     // Fallback: Store as base64 data URL

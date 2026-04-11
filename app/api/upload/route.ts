@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
 
     // === SITE IMAGES — VERCEL BLOB or LOCAL FALLBACK ===
     if (VALID_TYPES.includes(cleanType)) {
-      const token = process.env.LOGOS_READ_WRITE_TOKEN;
+      const token = process.env.BLOB_READ_WRITE_TOKEN;
 
       // PROD: Vercel Blob
       if (token) {
@@ -120,7 +120,7 @@ export async function POST(req: NextRequest) {
 
     // === ENTITY TYPES (team logos, player photos) — VERCEL BLOB or LOCAL FALLBACK ===
     if (ENTITY_TYPES.includes(type)) {
-      const token = process.env.LOGOS_READ_WRITE_TOKEN;
+      const token = process.env.BLOB_READ_WRITE_TOKEN;
 
       // PROD: Vercel Blob
       if (token) {

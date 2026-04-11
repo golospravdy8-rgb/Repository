@@ -8,7 +8,7 @@ export async function POST(req: NextRequest) {
   const startTime = Date.now();
 
   try {
-    const token = process.env.LOGOS_READ_WRITE_TOKEN;
+    const token = process.env.BLOB_READ_WRITE_TOKEN;
 
     const { base64, filename } = await req.json();
     if (!base64 || !filename) {
@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
         console.error(`[marketplace-upload ${uploadId}] Vercel Blob error: ${errMsg}, falling back to base64`);
       }
     } else {
-      console.log(`[marketplace-upload ${uploadId}] ℹ️ No LOGOS_READ_WRITE_TOKEN, using base64 fallback`);
+      console.log(`[marketplace-upload ${uploadId}] ℹ️ No BLOB_READ_WRITE_TOKEN, using base64 fallback`);
     }
 
     // Fallback: Return base64 data URL

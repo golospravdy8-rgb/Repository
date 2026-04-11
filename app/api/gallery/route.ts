@@ -52,9 +52,9 @@ export async function POST(req: NextRequest) {
   const uploadId = Math.random().toString(36).substring(7);
 
   try {
-    const token = process.env.LOGOS_READ_WRITE_TOKEN;
+    const token = process.env.BLOB_READ_WRITE_TOKEN;
     if (!token) {
-      console.error("[gallery] LOGOS_READ_WRITE_TOKEN not found");
+      console.error("[gallery] BLOB_READ_WRITE_TOKEN not found");
       return NextResponse.json({ error: "Upload token not configured" }, { status: 500 });
     }
 

@@ -29,7 +29,7 @@ interface PlayerPhotoUploaderProps {
  * (Аналогічно TeamLogoUploader, але для кругового фото)
  *
  * ВАЖЛИВО (2026 BEST PRACTICE):
- * - Сервер явно передає LOGOS_READ_WRITE_TOKEN до @vercel/blob
+ * - Сервер явно передає BLOB_READ_WRITE_TOKEN до @vercel/blob
  * - Це гарантує успіх при кастомних префіксах токена
  * - М'яка обробка помилок без жорстких alert'ів
  */
@@ -151,7 +151,7 @@ export default function PlayerPhotoUploader({
       // М'яка обробка помилки
       let userMessage = errorMsg;
       if (errorMsg.includes('token') || errorMsg.includes('Unauthorized') || errorMsg.includes('401') || errorMsg.includes('403')) {
-        userMessage = '⚠️  Помилка налаштування токена. Перевір LOGOS_READ_WRITE_TOKEN.';
+        userMessage = '⚠️  Помилка налаштування токена. Перевір BLOB_READ_WRITE_TOKEN.';
       } else if (errorMsg.includes('network') || errorMsg.includes('ENOTFOUND')) {
         userMessage = "⚠️  Помилка мережі. Перевір з'єднання з Vercel.";
       }

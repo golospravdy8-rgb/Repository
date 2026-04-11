@@ -19,7 +19,7 @@ export const runtime = 'nodejs';
  *   - pathname: string (внутрішній шлях у Blob Store)
  *   - error?: string (при помилці)
  *
- * ВАЖЛИВО: Токен LOGOS_READ_WRITE_TOKEN читається явно з process.env на сервері,
+ * ВАЖЛИВО: Токен BLOB_READ_WRITE_TOKEN читається явно з process.env на сервері,
  * не покладаючись на @vercel/blob автоматичну детекцію.
  */
 export async function POST(request: NextRequest) {
@@ -33,23 +33,23 @@ export async function POST(request: NextRequest) {
 
   try {
     // КРИТИЧНО: Явно читаємо токен з process.env (не покладаємось на автоматичну детекцію)
-    // Це вирішує проблему "No token found" при кастомних префіксах (LOGOS_READ_WRITE_TOKEN)
-    const token = process.env.LOGOS_READ_WRITE_TOKEN;
+    // Це вирішує проблему "No token found" при кастомних префіксах (BLOB_READ_WRITE_TOKEN)
+    const token = process.env.BLOB_READ_WRITE_TOKEN;
 
     console.log(`[Blob Upload ${requestId}] Checking token...`);
     if (!token) {
-      console.error(`[Blob Upload ${requestId}] ❌ CRITICAL: LOGOS_READ_WRITE_TOKEN не знайдено!`);
-      console.error(`[Blob Upload ${requestId}] Додай LOGOS_READ_WRITE_TOKEN у Vercel Environment Variables`);
+      console.error(`[Blob Upload ${requestId}] ❌ CRITICAL: BLOB_READ_WRITE_TOKEN не знайдено!`);
+      console.error(`[Blob Upload ${requestId}] Додай BLOB_READ_WRITE_TOKEN у Vercel Environment Variables`);
       console.error(`[Blob Upload ${requestId}] Поточне оточення:`, {
         NODE_ENV: process.env.NODE_ENV,
         hasAnyBlobToken: !!process.env.BLOB_READ_WRITE_TOKEN,
-        hasLogosToken: !!token,
+        hasBlobToken: !!token,
       });
 
       return NextResponse.json(
         {
           success: false,
-          error: 'LOGOS_READ_WRITE_TOKEN не встановлено на сервері. Перевір Vercel Environment Variables.',
+          error: 'BLOB_READ_WRITE_TOKEN не встановлено на сервері. Перевір Vercel Environment Variables.',
           details: process.env.NODE_ENV === 'development' ? {
             NODE_ENV: process.env.NODE_ENV,
             tokenFound: !!token,
@@ -118,7 +118,7 @@ export async function POST(request: NextRequest) {
     let blob;
     try {
       // НАЙВАЖЛИВІШЕ: Передаємо токен явно через options
-      // Це гарантує, що @vercel/blob використовуватиме наш кастомний LOGOS_READ_WRITE_TOKEN
+      // Це гарантує, що @vercel/blob використовуватиме наш кастомний BLOB_READ_WRITE_TOKEN
       blob = await put(uniqueFilename, buffer, {
         access: 'public',
         contentType: file.type,
@@ -171,12 +171,12 @@ export async function POST(request: NextRequest) {
     let statusCode = 500;
 
     if (errorMessage.includes('No token found') || errorMessage.includes('Unauthorized') || errorMessage.includes('401') || errorMessage.includes('403')) {
-      userFriendlyError = 'Помилка автентифікації. Перевір LOGOS_READ_WRITE_TOKEN у Vercel Environment Variables.';
+      userFriendlyError = 'Помилка автентифікації. Перевір BLOB_READ_WRITE_TOKEN у Vercel Environment Variables.';
       statusCode = 401;
     } else if (errorMessage.includes('network') || errorMessage.includes('ENOTFOUND') || errorMessage.includes('ECONNREFUSED')) {
       userFriendlyError = "Помилка мережі. Перевір з'єднання з Vercel Blob (vercel-storage.com).";
     } else if (errorMessage.includes('Invalid token')) {
-      userFriendlyError = 'Токен недійсний або просрочено. Оновіть LOGOS_READ_WRITE_TOKEN у Vercel Dashboard.';
+      userFriendlyError = 'Токен недійсний або просрочено. Оновіть BLOB_READ_WRITE_TOKEN у Vercel Dashboard.';
     }
 
     return NextResponse.json(
@@ -185,7 +185,7 @@ export async function POST(request: NextRequest) {
         error: userFriendlyError,
         debug: process.env.NODE_ENV === 'development' ? {
           message: errorMessage,
-          hasToken: !!process.env.LOGOS_READ_WRITE_TOKEN,
+          hasToken: !!process.env.BLOB_READ_WRITE_TOKEN,
         } : undefined,
       },
       { status: statusCode }
@@ -222,14 +222,14 @@ export async function GET(request: NextRequest) {
   console.log(`[Blob Upload] GET health check`);
 
   // Явна перевірка наявності токена
-  const hasToken = !!process.env.LOGOS_READ_WRITE_TOKEN;
-  const tokenPrefix = hasToken ? process.env.LOGOS_READ_WRITE_TOKEN?.substring(0, 20) + '...' : 'NOT FOUND';
+  const hasToken = !!process.env.BLOB_READ_WRITE_TOKEN;
+  const tokenPrefix = hasToken ? process.env.BLOB_READ_WRITE_TOKEN?.substring(0, 20) + '...' : 'NOT FOUND';
 
   return NextResponse.json({
     message: 'Blob upload API - Ready',
     endpoint: 'POST /api/blob/upload',
     health: {
-      logos_token_configured: hasToken,
+      blob_token_configured: hasToken,
       token_prefix: process.env.NODE_ENV === 'development' ? tokenPrefix : 'hidden',
       node_env: process.env.NODE_ENV,
       runtime: 'nodejs',

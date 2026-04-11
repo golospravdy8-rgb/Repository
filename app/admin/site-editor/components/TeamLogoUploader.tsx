@@ -43,7 +43,7 @@ interface TeamLogoUploaderProps {
  * - Сам НЕ читаємо токен (як раніше спробували)
  * - Замість цього робимо fetch до /api/blob/upload
  * - Сервер явно передає токен до @vercel/blob (гарантує успіх)
- * - Це вирішує проблему "No token found" при кастомних префіксах (LOGOS_READ_WRITE_TOKEN)
+ * - Це вирішує проблему "No token found" при кастомних префіксах (BLOB_READ_WRITE_TOKEN)
  *
  * Особливості:
  * - Instant preview перед завантаженням (локальний)
@@ -229,8 +229,8 @@ export default function TeamLogoUploader({
 
       // ДІАГНОСТИКА: Категоризуємо помилку для користувача
       let userMessage = errorMsg;
-      if (errorMsg.includes('LOGOS_READ_WRITE_TOKEN') || errorMsg.includes('Unauthorized') || errorMsg.includes('token')) {
-        userMessage = '⚠️  Помилка налаштування токена. Перевір LOGOS_READ_WRITE_TOKEN у Vercel Dashboard.';
+      if (errorMsg.includes('BLOB_READ_WRITE_TOKEN') || errorMsg.includes('Unauthorized') || errorMsg.includes('token')) {
+        userMessage = '⚠️  Помилка налаштування токена. Перевір BLOB_READ_WRITE_TOKEN у Vercel Dashboard.';
       } else if (errorMsg.includes('401') || errorMsg.includes('403')) {
         userMessage = '⚠️  Помилка автентифікації. Перевір токен у Vercel.';
       } else if (errorMsg.includes('network') || errorMsg.includes('ENOTFOUND') || errorMsg.includes('ECONNREFUSED')) {
