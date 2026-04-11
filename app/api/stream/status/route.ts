@@ -111,6 +111,15 @@ async function getLiveViaChannelPage(channelId: string): Promise<{ id: string; t
 }
 
 export async function GET() {
+  // EMERGENCY TEST: Mock live stream for component verification
+  if (process.env.TEST_LIVE === "true") {
+    return NextResponse.json({
+      isLive: true,
+      videoId: "dQw4w9WgXcQ",
+      title: "Emergency Test Stream",
+    });
+  }
+
   const settings = await getSettings(["stream.enabled", "stream.youtubeChannelId"]);
 
   const enabled = settings["stream.enabled"] === "true";
