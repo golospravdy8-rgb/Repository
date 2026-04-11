@@ -8,6 +8,11 @@ export const dynamic = "force-dynamic";
 export async function POST(req: NextRequest) {
   console.log("[START] Route handler called");
 
+  // ТЕСТ БЕЗ БД
+  if (process.env.TEST_MODE === "true") {
+    return NextResponse.json({ ok: true, test: "success", env: process.env.NODE_ENV });
+  }
+
   try {
     console.log("[POST /api/parents/register] Request received");
     const body = await req.json().catch(() => ({}));
