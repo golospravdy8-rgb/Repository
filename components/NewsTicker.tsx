@@ -187,7 +187,6 @@ export default function NewsTicker({ className = "", id }: NewsTickerProps) {
         <div style={styles.pagination}>
           {Array.from({ length: TOTAL_DOTS }).map((_, i) => {
             const isActive = i === currentIndex;
-
             return (
               <div
                 key={`dot-${i}`}
