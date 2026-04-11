@@ -183,7 +183,7 @@ export default function NewsTicker({ className = "", id }: NewsTickerProps) {
           </a>
         </div>
 
-        {/* 12 повноцінних функціональних перемикачів новин */}
+        {/* 12 ПОВНОЦІННИХ ФУНКЦІОНАЛЬНИХ ПЕРЕМИКАЧІВ НОВИН — ВСІ КЛІКАБЕЛЬНІ */}
         <div style={styles.pagination}>
           {Array.from({ length: TOTAL_DOTS }).map((_, i) => {
             const isActive = i === currentIndex;
@@ -191,6 +191,7 @@ export default function NewsTicker({ className = "", id }: NewsTickerProps) {
               <div
                 key={`dot-${i}`}
                 onClick={() => {
+                  // Головне: зациклення для всіх 12 точок
                   setCurrentIndex(i % (news.length || 1));
                   setFadeIn(true);
                 }}
