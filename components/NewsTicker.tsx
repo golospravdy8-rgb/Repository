@@ -75,7 +75,7 @@ export default function NewsTicker({ className = "", id }: NewsTickerProps) {
   useEffect(() => {
     if (news.length > 0) {
       console.log(
-        `[NewsTicker] news: ${news.length} | dots: ${TOTAL_DOTS} | current: ${currentIndex}`
+        `[NewsTicker] news: ${news.length} | dots: 12 | current: ${currentIndex}`
       );
     }
   }, [news.length, currentIndex]);
@@ -186,25 +186,21 @@ export default function NewsTicker({ className = "", id }: NewsTickerProps) {
         {/* 12 повноцінних функціональних перемикачів новин */}
         <div style={styles.pagination}>
           {Array.from({ length: TOTAL_DOTS }).map((_, i) => {
-            // Активна точка: коли індекс совпадає з currentIndex
             const isActive = i === currentIndex;
-
             return (
               <div
                 key={`dot-${i}`}
                 onClick={() => {
-                  // Всі 12 точок клікабельні з зациклювання: i % (news.length || 1)
                   setCurrentIndex(i % (news.length || 1));
                   setFadeIn(true);
                 }}
                 style={{
                   ...styles.paginationDot,
-                  // Активна точка: яскраво-оранжева #f97316, scale 1.3
-                  // Неактивна точка: сіра, scale 1, однаково клікабельна
                   background: isActive ? "#f97316" : "rgba(255,255,255,0.2)",
                   transform: isActive ? "scale(1.3)" : "scale(1)",
+                  cursor: "pointer",
                 }}
-                title={`Новина ${(i % (news.length || 1)) + 1}`}
+                title={`Новина ${i + 1}`}
               />
             );
           })}
@@ -289,7 +285,7 @@ const styles: Record<string, React.CSSProperties> = {
   pagination: {
     display: "flex",
     flexWrap: "nowrap",
-    gap: "8px", // Комфортна відстань для натискання
+    gap: "8px",
     padding: "12px 16px",
     justifyContent: "center",
     borderTop: "1px solid rgba(255,255,255,0.05)",
