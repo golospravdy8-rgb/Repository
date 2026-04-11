@@ -1,3 +1,10 @@
+// FORCE ERROR TO TEST IF MODULE IS LOADED
+if (process.env.NODE_ENV === "production") {
+  const testError = new Error("[VERCEL_DEBUG] /api/chat Module loaded at " + new Date().toISOString());
+  console.error(testError);
+  // Don't throw yet, just log to see if it appears
+}
+
 /* Debug: Runtime check */
 if (typeof global === 'undefined' || !global.crypto) {
   console.error("[FATAL] Running on Edge Runtime! This route requires Node.js runtime.");
