@@ -1,10 +1,10 @@
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/require-auth";
 import { prisma } from "@/lib/prisma";
 import { put } from "@vercel/blob";
-export const runtime = 'nodejs';
-
-export const dynamic = 'force-dynamic';
 
 export async function GET() {
   const videos = await prisma.video.findMany({
