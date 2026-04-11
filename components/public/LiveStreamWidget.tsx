@@ -104,8 +104,8 @@ export default function LiveStreamWidget({ config }: { config: StreamConfig }) {
         </div>
         <div style={{ position: "relative", paddingTop: "56.25%", background: "#000" }}>
           <iframe
-            src={`https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0`}
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            src={`https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&rel=0&modestbranding=1&controls=1&iv_load_policy=3&fs=1&enablejsapi=1&origin=https://basketball.lviv.ua`}
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
             allowFullScreen
             style={{ position: "absolute", inset: 0, width: "100%", height: "100%", border: 0 }}
             title={displayTitle || "Live Stream"}
