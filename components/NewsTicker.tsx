@@ -196,11 +196,11 @@ export default function NewsTicker({ className = "", id }: NewsTickerProps) {
                 }}
                 style={{
                   ...styles.paginationDot,
-                  background: isActive ? "#f97316" : "rgba(255,255,255,0.2)",
+                  background: isActive ? "#f97316" : "rgba(255,255,255,0.25)",
                   transform: isActive ? "scale(1.3)" : "scale(1)",
                   cursor: "pointer",
                 }}
-                title={`Новина ${i + 1}`}
+                title={`Перемкнути на новину ${i + 1}`}
               />
             );
           })}
