@@ -35,7 +35,7 @@ export default function NewsTicker({ className = "", id }: NewsTickerProps) {
 
         if (data.news && Array.isArray(data.news) && data.news.length > 0) {
           // Ліміт 12 новин максимум
-          const limitedNews = data.news.slice(0, TOTAL_DOTS);
+          const limitedNews = data.news;
           setNews(limitedNews);
           setError(null);
         } else {
@@ -185,13 +185,13 @@ export default function NewsTicker({ className = "", id }: NewsTickerProps) {
 
         {/* 12 ПОВНОЦІННИХ ФУНКЦІОНАЛЬНИХ ПЕРЕМИКАЧІВ НОВИН — ВСІ КЛІКАБЕЛЬНІ */}
         <div style={styles.pagination}>
-          {Array.from({ length: TOTAL_DOTS }).map((_, i) => {
+          {Array.from({ length: news.length }).map((_, i) => {
             const isActive = i === currentIndex;
             return (
               <div
                 key={`dot-${i}`}
                 onClick={() => {
-                  setCurrentIndex(i % (news.length || 1));
+                  setCurrentIndex(i);
                   setFadeIn(true);
                 }}
                 style={{
