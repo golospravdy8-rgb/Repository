@@ -30,35 +30,56 @@ export async function POST(req: NextRequest) {
   if (!file) return NextResponse.json({ error: "No file" }, { status: 400 });
 
   try {
-    const token = process.env.LOGOS_READ_WRITE_TOKEN;
-    if (!token) {
-      console.error(`[videos ${uploadId}] LOGOS_READ_WRITE_TOKEN not found`);
-      return NextResponse.json({ error: "Upload token not configured" }, { status: 500 });
-    }
-
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
     const ext = file.name.split(".").pop() ?? "mp4";
-    const blobPath = `videos/${uploadId}-${Date.now()}.${ext}`;
+    const token = process.env.LOGOS_READ_WRITE_TOKEN;
 
-    console.log(`[videos ${uploadId}] Uploading to Vercel Blob: ${blobPath}`);
+    // PROD: Try Vercel Blob if token available
+    if (token) {
+      try {
+        const blobPath = `videos/${uploadId}-${Date.now()}.${ext}`;
+        console.log(`[videos ${uploadId}] Uploading to Vercel Blob: ${blobPath}`);
 
-    const blob = await put(blobPath, buffer, {
-      access: "public",
-      contentType: file.type || "video/mp4",
-      token: token,
-    });
+        const blob = await put(blobPath, buffer, {
+          access: "public",
+          contentType: file.type || "video/mp4",
+          token: token,
+        });
 
-    const url = blob.url;
-    const video = await prisma.video.create({
-      data: { title, url, type },
-    });
+        const url = blob.url;
+        const video = await prisma.video.create({
+          data: { title, url, type },
+        });
 
-    console.log(`[videos ${uploadId}] ✅ Video saved: ${url} (${Date.now() - startTime}ms)`);
-    return NextResponse.json(video);
-  } catch (blobErr) {
-    const errMsg = blobErr instanceof Error ? blobErr.message : String(blobErr);
-    console.error(`[videos ${uploadId}] Error: ${errMsg}`);
+        console.log(`[videos ${uploadId}] ✅ Blob Video saved: ${url} (${Date.now() - startTime}ms)`);
+        return NextResponse.json(video);
+      } catch (blobErr) {
+        const errMsg = blobErr instanceof Error ? blobErr.message : String(blobErr);
+        console.error(`[videos ${uploadId}] Blob error: ${errMsg}, falling back to base64`);
+      }
+    } else {
+      console.log(`[videos ${uploadId}] ℹ️ No LOGOS_READ_WRITE_TOKEN, using base64 fallback`);
+    }
+
+    // Fallback: Store as base64 data URL
+    try {
+      const mimeType = file.type || "video/mp4";
+      const dataUrl = `data:${mimeType};base64,${buffer.toString("base64")}`;
+      const video = await prisma.video.create({
+        data: { title, url: dataUrl, type },
+      });
+
+      console.log(`[videos ${uploadId}] ✅ Base64 Video saved (${Date.now() - startTime}ms)`);
+      return NextResponse.json(video);
+    } catch (err) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      console.error(`[videos ${uploadId}] Fallback error: ${errMsg}`);
+      return NextResponse.json({ error: `Upload error: ${errMsg}` }, { status: 500 });
+    }
+  } catch (err) {
+    const errMsg = err instanceof Error ? err.message : String(err);
+    console.error(`[videos ${uploadId}] Unexpected error: ${errMsg}`);
     return NextResponse.json({ error: `Upload error: ${errMsg}` }, { status: 500 });
   }
 }
