@@ -10,6 +10,49 @@ const BROWSER_HEADERS = {
 };
 
 /**
+ * Check for live stream using YouTube Data API v3
+ * MOST RELIABLE: Validates that video is from our channel
+ */
+async function checkWithYouTubeAPI(
+  channelId: string,
+  apiKey: string
+): Promise<{ id: string; title: string } | null> {
+  try {
+    const res = await fetch(
+      `https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${channelId}&eventType=live&type=video&key=${apiKey}`,
+      { cache: "no-store" }
+    );
+    const data = await res.json();
+
+    if (data.error) {
+      console.error(`[stream] YouTube API error: ${data.error.message}`);
+      return null;
+    }
+
+    if (data.items && data.items.length > 0) {
+      const item = data.items[0];
+
+      // CRITICAL: Verify video is from OUR channel
+      if (item.snippet.channelId !== channelId) {
+        console.error(`[stream] ⚠️ WARNING: Found video from WRONG channel! Expected ${channelId}, got ${item.snippet.channelId}`);
+        return null;
+      }
+
+      console.log(`[stream] ✅ Live found via API: ${item.id.videoId}`);
+      return {
+        id: item.id.videoId,
+        title: item.snippet.title,
+      };
+    }
+
+    return null;
+  } catch (e) {
+    console.error(`[stream] YouTube API failed: ${e}`);
+    return null;
+  }
+}
+
+/**
  * Get live stream info via YouTube RSS feed
  * RSS shows video metadata including live/upcoming videos
  * Parse <yt:videoId> and check if it's currently active via /live endpoint
@@ -157,32 +200,53 @@ async function checkLivePageRedirect(channelId: string): Promise<{ id: string; t
 }
 
 export async function GET() {
-  const settings = await getSettings(["stream.enabled", "stream.youtubeChannelId"]);
+  const settings = await getSettings(["stream.enabled", "stream.youtubeChannelId", "stream.youtubeApiKey"]);
 
   const enabled = settings["stream.enabled"] === "true";
   const channelId = settings["stream.youtubeChannelId"] || "";
+  const apiKey = settings["stream.youtubeApiKey"] || process.env.YOUTUBE_API_KEY || "";
 
   if (!enabled || !channelId) {
     return NextResponse.json({ isLive: false, videoId: null });
   }
 
   try {
-    // Strategy 1: Try RSS (fastest)
     console.log(`[stream] Starting detection for ${channelId}`);
-    let liveVideo = await getLiveViaRSS(channelId);
+    let liveVideo = null;
 
-    // Strategy 2: Direct channel page check with enhanced detection
-    if (!liveVideo) {
-      liveVideo = await getLiveViaChannelPage(channelId);
+    // Strategy 1: YouTube Data API v3 (MOST RELIABLE — validates channel ID)
+    if (apiKey) {
+      console.log(`[stream] Attempting YouTube API detection...`);
+      liveVideo = await checkWithYouTubeAPI(channelId, apiKey);
+      if (liveVideo) {
+        console.log(`[stream] ✅ Live stream DETECTED via API: ${liveVideo.id} - ${liveVideo.title}`);
+        return NextResponse.json({ isLive: true, videoId: liveVideo.id, title: liveVideo.title });
+      }
+    } else {
+      console.warn(`[stream] ⚠️ YouTube API key not configured, falling back to RSS/HTML methods`);
     }
 
-    // Strategy 3: Check for /live page redirect (indicates active stream)
-    if (!liveVideo) {
-      liveVideo = await checkLivePageRedirect(channelId);
-    }
-
+    // Strategy 2: Try RSS (fast, no API key needed)
+    console.log(`[stream] Attempting RSS detection...`);
+    liveVideo = await getLiveViaRSS(channelId);
     if (liveVideo) {
-      console.log(`[stream] ✅ Live stream DETECTED: ${liveVideo.id} - ${liveVideo.title}`);
+      console.log(`[stream] ✅ Live stream DETECTED via RSS: ${liveVideo.id} - ${liveVideo.title}`);
+      return NextResponse.json({ isLive: true, videoId: liveVideo.id, title: liveVideo.title });
+    }
+
+    // Strategy 3: Direct channel page check with enhanced detection
+    console.log(`[stream] Attempting channel page detection...`);
+    liveVideo = await getLiveViaChannelPage(channelId);
+    if (liveVideo) {
+      console.log(`[stream] ✅ Live stream DETECTED via channel page: ${liveVideo.id} - ${liveVideo.title}`);
+      return NextResponse.json({ isLive: true, videoId: liveVideo.id, title: liveVideo.title });
+    }
+
+    // Strategy 4: Check for /live page redirect (indicates active stream)
+    console.log(`[stream] Attempting redirect detection...`);
+    liveVideo = await checkLivePageRedirect(channelId);
+    if (liveVideo) {
+      console.log(`[stream] ✅ Live stream DETECTED via redirect: ${liveVideo.id} - ${liveVideo.title}`);
       return NextResponse.json({ isLive: true, videoId: liveVideo.id, title: liveVideo.title });
     }
 
