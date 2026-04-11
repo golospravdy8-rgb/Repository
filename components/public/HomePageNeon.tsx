@@ -176,7 +176,10 @@ export default function HomePageNeon({ season, standings = [], players = [], ag 
             >
               💬 Балачка
             </button>
-            <button className="px-3 py-1.5 text-xs bg-black border border-purple-400 text-purple-400 font-bold rounded-full hover:shadow-[0_0_15px_rgba(168,85,247,0.6)] transition duration-300">
+            <button
+              onClick={() => router.push('/chat?role=parent')}
+              className="px-3 py-1.5 text-xs bg-black border border-purple-400 text-purple-400 font-bold rounded-full hover:shadow-[0_0_15px_rgba(168,85,247,0.6)] transition duration-300 cursor-pointer"
+            >
               👨‍👩‍👧‍👦 Батьки
             </button>
           </div>
