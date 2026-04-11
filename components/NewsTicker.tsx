@@ -75,7 +75,7 @@ export default function NewsTicker({ className = "", id }: NewsTickerProps) {
   useEffect(() => {
     if (news.length > 0) {
       console.log(
-        `[NewsTicker] news.length = ${news.length} | rendering ${TOTAL_DOTS} dots | current = ${currentIndex}`
+        `[NewsTicker] news: ${news.length} | dots: ${TOTAL_DOTS} | current: ${currentIndex}`
       );
     }
   }, [news.length, currentIndex]);
@@ -183,38 +183,28 @@ export default function NewsTicker({ className = "", id }: NewsTickerProps) {
           </a>
         </div>
 
-        {/* ГАРАНТІЯ: 12 видимих точок внизу, ЗАВЖДИ */}
+        {/* ГАРАНТІЯ: 12 повноцінних перемикачів новин */}
         <div style={styles.pagination}>
           {Array.from({ length: TOTAL_DOTS }).map((_, i) => {
-            // Визначаємо, чи доступна новина для цієї точки
-            const isAvailable = i < news.length;
-            const isActive = i === currentIndex && isAvailable;
+            // Активна точка: коли індекс совпадає з currentIndex
+            const isActive = i === currentIndex;
 
             return (
               <div
                 key={`dot-${i}`}
                 onClick={() => {
-                  if (isAvailable) {
-                    // Точка 0–(news.length-1): активна, переходим на цю новину
-                    setCurrentIndex(i);
-                    setFadeIn(true);
-                  } else if (news.length > 0) {
-                    // Точка (news.length)–11: недоступна, переходим на останню доступну
-                    setCurrentIndex(news.length - 1);
-                    setFadeIn(true);
-                  }
+                  // Всі 12 точок клікабельні: зациклення при натисканні на точки > news.length
+                  setCurrentIndex(i % news.length);
+                  setFadeIn(true);
                 }}
                 style={{
                   ...styles.paginationDot,
                   // Активна точка: оранжева #f97316, scale 1.3
+                  // Неактивна точка: сіра, scale 1
                   background: isActive ? "#f97316" : "rgba(255,255,255,0.2)",
                   transform: isActive ? "scale(1.3)" : "scale(1)",
-                  // Недоступна точка: приглушена (opacity 0.45), неклікабельна
-                  opacity: isAvailable ? 1 : 0.45,
-                  cursor: isAvailable ? "pointer" : "default",
-                  pointerEvents: isAvailable ? "auto" : "none",
                 }}
-                title={`Новина ${i + 1}${!isAvailable ? " (не доступна)" : ""}`}
+                title={`Новина ${i + 1}`}
               />
             );
           })}
@@ -295,12 +285,12 @@ const styles: Record<string, React.CSSProperties> = {
     transition: "background 0.2s ease",
   },
 
-  // ГАРАНТІЯ: Flex контейнер для 12 видимих точок
+  // ГАРАНТІЯ: Flex контейнер для 12 клікабельних точок
   pagination: {
     display: "flex",
     flexWrap: "nowrap",
-    gap: "5px",
-    padding: "10px",
+    gap: "6px", // Більший gap для комфортного натискання
+    padding: "12px 14px",
     justifyContent: "center",
     borderTop: "1px solid rgba(255,255,255,0.05)",
     width: "100%",
@@ -309,16 +299,17 @@ const styles: Record<string, React.CSSProperties> = {
     flexShrink: 0, // Контейнер не стискається
   },
 
-  // ГАРАНТІЯ: Кожна точка ніколи не обрізується
+  // ГАРАНТІЯ: Всі 12 точок — повноцінні перемикачі
   paginationDot: {
     width: "6px",
     height: "6px",
     borderRadius: "50%",
+    cursor: "pointer", // Завжди pointer
     transition: "all 0.2s ease",
     flexShrink: 0, // НЕ обрізується ніколи
     flexBasis: "auto", // Природна ширина
-    minWidth: "7px", // Мінімум 7px для гарантії видимості
-    minHeight: "7px", // Мінімум 7px для гарантії видимості
+    minWidth: "8px", // Мінімум 8px для комфортного натискання
+    minHeight: "8px", // Мінімум 8px для комфортного натискання
   },
 
   // Skeleton завантаження
