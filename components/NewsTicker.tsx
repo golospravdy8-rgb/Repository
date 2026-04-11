@@ -22,7 +22,7 @@ export default function NewsTicker({ className = "", id }: NewsTickerProps) {
   const [error, setError] = useState<string | null>(null);
   const [fadeIn, setFadeIn] = useState(true);
 
-  // Загрузка новостей
+  // Загрузка новостей (максимум 12)
   useEffect(() => {
     const fetchNews = async () => {
       try {
@@ -31,7 +31,9 @@ export default function NewsTicker({ className = "", id }: NewsTickerProps) {
         const data = await res.json();
 
         if (data.news && Array.isArray(data.news) && data.news.length > 0) {
-          setNews(data.news);
+          // Ограничиваем до 12 новин максимум
+          const limitedNews = data.news.slice(0, 12);
+          setNews(limitedNews);
           setError(null);
         } else {
           setError("Новости не найдены");
@@ -169,22 +171,26 @@ export default function NewsTicker({ className = "", id }: NewsTickerProps) {
           </a>
         </div>
 
-        {/* Индикатор страниц */}
-        <div style={styles.pagination}>
-          {news.map((_, i) => (
-            <div
-              key={i}
-              onClick={() => {
-                setCurrentIndex(i);
-                setFadeIn(true);
-              }}
-              style={{
-                ...styles.paginationDot,
-                background: i === currentIndex ? "#f97316" : "rgba(255,255,255,0.2)",
-              }}
-            />
-          ))}
-        </div>
+        {/* Индикатор страниц (12 точек, кликабельные) */}
+        {news.length > 0 && (
+          <div style={styles.pagination}>
+            {news.slice(0, 12).map((_, i) => (
+              <div
+                key={i}
+                onClick={() => {
+                  setCurrentIndex(i);
+                  setFadeIn(true);
+                }}
+                style={{
+                  ...styles.paginationDot,
+                  background: i === currentIndex ? "#f97316" : "rgba(255,255,255,0.2)",
+                  transform: i === currentIndex ? "scale(1.3)" : "scale(1)",
+                }}
+                title={`Новина ${i + 1}`}
+              />
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

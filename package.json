@@ -12,7 +12,6 @@
     "dev:all": "concurrently --names \"MAIN,AUTH,MARKET,COURSES,SHOP,NEWS\" --prefix-colors \"blue,green,yellow,cyan,magenta,red\" \"npm run dev\" \"npm run auth\" \"npm run marketplace\" \"npm run courses\" \"npm run shop\" \"npm run news-app\"",
     "dev:all:safe": "node scripts/dev-all-safe.js",
     "build": "prisma generate && next build",
-    "build:vercel": "prisma generate && next build",
     "start": "next start",
     "lint": "next lint",
     "db:push": "prisma db push",

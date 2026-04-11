@@ -1,6 +1,6 @@
 {
   "buildCommand": "npm run build",
-  "installCommand": "npm ci && npm run postinstall",
+  "installCommand": "npm ci",
   "framework": "nextjs",
   "regions": ["iad1"],
   "functions": {
@@ -32,24 +32,6 @@
     {
       "path": "/api/cron/hp-decay",
       "schedule": "0 3 * * *"
-    }
-  ],
-  "rewrites": [
-    {
-      "source": "/marketplace/:path*",
-      "destination": "http://localhost:3007/marketplace/:path*"
-    },
-    {
-      "source": "/courses/:path*",
-      "destination": "http://localhost:3008/courses/:path*"
-    },
-    {
-      "source": "/shop/:path*",
-      "destination": "http://localhost:3009/shop/:path*"
-    },
-    {
-      "source": "/news-app/:path*",
-      "destination": "http://localhost:3010/news-app/:path*"
     }
   ]
 }
