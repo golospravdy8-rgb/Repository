@@ -11,41 +11,104 @@ const BROWSER_HEADERS = {
 
 /**
  * Check for live stream using YouTube Data API v3
- * MOST RELIABLE: Validates that video is from our channel
+ * MOST RELIABLE: search.list + videos.list double-validation
+ *
+ * Strategy:
+ * 1. search.list?eventType=live&type=video — finds live videos
+ * 2. videos.list — validates liveBroadcastContent === "live" (not upcoming/none)
+ * 3. Check actualStartTime to confirm stream already started
  */
 async function checkWithYouTubeAPI(
   channelId: string,
   apiKey: string
 ): Promise<{ id: string; title: string } | null> {
   try {
-    const res = await fetch(
+    // Step 1: Search for live videos
+    const searchRes = await fetch(
       `https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${channelId}&eventType=live&type=video&key=${apiKey}`,
       { cache: "no-store" }
     );
-    const data = await res.json();
+    const searchData = await searchRes.json();
 
-    if (data.error) {
-      console.error(`[stream] YouTube API error: ${data.error.message}`);
+    if (searchData.error) {
+      console.error(`[stream] YouTube API error: ${searchData.error.message}`);
       return null;
     }
 
-    if (data.items && data.items.length > 0) {
-      const item = data.items[0];
+    if (!searchData.items || searchData.items.length === 0) {
+      console.log(`[stream] search.list returned no live videos`);
+      return null;
+    }
 
-      // CRITICAL: Verify video is from OUR channel
-      if (item.snippet.channelId !== channelId) {
-        console.error(`[stream] ⚠️ WARNING: Found video from WRONG channel! Expected ${channelId}, got ${item.snippet.channelId}`);
+    const item = searchData.items[0];
+    const videoId = item.id.videoId;
+
+    // CRITICAL: Verify video is from OUR channel
+    if (item.snippet.channelId !== channelId) {
+      console.error(`[stream] ⚠️ WARNING: Found video from WRONG channel! Expected ${channelId}, got ${item.snippet.channelId}`);
+      return null;
+    }
+
+    console.log(`[stream] search.list found videoId: ${videoId}, now validating...`);
+
+    // Step 2: Double-validate via videos.list (includes liveStreamingDetails)
+    try {
+      const validateRes = await fetch(
+        `https://www.googleapis.com/youtube/v3/videos?part=snippet,liveStreamingDetails&id=${videoId}&key=${apiKey}`,
+        { cache: "no-store" }
+      );
+      const validateData = await validateRes.json();
+
+      if (validateData.error) {
+        // If quota exceeded, still trust search result
+        if (validateData.error.code === 403) {
+          console.log(`[stream] ⚠️ API quota exceeded (403), trusting search.list result: ${videoId}`);
+          return {
+            id: videoId,
+            title: item.snippet.title,
+          };
+        }
+        console.error(`[stream] videos.list error: ${validateData.error.message}`);
         return null;
       }
 
-      console.log(`[stream] ✅ Live found via API: ${item.id.videoId}`);
+      const video = validateData.items?.[0];
+      if (!video) {
+        console.log(`[stream] ❌ Video ${videoId} not found in videos.list`);
+        return null;
+      }
+
+      // CRITICAL: Check if it's actually LIVE (not upcoming/none)
+      const liveStatus = video.snippet.liveBroadcastContent;
+      if (liveStatus !== "live") {
+        console.log(`[stream] ❌ Video ${videoId} is not live: liveBroadcastContent="${liveStatus}" (expected "live")`);
+        return null;
+      }
+
+      // OPTIONAL: Check actualStartTime (stream already started, not just scheduled)
+      const actualStartTime = video.liveStreamingDetails?.actualStartTime;
+      if (actualStartTime) {
+        const startMs = new Date(actualStartTime).getTime();
+        const nowMs = Date.now();
+        if (nowMs < startMs) {
+          console.log(`[stream] ❌ Stream hasn't started yet (actualStartTime: ${actualStartTime})`);
+          return null;
+        }
+        console.log(`[stream] ✅ Stream started at ${actualStartTime}, confirmed live`);
+      }
+
+      console.log(`[stream] ✅ Live found via API (validated): ${videoId} - ${video.snippet.title}`);
       return {
-        id: item.id.videoId,
+        id: videoId,
+        title: video.snippet.title,
+      };
+    } catch (validateErr) {
+      console.log(`[stream] videos.list validation failed: ${validateErr}, trusting search.list result`);
+      return {
+        id: videoId,
         title: item.snippet.title,
       };
     }
-
-    return null;
   } catch (e) {
     console.error(`[stream] YouTube API failed: ${e}`);
     return null;
@@ -139,7 +202,12 @@ async function getLiveViaChannelPage(channelId: string, apiKey?: string): Promis
     const liveUrl = `https://www.youtube.com/channel/${channelId}/live`;
     const res = await fetch(liveUrl, {
       cache: "no-store",
-      headers: BROWSER_HEADERS,
+      headers: {
+        ...BROWSER_HEADERS,
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+        "Pragma": "no-cache",
+        "Expires": "0",
+      },
       redirect: "follow",
     });
     if (!res.ok) return null;
@@ -161,16 +229,50 @@ async function getLiveViaChannelPage(channelId: string, apiKey?: string): Promis
       return null;
     }
 
-    // Extract video ID — try multiple patterns
-    const videoIdMatch = html.match(/"videoId":"([^"]{11})"/) ||
-                        html.match(/"video_id":"([^"]{11})"/) ||
-                        html.match(/watch\?v=([^"&]{11})/) ||
-                        html.match(/\/watch\?v=([A-Za-z0-9_-]{11})/);
+    // Extract video ID — try multiple patterns, prefer LAST match (more likely to be live, not recommendation)
+    let videoId: string | null = null;
 
-    if (!videoIdMatch) return null;
+    // Try pattern 1: "videoId":"ABC123..."
+    const pattern1Matches = html.match(/"videoId":"([^"]{11})"/g);
+    if (pattern1Matches && pattern1Matches.length > 0) {
+      const lastMatch = pattern1Matches[pattern1Matches.length - 1];
+      const idMatch = lastMatch.match(/"videoId":"([^"]{11})"/);
+      if (idMatch) videoId = idMatch[1];
+    }
 
-    const videoId = videoIdMatch[1];
-    console.log(`[stream] HTML page detected videoId: ${videoId}`);
+    // Try pattern 2: "video_id":"ABC123..."
+    if (!videoId) {
+      const pattern2Matches = html.match(/"video_id":"([^"]{11})"/g);
+      if (pattern2Matches && pattern2Matches.length > 0) {
+        const lastMatch = pattern2Matches[pattern2Matches.length - 1];
+        const idMatch = lastMatch.match(/"video_id":"([^"]{11})"/);
+        if (idMatch) videoId = idMatch[1];
+      }
+    }
+
+    // Try pattern 3: watch?v=ABC123...
+    if (!videoId) {
+      const pattern3Matches = html.match(/watch\?v=([^"&]{11})/g);
+      if (pattern3Matches && pattern3Matches.length > 0) {
+        const lastMatch = pattern3Matches[pattern3Matches.length - 1];
+        const idMatch = lastMatch.match(/watch\?v=([^"&]{11})/);
+        if (idMatch) videoId = idMatch[1];
+      }
+    }
+
+    // Try pattern 4: /watch?v=ABC123...
+    if (!videoId) {
+      const pattern4Matches = html.match(/\/watch\?v=([A-Za-z0-9_-]{11})/g);
+      if (pattern4Matches && pattern4Matches.length > 0) {
+        const lastMatch = pattern4Matches[pattern4Matches.length - 1];
+        const idMatch = lastMatch.match(/\/watch\?v=([A-Za-z0-9_-]{11})/);
+        if (idMatch) videoId = idMatch[1];
+      }
+    }
+
+    if (!videoId) return null;
+
+    console.log(`[stream] HTML page detected videoId: ${videoId} (using last match, likely live)`);
 
     // Try to validate via YouTube API videos endpoint (cheaper than search)
     if (apiKey) {

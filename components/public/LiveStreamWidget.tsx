@@ -32,13 +32,22 @@ export default function LiveStreamWidget({ config }: { config: StreamConfig }) {
 
   const scheduledMs = config.scheduledAt ? new Date(config.scheduledAt).getTime() : 0;
   const thresholdMs = config.countdownThresholdMinutes * 60 * 1000;
-  const pollMs = Math.max(config.pollIntervalSeconds, 10) * 1000;
+
+  // Dynamic polling: faster during countdown, slower otherwise
+  const isCountdownActive = () => {
+    if (!scheduledMs) return false;
+    const diff = scheduledMs - Date.now();
+    return diff > 0 && diff <= thresholdMs;
+  };
+  const pollMs = isCountdownActive()
+    ? 10 * 1000  // 10 sec during countdown window
+    : Math.max(config.pollIntervalSeconds, 30) * 1000; // 30+ sec otherwise
 
   const channelUrl = config.channelId
     ? `https://www.youtube.com/channel/${config.channelId}`
     : "https://youtube.com";
 
-  const isCountdownActive = (): boolean => {
+  const getIsCountdownActive = (): boolean => {
     if (!scheduledMs) return false;
     const diff = scheduledMs - Date.now();
     return diff > 0 && diff <= thresholdMs;
@@ -82,7 +91,7 @@ export default function LiveStreamWidget({ config }: { config: StreamConfig }) {
   }, [pollingEnabled, pollMs]);
 
   const displayTitle = (isLive && liveTitle) ? liveTitle : config.title;
-  const showCountdown = !isLive && isCountdownActive();
+  const showCountdown = !isLive && getIsCountdownActive();
   const showStarting = !isLive && countdownDone && scheduledMs > 0;
 
   // ── LIVE ──────────────────────────────────────────────────────────────────
