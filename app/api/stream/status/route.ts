@@ -55,9 +55,9 @@ async function checkWithYouTubeAPI(
 /**
  * Get live stream info via YouTube RSS feed
  * RSS shows video metadata including live/upcoming videos
- * Parse <yt:videoId> and check if it's currently active via /live endpoint
+ * Parse <yt:videoId> and check if it's currently active via YouTube API
  */
-async function getLiveViaRSS(channelId: string): Promise<{ id: string; title: string } | null> {
+async function getLiveViaRSS(channelId: string, apiKey?: string): Promise<{ id: string; title: string } | null> {
   try {
     const rssUrl = `https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`;
     const res = await fetch(rssUrl, { cache: "no-store" });
@@ -70,37 +70,43 @@ async function getLiveViaRSS(channelId: string): Promise<{ id: string; title: st
     if (!videoIdMatch) return null;
 
     const videoId = videoIdMatch[1];
-    const titleMatch = xml.match(/<title>([^<]+)<\/title>/);
-    const title = titleMatch ? titleMatch[1] : "";
 
-    // Now check if this video is actually live right now by fetching the /live page
-    // YouTube redirects /channel/ID/live to the active livestream if one exists
-    try {
-      const livePageRes = await fetch(
-        `https://www.youtube.com/channel/${channelId}/live`,
-        { cache: "no-store", headers: BROWSER_HEADERS, redirect: "follow" }
-      );
-      if (livePageRes.ok) {
-        const html = await livePageRes.text();
-        // Check if page contains data indicating an active stream
-        // Look for "isLiveNow" or other indicators
-        const isLive = html.includes('"isLiveNow":true') ||
-                       html.includes('"status":"LIVE"') ||
-                       html.includes('data-app-index="3"'); // live header structure
+    // CRITICAL: Validate this video is actually LIVE (not upcoming/none) via YouTube API
+    if (apiKey) {
+      try {
+        const checkRes = await fetch(
+          `https://www.googleapis.com/youtube/v3/videos?part=snippet&id=${videoId}&key=${apiKey}`,
+          { cache: "no-store" }
+        );
+        const checkData = await checkRes.json();
+        const video = checkData.items?.[0];
 
-        if (isLive) {
-          // Extract title from page if available
-          const pageTitle = html.match(/"title":\{"simpleText":"([^"]+)"/) ||
-                           html.match(/"title":"([^"]+)"/) ||
-                           titleMatch;
-          return {
-            id: videoId,
-            title: pageTitle ? pageTitle[1] : title,
-          };
+        if (!video) {
+          console.log(`[stream] RSS video ${videoId} not found in API`);
+          return null;
         }
+
+        // Only return if liveBroadcastContent is 'live' (not 'upcoming' or 'none')
+        if (video.snippet.liveBroadcastContent !== "live") {
+          console.log(`[stream] RSS video ${videoId} is not live: ${video.snippet.liveBroadcastContent}`);
+          return null;
+        }
+
+        // Verify it's from our channel
+        if (video.snippet.channelId !== channelId) {
+          console.log(`[stream] RSS video ${videoId} from wrong channel: ${video.snippet.channelId}`);
+          return null;
+        }
+
+        console.log(`[stream] ✅ Live found via RSS (validated): ${videoId}`);
+        return {
+          id: videoId,
+          title: video.snippet.title,
+        };
+      } catch (e) {
+        console.log(`[stream] RSS validation failed: ${e}`);
+        return null;
       }
-    } catch (e) {
-      console.log(`[stream] Could not verify live status via page: ${e}`);
     }
 
     return null;
@@ -111,11 +117,11 @@ async function getLiveViaRSS(channelId: string): Promise<{ id: string; title: st
 }
 
 /**
- * Check for live stream via multiple methods:
+ * Check for live stream via HTML page:
  * 1. Direct /live page with improved detection
- * 2. Check for common broadcast patterns in JSON
+ * 2. Validate video is actually LIVE via YouTube API (not upcoming/archived)
  */
-async function getLiveViaChannelPage(channelId: string): Promise<{ id: string; title: string } | null> {
+async function getLiveViaChannelPage(channelId: string, apiKey?: string): Promise<{ id: string; title: string } | null> {
   try {
     const liveUrl = `https://www.youtube.com/channel/${channelId}/live`;
     const res = await fetch(liveUrl, {
@@ -149,16 +155,55 @@ async function getLiveViaChannelPage(channelId: string): Promise<{ id: string; t
 
     if (!videoIdMatch) return null;
 
-    // Extract title — try multiple patterns
+    const videoId = videoIdMatch[1];
+
+    // CRITICAL: Validate via YouTube API that this is truly LIVE
+    if (apiKey) {
+      try {
+        const checkRes = await fetch(
+          `https://www.googleapis.com/youtube/v3/videos?part=snippet,liveStreamingDetails&id=${videoId}&key=${apiKey}`,
+          { cache: "no-store" }
+        );
+        const checkData = await checkRes.json();
+        const video = checkData.items?.[0];
+
+        if (!video) {
+          console.log(`[stream] HTML page video ${videoId} not found in API`);
+          return null;
+        }
+
+        // Only return if liveBroadcastContent is 'live' (not 'upcoming' or 'none')
+        if (video.snippet.liveBroadcastContent !== "live") {
+          console.log(`[stream] HTML page video ${videoId} is not live: ${video.snippet.liveBroadcastContent}`);
+          return null;
+        }
+
+        // Verify it's from our channel
+        if (video.snippet.channelId !== channelId) {
+          console.log(`[stream] HTML page video ${videoId} from wrong channel: ${video.snippet.channelId}`);
+          return null;
+        }
+
+        console.log(`[stream] ✅ Live found via HTML page (validated): ${videoId}`);
+        return {
+          id: videoId,
+          title: video.snippet.title,
+        };
+      } catch (e) {
+        console.log(`[stream] HTML page validation failed: ${e}`);
+        return null;
+      }
+    }
+
+    // Fallback without API key (not recommended, may return non-live videos)
+    console.log(`[stream] ⚠️ No API key for validation, returning HTML result as-is: ${videoId}`);
     const titleMatch = html.match(/"videoDetails":\{[^}]*"title":"([^"]+)"/) ||
       html.match(/"title":\{"simpleText":"([^"]+)"/) ||
       html.match(/"title":"([^"]+)".*?"isLive/) ||
       html.match(/<title>([^<|]+)/);
-
     const title = titleMatch ? titleMatch[1].replace(/\\u0026/g, "&").trim() : "";
 
-    console.log(`[stream] Live detected via channel page: ${videoIdMatch[1]} - ${title}`);
-    return { id: videoIdMatch[1], title };
+    return { id: videoId, title };
   } catch (e) {
     console.log(`[stream] Channel page check failed: ${e}`);
     return null;
@@ -203,8 +248,8 @@ export async function GET() {
   const settings = await getSettings(["stream.enabled", "stream.youtubeChannelId", "stream.youtubeApiKey"]);
 
   const enabled = settings["stream.enabled"] === "true";
-  const channelId = settings["stream.youtubeChannelId"] || "";
-  const apiKey = settings["stream.youtubeApiKey"] || process.env.YOUTUBE_API_KEY || "";
+  const channelId = (settings["stream.youtubeChannelId"] || "").trim();
+  const apiKey = (settings["stream.youtubeApiKey"] || process.env.YOUTUBE_API_KEY || "").trim();
 
   if (!enabled || !channelId) {
     return NextResponse.json({ isLive: false, videoId: null });
@@ -226,17 +271,17 @@ export async function GET() {
       console.warn(`[stream] ⚠️ YouTube API key not configured, falling back to RSS/HTML methods`);
     }
 
-    // Strategy 2: Try RSS (fast, no API key needed)
+    // Strategy 2: Try RSS (with API validation)
     console.log(`[stream] Attempting RSS detection...`);
-    liveVideo = await getLiveViaRSS(channelId);
+    liveVideo = await getLiveViaRSS(channelId, apiKey);
     if (liveVideo) {
       console.log(`[stream] ✅ Live stream DETECTED via RSS: ${liveVideo.id} - ${liveVideo.title}`);
       return NextResponse.json({ isLive: true, videoId: liveVideo.id, title: liveVideo.title });
     }
 
-    // Strategy 3: Direct channel page check with enhanced detection
+    // Strategy 3: Direct channel page check with API validation
     console.log(`[stream] Attempting channel page detection...`);
-    liveVideo = await getLiveViaChannelPage(channelId);
+    liveVideo = await getLiveViaChannelPage(channelId, apiKey);
     if (liveVideo) {
       console.log(`[stream] ✅ Live stream DETECTED via channel page: ${liveVideo.id} - ${liveVideo.title}`);
       return NextResponse.json({ isLive: true, videoId: liveVideo.id, title: liveVideo.title });
