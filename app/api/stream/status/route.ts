@@ -111,16 +111,6 @@ async function getLiveViaChannelPage(channelId: string): Promise<{ id: string; t
 }
 
 export async function GET() {
-  // TESTING: Mock live stream for debugging
-  if (process.env.TEST_LIVE === "true") {
-    console.log("[stream] TEST_LIVE=true — returning mock live stream");
-    return NextResponse.json({
-      isLive: true,
-      videoId: "dQw4w9WgXcQ",
-      title: "Test Live Stream - Basketball",
-    });
-  }
-
   const settings = await getSettings(["stream.enabled", "stream.youtubeChannelId"]);
 
   const enabled = settings["stream.enabled"] === "true";
