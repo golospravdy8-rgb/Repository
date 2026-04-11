@@ -58,7 +58,7 @@ async function scrapeBasketNews(): Promise<NewsItem[]> {
     }
   });
 
-  const top10 = links.slice(0, 10);
+  const top10 = links.slice(0, 12);
 
   const news: NewsItem[] = await Promise.all(
     top10.map(async (item, i) => {
