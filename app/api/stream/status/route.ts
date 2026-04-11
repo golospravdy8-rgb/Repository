@@ -17,11 +17,13 @@ const BROWSER_HEADERS = {
  * 1. search.list?eventType=live&type=video — finds live videos
  * 2. videos.list — validates liveBroadcastContent === "live" (not upcoming/none)
  * 3. Check actualStartTime to confirm stream already started
+ *
+ * Returns: { id, title, method: "search+videos" | "search_only" } or null
  */
 async function checkWithYouTubeAPI(
   channelId: string,
   apiKey: string
-): Promise<{ id: string; title: string } | null> {
+): Promise<{ id: string; title: string; method: string } | null> {
   try {
     // Step 1: Search for live videos
     const searchRes = await fetch(
@@ -66,6 +68,7 @@ async function checkWithYouTubeAPI(
           return {
             id: videoId,
             title: item.snippet.title,
+            method: "search_only",
           };
         }
         console.error(`[stream] videos.list error: ${validateData.error.message}`);
@@ -101,12 +104,14 @@ async function checkWithYouTubeAPI(
       return {
         id: videoId,
         title: video.snippet.title,
+        method: "search+videos",
       };
     } catch (validateErr) {
       console.log(`[stream] videos.list validation failed: ${validateErr}, trusting search.list result`);
       return {
         id: videoId,
         title: item.snippet.title,
+        method: "search_only",
       };
     }
   } catch (e) {
@@ -410,11 +415,12 @@ export async function GET() {
 
     // Strategy 2: HTML channel page (WORKS WITHOUT API QUOTA)
     // This is now PRIMARY fallback when API is down/quota exceeded
-    console.log(`[stream] Attempting HTML channel page detection...`);
+    console.log(`[stream] ⚠️ Attempting HTML channel page detection (API primary failed)...`);
     liveVideo = await getLiveViaChannelPage(channelId, apiKey);
     if (liveVideo) {
-      console.log(`[stream] ✅ Live stream DETECTED via HTML page: ${liveVideo.id} - ${liveVideo.title}`);
-      return NextResponse.json({ isLive: true, videoId: liveVideo.id, title: liveVideo.title });
+      console.log(`[stream] ✅ Live stream DETECTED via HTML page (FALLBACK): ${liveVideo.id} - ${liveVideo.title}`);
+      console.log(`[stream] ⚠️ NOTE: Using HTML fallback may be less reliable. API should be primary.`);
+      return NextResponse.json({ isLive: true, videoId: liveVideo.id, title: liveVideo.title, method: "html_fallback" });
     }
 
     // Strategy 3: Try RSS with API validation

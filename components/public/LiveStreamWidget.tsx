@@ -33,15 +33,31 @@ export default function LiveStreamWidget({ config }: { config: StreamConfig }) {
   const scheduledMs = config.scheduledAt ? new Date(config.scheduledAt).getTime() : 0;
   const thresholdMs = config.countdownThresholdMinutes * 60 * 1000;
 
-  // Dynamic polling: faster during countdown, slower otherwise
-  const isCountdownActive = () => {
-    if (!scheduledMs) return false;
-    const diff = scheduledMs - Date.now();
-    return diff > 0 && diff <= thresholdMs;
+  // Dynamic polling: smarter frequency based on time to stream start
+  const getCountdownMs = () => {
+    if (!scheduledMs) return null;
+    return Math.max(0, scheduledMs - Date.now());
   };
-  const pollMs = isCountdownActive()
-    ? 10 * 1000  // 10 sec during countdown window
-    : Math.max(config.pollIntervalSeconds, 30) * 1000; // 30+ sec otherwise
+
+  const getPollIntervalMs = () => {
+    const countdownMs = getCountdownMs();
+
+    if (!countdownMs) {
+      // No scheduled time, use default interval
+      return Math.max(config.pollIntervalSeconds, 30) * 1000;
+    }
+
+    const countdownMinutes = countdownMs / 60 / 1000;
+
+    // Poll more frequently as stream approaches
+    if (countdownMinutes <= 5) return 5 * 1000;  // Last 5 min: every 5 sec
+    if (countdownMinutes <= 15) return 10 * 1000; // 5-15 min: every 10 sec
+    if (countdownMinutes <= 60) return 20 * 1000; // 15-60 min: every 20 sec
+
+    return Math.max(config.pollIntervalSeconds, 30) * 1000; // > 60 min: 30+ sec
+  };
+
+  const pollMs = getPollIntervalMs();
 
   const channelUrl = config.channelId
     ? `https://www.youtube.com/channel/${config.channelId}`
@@ -91,7 +107,7 @@ export default function LiveStreamWidget({ config }: { config: StreamConfig }) {
   }, [pollingEnabled, pollMs]);
 
   const displayTitle = (isLive && liveTitle) ? liveTitle : config.title;
-  const showCountdown = !isLive && getIsCountdownActive();
+  const showCountdown = !isLive && getIsCountdownActive && getIsCountdownActive();
   const showStarting = !isLive && countdownDone && scheduledMs > 0;
 
   // ── LIVE ──────────────────────────────────────────────────────────────────
@@ -118,6 +134,37 @@ export default function LiveStreamWidget({ config }: { config: StreamConfig }) {
             allowFullScreen
             style={{ position: "absolute", inset: 0, width: "100%", height: "100%", border: 0 }}
             title={displayTitle || "Live Stream"}
+          />
+        </div>
+        <style>{`.live-pulse{animation:livePulse 1.4s ease-in-out infinite}@keyframes livePulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.4;transform:scale(0.8)}}`}</style>
+      </section>
+    );
+  }
+
+  // ── LIVE WITH STATIC EMBED (fallback if API fails but live is expected) ──
+  if (isLive && !videoId && config.channelId) {
+    return (
+      <section style={{ borderRadius: 12, overflow: "hidden", boxShadow: "0 4px 16px rgba(0,0,0,0.12)", border: "1px solid #fee2e2" }}>
+        <div style={{ padding: "8px 12px", display: "flex", alignItems: "center", justifyContent: "space-between", backgroundColor: "#1a2744" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <span className="live-pulse" style={{ display: "inline-block", width: 8, height: 8, borderRadius: "50%", backgroundColor: "#ef4444" }} />
+            <span style={{ fontSize: "0.75rem", fontWeight: 900, color: "white", textTransform: "uppercase", letterSpacing: "0.05em" }}>🔴 LIVE</span>
+            <span style={{ color: "rgba(255,255,255,0.6)", fontSize: "0.75rem" }}>•</span>
+            <span style={{ color: "white", fontSize: "0.875rem", fontWeight: 600 }}>Пряма трансляція</span>
+          </div>
+          <a href={`https://www.youtube.com/channel/${config.channelId}`} target="_blank" rel="noopener noreferrer"
+            style={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.6)", textDecoration: "none" }}>
+            На каналі YouTube ↗
+          </a>
+        </div>
+        <div style={{ position: "relative", paddingTop: "56.25%", background: "#000" }}>
+          {/* Static embed — shows current live automatically when available */}
+          <iframe
+            src={`https://www.youtube.com/embed/live_stream?channel=${config.channelId}&autoplay=1&rel=0&modestbranding=1&controls=1`}
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            allowFullScreen
+            style={{ position: "absolute", inset: 0, width: "100%", height: "100%", border: 0 }}
+            title="Live Stream"
           />
         </div>
         <style>{`.live-pulse{animation:livePulse 1.4s ease-in-out infinite}@keyframes livePulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.4;transform:scale(0.8)}}`}</style>
