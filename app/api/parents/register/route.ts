@@ -6,6 +6,8 @@ export const runtime = 'nodejs';
 export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
+  console.log("[START] Route handler called");
+
   try {
     console.log("[POST /api/parents/register] Request received");
     const body = await req.json().catch(() => ({}));
