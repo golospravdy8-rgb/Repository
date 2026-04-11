@@ -98,6 +98,13 @@ export default function NewsTicker({ className = "", id }: NewsTickerProps) {
   const currentNews = news[currentIndex];
   const hasImage = currentNews.imageUrl && currentNews.imageUrl !== "null";
 
+  // Debug: перевіряємо скільки новин і точок рендеримо
+  if (typeof window !== "undefined") {
+    console.log(
+      `[NewsTicker] news.length=${news.length}, currentIndex=${currentIndex}, will render ${TOTAL_PAGINATION_DOTS} dots`
+    );
+  }
+
   return (
     <div id={id} className={className}>
       <style>{`
@@ -284,10 +291,14 @@ const styles: Record<string, React.CSSProperties> = {
 
   pagination: {
     display: "flex",
+    flexWrap: "nowrap",
     gap: "4px",
     padding: "8px 14px",
     justifyContent: "center",
     borderTop: "1px solid rgba(255,255,255,0.05)",
+    width: "100%",
+    overflow: "visible",
+    minHeight: "14px", // Гарантуємо мінімальну висоту для 12 точок
   },
 
   paginationDot: {
@@ -296,6 +307,9 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: "50%",
     cursor: "pointer",
     transition: "all 0.2s ease",
+    flexShrink: 0, // Забезпечуємо, що точки НЕ стискаються
+    minWidth: "6px",
+    minHeight: "6px",
   },
 
   // Skeleton
