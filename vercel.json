@@ -1,6 +1,6 @@
 {
   "buildCommand": "npm run build",
-  "installCommand": "npm install && prisma generate",
+  "installCommand": "npm ci && npm run postinstall",
   "framework": "nextjs",
   "regions": ["iad1"],
   "functions": {
