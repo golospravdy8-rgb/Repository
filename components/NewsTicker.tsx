@@ -216,7 +216,7 @@ const styles: Record<string, React.CSSProperties> = {
     background: "#131f3a",
     border: "1px solid rgba(255,255,255,0.1)",
     borderRadius: "14px",
-    overflow: "hidden",
+    overflow: "visible",
     display: "flex",
     flexDirection: "column",
     height: "100%",
@@ -293,6 +293,9 @@ const styles: Record<string, React.CSSProperties> = {
     overflow: "visible",
     boxSizing: "border-box",
     flexShrink: 0,
+    pointerEvents: "auto",
+    position: "relative",
+    zIndex: 10,
   },
 
   // Кожна точка — повноцінний функціональний перемикач
@@ -305,6 +308,7 @@ const styles: Record<string, React.CSSProperties> = {
     flexShrink: 0,
     minWidth: "8px",
     minHeight: "8px",
+    pointerEvents: "auto",
   },
 
   // Skeleton завантаження
