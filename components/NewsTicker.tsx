@@ -183,7 +183,7 @@ export default function NewsTicker({ className = "", id }: NewsTickerProps) {
           </a>
         </div>
 
-        {/* ГАРАНТІЯ: 12 повноцінних перемикачів новин */}
+        {/* 12 повноцінних функціональних перемикачів новин */}
         <div style={styles.pagination}>
           {Array.from({ length: TOTAL_DOTS }).map((_, i) => {
             // Активна точка: коли індекс совпадає з currentIndex
@@ -193,18 +193,18 @@ export default function NewsTicker({ className = "", id }: NewsTickerProps) {
               <div
                 key={`dot-${i}`}
                 onClick={() => {
-                  // Всі 12 точок клікабельні: зациклення при натисканні на точки > news.length
-                  setCurrentIndex(i % news.length);
+                  // Всі 12 точок клікабельні з зациклювання: i % (news.length || 1)
+                  setCurrentIndex(i % (news.length || 1));
                   setFadeIn(true);
                 }}
                 style={{
                   ...styles.paginationDot,
-                  // Активна точка: оранжева #f97316, scale 1.3
-                  // Неактивна точка: сіра, scale 1
+                  // Активна точка: яскраво-оранжева #f97316, scale 1.3
+                  // Неактивна точка: сіра, scale 1, однаково клікабельна
                   background: isActive ? "#f97316" : "rgba(255,255,255,0.2)",
                   transform: isActive ? "scale(1.3)" : "scale(1)",
                 }}
-                title={`Новина ${i + 1}`}
+                title={`Новина ${(i % (news.length || 1)) + 1}`}
               />
             );
           })}
@@ -285,31 +285,30 @@ const styles: Record<string, React.CSSProperties> = {
     transition: "background 0.2s ease",
   },
 
-  // ГАРАНТІЯ: Flex контейнер для 12 клікабельних точок
+  // Контейнер для 12 повноцінних перемикачів новин
   pagination: {
     display: "flex",
     flexWrap: "nowrap",
-    gap: "6px", // Більший gap для комфортного натискання
-    padding: "12px 14px",
+    gap: "8px", // Комфортна відстань для натискання
+    padding: "12px 16px",
     justifyContent: "center",
     borderTop: "1px solid rgba(255,255,255,0.05)",
     width: "100%",
     overflow: "visible",
     boxSizing: "border-box",
-    flexShrink: 0, // Контейнер не стискається
+    flexShrink: 0,
   },
 
-  // ГАРАНТІЯ: Всі 12 точок — повноцінні перемикачі
+  // Кожна точка — повноцінний функціональний перемикач
   paginationDot: {
     width: "6px",
     height: "6px",
     borderRadius: "50%",
-    cursor: "pointer", // Завжди pointer
+    cursor: "pointer",
     transition: "all 0.2s ease",
-    flexShrink: 0, // НЕ обрізується ніколи
-    flexBasis: "auto", // Природна ширина
-    minWidth: "8px", // Мінімум 8px для комфортного натискання
-    minHeight: "8px", // Мінімум 8px для комфортного натискання
+    flexShrink: 0,
+    minWidth: "8px",
+    minHeight: "8px",
   },
 
   // Skeleton завантаження
