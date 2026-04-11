@@ -15,6 +15,8 @@ interface NewsTickerProps {
   id?: string;
 }
 
+const TOTAL_PAGINATION_DOTS = 12; // Завжди 12 точок, навіть якщо новин менше
+
 export default function NewsTicker({ className = "", id }: NewsTickerProps) {
   const [news, setNews] = useState<NewsItem[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -32,11 +34,11 @@ export default function NewsTicker({ className = "", id }: NewsTickerProps) {
 
         if (data.news && Array.isArray(data.news) && data.news.length > 0) {
           // Ограничиваем до 12 новин максимум
-          const limitedNews = data.news.slice(0, 12);
+          const limitedNews = data.news.slice(0, TOTAL_PAGINATION_DOTS);
           setNews(limitedNews);
           setError(null);
         } else {
-          setError("Новости не найдены");
+          setError("Новості не знайдені");
           setNews([]);
         }
       } catch (err) {
@@ -51,12 +53,13 @@ export default function NewsTicker({ className = "", id }: NewsTickerProps) {
     fetchNews();
   }, []);
 
-  // Авторотация каждые 20 сек
+  // Авторотация каждые 20 сек (циклирует по доступным новинам)
   useEffect(() => {
     if (!news.length) return;
 
     const fadeOutTimer = setTimeout(() => setFadeIn(false), 19000);
     const rotateTimer = setTimeout(() => {
+      // Циклить по актуальному количеству новин, а не по 12
       setCurrentIndex((prev) => (prev + 1) % news.length);
       setFadeIn(true);
     }, 19500);
@@ -171,26 +174,38 @@ export default function NewsTicker({ className = "", id }: NewsTickerProps) {
           </a>
         </div>
 
-        {/* Индикатор страниц (12 точек, кликабельные) */}
-        {news.length > 0 && (
-          <div style={styles.pagination}>
-            {news.slice(0, 12).map((_, i) => (
+        {/* Индикатор страниц (точно 12 точек, кликабельные) */}
+        <div style={styles.pagination}>
+          {Array.from({ length: TOTAL_PAGINATION_DOTS }).map((_, i) => {
+            const isAvailable = i < news.length; // Есть ли новина для этой точки
+            const isActive = i === currentIndex;
+
+            return (
               <div
                 key={i}
                 onClick={() => {
-                  setCurrentIndex(i);
-                  setFadeIn(true);
+                  if (isAvailable) {
+                    setCurrentIndex(i);
+                    setFadeIn(true);
+                  } else if (news.length > 0) {
+                    // Если новина не доступна, прыгаем на последнюю доступную
+                    setCurrentIndex(news.length - 1);
+                    setFadeIn(true);
+                  }
                 }}
                 style={{
                   ...styles.paginationDot,
-                  background: i === currentIndex ? "#f97316" : "rgba(255,255,255,0.2)",
-                  transform: i === currentIndex ? "scale(1.3)" : "scale(1)",
+                  background: isActive ? "#f97316" : "rgba(255,255,255,0.2)",
+                  transform: isActive ? "scale(1.3)" : "scale(1)",
+                  opacity: isAvailable ? 1 : 0.4, // Приглушаем недоступные точки
+                  cursor: isAvailable ? "pointer" : "default",
+                  pointerEvents: isAvailable ? "auto" : "none",
                 }}
-                title={`Новина ${i + 1}`}
+                title={isAvailable ? `Новина ${i + 1}` : `Новина ${i + 1} (не доступна)`}
               />
-            ))}
-          </div>
-        )}
+            );
+          })}
+        </div>
       </div>
     </div>
   );
