@@ -157,15 +157,6 @@ async function checkLivePageRedirect(channelId: string): Promise<{ id: string; t
 }
 
 export async function GET() {
-  // TEST MODE: Return test video with rel=0 blocking
-  if (process.env.TEST_LIVE === "true") {
-    return NextResponse.json({
-      isLive: true,
-      videoId: "R2r7v10IYH0", // Real video from our channel
-      title: "Test Stream - Basketball",
-    });
-  }
-
   const settings = await getSettings(["stream.enabled", "stream.youtubeChannelId"]);
 
   const enabled = settings["stream.enabled"] === "true";
