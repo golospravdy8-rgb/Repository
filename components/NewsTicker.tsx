@@ -15,8 +15,8 @@ interface NewsTickerProps {
   id?: string;
 }
 
-// ГАРАНТІЯ: Завжди ровно 12 точок внизу, незалежно від кількості новин
-const TOTAL_PAGINATION_DOTS = 12;
+// ГАРАНТІЯ: Завжди рівно 12 точок видимих внизу, незалежно від кількості новин
+const TOTAL_DOTS = 12;
 
 export default function NewsTicker({ className = "", id }: NewsTickerProps) {
   const [news, setNews] = useState<NewsItem[]>([]);
@@ -35,7 +35,7 @@ export default function NewsTicker({ className = "", id }: NewsTickerProps) {
 
         if (data.news && Array.isArray(data.news) && data.news.length > 0) {
           // Ліміт 12 новин максимум
-          const limitedNews = data.news.slice(0, TOTAL_PAGINATION_DOTS);
+          const limitedNews = data.news.slice(0, TOTAL_DOTS);
           setNews(limitedNews);
           setError(null);
         } else {
@@ -75,7 +75,7 @@ export default function NewsTicker({ className = "", id }: NewsTickerProps) {
   useEffect(() => {
     if (news.length > 0) {
       console.log(
-        `[NewsTicker] news: ${news.length}, dots: ${TOTAL_PAGINATION_DOTS}, current: ${currentIndex}`
+        `[NewsTicker] news.length = ${news.length} | rendering ${TOTAL_DOTS} dots | current = ${currentIndex}`
       );
     }
   }, [news.length, currentIndex]);
@@ -185,7 +185,7 @@ export default function NewsTicker({ className = "", id }: NewsTickerProps) {
 
         {/* ГАРАНТІЯ: 12 видимих точок внизу, ЗАВЖДИ */}
         <div style={styles.pagination}>
-          {Array.from({ length: TOTAL_PAGINATION_DOTS }).map((_, i) => {
+          {Array.from({ length: TOTAL_DOTS }).map((_, i) => {
             // Визначаємо, чи доступна новина для цієї точки
             const isAvailable = i < news.length;
             const isActive = i === currentIndex && isAvailable;
@@ -206,11 +206,11 @@ export default function NewsTicker({ className = "", id }: NewsTickerProps) {
                 }}
                 style={{
                   ...styles.paginationDot,
-                  // Активна точка: оранжева, scale 1.3
+                  // Активна точка: оранжева #f97316, scale 1.3
                   background: isActive ? "#f97316" : "rgba(255,255,255,0.2)",
                   transform: isActive ? "scale(1.3)" : "scale(1)",
-                  // Недостатна точка: приглушена, неклікабельна
-                  opacity: isAvailable ? 1 : 0.4,
+                  // Недоступна точка: приглушена (opacity 0.45), неклікабельна
+                  opacity: isAvailable ? 1 : 0.45,
                   cursor: isAvailable ? "pointer" : "default",
                   pointerEvents: isAvailable ? "auto" : "none",
                 }}
@@ -299,13 +299,14 @@ const styles: Record<string, React.CSSProperties> = {
   pagination: {
     display: "flex",
     flexWrap: "nowrap",
-    gap: "4px",
-    padding: "8px 14px",
+    gap: "5px",
+    padding: "10px",
     justifyContent: "center",
     borderTop: "1px solid rgba(255,255,255,0.05)",
     width: "100%",
     overflow: "visible",
     boxSizing: "border-box",
+    flexShrink: 0, // Контейнер не стискається
   },
 
   // ГАРАНТІЯ: Кожна точка ніколи не обрізується
@@ -314,10 +315,10 @@ const styles: Record<string, React.CSSProperties> = {
     height: "6px",
     borderRadius: "50%",
     transition: "all 0.2s ease",
-    flexShrink: 0, // НЕ обрізується
-    flexBasis: "6px", // Явна ширина
-    minWidth: "6px",
-    minHeight: "6px",
+    flexShrink: 0, // НЕ обрізується ніколи
+    flexBasis: "auto", // Природна ширина
+    minWidth: "7px", // Мінімум 7px для гарантії видимості
+    minHeight: "7px", // Мінімум 7px для гарантії видимості
   },
 
   // Skeleton завантаження
