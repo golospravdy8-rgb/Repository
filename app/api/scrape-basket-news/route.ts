@@ -46,17 +46,33 @@ async function scrapeBasketNews(): Promise<NewsItem[]> {
 
   const links: { title: string; link: string }[] = [];
 
-  $("a[href*='/news/newsday']").each((_, el) => {
+  // Стрічка новин — секція з усіма останніми новинами
+  $(".news-feed a, .news-list a, .feed a, [class*='feed'] a, [class*='news-item'] a").each((_, el) => {
     const link = $(el).attr("href") || "";
     const title = $(el).text().trim();
     if (
-      link.includes("basket.com.ua") &&
+      link.includes("basket.com.ua/news/") &&
       title.length > 10 &&
       !links.find((n) => n.link === link)
     ) {
       links.push({ title, link });
     }
   });
+
+  // Якщо нічого не знайшло — fallback на всі /news/
+  if (links.length === 0) {
+    $("a").each((_, el) => {
+      const link = $(el).attr("href") || "";
+      const title = $(el).text().trim();
+      if (
+        link.includes("basket.com.ua/news/") &&
+        title.length > 10 &&
+        !links.find((n) => n.link === link)
+      ) {
+        links.push({ title, link });
+      }
+    });
+  }
 
   const top10 = links.slice(0, 12);
 
