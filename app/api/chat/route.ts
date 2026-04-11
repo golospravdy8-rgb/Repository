@@ -45,16 +45,17 @@ export async function GET() {
 
 // ── POST ──────────────────────────────────────────────────────────────────
 export async function POST(req: NextRequest) {
-  const body = await req.json().catch(() => null);
-  if (!body || !body.action) return Response.json({ error: "action required" }, { status: 400 });
+  try {
+    const body = await req.json().catch(() => null);
+    if (!body || !body.action) return Response.json({ error: "action required" }, { status: 400 });
 
-  const { action, phone, name } = body;
+    const { action, phone, name } = body;
 
-  // ── register / login ────────────────────────────────────────────────────
-  if (action === "register") {
-    const { firstName, lastName, refCode } = body;
-    if (!phone || !firstName || !lastName)
-      return Response.json({ error: "Заповніть всі поля" }, { status: 400 });
+    // ── register / login ────────────────────────────────────────────────────
+    if (action === "register") {
+      const { firstName, lastName, refCode } = body;
+      if (!phone || !firstName || !lastName)
+        return Response.json({ error: "Заповніть всі поля" }, { status: 400 });
 
     const ban = await prisma.chatBan.findUnique({ where: { phone } });
     if (ban) {
@@ -439,6 +440,27 @@ export async function POST(req: NextRequest) {
   }
 
   return Response.json({ error: "Unknown action" }, { status: 400 });
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    const errorCode = (error as any)?.code;
+
+    console.error("[POST /api/chat] REGISTRATION ERROR:", {
+      timestamp: new Date().toISOString(),
+      message: errorMsg,
+      name: error instanceof Error ? error.name : "Unknown",
+      code: errorCode,
+      stack: error instanceof Error ? error.stack : null,
+      env: {
+        NODE_ENV: process.env.NODE_ENV,
+        DATABASE_URL_MASKED: process.env.DATABASE_URL ? "***SET***" : "NOT_SET",
+      },
+    });
+
+    return Response.json(
+      { error: "Помилка при реєстрації. Спробуйте пізніше." },
+      { status: 500 }
+    );
+  }
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────

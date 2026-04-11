@@ -57,14 +57,26 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ ok: true, token, contact, refLink });
   } catch (error) {
-    console.error("[POST /api/parents/register] Error:", {
-      message: error instanceof Error ? error.message : String(error),
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    const errorCode = (error as any)?.code;
+    const errorSeverity = (error as any)?.severity;
+    const errorHint = (error as any)?.hint;
+    const errorStack = error instanceof Error ? error.stack : null;
+
+    console.error("[POST /api/parents/register] ERROR DETAILS:", {
+      timestamp: new Date().toISOString(),
+      message: errorMsg,
       name: error instanceof Error ? error.name : "Unknown",
-      code: (error as any)?.code,
-      severity: (error as any)?.severity,
-      hint: (error as any)?.hint,
-      stack: error instanceof Error ? error.stack : null,
+      code: errorCode,
+      severity: errorSeverity,
+      hint: errorHint,
+      stack: errorStack,
+      env: {
+        NODE_ENV: process.env.NODE_ENV,
+        DATABASE_URL_MASKED: process.env.DATABASE_URL ? "***SET***" : "NOT_SET",
+      },
     });
+
     return NextResponse.json(
       { error: "Помилка при реєстрації. Спробуйте пізніше." },
       { status: 500 }
