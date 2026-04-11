@@ -3,8 +3,11 @@ import { put } from "@vercel/blob";
 import { requireAuth } from "@/lib/require-auth";
 import { setSettings } from "@/lib/site-settings";
 import { revalidatePath, revalidateTag } from "next/cache";
+import { writeFile } from "fs/promises";
+import { mkdir } from "fs/promises";
+import { join } from "path";
 
-const VALID_TYPES = ["logo", "ogImage", "heroBg", "headerBg", "footerBg", "pageBg"];
+const VALID_TYPES = ["logo", "ogImage", "heroBg", "headerBg", "footerBg", "pageBg", "shop"];
 const ENTITY_TYPES = ["team-logo", "player-photo", "news"];
 const MAX_SIZE_BYTES = 5 * 1024 * 1024; // 5MB
 
@@ -40,79 +43,117 @@ export async function POST(req: NextRequest) {
 
     const buffer = Buffer.from(await file.arrayBuffer());
 
-    // === SITE IMAGES — VERCEL BLOB (no local file system) ===
+    // === SITE IMAGES — VERCEL BLOB or LOCAL FALLBACK ===
     if (VALID_TYPES.includes(cleanType)) {
       const token = process.env.LOGOS_READ_WRITE_TOKEN;
 
-      if (!token) {
-        console.error(`[upload ${uploadId}] ❌ LOGOS_READ_WRITE_TOKEN not configured`);
-        return NextResponse.json(
-          { error: "LOGOS_READ_WRITE_TOKEN не встановлено на сервері" },
-          { status: 500 }
-        );
+      // PROD: Vercel Blob
+      if (token) {
+        try {
+          const ext = file.name.split(".").pop() || "jpg";
+          const blobPath = `site-images/${cleanType}-${Date.now()}.${ext}`;
+
+          console.log(`[upload ${uploadId}] Uploading to Vercel Blob: ${blobPath}`);
+
+          const blob = await put(blobPath, buffer, {
+            access: "public",
+            contentType: file.type || "image/jpeg",
+            token: token,
+          });
+
+          const url = blob.url;
+          await setSettings({ [`images.${cleanType}`]: url });
+
+          console.log(`[upload ${uploadId}] ✅ Site image saved: ${url} (${Date.now() - startTime}ms)`);
+          revalidatePath("/", "layout");
+          revalidateTag("site-settings");
+          return NextResponse.json({ url, ok: true });
+        } catch (blobErr) {
+          const errMsg = blobErr instanceof Error ? blobErr.message : String(blobErr);
+          console.error(`[upload ${uploadId}] ❌ Vercel Blob error: ${errMsg}`);
+          return NextResponse.json(
+            { error: `Blob storage error: ${errMsg}` },
+            { status: 500 }
+          );
+        }
       }
 
+      // DEV: Local file system fallback
+      console.log(`[upload ${uploadId}] ℹ️ Token not configured, using local storage`);
       try {
         const ext = file.name.split(".").pop() || "jpg";
-        const blobPath = `site-images/${cleanType}-${Date.now()}.${ext}`;
+        const filename = `${cleanType}-${Date.now()}.${ext}`;
+        const dir = join(process.cwd(), "public", "uploads", "site-images");
+        await mkdir(dir, { recursive: true });
+        const filepath = join(dir, filename);
+        await writeFile(filepath, buffer);
 
-        console.log(`[upload ${uploadId}] Uploading to Vercel Blob: ${blobPath}`);
-
-        const blob = await put(blobPath, buffer, {
-          access: "public",
-          contentType: file.type || "image/jpeg",
-          token: token,
-        });
-
-        const url = blob.url;
+        const url = `/uploads/site-images/${filename}`;
         await setSettings({ [`images.${cleanType}`]: url });
 
-        console.log(`[upload ${uploadId}] ✅ Site image saved: ${url} (${Date.now() - startTime}ms)`);
+        console.log(`[upload ${uploadId}] ✅ Site image saved locally: ${url} (${Date.now() - startTime}ms)`);
         revalidatePath("/", "layout");
         revalidateTag("site-settings");
         return NextResponse.json({ url, ok: true });
-      } catch (blobErr) {
-        const errMsg = blobErr instanceof Error ? blobErr.message : String(blobErr);
-        console.error(`[upload ${uploadId}] ❌ Vercel Blob error: ${errMsg}`);
+      } catch (err) {
+        const errMsg = err instanceof Error ? err.message : String(err);
+        console.error(`[upload ${uploadId}] ❌ Local storage error: ${errMsg}`);
         return NextResponse.json(
-          { error: `Blob storage error: ${errMsg}` },
+          { error: `Local storage error: ${errMsg}` },
           { status: 500 }
         );
       }
     }
 
-    // === ENTITY TYPES (team logos, player photos) — VERCEL BLOB ===
+    // === ENTITY TYPES (team logos, player photos) — VERCEL BLOB or LOCAL FALLBACK ===
     if (ENTITY_TYPES.includes(type)) {
       const token = process.env.LOGOS_READ_WRITE_TOKEN;
 
-      if (!token) {
-        console.error(`[upload ${uploadId}] ❌ LOGOS_READ_WRITE_TOKEN not configured`);
-        return NextResponse.json(
-          { error: "LOGOS_READ_WRITE_TOKEN не встановлено на сервері" },
-          { status: 500 }
-        );
+      // PROD: Vercel Blob
+      if (token) {
+        try {
+          const ext = file.name.split(".").pop() || "jpg";
+          const blobPath = `entity-files/${type}-${Date.now()}.${ext}`;
+
+          console.log(`[upload ${uploadId}] Uploading entity to Vercel Blob: ${blobPath}`);
+
+          const blob = await put(blobPath, buffer, {
+            access: "public",
+            contentType: file.type || "image/jpeg",
+            token: token,
+          });
+
+          const url = blob.url;
+          console.log(`[upload ${uploadId}] ✅ Entity file saved: ${url} (${Date.now() - startTime}ms)`);
+          return NextResponse.json({ url, ok: true });
+        } catch (blobErr) {
+          const errMsg = blobErr instanceof Error ? blobErr.message : String(blobErr);
+          console.error(`[upload ${uploadId}] ❌ Vercel Blob error: ${errMsg}`);
+          return NextResponse.json(
+            { error: `Blob storage error: ${errMsg}` },
+            { status: 500 }
+          );
+        }
       }
 
+      // DEV: Local file system fallback
+      console.log(`[upload ${uploadId}] ℹ️ Token not configured, using local storage`);
       try {
         const ext = file.name.split(".").pop() || "jpg";
-        const blobPath = `entity-files/${type}-${Date.now()}.${ext}`;
+        const filename = `${type}-${Date.now()}.${ext}`;
+        const dir = join(process.cwd(), "public", "uploads", "entity-files");
+        await mkdir(dir, { recursive: true });
+        const filepath = join(dir, filename);
+        await writeFile(filepath, buffer);
 
-        console.log(`[upload ${uploadId}] Uploading entity to Vercel Blob: ${blobPath}`);
-
-        const blob = await put(blobPath, buffer, {
-          access: "public",
-          contentType: file.type || "image/jpeg",
-          token: token,
-        });
-
-        const url = blob.url;
-        console.log(`[upload ${uploadId}] ✅ Entity file saved: ${url} (${Date.now() - startTime}ms)`);
+        const url = `/uploads/entity-files/${filename}`;
+        console.log(`[upload ${uploadId}] ✅ Entity file saved locally: ${url} (${Date.now() - startTime}ms)`);
         return NextResponse.json({ url, ok: true });
-      } catch (blobErr) {
-        const errMsg = blobErr instanceof Error ? blobErr.message : String(blobErr);
-        console.error(`[upload ${uploadId}] ❌ Vercel Blob error: ${errMsg}`);
+      } catch (err) {
+        const errMsg = err instanceof Error ? err.message : String(err);
+        console.error(`[upload ${uploadId}] ❌ Local storage error: ${errMsg}`);
         return NextResponse.json(
-          { error: `Blob storage error: ${errMsg}` },
+          { error: `Local storage error: ${errMsg}` },
           { status: 500 }
         );
       }
