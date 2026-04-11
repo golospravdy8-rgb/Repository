@@ -46,7 +46,7 @@ async function scrapeBasketNews(): Promise<NewsItem[]> {
 
   const links: { title: string; link: string }[] = [];
 
-  $("a[href*='/news']").each((_, el) => {
+  $("a[href*='/news/newsday']").each((_, el) => {
     const link = $(el).attr("href") || "";
     const title = $(el).text().trim();
     if (
