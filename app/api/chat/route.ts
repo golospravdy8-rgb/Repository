@@ -1,9 +1,9 @@
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSettings } from "@/lib/site-settings";
-
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
 
 // ── SSE client registry ────────────────────────────────────────────────────
 declare global {
