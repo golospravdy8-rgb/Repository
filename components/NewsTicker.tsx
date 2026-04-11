@@ -187,11 +187,11 @@ export default function NewsTicker({ className = "", id }: NewsTickerProps) {
         <div style={styles.pagination}>
           {Array.from({ length: TOTAL_DOTS }).map((_, i) => {
             const isActive = i === currentIndex;
+
             return (
               <div
                 key={`dot-${i}`}
                 onClick={() => {
-                  // Головне: зациклення для всіх 12 точок
                   setCurrentIndex(i % (news.length || 1));
                   setFadeIn(true);
                 }}
