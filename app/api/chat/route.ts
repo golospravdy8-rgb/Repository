@@ -1,3 +1,9 @@
+/* Debug: Runtime check */
+if (typeof global === 'undefined' || !global.crypto) {
+  console.error("[FATAL] Running on Edge Runtime! This route requires Node.js runtime.");
+  throw new Error("Edge runtime detected — route requires nodejs");
+}
+
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSettings } from "@/lib/site-settings";

@@ -1,3 +1,9 @@
+/* Debug: Runtime check */
+if (typeof global === 'undefined' || !global.crypto) {
+  console.error("[FATAL] Running on Edge Runtime! This route requires Node.js runtime.");
+  throw new Error("Edge runtime detected — route requires nodejs");
+}
+
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { randomBytes } from "crypto";
@@ -5,26 +11,27 @@ export const runtime = 'nodejs';
 
 export const dynamic = "force-dynamic";
 
-export async function POST(req: NextRequest) {
-  console.log("[START] Route handler called");
+export async function GET() {
+  return NextResponse.json({
+    status: "ok",
+    runtime: "nodejs",
+    timestamp: new Date().toISOString()
+  });
+}
 
-  // ТЕСТ БЕЗ БД
-  if (process.env.TEST_MODE === "true") {
-    return NextResponse.json({ ok: true, test: "success", env: process.env.NODE_ENV });
-  }
+export async function POST(req: NextRequest) {
+  console.log("[PARENTS/REGISTER] POST handler STARTED at", new Date().toISOString());
+  console.log("[PARENTS/REGISTER] Runtime confirmed: nodejs");
 
   try {
-    console.log("[POST /api/parents/register] Request received");
     const body = await req.json().catch(() => ({}));
-    const { phone, firstName, lastName, name, childTeamId, childFirstName, childLastName } = body;
+    console.log("[PARENTS/REGISTER] Body parsed:", Object.keys(body));
 
-    console.log("[POST /api/parents/register] Body parsed:", { phone, firstName, lastName });
+    const { phone, firstName, lastName, name, childTeamId, childFirstName, childLastName } = body;
 
     // Support both firstName+lastName and legacy name field
     const first = (firstName || (name ? name.split(" ")[0] : "")).trim();
     const last = (lastName || (name ? name.split(" ").slice(1).join(" ") : "")).trim();
-
-    console.log("[POST /api/parents/register] First/Last names extracted:", { first, last });
 
     if (!phone || !first || !last) {
       return NextResponse.json({ error: "Ім'я, прізвище та телефон обов'язкові" }, { status: 400 });
@@ -33,14 +40,9 @@ export async function POST(req: NextRequest) {
     // displayName stores child's full name for parent accounts
     const childName = childFirstName && childLastName ? `${childFirstName} ${childLastName}`.trim() : null;
 
-    console.log("[POST /api/parents/register] About to query guestContact with phone:", phone);
-    const existingContact = await prisma.guestContact.findUnique({ where: { phone } }).catch((err) => {
-      console.error("[POST /api/parents/register] Error in findUnique:", err);
-      return null;
-    });
+    const existingContact = await prisma.guestContact.findUnique({ where: { phone } }).catch(() => null);
 
     if (!existingContact) {
-      console.log("[POST /api/parents/register] Creating new guestContact");
       await prisma.guestContact.create({
         data: {
           phone,
@@ -51,67 +53,41 @@ export async function POST(req: NextRequest) {
           childTeamId: childTeamId ? Number(childTeamId) : null,
           displayName: childName,
         },
-      }).catch((err) => {
-        console.error("[POST /api/parents/register] Error in create:", err);
-        throw err;
       });
-      console.log("[POST /api/parents/register] guestContact created successfully");
     } else if (existingContact.role !== "parent" && existingContact.role !== "player") {
-      console.log("[POST /api/parents/register] Updating existing guestContact to parent role");
       await prisma.guestContact.update({
         where: { phone },
         data: { role: "parent", firstName: first, lastName: last, childTeamId: childTeamId ? Number(childTeamId) : null, displayName: childName },
-      }).catch((err) => {
-        console.error("[POST /api/parents/register] Error in update:", err);
-        throw err;
       });
-      console.log("[POST /api/parents/register] guestContact updated successfully");
     }
 
-    console.log("[POST /api/parents/register] Fetching contact for response");
-    const contact = await prisma.guestContact.findUnique({ where: { phone } }).catch((err) => {
-      console.error("[POST /api/parents/register] Error fetching contact:", err);
-      throw err;
-    });
+    const contact = await prisma.guestContact.findUnique({ where: { phone } });
 
     // Session token valid for 30 days
     const token = randomBytes(32).toString("hex");
     const expiresAt = new Date(Date.now() + 30 * 24 * 3600 * 1000);
 
-    console.log("[POST /api/parents/register] Creating parentSession with token");
     await prisma.parentSession.create({
       data: { phone, token, name: `${first} ${last}`, childTeamId: childTeamId ? Number(childTeamId) : null, expiresAt },
-    }).catch((err) => {
-      console.error("[POST /api/parents/register] Error creating parentSession:", err);
-      throw err;
     });
-    console.log("[POST /api/parents/register] parentSession created successfully");
 
     const origin = req.headers.get("origin") || process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_SITE_URL || "https://basketball.lviv.ua";
     const refLink = `${origin}/chat?ref=${encodeURIComponent(phone)}`;
-    console.log("[POST /api/parents/register] Success! Returning response");
 
     return NextResponse.json({ ok: true, token, contact, refLink });
   } catch (error) {
-    const errorMsg = error instanceof Error ? error.message : String(error);
-    const errorCode = (error as any)?.code;
-    const errorSeverity = (error as any)?.severity;
-    const errorHint = (error as any)?.hint;
-    const errorStack = error instanceof Error ? error.stack : null;
-
-    console.error("[POST /api/parents/register] ERROR DETAILS:", {
-      timestamp: new Date().toISOString(),
-      message: errorMsg,
-      name: error instanceof Error ? error.name : "Unknown",
-      code: errorCode,
-      severity: errorSeverity,
-      hint: errorHint,
-      stack: errorStack,
-      env: {
-        NODE_ENV: process.env.NODE_ENV,
-        DATABASE_URL_MASKED: process.env.DATABASE_URL ? "***SET***" : "NOT_SET",
-      },
-    });
+    console.error("[POST /api/parents/register] ========== EXCEPTION START ==========");
+    console.error("[POST /api/parents/register] Error Type:", typeof error);
+    console.error("[POST /api/parents/register] Error instanceof Error:", error instanceof Error);
+    console.error("[POST /api/parents/register] Error message:", error instanceof Error ? error.message : String(error));
+    console.error("[POST /api/parents/register] Error name:", error instanceof Error ? error.name : "Unknown");
+    console.error("[POST /api/parents/register] Error code:", (error as any)?.code);
+    console.error("[POST /api/parents/register] Error severity:", (error as any)?.severity);
+    console.error("[POST /api/parents/register] Error hint:", (error as any)?.hint);
+    if (error instanceof Error) {
+      console.error("[POST /api/parents/register] Stack:", error.stack);
+    }
+    console.error("[POST /api/parents/register] ========== EXCEPTION END ==========");
 
     return NextResponse.json(
       { error: "Помилка при реєстрації. Спробуйте пізніше." },
