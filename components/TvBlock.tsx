@@ -253,9 +253,24 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
                 </button>
               )}
               {showPlayer && !hasLeft && !isHost && (
-                <button style={s.stopBtn} onClick={handleLeave}>
-                  ↩ Вийти
-                </button>
+                <>
+                  <button
+                    style={{ ...s.stopBtn, background: "rgba(100,200,100,0.2)" }}
+                    onClick={async () => {
+                      const r = await fetch("/api/tv-session");
+                      const d = await r.json();
+                      if (d.session?.current_time_sec && playerRef.current) {
+                        playerRef.current.currentTime = Number(d.session.current_time_sec);
+                        console.log(`[VIEWER] manual sync to ${d.session.current_time_sec}s`);
+                      }
+                    }}
+                  >
+                    🔄 Синх
+                  </button>
+                  <button style={s.stopBtn} onClick={handleLeave}>
+                    ↩ Вийти
+                  </button>
+                </>
               )}
               {isHost && (
                 <button style={{ ...s.stopBtn, background: "rgba(220,50,50,0.2)" }} onClick={handleStop}>
