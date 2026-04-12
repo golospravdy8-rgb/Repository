@@ -15,13 +15,22 @@ type Album = { gameId: number; photos: Photo[]; coverPhoto: string | null; creat
 
 async function getGallery(): Promise<Album[]> {
   try {
-    // Отримуємо фото з API invece of статичного файлу
-    const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3007";
-    const res = await fetch(`${baseUrl}/api/gallery`, { cache: "no-store" });
-    if (!res.ok) return [];
+    // Отримуємо фото з API - використовуємо абсолютний URL для Vercel
+    const baseUrl = process.env.NEXTAUTH_URL || "https://basketball.lviv.ua";
+    const res = await fetch(`${baseUrl}/api/gallery`, {
+      cache: "no-store",
+      headers: { 'Content-Type': 'application/json' }
+    });
+    if (!res.ok) {
+      console.error("[media] Gallery API error:", res.status, res.statusText);
+      return [];
+    }
     const data = await res.json();
-    return (data.albums || []).filter((a: Album) => a.photos.length > 0);
-  } catch {
+    const albums = (data.albums || []).filter((a: Album) => a.photos.length > 0);
+    console.log("[media] Loaded albums:", albums.length);
+    return albums;
+  } catch (e) {
+    console.error("[media] Gallery fetch error:", e);
     return [];
   }
 }
