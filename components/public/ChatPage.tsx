@@ -1597,7 +1597,7 @@ export default function ChatPage() {
                   onContextMenu={(e) => { e.preventDefault(); setContextMenu({ msgId: msg.id, x: e.clientX, y: e.clientY }); }}
                 >
                   {msg.text.startsWith("[STICKER:") ? (
-                    <img src={msg.text.slice(9, -1)} alt="sticker" style={{ width: 100, height: 100, objectFit: "contain", display: "block", borderRadius: "8px" }} onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
+                    <img src={msg.text.slice(9, -1)} alt="sticker" crossOrigin="anonymous" style={{ width: 100, height: 100, objectFit: "contain", display: "block", borderRadius: "8px" }} onError={(e) => { (e.currentTarget as HTMLImageElement).style.background = "rgba(255,100,100,0.2)"; (e.currentTarget as HTMLImageElement).style.opacity = "0.3"; }} />
                   ) : msg.text.startsWith("[IMAGE:") ? (
                     <img src={msg.text.slice(7, -1)} alt="photo" style={{ maxWidth: 220, maxHeight: 220, borderRadius: "10px", display: "block", objectFit: "cover" }} />
                   ) : msg.text.startsWith("[GIF:") ? (
@@ -2353,8 +2353,8 @@ export default function ChatPage() {
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: "6px" }}>
                   {MEME_STICKERS.map((url) => (
                     <button key={url} onClick={() => sendSpecial(`[STICKER:${url}]`)}
-                      style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.09)", borderRadius: "8px", cursor: "pointer", padding: "3px", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                      <img src={url} alt="sticker" style={{ width: 56, height: 56, objectFit: "contain" }} onError={(e) => { (e.currentTarget as HTMLImageElement).parentElement!.style.display = "none"; }} />
+                      style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.09)", borderRadius: "8px", cursor: "pointer", padding: "3px", display: "flex", alignItems: "center", justifyContent: "center", minHeight: "62px" }}>
+                      <img src={url} alt="sticker" crossOrigin="anonymous" style={{ width: 56, height: 56, objectFit: "contain" }} onError={(e) => { (e.currentTarget as HTMLImageElement).style.visibility = "hidden"; (e.currentTarget as HTMLImageElement).parentElement!.style.background = "rgba(255,100,100,0.2)"; }} />
                     </button>
                   ))}
                 </div>
@@ -2362,9 +2362,9 @@ export default function ChatPage() {
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: "6px" }}>
                   {ANIMATED_EMOJIS.map((item) => (
                     <button key={item.url} onClick={() => sendSpecial(`[GIF:${item.url}]`)}
-                      style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.09)", borderRadius: "8px", cursor: "pointer", padding: "3px", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                      <img src={item.url} width={64} height={64} title={item.name}
-                        style={{ objectFit: "contain", display: "block" }} />
+                      style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.09)", borderRadius: "8px", cursor: "pointer", padding: "3px", display: "flex", alignItems: "center", justifyContent: "center", minHeight: "70px" }}>
+                      <img src={item.url} width={64} height={64} title={item.name} crossOrigin="anonymous"
+                        style={{ objectFit: "contain", display: "block" }} onError={(e) => { (e.currentTarget as HTMLImageElement).style.visibility = "hidden"; (e.currentTarget as HTMLImageElement).parentElement!.style.background = "rgba(255,100,100,0.2)"; }} />
                     </button>
                   ))}
                 </div>
@@ -2372,8 +2372,8 @@ export default function ChatPage() {
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: "6px" }}>
                   {COOL_GIFS.map((url) => (
                     <button key={url} onClick={() => sendSpecial(`[GIF:${url}]`)}
-                      style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.09)", borderRadius: "8px", cursor: "pointer", padding: "0", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                      <img src={url} alt="gif" style={{ width: 64, height: 64, objectFit: "cover", display: "block" }} onError={(e) => { (e.currentTarget as HTMLImageElement).parentElement!.style.display = "none"; }} />
+                      style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.09)", borderRadius: "8px", cursor: "pointer", padding: "0", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", minHeight: "70px" }}>
+                      <img src={url} alt="gif" crossOrigin="anonymous" style={{ width: 64, height: 64, objectFit: "cover", display: "block" }} onError={(e) => { (e.currentTarget as HTMLImageElement).style.visibility = "hidden"; (e.currentTarget as HTMLImageElement).parentElement!.style.background = "rgba(255,100,100,0.2)"; }} />
                     </button>
                   ))}
                 </div>
@@ -2381,8 +2381,8 @@ export default function ChatPage() {
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: "6px" }}>
                   {CLASSIC_MEMES.map((item) => (
                     <button key={item.url} onClick={() => sendSpecial(`[GIF:${item.url}]`)}
-                      style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.09)", borderRadius: "8px", cursor: "pointer", padding: "3px", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                      <img src={item.url} alt={item.name} title={item.name} style={{ width: 56, height: 56, objectFit: "contain" }} onError={(e) => { (e.currentTarget as HTMLImageElement).parentElement!.style.display = "none"; }} />
+                      style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.09)", borderRadius: "8px", cursor: "pointer", padding: "3px", display: "flex", alignItems: "center", justifyContent: "center", minHeight: "62px" }}>
+                      <img src={item.url} alt={item.name} title={item.name} crossOrigin="anonymous" style={{ width: 56, height: 56, objectFit: "contain" }} onError={(e) => { (e.currentTarget as HTMLImageElement).style.visibility = "hidden"; (e.currentTarget as HTMLImageElement).parentElement!.style.background = "rgba(255,100,100,0.2)"; }} />
                     </button>
                   ))}
                 </div>
@@ -2390,8 +2390,8 @@ export default function ChatPage() {
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: "6px" }}>
                   {CAT_GIFS.map((url) => (
                     <button key={url} onClick={() => sendSpecial(`[GIF:${url}]`)}
-                      style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.09)", borderRadius: "8px", cursor: "pointer", padding: "0", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                      <img src={url} alt="cat" style={{ width: 64, height: 64, objectFit: "cover", display: "block" }} onError={(e) => { (e.currentTarget as HTMLImageElement).parentElement!.style.display = "none"; }} />
+                      style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.09)", borderRadius: "8px", cursor: "pointer", padding: "0", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", minHeight: "70px" }}>
+                      <img src={url} alt="cat" crossOrigin="anonymous" style={{ width: 64, height: 64, objectFit: "cover", display: "block" }} onError={(e) => { (e.currentTarget as HTMLImageElement).style.visibility = "hidden"; (e.currentTarget as HTMLImageElement).parentElement!.style.background = "rgba(255,100,100,0.2)"; }} />
                     </button>
                   ))}
                 </div>
@@ -2399,8 +2399,8 @@ export default function ChatPage() {
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: "6px" }}>
                   {PEPE_GIFS.map((url) => (
                     <button key={url} onClick={() => sendSpecial(`[GIF:${url}]`)}
-                      style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.09)", borderRadius: "8px", cursor: "pointer", padding: "0", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                      <img src={url} alt="pepe" style={{ width: 64, height: 64, objectFit: "cover", display: "block" }} onError={(e) => { (e.currentTarget as HTMLImageElement).parentElement!.style.display = "none"; }} />
+                      style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.09)", borderRadius: "8px", cursor: "pointer", padding: "0", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", minHeight: "70px" }}>
+                      <img src={url} alt="pepe" crossOrigin="anonymous" style={{ width: 64, height: 64, objectFit: "cover", display: "block" }} onError={(e) => { (e.currentTarget as HTMLImageElement).style.visibility = "hidden"; (e.currentTarget as HTMLImageElement).parentElement!.style.background = "rgba(255,100,100,0.2)"; }} />
                     </button>
                   ))}
                 </div>
@@ -2415,8 +2415,8 @@ export default function ChatPage() {
             <div style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: "5px" }}>
               {PARROTS.map((url) => (
                 <button key={url} onClick={() => sendSpecial(`[GIF:${url}]`)}
-                  style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.09)", borderRadius: "6px", cursor: "pointer", padding: "0", overflow: "hidden", width: 52, height: 52 }}>
-                  <img src={url} alt="parrot" style={{ width: 52, height: 52, objectFit: "cover", display: "block" }} onError={(e) => { (e.currentTarget as HTMLImageElement).parentElement!.style.display = "none"; }} />
+                  style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.09)", borderRadius: "6px", cursor: "pointer", padding: "0", overflow: "hidden", width: 52, height: 52, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <img src={url} alt="parrot" crossOrigin="anonymous" style={{ width: 52, height: 52, objectFit: "cover", display: "block" }} onError={(e) => { (e.currentTarget as HTMLImageElement).style.visibility = "hidden"; (e.currentTarget as HTMLImageElement).parentElement!.style.background = "rgba(255,100,100,0.2)"; }} />
                 </button>
               ))}
             </div>
