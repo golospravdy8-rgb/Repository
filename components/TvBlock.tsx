@@ -18,6 +18,7 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const playerRef = useRef<any>(null);
   const seekOnReadyRef = useRef<number>(0);
+  const hasSeekeddRef = useRef(false);
   const isHostRef = useRef(false);
   const lastSentTimeRef = useRef(0);
   const currentSessionIdRef = useRef<number | null>(null);
@@ -51,6 +52,7 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
       // Відправляємо тільки якщо змінилось (відео грає)
       if (ct > 0 && ct !== lastSentTimeRef.current) {
         lastSentTimeRef.current = ct;
+        console.log(`[TV HOST] sending currentTime: ${ct}s to session ${currentSessionIdRef.current}`);
         fetch("/api/tv-session", {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
@@ -95,17 +97,17 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
   const handleJoin = async () => {
     if (!session) return;
     setHasLeft(false);
+    hasSeekeddRef.current = false; // скидаємо флаг перед кожним новим join
 
     // КРОК 1: Отримати поточну секунду відео від host
     const r = await fetch("/api/tv-session");
     const d = await r.json();
     if (!d.session) return;
 
-    const seekToSec = d.session.current_time_sec
-      ? Math.max(0, d.session.current_time_sec - 2) // -2 сек буфер на завантаження
-      : 0;
-
-    console.log(`[TV JOIN] seekTo: ${seekToSec}s (host на ${d.session.current_time_sec}s)`);
+    const rawSec = d.session.current_time_sec || 0;
+    const loadDelaySec = 5; // приблизний час завантаження відео
+    const seekToSec = rawSec > 0 ? rawSec + loadDelaySec : 0;
+    console.log(`[TV JOIN] current_time_sec з БД: ${rawSec}s, seekTo: ${seekToSec}s`);
 
     // КРОК 2: Додати себе до viewers
     const pr = await fetch("/api/tv-session", {
@@ -274,10 +276,11 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
               height="100%"
               controls
               onCanPlay={() => {
-                if (seekOnReadyRef.current > 0 && playerRef.current) {
+                if (!hasSeekeddRef.current && seekOnReadyRef.current > 0 && playerRef.current) {
+                  hasSeekeddRef.current = true;
                   const videoEl = playerRef.current as HTMLVideoElement;
                   videoEl.currentTime = seekOnReadyRef.current;
-                  console.log(`[TV] ✅ seekTo ${seekOnReadyRef.current}s виконано`);
+                  console.log(`[TV] ✅ ONE-TIME seekTo ${seekOnReadyRef.current}s`);
                   seekOnReadyRef.current = 0;
                 }
               }}
