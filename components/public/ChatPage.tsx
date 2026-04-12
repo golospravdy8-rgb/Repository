@@ -6,6 +6,7 @@ import ChatActivePoll, { ChatPollData } from "./ChatActivePoll";
 import NewsTicker from "@/components/NewsTicker";
 import TvBlock from "@/components/TvBlock";
 import { createChatPoll, finishChatPoll } from "@/actions/chat-poll";
+import { supabase, getChatChannelName } from "@/lib/supabase";
 
 const LS_KEY = "ldbl_chat_user";
 const EMOJIS = ["👍", "❤️", "😂", "😮", "🔥", "🏀"];
@@ -603,32 +604,65 @@ export default function ChatPage() {
     return () => clearInterval(interval);
   }, [step]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Polling for new messages ─────────────────────────────────────────────
+  // ── Supabase Realtime for chat messages ────────────────────────────────
   useEffect(() => {
     if (step !== "chat") return;
-    let lastMessageId = 0;
-    const poll = async () => {
-      try {
-        const res = await fetch(`/api/chat/poll?lastId=${lastMessageId}&room=${encodeURIComponent(activeRoomRef.current || "general")}`);
-        if (res.ok) {
-          const data = await res.json();
-          if (data.messages?.length > 0) {
-            const newMsgs = data.messages;
-            setMessages((prev) => [...prev.slice(-199), ...newMsgs]);
-            lastMessageId = newMsgs[newMsgs.length - 1].id;
-          }
-          // Process other events
-          if (data.events?.length > 0) {
-            for (const ev of data.events) {
-              handleSSE(ev);
-            }
-          }
+
+    const roomId = activeRoomRef.current || "general";
+
+    const channel = supabase
+      .channel(getChatChannelName(roomId), { config: { broadcast: { self: true } } })
+      .on("broadcast", { event: "message" }, (payload: any) => {
+        if (payload.payload?.message) {
+          setMessages((prev) => [...prev.slice(-199), payload.payload.message]);
         }
-      } catch {}
+      })
+      .on("broadcast", { event: "reactions" }, (payload: any) => {
+        const { messageId, reactions } = payload.payload || {};
+        if (messageId !== undefined) {
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === messageId ? { ...m, reactions: reactions || [] } : m
+            )
+          );
+        }
+      })
+      .on("broadcast", { event: "delete_message" }, (payload: any) => {
+        const { messageId } = payload.payload || {};
+        if (messageId !== undefined) {
+          setMessages((prev) => prev.filter((m) => m.id !== messageId));
+        }
+      })
+      .on("broadcast", { event: "pin" }, (payload: any) => {
+        const { text } = payload.payload || {};
+        setPinnedMessage(text ?? null);
+      })
+      .on("broadcast", { event: "ban" }, (payload: any) => {
+        const { phone } = payload.payload || {};
+        if (phone === user?.phone) {
+          notify("Вас заблоковано в чаті");
+          setStep("form");
+          localStorage.removeItem(LS_KEY);
+        }
+      })
+      .on("broadcast", { event: "mute" }, (payload: any) => {
+        const { phone, mutedUntil } = payload.payload || {};
+        if (phone === user?.phone) {
+          notify(`Вас замовчано до ${new Date(mutedUntil).toLocaleTimeString("uk-UA")}`);
+        }
+      })
+      .on("broadcast", { event: "warn" }, (payload: any) => {
+        const { phone, count, reason } = payload.payload || {};
+        if (phone === user?.phone) {
+          notify(`⚠️ Попередження: ${reason || "порушення правил"} (${count}/3)`);
+          setUser((u) => (u ? { ...u, warns: count ?? 0 } : u));
+        }
+      })
+      .subscribe();
+
+    return () => {
+      channel.unsubscribe().catch(() => {});
     };
-    poll(); // First poll immediately
-    const interval = setInterval(poll, 2000); // Poll every 2 seconds
-    return () => clearInterval(interval);
   }, [step]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleSSE(ev: {

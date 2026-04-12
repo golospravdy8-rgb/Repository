@@ -1,8 +1,9 @@
 "use client";
 import { useEffect, useState, useRef } from "react";
+import { supabase } from "@/lib/supabase";
 
 interface Match { id: string; title: string; url: string; date: string }
-interface Session { id: number; match_title: string; match_url: string; started_by: string }
+interface Session { id: number; match_id?: string; match_title: string; match_url: string; started_by: string }
 interface Props { userName: string; onSendMessage?: (text: string) => void }
 
 export default function TvBlock({ userName, onSendMessage }: Props) {
@@ -15,6 +16,8 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
   const [minimized, setMinimized] = useState(false);
   const [loadingVideo, setLoadingVideo] = useState(false);
   const [hasLeft, setHasLeft] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [syncMessage, setSyncMessage] = useState("");
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const playerRef = useRef<HTMLVideoElement | null>(null);
   const seekTargetRef = useRef<number>(0);
@@ -28,6 +31,7 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
       .then((d) => setMatches(d.matches || []));
   }, []);
 
+  // Polling для сесії та глядачів
   useEffect(() => {
     const poll = async () => {
       const r = await fetch("/api/tv-session");
@@ -40,7 +44,38 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
   }, []);
 
-  // HOST: надсилаємо currentTime через polling кожні 3 сек (для iframe)
+  // Supabase Realtime для TV синхронізації
+  useEffect(() => {
+    if (!session || isHostRef.current) return; // тільки для глядачів
+
+    try {
+      const matchId = session.match_id || session.id;
+      if (!matchId) return;
+
+      const channel = supabase
+        .channel(`tv:match:${matchId}`, { config: { broadcast: { self: true } } })
+        .on("broadcast", { event: "video_sync" }, (payload: any) => {
+          const { currentTime, isPlaying, userName: syncName } = payload.payload || {};
+          console.log(`[VIEWER] broadcast sync: ${currentTime}s from ${syncName}`);
+
+          // Автоматично синхронізуємо глядача
+          if (playerRef.current && typeof currentTime === "number" && !isNaN(currentTime)) {
+            playerRef.current.currentTime = currentTime;
+            if (isPlaying && playerRef.current.paused) {
+              playerRef.current.play().catch(() => {});
+            }
+          }
+        })
+        .subscribe();
+
+      return () => {
+        channel.unsubscribe().catch(() => {});
+      };
+    } catch {}
+  }, [session]);
+
+  // HOST: надсилаємо currentTime через PUT кожні 3 сек
+  // та broadcast на Supabase Realtime для синхронізації глядачів
   useEffect(() => {
     if (!showPlayer || !isHostRef.current || !currentSessionIdRef.current) return;
 
@@ -50,7 +85,9 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
       const ct = Math.floor(playerRef.current.currentTime || 0);
       if (ct > 0 && ct !== lastSent) {
         lastSent = ct;
-        console.log(`[HOST] ⬆ interval sending ${ct}s`);
+        console.log(`[HOST] ⬆ sending ${ct}s`);
+
+        // Сохранити в БД
         fetch("/api/tv-session", {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
@@ -59,11 +96,28 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
             currentTimeSec: ct,
           }),
         }).catch(() => {});
+
+        // Broadcast на Supabase для синхронізації глядачів (опціонально)
+        try {
+          const matchId = session?.match_id || session?.id;
+          if (matchId) {
+            const channel = supabase.channel(`tv:match:${matchId}`);
+            await channel.send({
+              type: "broadcast",
+              event: "video_sync",
+              payload: {
+                currentTime: ct,
+                isPlaying: !playerRef.current.paused,
+                userName: userName,
+              },
+            }).catch(() => {});
+          }
+        } catch {}
       }
     }, 3000);
 
     return () => clearInterval(interval);
-  }, [showPlayer]);
+  }, [showPlayer, session]);
 
   const handleWatch = async (match: Match) => {
     const sr = await fetch("/api/tv-session", {
@@ -177,6 +231,57 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
     didSeekRef.current = false;
   };
 
+  const handleSync = async () => {
+    if (!session || isHostRef.current) return;
+    setSyncing(true);
+    setSyncMessage("");
+
+    try {
+      const matchId = session.id || session.match_id || null;
+      if (!matchId) {
+        setSyncMessage("❌ ID матчу не знайдено");
+        setTimeout(() => setSyncMessage(""), 3000);
+        return;
+      }
+
+      // Отримуємо останній broadcast з TV каналу
+      // або просто синхронізуємось з БД через /api/tv-session
+      const res = await fetch(`/api/tv-session?matchId=${encodeURIComponent(String(matchId))}`);
+
+      if (!res.ok) {
+        setSyncMessage("❌ Помилка синхронізації");
+        setTimeout(() => setSyncMessage(""), 3000);
+        return;
+      }
+
+      const { session: hostSession } = await res.json();
+      if (!hostSession) {
+        setSyncMessage("❌ Сесія не знайдена");
+        setTimeout(() => setSyncMessage(""), 3000);
+        return;
+      }
+
+      const currentTime = Number(hostSession.current_time_sec) || 0;
+      const hostName = hostSession.started_by || "Хост";
+
+      // Перемотати відео
+      if (playerRef.current && !isNaN(currentTime)) {
+        playerRef.current.currentTime = currentTime;
+        if (playerRef.current.paused) {
+          playerRef.current.play().catch(() => {});
+        }
+      }
+
+      setSyncMessage(`✅ Синх з ${hostName} (${Math.floor(currentTime)}с)`);
+      setTimeout(() => setSyncMessage(""), 4000);
+    } catch (e) {
+      setSyncMessage("❌ Помилка з'єднання");
+      setTimeout(() => setSyncMessage(""), 3000);
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   const handleStop = async () => {
     if (!session) return;
     await fetch("/api/tv-session", {
@@ -279,21 +384,20 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
               {showPlayer && !hasLeft && !isHost && (
                 <>
                   <button
-                    style={{ ...s.stopBtn, background: "rgba(100,200,100,0.2)" }}
-                    onClick={async () => {
-                      const r = await fetch("/api/tv-session");
-                      const d = await r.json();
-                      if (d.session?.current_time_sec && playerRef.current) {
-                        playerRef.current.currentTime = Number(d.session.current_time_sec);
-                        console.log(`[VIEWER] manual sync to ${d.session.current_time_sec}s`);
-                      }
-                    }}
+                    style={{ ...s.stopBtn, background: syncing ? "rgba(100,100,100,0.3)" : "rgba(100,200,100,0.2)", opacity: syncing ? 0.5 : 1 }}
+                    onClick={handleSync}
+                    disabled={syncing}
                   >
-                    🔄 Синх
+                    {syncing ? "⏳" : "🔄"} Синх
                   </button>
                   <button style={s.stopBtn} onClick={handleLeave}>
                     ↩ Вийти
                   </button>
+                  {syncMessage && (
+                    <span style={{ fontSize: 10, color: syncMessage.includes("✅") ? "#4ade80" : "#ef4444", whiteSpace: "nowrap" }}>
+                      {syncMessage}
+                    </span>
+                  )}
                 </>
               )}
               {isHost && (
