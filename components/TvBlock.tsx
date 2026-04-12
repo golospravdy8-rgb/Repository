@@ -40,6 +40,30 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
   }, []);
 
+  // HOST: надсилаємо currentTime через polling кожні 3 сек (для iframe)
+  useEffect(() => {
+    if (!showPlayer || !isHostRef.current || !currentSessionIdRef.current) return;
+
+    let lastSent = -1;
+    const interval = setInterval(async () => {
+      if (!playerRef.current) return;
+      const ct = Math.floor(playerRef.current.currentTime || 0);
+      if (ct > 0 && ct !== lastSent) {
+        lastSent = ct;
+        console.log(`[HOST] ⬆ interval sending ${ct}s`);
+        fetch("/api/tv-session", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sessionId: currentSessionIdRef.current,
+            currentTimeSec: ct,
+          }),
+        }).catch(() => {});
+      }
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [showPlayer]);
 
   const handleWatch = async (match: Match) => {
     const sr = await fetch("/api/tv-session", {
