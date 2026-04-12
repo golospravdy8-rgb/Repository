@@ -80,32 +80,49 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
   };
 
   const s = {
-    wrap: { background:"rgba(13,25,58,0.97)", borderBottom:"1px solid rgba(255,255,255,0.08)", borderRadius:0, padding:"8px 12px", marginBottom:0 } as React.CSSProperties,
-    title: { color:"white", fontSize:13, fontWeight:700, marginBottom:8, display:"flex", justifyContent:"space-between", alignItems:"center" } as React.CSSProperties,
-    slider: { display:"flex", overflowX:"auto" as const, gap:8, paddingBottom:6, scrollSnapType:"x mandatory" as const },
-    card: { minWidth:110, flexShrink:0, scrollSnapAlign:"start" as const, background:"rgba(255,255,255,0.05)", borderRadius:10, padding:8, fontSize:10, color:"white", textAlign:"center" as const },
-    btn: { background:"#f97316", color:"white", border:"none", borderRadius:6, padding:"4px 8px", cursor:"pointer", fontSize:10, marginTop:6, width:"100%" } as React.CSSProperties,
-    live: { marginTop:8, padding:8, background:"rgba(249,115,22,0.1)", borderRadius:8, border:"1px solid rgba(249,115,22,0.3)", color:"white", fontSize:11 } as React.CSSProperties,
-    joinBtn: { background:"#f97316", color:"white", border:"none", borderRadius:6, padding:"5px 10px", cursor:"pointer", fontSize:11, marginRight:4 } as React.CSSProperties,
-    stopBtn: { background:"rgba(255,255,255,0.1)", color:"white", border:"none", borderRadius:6, padding:"5px 10px", cursor:"pointer", fontSize:11 } as React.CSSProperties,
-    playerWrap: { marginTop:8, borderRadius:10, overflow:"hidden", position:"relative" as const } as React.CSSProperties,
+    wrap: {
+      position: "absolute" as const,
+      top: 0,
+      right: 0,
+      width: "50%",
+      maxHeight: showPlayer && !minimized ? "50vh" : "auto",
+      zIndex: 10,
+      background: "rgba(10, 20, 50, 0.96)",
+      backdropFilter: "blur(8px)",
+      border: "1px solid rgba(255,255,255,0.12)",
+      borderTop: "none",
+      borderRight: "none",
+      borderRadius: "0 0 0 14px",
+      overflow: "hidden",
+      display: "flex",
+      flexDirection: "column" as const,
+    } as React.CSSProperties,
+    title: { padding: "6px 10px", display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid rgba(255,255,255,0.08)", color: "white", fontSize: 12, fontWeight: 700, flexShrink: 0 } as React.CSSProperties,
+    slider: { display: "flex", overflowX: "auto" as const, gap: 6, padding: "6px 8px", scrollSnapType: "x mandatory" as const, flexShrink: 0 },
+    card: { minWidth: 100, flexShrink: 0, scrollSnapAlign: "start" as const, background: "rgba(255,255,255,0.05)", borderRadius: 8, padding: 6, fontSize: 9, color: "white", textAlign: "center" as const },
+    cardText: { lineHeight: 1.2, marginBottom: 3, overflow: "hidden", display: "-webkit-box" as const, WebkitLineClamp: 2, WebkitBoxOrient: "vertical" as const },
+    btn: { background: "#f97316", color: "white", border: "none", borderRadius: 5, padding: "3px 6px", cursor: "pointer", fontSize: 9, marginTop: 4, width: "100%", fontWeight: 700 } as React.CSSProperties,
+    live: { padding: "5px 8px", background: "rgba(249,115,22,0.1)", borderRadius: 6, border: "1px solid rgba(249,115,22,0.3)", color: "white", fontSize: 10, flexShrink: 0 } as React.CSSProperties,
+    joinBtn: { background: "#f97316", color: "white", border: "none", borderRadius: 5, padding: "3px 8px", cursor: "pointer", fontSize: 10, marginRight: 3, fontWeight: 700 } as React.CSSProperties,
+    stopBtn: { background: "rgba(255,255,255,0.1)", color: "white", border: "none", borderRadius: 5, padding: "3px 8px", cursor: "pointer", fontSize: 10, fontWeight: 700 } as React.CSSProperties,
+    playerWrap: { flex: 1, overflow: "hidden", minHeight: 180 } as React.CSSProperties,
   };
 
   // Мінімізований режим: показувати тільки один рядок
   if (minimized) {
     return (
       <div style={s.wrap}>
-        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:8 }}>
-          <div style={{ display:"flex", alignItems:"center", gap:8, flex:1, minWidth:0 }}>
-            <span style={{ fontSize:13, fontWeight:700, color:"white", whiteSpace:"nowrap" }}>📺 Телевізор</span>
+        <div style={s.title}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, flex: 1, minWidth: 0 }}>
+            <span style={{ whiteSpace: "nowrap" }}>📺</span>
             {session && (
-              <span style={{ fontSize:12, color:"rgba(255,255,255,0.7)", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>
-                🔴 {session.match_title.substring(0,35)}... ({viewers.length} глядачів)
+              <span style={{ fontSize: 11, color: "rgba(255,255,255,0.8)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                🔴 {session.match_title.substring(0, 20)}...
               </span>
             )}
           </div>
-          <button onClick={() => setMinimized(false)} style={{ background:"none", border:"none", color:"#f97316", cursor:"pointer", fontSize:12, flexShrink:0, whiteSpace:"nowrap" }}>
-            ⬆ Розгорнути
+          <button onClick={() => setMinimized(false)} style={{ background: "none", border: "none", color: "#f97316", cursor: "pointer", fontSize: 11, flexShrink: 0, padding: 0 }}>
+            ⬆
           </button>
         </div>
       </div>
@@ -116,45 +133,45 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
     <div style={s.wrap}>
       <div style={s.title}>
         <span>📺 Телевізор</span>
-        <button onClick={() => setMinimized(true)} style={{ background:"none", border:"none", color:"#f97316", cursor:"pointer", fontSize:12 }}>
-          ⬇ Згорнути
+        <button onClick={() => setMinimized(true)} style={{ background: "none", border: "none", color: "#f97316", cursor: "pointer", fontSize: 12, padding: 0 }}>
+          ✕
         </button>
       </div>
 
       <div style={s.slider}>
-        {matches.length === 0 && <div style={{ color:"rgba(255,255,255,0.4)", fontSize:11 }}>Завантаження матчів...</div>}
+        {matches.length === 0 && <div style={{ color: "rgba(255,255,255,0.4)", fontSize: 10, padding: "4px 8px" }}>Завантаження...</div>}
         {matches.map((m) => (
           <div key={m.id} style={s.card}>
-            <div style={{ lineHeight:1.3, marginBottom:4 }}>{m.title}</div>
-            {m.date && <div style={{ color:"rgba(255,255,255,0.5)", fontSize:9, marginBottom:4 }}>{m.date}</div>}
-            <button style={s.btn} onClick={() => handleWatch(m)}>▶ Дивитись</button>
+            <div style={s.cardText}>{m.title}</div>
+            <button style={s.btn} onClick={() => handleWatch(m)}>▶</button>
           </div>
         ))}
       </div>
 
       {session && (
         <div style={s.live}>
-          <div style={{ marginBottom:4 }}>🔴 <strong>LIVE:</strong> {session.match_title}</div>
-          <div style={{ marginBottom:6, color:"rgba(255,255,255,0.7)" }}>
-            👁 {viewers.slice(0,3).join(", ")}{viewers.length > 3 ? ` +${viewers.length - 3}` : ""}
+          <div style={{ marginBottom: 3, fontSize: 10, fontWeight: 700 }}>🔴 LIVE: {session.match_title.substring(0, 25)}</div>
+          <div style={{ marginBottom: 4, fontSize: 9, color: "rgba(255,255,255,0.7)" }}>
+            👁 {viewers.slice(0, 2).join(", ")}{viewers.length > 2 ? ` +${viewers.length - 2}` : ""}
           </div>
-          <button style={s.joinBtn} onClick={handleJoin}>🎮 Приєднатись</button>
-          {session.started_by === userName && (
-            <button style={s.stopBtn} onClick={handleStop}>⏹ Зупинити</button>
-          )}
+          <div style={{ display: "flex", gap: 2 }}>
+            <button style={s.joinBtn} onClick={handleJoin}>🎮</button>
+            {session.started_by === userName && (
+              <button style={s.stopBtn} onClick={handleStop}>⏹</button>
+            )}
+          </div>
         </div>
       )}
 
-      {loadingVideo && <div style={{ color:"rgba(255,255,255,0.5)", fontSize:11, marginTop:8 }}>⏳ Завантаження відео...</div>}
+      {loadingVideo && <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 10, padding: "4px 8px", textAlign: "center" }}>⏳</div>}
 
       {showPlayer && videoUrl && !minimized && (
         <div style={s.playerWrap}>
           {videoType === "iframe" ? (
-            <iframe src={videoUrl} width="100%" height="240" frameBorder="0" allowFullScreen style={{ borderRadius:8, display:"block" }} />
+            <iframe src={videoUrl} style={{ width: "100%", height: "100%", minHeight: 180, border: "none", display: "block" }} allowFullScreen />
           ) : (
-            <video width="100%" height="240" controls style={{ borderRadius:8, display:"block", background:"#000" }}>
+            <video width="100%" height="100%" controls style={{ minHeight: 180, display: "block", background: "#000", objectFit: "cover" }}>
               <source src={videoUrl} type="video/mp4" />
-              Твій браузер не підтримує <code>video</code> елемент.
             </video>
           )}
         </div>

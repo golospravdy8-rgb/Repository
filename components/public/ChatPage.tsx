@@ -1394,7 +1394,7 @@ export default function ChatPage() {
       )}
 
       {/* ── Main chat column ──────────────────────────────────────────────── */}
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, overflow: "hidden" }}>
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, overflow: "hidden", position: "relative" }}>
 
       {/* ── Room tabs ──────────────────────────────────────────────────── */}
       <div style={{ background: "#162035", borderBottom: "1px solid rgba(255,255,255,0.06)", padding: "0 16px", flexShrink: 0, display: "flex", gap: 0 }}>
