@@ -16,11 +16,10 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
   const [loadingVideo, setLoadingVideo] = useState(false);
   const [hasLeft, setHasLeft] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const playerRef = useRef<any>(null);
-  const seekOnReadyRef = useRef<number>(0);
-  const hasSeekeddRef = useRef(false);
+  const playerRef = useRef<HTMLVideoElement | null>(null);
+  const seekTargetRef = useRef<number>(0);
+  const didSeekRef = useRef(false);
   const isHostRef = useRef(false);
-  const lastSentTimeRef = useRef(0);
   const currentSessionIdRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -42,17 +41,15 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
   }, []);
 
   useEffect(() => {
-    if (!showPlayer || !isHostRef.current) return;
+    if (!showPlayer || !playerRef.current) return;
 
-    const syncInterval = setInterval(() => {
-      const videoEl = playerRef.current as HTMLVideoElement | null;
-      if (!videoEl || !currentSessionIdRef.current) return;
+    const handleTimeUpdate = () => {
+      if (!isHostRef.current || !currentSessionIdRef.current) return;
 
-      const ct = Math.floor(videoEl.currentTime);
-      // Відправляємо тільки якщо змінилось (відео грає)
-      if (ct > 0 && ct !== lastSentTimeRef.current) {
-        lastSentTimeRef.current = ct;
-        console.log(`[TV HOST] sending currentTime: ${ct}s to session ${currentSessionIdRef.current}`);
+      const ct = Math.floor(playerRef.current!.currentTime);
+      // Відправляємо кожні 3 секунди (ct % 3 === 0)
+      if (ct > 0 && ct % 3 === 0) {
+        console.log(`[HOST] sending ${ct}s to session ${currentSessionIdRef.current}`);
         fetch("/api/tv-session", {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
@@ -62,9 +59,11 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
           }),
         }).catch(() => {});
       }
-    }, 3000);
+    };
 
-    return () => clearInterval(syncInterval);
+    const videoEl = playerRef.current;
+    videoEl.addEventListener("timeupdate", handleTimeUpdate);
+    return () => videoEl.removeEventListener("timeupdate", handleTimeUpdate);
   }, [showPlayer]);
 
   const handleWatch = async (match: Match) => {
@@ -86,7 +85,10 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
       setShowPlayer(true);
       setMinimized(false);
       isHostRef.current = true;
+      didSeekRef.current = true;   // host не seekає
+      seekTargetRef.current = 0;
       currentSessionIdRef.current = sessionId;
+      console.log(`[HOST] ✅ session started, id=${sessionId}`);
       onSendMessage?.(`📺 ${userName} запустив матч: ${match.title} — натисни LIVE щоб приєднатись!`);
     } else {
       window.open(match.url, "_blank");
@@ -97,19 +99,21 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
   const handleJoin = async () => {
     if (!session) return;
     setHasLeft(false);
-    hasSeekeddRef.current = false; // скидаємо флаг перед кожним новим join
 
-    // КРОК 1: Отримати поточну секунду відео від host
+    // Крок 1: читаємо поточну секунду host
     const r = await fetch("/api/tv-session");
     const d = await r.json();
     if (!d.session) return;
 
-    const rawSec = d.session.current_time_sec || 0;
-    const loadDelaySec = 5; // приблизний час завантаження відео
-    const seekToSec = rawSec > 0 ? rawSec + loadDelaySec : 0;
-    console.log(`[TV JOIN] current_time_sec з БД: ${rawSec}s, seekTo: ${seekToSec}s`);
+    const hostSec = Number(d.session.current_time_sec) || 0;
+    console.log(`[VIEWER] joining, host at ${hostSec}s`);
 
-    // КРОК 2: Додати себе до viewers
+    // Встановлюємо refs для viewer
+    isHostRef.current = false;
+    seekTargetRef.current = hostSec;
+    didSeekRef.current = false;  // дозволяємо seekTo при наступному onLoadedMetadata
+
+    // Крок 2: додаємо себе до viewers
     const pr = await fetch("/api/tv-session", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -118,19 +122,28 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
     const pd = await pr.json();
     setViewers(pd.viewers || []);
 
-    // КРОК 3: Завантажити відео
+    // Крок 3: завантажуємо відео
     setLoadingVideo(true);
     const vr = await fetch(`/api/tv-video?url=${encodeURIComponent(d.session.match_url)}`);
     const vd = await vr.json();
     setLoadingVideo(false);
 
     if (vd.videoUrl) {
-      setVideoUrl(vd.videoUrl);
-      setVideoType(vd.type);
-      seekOnReadyRef.current = seekToSec; // буде використано в onCanPlay
-      isHostRef.current = false;
-      setShowPlayer(true);
-      setMinimized(false);
+      // Якщо відео вже завантажено (той самий URL) — просто seekTo
+      if (vd.videoUrl === videoUrl && playerRef.current) {
+        console.log(`[VIEWER] same URL, direct seekTo ${hostSec}s`);
+        playerRef.current.currentTime = hostSec;
+        didSeekRef.current = true;
+        seekTargetRef.current = 0;
+        setShowPlayer(true);
+        setMinimized(false);
+      } else {
+        // Нове відео — seekTarget спрацює через onLoadedMetadata
+        setVideoUrl(vd.videoUrl);
+        setVideoType(vd.type);
+        setShowPlayer(true);
+        setMinimized(false);
+      }
     } else {
       window.open(d.session.match_url, "_blank");
     }
@@ -141,6 +154,9 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
     setVideoUrl(null);
     setVideoType(null);
     setHasLeft(true);
+    isHostRef.current = false;
+    seekTargetRef.current = 0;
+    didSeekRef.current = false;
   };
 
   const handleStop = async () => {
@@ -153,13 +169,6 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
     setShowPlayer(false);
     setVideoUrl(null);
     setVideoType(null);
-  };
-
-  const handlePlayerReady = () => {
-    if (seekOnReadyRef.current > 0 && playerRef.current) {
-      playerRef.current.seekTo(seekOnReadyRef.current, "seconds");
-      seekOnReadyRef.current = 0;
-    }
   };
 
   const s = {
@@ -237,10 +246,11 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
         return (
           <div style={s.live}>
             <div style={{ marginBottom: 3, fontSize: 10, fontWeight: 700 }}>
-              🔴 <strong>LIVE:</strong> {session.match_title.substring(0, 30)}
+              🔴 <strong>LIVE:</strong> {session.match_title.substring(0, 35)}
             </div>
-            <div style={{ marginBottom: 5, fontSize: 9, color: "rgba(255,255,255,0.7)" }}>
-              👁 ({viewers.length}): {viewers.join(", ")}
+            <div style={{ marginBottom: 5, fontSize: 9, color: "rgba(255,255,255,0.6)" }}>
+              👁 ({viewers.length}): {viewers.slice(0, 5).join(", ")}
+              {viewers.length > 5 ? ` +${viewers.length - 5}` : ""}
             </div>
             <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
               {canJoin && (
@@ -275,13 +285,22 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
               width="100%"
               height="100%"
               controls
-              onCanPlay={() => {
-                if (!hasSeekeddRef.current && seekOnReadyRef.current > 0 && playerRef.current) {
-                  hasSeekeddRef.current = true;
-                  const videoEl = playerRef.current as HTMLVideoElement;
-                  videoEl.currentTime = seekOnReadyRef.current;
-                  console.log(`[TV] ✅ ONE-TIME seekTo ${seekOnReadyRef.current}s`);
-                  seekOnReadyRef.current = 0;
+              onLoadedMetadata={() => {
+                // Після завантаження: seekTo target якщо є
+                if (!isHostRef.current && seekTargetRef.current > 0 && playerRef.current) {
+                  console.log(`[VIEWER] onLoadedMetadata seekTo ${seekTargetRef.current}s`);
+                  playerRef.current.currentTime = seekTargetRef.current;
+                }
+              }}
+              onTimeUpdate={() => {
+                // VIEWER: перевіряємо чи вже seekнули
+                if (isHostRef.current || !playerRef.current) return;
+
+                if (!didSeekRef.current && seekTargetRef.current > 0) {
+                  console.log(`[VIEWER] onTimeUpdate seekTo ${seekTargetRef.current}s, currently at ${Math.floor(playerRef.current.currentTime)}s`);
+                  playerRef.current.currentTime = seekTargetRef.current;
+                  didSeekRef.current = true;
+                  seekTargetRef.current = 0;
                 }
               }}
               style={{ minHeight: 320, display: "block", background: "#000", objectFit: "cover" }}
