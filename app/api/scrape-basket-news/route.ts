@@ -93,6 +93,14 @@ async function scrapeBasketNews(): Promise<NewsItem[]> {
     }
   });
 
+  // Сортуємо по даті з URL — найсвіжіші першими
+  const extractDatetime = (url: string): number => {
+    const match = url.match(/\/(\d{4})\/(\d{2})\/(\d{2})\//);
+    return match ? new Date(`${match[1]}-${match[2]}-${match[3]}`).getTime() : 0;
+  };
+  newsDay.sort((a, b) => extractDatetime(b.link) - extractDatetime(a.link));
+  newsStrychka.sort((a, b) => extractDatetime(b.link) - extractDatetime(a.link));
+
   console.log(`[НОВИНИ ДНЯ (${todayStr})] ${newsDay.length} | [СТРІЧКА (вчора/раніше)] ${newsStrychka.length}`);
 
   // Якщо новин дня менше 6 — доповнюємо вчорашніми
