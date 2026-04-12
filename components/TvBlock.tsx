@@ -340,7 +340,7 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
       top: 0,
       right: 0,
       width: "50%",
-      maxHeight: showPlayer && !minimized ? "60vh" : "auto",
+      maxHeight: showPlayer && !minimized ? "90vh" : "auto",
       zIndex: 10,
       background: "rgba(10, 20, 50, 0.96)",
       backdropFilter: "blur(8px)",
@@ -360,7 +360,7 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
     live: { padding: "5px 8px", background: "rgba(249,115,22,0.1)", borderRadius: 6, border: "1px solid rgba(249,115,22,0.3)", color: "white", fontSize: 10, flexShrink: 0 } as React.CSSProperties,
     joinBtn: { background: "#f97316", color: "white", border: "none", borderRadius: 5, padding: "3px 8px", cursor: "pointer", fontSize: 10, marginRight: 3, fontWeight: 700 } as React.CSSProperties,
     stopBtn: { background: "rgba(255,255,255,0.1)", color: "white", border: "none", borderRadius: 5, padding: "3px 8px", cursor: "pointer", fontSize: 10, fontWeight: 700 } as React.CSSProperties,
-    playerWrap: { flex: 1, overflow: "hidden", minHeight: 320, display: "flex", flexDirection: "column" as const, background: "#000" } as React.CSSProperties,
+    playerWrap: { flex: 1, overflow: "hidden", minHeight: 200, display: "flex", flexDirection: "column" as const, background: "#000" } as React.CSSProperties,
     progressWrap: { padding: "6px 8px", borderTop: "1px solid rgba(255,255,255,0.08)", background: "rgba(0,0,0,0.3)", flexShrink: 0 } as React.CSSProperties,
     progressBar: { width: "100%", height: 4, cursor: "pointer", accentColor: "#f97316" } as React.CSSProperties,
     timeDisplay: { display: "flex", justifyContent: "space-between", fontSize: 9, color: "rgba(255,255,255,0.7)", marginTop: 4 } as React.CSSProperties,
@@ -462,8 +462,8 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
             <iframe src={videoUrl} style={{ width: "100%", height: "100%", minHeight: 320, border: "none", display: "block", flex: 1 }} allowFullScreen />
           ) : (
             <>
-              {/* Контейнер відео з максимальною висотою */}
-              <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", position: "relative" }}>
+              {/* Контейнер відео з максимальною висотою — flex: 1 займає весь доступний простір */}
+              <div style={{ flex: 1, display: "flex", flexDirection: "column" as const, overflow: "hidden", position: "relative" }}>
                 <video
                   ref={playerRef}
                   style={s.playerVideo}
