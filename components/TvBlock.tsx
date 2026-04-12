@@ -18,8 +18,12 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
   const [hasLeft, setHasLeft] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState("");
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const playerRef = useRef<HTMLVideoElement | null>(null);
+  const playerWrapRef = useRef<HTMLDivElement | null>(null);
   const seekTargetRef = useRef<number>(0);
   const didSeekRef = useRef(false);
   const isHostRef = useRef(false);
@@ -118,6 +122,16 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
 
     return () => clearInterval(interval);
   }, [showPlayer, session]);
+
+  // Обробка fullscreen зміни
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
+  }, []);
 
   const handleWatch = async (match: Match) => {
     const sr = await fetch("/api/tv-session", {
@@ -261,18 +275,18 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
         return;
       }
 
-      const currentTime = Number(hostSession.current_time_sec) || 0;
+      const seekTime = Number(hostSession.current_time_sec) || 0;
       const hostName = hostSession.started_by || "Хост";
 
       // Перемотати відео
-      if (playerRef.current && !isNaN(currentTime)) {
-        playerRef.current.currentTime = currentTime;
+      if (playerRef.current && !isNaN(seekTime)) {
+        playerRef.current.currentTime = seekTime;
         if (playerRef.current.paused) {
           playerRef.current.play().catch(() => {});
         }
       }
 
-      setSyncMessage(`✅ Синх з ${hostName} (${Math.floor(currentTime)}с)`);
+      setSyncMessage(`✅ Синх з ${hostName} (${Math.floor(seekTime)}с)`);
       setTimeout(() => setSyncMessage(""), 4000);
     } catch (e) {
       setSyncMessage("❌ Помилка з'єднання");
@@ -292,6 +306,32 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
     setShowPlayer(false);
     setVideoUrl(null);
     setVideoType(null);
+  };
+
+  // Форматування часу: 125 -> "2:05"
+  const formatTime = (seconds: number): string => {
+    if (!seconds || !isFinite(seconds)) return "0:00";
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
+  };
+
+  // Обробка клику на прогрес-бар
+  const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newTime = parseFloat(e.target.value);
+    if (playerRef.current) {
+      playerRef.current.currentTime = newTime;
+    }
+  };
+
+  // Обробка fullscreen
+  const handleFullscreen = () => {
+    if (!playerWrapRef.current) return;
+    if (!document.fullscreenElement) {
+      playerWrapRef.current.requestFullscreen().catch(() => {});
+    } else {
+      document.exitFullscreen().catch(() => {});
+    }
   };
 
   const s = {
@@ -320,7 +360,11 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
     live: { padding: "5px 8px", background: "rgba(249,115,22,0.1)", borderRadius: 6, border: "1px solid rgba(249,115,22,0.3)", color: "white", fontSize: 10, flexShrink: 0 } as React.CSSProperties,
     joinBtn: { background: "#f97316", color: "white", border: "none", borderRadius: 5, padding: "3px 8px", cursor: "pointer", fontSize: 10, marginRight: 3, fontWeight: 700 } as React.CSSProperties,
     stopBtn: { background: "rgba(255,255,255,0.1)", color: "white", border: "none", borderRadius: 5, padding: "3px 8px", cursor: "pointer", fontSize: 10, fontWeight: 700 } as React.CSSProperties,
-    playerWrap: { flex: 1, overflow: "hidden", minHeight: 320 } as React.CSSProperties,
+    playerWrap: { flex: 1, overflow: "hidden", minHeight: 320, display: "flex", flexDirection: "column" as const, background: "#000" } as React.CSSProperties,
+    progressWrap: { padding: "6px 8px", borderTop: "1px solid rgba(255,255,255,0.08)", background: "rgba(0,0,0,0.3)", flexShrink: 0 } as React.CSSProperties,
+    progressBar: { width: "100%", height: 4, cursor: "pointer", accentColor: "#f97316" } as React.CSSProperties,
+    timeDisplay: { display: "flex", justifyContent: "space-between", fontSize: 9, color: "rgba(255,255,255,0.7)", marginTop: 4 } as React.CSSProperties,
+    playerVideo: { flex: 1, display: "block", background: "#000", objectFit: "contain" as const } as React.CSSProperties,
   };
 
   // Мінімізований режим: показувати тільки один рядок
@@ -413,61 +457,108 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
       {loadingVideo && <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 10, padding: "4px 8px", textAlign: "center" }}>⏳</div>}
 
       {showPlayer && videoUrl && !minimized && (
-        <div style={s.playerWrap}>
+        <div style={s.playerWrap} ref={playerWrapRef}>
           {videoType === "iframe" ? (
-            <iframe src={videoUrl} style={{ width: "100%", height: "100%", minHeight: 320, border: "none", display: "block" }} allowFullScreen />
+            <iframe src={videoUrl} style={{ width: "100%", height: "100%", minHeight: 320, border: "none", display: "block", flex: 1 }} allowFullScreen />
           ) : (
-            <video
-              ref={playerRef}
-              width="100%"
-              height="100%"
-              controls
-              onLoadedMetadata={() => {
-                // VIEWER: перша спроба seekTo (може спрацювати раніше onTimeUpdate)
-                if (!isHostRef.current && !didSeekRef.current && seekTargetRef.current > 0 && playerRef.current) {
-                  console.log(`[VIEWER] onLoadedMetadata seekTo ${seekTargetRef.current}s`);
-                  playerRef.current.currentTime = seekTargetRef.current;
-                  // НЕ скидаємо didSeekRef тут — перевіримо в onTimeUpdate що seek дійсно відбувся
-                }
-              }}
-              onTimeUpdate={() => {
-                if (!playerRef.current) return;
-
-                console.log(`[DEBUG] onTimeUpdate: isHost=${isHostRef.current}, sessionId=${currentSessionIdRef.current}, currentTime=${playerRef.current.currentTime}`);
-
-                // HOST: надсилаємо currentTime кожні 3 секунди
-                if (isHostRef.current && currentSessionIdRef.current) {
-                  const ct = Math.floor(playerRef.current.currentTime);
-                  if (ct > 0 && ct % 3 === 0) {
-                    const key = `_sent_${ct}`;
-                    if (!(playerRef.current as any)[key]) {
-                      (playerRef.current as any)[key] = true;
-                      console.log(`[HOST] ⬆ ${ct}s → session ${currentSessionIdRef.current}`);
-                      fetch("/api/tv-session", {
-                        method: "PUT",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({
-                          sessionId: currentSessionIdRef.current,
-                          currentTimeSec: ct
-                        }),
-                      }).catch(() => {});
+            <>
+              {/* Контейнер відео з максимальною висотою */}
+              <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", position: "relative" }}>
+                <video
+                  ref={playerRef}
+                  style={s.playerVideo}
+                  onLoadedMetadata={() => {
+                    // VIEWER: перша спроба seekTo (може спрацювати раніше onTimeUpdate)
+                    if (!isHostRef.current && !didSeekRef.current && seekTargetRef.current > 0 && playerRef.current) {
+                      console.log(`[VIEWER] onLoadedMetadata seekTo ${seekTargetRef.current}s`);
+                      playerRef.current.currentTime = seekTargetRef.current;
+                      // НЕ скидаємо didSeekRef тут — перевіримо в onTimeUpdate що seek дійсно відбувся
                     }
-                  }
-                  return;
-                }
+                    // Оновлюємо duration
+                    if (playerRef.current) {
+                      setDuration(playerRef.current.duration);
+                    }
+                  }}
+                  onTimeUpdate={() => {
+                    if (!playerRef.current) return;
 
-                // VIEWER: один раз seekTo після старту
-                if (!isHostRef.current && !didSeekRef.current && seekTargetRef.current > 0) {
-                  console.log(`[VIEWER] onTimeUpdate seekTo ${seekTargetRef.current}s`);
-                  playerRef.current.currentTime = seekTargetRef.current;
-                  didSeekRef.current = true;
-                  seekTargetRef.current = 0;
-                }
-              }}
-              style={{ minHeight: 320, display: "block", background: "#000", objectFit: "cover" }}
-            >
-              <source src={videoUrl} type="video/mp4" />
-            </video>
+                    // Оновлюємо поточний час для прогрес-бару
+                    setCurrentTime(playerRef.current.currentTime);
+
+                    console.log(`[DEBUG] onTimeUpdate: isHost=${isHostRef.current}, sessionId=${currentSessionIdRef.current}, currentTime=${playerRef.current.currentTime}`);
+
+                    // HOST: надсилаємо currentTime кожні 3 секунди
+                    if (isHostRef.current && currentSessionIdRef.current) {
+                      const ct = Math.floor(playerRef.current.currentTime);
+                      if (ct > 0 && ct % 3 === 0) {
+                        const key = `_sent_${ct}`;
+                        if (!(playerRef.current as any)[key]) {
+                          (playerRef.current as any)[key] = true;
+                          console.log(`[HOST] ⬆ ${ct}s → session ${currentSessionIdRef.current}`);
+                          fetch("/api/tv-session", {
+                            method: "PUT",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                              sessionId: currentSessionIdRef.current,
+                              currentTimeSec: ct
+                            }),
+                          }).catch(() => {});
+                        }
+                      }
+                      return;
+                    }
+
+                    // VIEWER: один раз seekTo після старту
+                    if (!isHostRef.current && !didSeekRef.current && seekTargetRef.current > 0) {
+                      console.log(`[VIEWER] onTimeUpdate seekTo ${seekTargetRef.current}s`);
+                      playerRef.current.currentTime = seekTargetRef.current;
+                      didSeekRef.current = true;
+                      seekTargetRef.current = 0;
+                    }
+                  }}
+                >
+                  <source src={videoUrl} type="video/mp4" />
+                </video>
+
+                {/* Кнопка fullscreen у правому верхньому куті */}
+                <button
+                  onClick={handleFullscreen}
+                  title={isFullscreen ? "Вийти з повного екрана" : "Повний екран"}
+                  style={{
+                    position: "absolute",
+                    bottom: 12,
+                    right: 12,
+                    background: "rgba(0,0,0,0.6)",
+                    border: "none",
+                    color: "white",
+                    cursor: "pointer",
+                    fontSize: 18,
+                    padding: "6px 10px",
+                    borderRadius: 4,
+                    transition: "background 0.2s",
+                  }}
+                >
+                  {isFullscreen ? "✖️" : "⛶"}
+                </button>
+              </div>
+
+              {/* Прогрес-бар та відображення часу */}
+              <div style={s.progressWrap}>
+                <input
+                  type="range"
+                  min="0"
+                  max={duration || 0}
+                  value={currentTime}
+                  onChange={handleSeek}
+                  style={s.progressBar}
+                  title={`${formatTime(currentTime)} / ${formatTime(duration)}`}
+                />
+                <div style={s.timeDisplay}>
+                  <span>{formatTime(currentTime)}</span>
+                  <span>{formatTime(duration)}</span>
+                </div>
+              </div>
+            </>
           )}
         </div>
       )}
