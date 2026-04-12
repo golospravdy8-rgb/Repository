@@ -1546,6 +1546,9 @@ export default function ChatPage() {
         </div>
       )}
 
+      {/* ── TV Block (Chat Column) ────────────────────────────────────────── */}
+      <TvBlock userName={userName} onSendMessage={sendSpecial} />
+
       {/* ── Messages ─────────────────────────────────────────────────────── */}
       <div style={{ flex: 1, overflowY: "auto", padding: "12px 16px", display: "flex", flexDirection: "column", gap: "4px" }}>
         {/* ── Active Poll Block ──────────────────────────────────────────── */}
@@ -2547,9 +2550,6 @@ export default function ChatPage() {
             </div>
           );
         })()}
-
-        {/* ── TV Block ──────────────────────────────────────────────── */}
-        <TvBlock userName={userName} onSendMessage={sendSpecial} />
 
         {/* ── News ticker block ──────────────────────────────────────────────── */}
         <div style={{ padding: "14px", borderBottom: "1px solid #1e2d4a", flexShrink: 0, minHeight: "280px" }}>

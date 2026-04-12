@@ -5,7 +5,7 @@
 🔧 [DEV:SAFE] Starting safe development server on port 3006...
 
 🔍 Scanning for processes on ports 3006-3012...
-✅ Killed process on port 3006 (PID: 2304)
+✅ Killed process on port 3006 (PID: 18020)
 ✨ Port cleanup complete!
 
 🚀 Starting Next.js development server...
@@ -14,7 +14,7 @@
 📍 Main App  → http://localhost:3006
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-(node:24260) [DEP0190] DeprecationWarning: Passing args to a child process with shell option true can lead to security vulnerabilities, as the arguments are not escaped, only concatenated.
+(node:7040) [DEP0190] DeprecationWarning: Passing args to a child process with shell option true can lead to security vulnerabilities, as the arguments are not escaped, only concatenated.
 (Use `node --trace-deprecation ...` to show where the warning was created)
   ▲ Next.js 14.2.35
   - Local:        http://localhost:3006
@@ -24,4 +24,20 @@
 
  ✓ Starting...
  ✓ Ready in 4s
- ○ Compi
+ ○ Compiling /chat ...
+ ✓ Compiled /chat in 2.8s (585 modules)
+[prisma.ts] ========== PRISMA INIT START ==========
+[prisma.ts] Initializing Prisma Client
+[prisma.ts] DATABASE_URL exists: true
+[prisma.ts] DATABASE_URL_UNPOOLED exists: true
+[prisma.ts] NODE_ENV: development
+[prisma.ts] Runtime: Node.js
+[prisma.ts] Prisma Client initialized successfully
+[prisma.ts] ========== PRISMA INIT END ==========
+ ✓ Compiled in 306ms (275 modules)
+prisma:query SELECT "public"."SiteSettings"."id", "public"."SiteSettings"."key", "public"."SiteSettings"."value", "public"."SiteSettings"."updatedAt" FROM "public"."SiteSettings" WHERE "public"."SiteSettings"."key" IN ($1,$2,$3) OFFSET $4
+ GET /chat 200 in 4147ms
+ ○ Compiling / ...
+ ✓ Compiled / in 595ms (643 modules)
+[prisma.ts] ========== PRISMA INIT START ==========
+[prisma.ts] Initializing Prisma Clien

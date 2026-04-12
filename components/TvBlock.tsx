@@ -80,7 +80,7 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
   };
 
   const s = {
-    wrap: { background:"#131f3a", border:"1px solid rgba(255,255,255,0.1)", borderRadius:14, padding:12, marginBottom:12 } as React.CSSProperties,
+    wrap: { background:"rgba(13,25,58,0.97)", borderBottom:"1px solid rgba(255,255,255,0.08)", borderRadius:0, padding:"8px 12px", marginBottom:0 } as React.CSSProperties,
     title: { color:"white", fontSize:13, fontWeight:700, marginBottom:8, display:"flex", justifyContent:"space-between", alignItems:"center" } as React.CSSProperties,
     slider: { display:"flex", overflowX:"auto" as const, gap:8, paddingBottom:6, scrollSnapType:"x mandatory" as const },
     card: { minWidth:110, flexShrink:0, scrollSnapAlign:"start" as const, background:"rgba(255,255,255,0.05)", borderRadius:10, padding:8, fontSize:10, color:"white", textAlign:"center" as const },
@@ -91,15 +91,34 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
     playerWrap: { marginTop:8, borderRadius:10, overflow:"hidden", position:"relative" as const } as React.CSSProperties,
   };
 
+  // Мінімізований режим: показувати тільки один рядок
+  if (minimized) {
+    return (
+      <div style={s.wrap}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:8 }}>
+          <div style={{ display:"flex", alignItems:"center", gap:8, flex:1, minWidth:0 }}>
+            <span style={{ fontSize:13, fontWeight:700, color:"white", whiteSpace:"nowrap" }}>📺 Телевізор</span>
+            {session && (
+              <span style={{ fontSize:12, color:"rgba(255,255,255,0.7)", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>
+                🔴 {session.match_title.substring(0,35)}... ({viewers.length} глядачів)
+              </span>
+            )}
+          </div>
+          <button onClick={() => setMinimized(false)} style={{ background:"none", border:"none", color:"#f97316", cursor:"pointer", fontSize:12, flexShrink:0, whiteSpace:"nowrap" }}>
+            ⬆ Розгорнути
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div style={s.wrap}>
       <div style={s.title}>
         <span>📺 Телевізор</span>
-        {showPlayer && (
-          <button onClick={() => setMinimized(!minimized)} style={{ background:"none", border:"none", color:"#f97316", cursor:"pointer", fontSize:12 }}>
-            {minimized ? "⬆ Розгорнути" : "⬇ Згорнути"}
-          </button>
-        )}
+        <button onClick={() => setMinimized(true)} style={{ background:"none", border:"none", color:"#f97316", cursor:"pointer", fontSize:12 }}>
+          ⬇ Згорнути
+        </button>
       </div>
 
       <div style={s.slider}>
@@ -141,12 +160,6 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
         </div>
       )}
 
-      {showPlayer && minimized && session && (
-        <div style={{ ...s.live, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-          <span>📺 {session.match_title.substring(0,30)}...</span>
-          <span style={{ color:"rgba(255,255,255,0.5)" }}>👁 {viewers.length}</span>
-        </div>
-      )}
     </div>
   );
 }
