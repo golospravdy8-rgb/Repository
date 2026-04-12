@@ -5,11 +5,13 @@ import type { GameRow } from "../SiteEditorClient";
 
 // ── Photo Gallery ──────────────────────────────────────────────────────────────
 
-type Album = { gameId: number; photos: string[]; videos?: string[]; coverPhoto: string | null; createdAt: string };
+type Photo = { id: number; url: string; createdAt: string };
+type Video = { id: number; url: string; createdAt: string };
+type Album = { gameId: number; photos: Photo[]; videos?: Video[]; coverPhoto: string | null; createdAt: string };
 
 function AlbumEditor({ album: initialAlbum, game }: { album: Album; game: GameRow | undefined }) {
-  const [photos, setPhotos] = useState<string[]>(initialAlbum.photos);
-  const [videos, setVideos] = useState<string[]>(initialAlbum.videos || []);
+  const [photos, setPhotos] = useState<Photo[]>(initialAlbum.photos);
+  const [videos, setVideos] = useState<Video[]>(initialAlbum.videos || []);
   const [cover, setCover] = useState<string | null>(initialAlbum.coverPhoto);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
@@ -36,8 +38,8 @@ function AlbumEditor({ album: initialAlbum, game }: { album: Album; game: GameRo
     }
 
     setUploading(true);
-    const newPhotoUrls: string[] = [];
-    const newVideoUrls: string[] = [];
+    const newPhotos: Photo[] = [];
+    const newVideos: Video[] = [];
     for (const file of toUpload) {
       const fd = new FormData();
       fd.append("file", file);
@@ -46,10 +48,11 @@ function AlbumEditor({ album: initialAlbum, game }: { album: Album; game: GameRo
         const res = await fetch("/api/gallery", { method: "POST", body: fd, credentials: "include" });
         const data = await res.json();
         if (res.ok && data.url) {
+          const mediaItem = { id: data.id, url: data.url, createdAt: new Date().toISOString() };
           if (file.type?.startsWith("video/")) {
-            newVideoUrls.push(data.url);
+            newVideos.push(mediaItem as Video);
           } else {
-            newPhotoUrls.push(data.url);
+            newPhotos.push(mediaItem as Photo);
           }
         } else {
           setError(data.error ?? "Помилка завантаження");
@@ -58,11 +61,11 @@ function AlbumEditor({ album: initialAlbum, game }: { album: Album; game: GameRo
         setError("Помилка мережі");
       }
     }
-    const updatedPhotos = [...photos, ...newPhotoUrls];
-    const updatedVideos = [...videos, ...newVideoUrls];
+    const updatedPhotos = [...photos, ...newPhotos];
+    const updatedVideos = [...videos, ...newVideos];
     setPhotos(updatedPhotos);
     setVideos(updatedVideos);
-    if (!cover && updatedPhotos.length > 0) setCover(updatedPhotos[0]);
+    if (!cover && updatedPhotos.length > 0) setCover(updatedPhotos[0].url);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
     setUploading(false);
@@ -77,9 +80,11 @@ function AlbumEditor({ album: initialAlbum, game }: { album: Album; game: GameRo
       credentials: "include",
     });
     if (res.ok) {
-      const updated = photos.filter((p) => p !== url);
+      const updated = photos.filter((p) => p.url !== url);
       setPhotos(updated);
-      if (cover === url) setCover(updated[0] ?? null);
+      const updatedVideos = videos.filter((v) => v.url !== url);
+      setVideos(updatedVideos);
+      if (cover === url) setCover(updated[0]?.url ?? null);
     }
   }
 
@@ -138,32 +143,32 @@ function AlbumEditor({ album: initialAlbum, game }: { album: Album; game: GameRo
             <div className="mb-4">
               <div className="text-xs font-semibold text-gray-600 mb-2">📷 Фотографії ({photos.length})</div>
               <div className="grid grid-cols-5 gap-2">
-                {photos.map((url, i) => (
+                {photos.map((photo) => (
                   <div
-                    key={`photo-${i}`}
+                    key={`photo-${photo.id}`}
                     className="relative group rounded-lg overflow-hidden bg-gray-200"
                     style={{ aspectRatio: "1" }}
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={url} alt={`фото ${i + 1}`} className="w-full h-full object-cover" />
+                    <img src={photo.url} alt={`фото ${photo.id}`} className="w-full h-full object-cover" />
 
-                    {cover === url && (
+                    {cover === photo.url && (
                       <div className="absolute top-1 left-1 bg-orange-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded leading-tight">
                         обкладинка
                       </div>
                     )}
 
                     <div className="absolute inset-0 bg-black/55 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1.5">
-                      {cover !== url && (
+                      {cover !== photo.url && (
                         <button
-                          onClick={() => handleSetCover(url)}
+                          onClick={() => handleSetCover(photo.url)}
                           className="text-[10px] bg-orange-500 text-white px-2 py-1 rounded font-bold"
                         >
                           Обкладинка
                         </button>
                       )}
                       <button
-                        onClick={() => handleDelete(url)}
+                        onClick={() => handleDelete(photo.url)}
                         className="text-[10px] bg-red-500 text-white px-2 py-1 rounded font-bold"
                       >
                         Видалити
@@ -174,7 +179,7 @@ function AlbumEditor({ album: initialAlbum, game }: { album: Album; game: GameRo
 
                 {Array.from({ length: Math.max(0, 10 - photos.length) }).map((_, i) => (
                   <div
-                    key={`empty-${i}`}
+                    key={`empty-photo-${i}`}
                     className="rounded-lg bg-gray-100 border-2 border-dashed border-gray-200 flex items-center justify-center"
                     style={{ aspectRatio: "1" }}
                   >
@@ -189,12 +194,12 @@ function AlbumEditor({ album: initialAlbum, game }: { album: Album; game: GameRo
             <div>
               <div className="text-xs font-semibold text-gray-600 mb-2">🎬 Відео ({videos.length})</div>
               <div className="space-y-2">
-                {videos.map((url, i) => (
-                  <div key={`video-${i}`} className="flex items-center gap-2 bg-gray-900 rounded-lg p-2">
-                    <video src={url} className="w-12 h-12 rounded object-cover" />
-                    <div className="flex-1 min-w-0 text-xs text-gray-300 truncate">{url.split('/').pop()}</div>
+                {videos.map((video) => (
+                  <div key={`video-${video.id}`} className="flex items-center gap-2 bg-gray-900 rounded-lg p-2">
+                    <video src={video.url} className="w-12 h-12 rounded object-cover" />
+                    <div className="flex-1 min-w-0 text-xs text-gray-300 truncate">{video.url.split('/').pop()}</div>
                     <button
-                      onClick={() => handleDelete(url)}
+                      onClick={() => handleDelete(video.url)}
                       className="text-[10px] bg-red-500 text-white px-2 py-1 rounded font-bold flex-shrink-0"
                     >
                       Видалити
