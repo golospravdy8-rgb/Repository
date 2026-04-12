@@ -10,15 +10,16 @@ export async function GET() {
     if (!season) return NextResponse.json({ players: [] });
 
     const now = new Date();
-    const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
-    console.log('[players/month] now:', now.toISOString(), 'monthStart:', monthStart.toISOString());
+    // Ищем игры за последние 60 дней (более надежно чем month-based)
+    const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
+    console.log('[players/month] now:', now.toISOString(), 'sixtyDaysAgo:', sixtyDaysAgo.toISOString());
 
     const honorPlayers = await prisma.boxScore.groupBy({
       by: ["playerId"],
       where: {
         game: {
           seasonId: season.id,
-          scheduledAt: { gte: monthStart },
+          scheduledAt: { gte: sixtyDaysAgo },
           status: "FINAL",
         },
       },
