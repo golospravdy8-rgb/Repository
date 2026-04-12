@@ -21,11 +21,14 @@ export async function GET() {
 
     // Для кожної гри отримаємо фото/відео з таблиці Video
     for (const game of gamesResult.rows) {
+      // Фото/відео зберігаються з gameId в URL: /gallery/{gameId}/ або /videos/{gameId}/
+      const gameIdStr = String(game.id);
       const mediaResult = await pool.query(
         `SELECT id, title, url, type, "createdAt" FROM "Video"
-         WHERE type = $1 OR type = $2
+         WHERE (type = $1 OR type = $2)
+         AND url LIKE $3
          ORDER BY "createdAt" DESC`,
-        ["gallery", "highlight"]
+        ["gallery", "highlight", `%/${gameIdStr}/%`]
       );
 
       const photos = mediaResult.rows.filter(
