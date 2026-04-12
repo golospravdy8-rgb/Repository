@@ -59,6 +59,7 @@ backup_*.json
 import_data.sql
 /data/
 current-full-backup.json
+SUPER_FULL_BACKUP.json
 
 # uploaded files (user content, not source)
 public/uploads/
