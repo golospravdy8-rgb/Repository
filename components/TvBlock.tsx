@@ -14,6 +14,7 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
   const [showPlayer, setShowPlayer] = useState(false);
   const [minimized, setMinimized] = useState(false);
   const [loadingVideo, setLoadingVideo] = useState(false);
+  const [hasLeft, setHasLeft] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const playerRef = useRef<any>(null);
   const seekOnReadyRef = useRef<number>(0);
@@ -37,11 +38,14 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
   }, []);
 
   const handleWatch = async (match: Match) => {
-    await fetch("/api/tv-session", {
+    const sr = await fetch("/api/tv-session", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ matchId: match.id, matchTitle: match.title, matchUrl: match.url, userName }),
     });
+    const sd = await sr.json();
+    const sessionId = sd.session?.id;
+
     setLoadingVideo(true);
     const r = await fetch(`/api/tv-video?url=${encodeURIComponent(match.url)}`);
     const d = await r.json();
@@ -51,6 +55,14 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
       setVideoType(d.type);
       setShowPlayer(true);
       setMinimized(false);
+      // Записуємо точний момент коли відео реально почало грати
+      if (sessionId) {
+        fetch("/api/tv-session", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sessionId }),
+        }).catch(() => {});
+      }
       onSendMessage?.(`📺 ${userName} запустив матч: ${match.title} — натисни LIVE щоб приєднатись!`);
     } else {
       window.open(match.url, "_blank");
@@ -60,17 +72,22 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
 
   const handleJoin = async () => {
     if (!session) return;
+    setHasLeft(false);
 
-    // Один запит — дізнатись точний started_at
+    // Отримати актуальні дані сесії з video_started_at
     const r = await fetch("/api/tv-session");
     const d = await r.json();
     if (!d.session) return;
 
     // Рахуємо скільки секунд відео вже грає
-    const startedAt = new Date(d.session.started_at).getTime();
-    const elapsedSec = (Date.now() - startedAt) / 1000;
+    let elapsedSec = 0;
+    if (d.session.video_started_at) {
+      const videoStartedAt = new Date(d.session.video_started_at).getTime();
+      elapsedSec = Math.max(0, (Date.now() - videoStartedAt) / 1000);
+    }
+    console.log(`[TV JOIN] seekTo: ${Math.floor(elapsedSec)}s`);
 
-    // Додати себе до viewers (один запит)
+    // Додати себе до viewers
     const pr = await fetch("/api/tv-session", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -79,7 +96,7 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
     const pd = await pr.json();
     setViewers(pd.viewers || []);
 
-    // Завантажити відео і seekTo потрібної секунди
+    // Завантажити відео
     setLoadingVideo(true);
     const vr = await fetch(`/api/tv-video?url=${encodeURIComponent(d.session.match_url)}`);
     const vd = await vr.json();
@@ -88,12 +105,19 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
     if (vd.videoUrl) {
       setVideoUrl(vd.videoUrl);
       setVideoType(vd.type);
-      seekOnReadyRef.current = elapsedSec; // seekTo після onReady
+      seekOnReadyRef.current = elapsedSec;
       setShowPlayer(true);
       setMinimized(false);
     } else {
       window.open(d.session.match_url, "_blank");
     }
+  };
+
+  const handleLeave = () => {
+    setShowPlayer(false);
+    setVideoUrl(null);
+    setVideoType(null);
+    setHasLeft(true);
   };
 
   const handleStop = async () => {
@@ -185,28 +209,31 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
       </div>
 
       {session && (() => {
-        const isWatching = viewers.includes(userName);
+        const canJoin = !viewers.includes(userName) || hasLeft || !showPlayer;
+        const isHost = session.started_by === userName;
         return (
           <div style={s.live}>
-            <div style={{ marginBottom: 3, fontSize: 10, fontWeight: 700 }}>🔴 LIVE: {session.match_title.substring(0, 25)}</div>
-            <div style={{ marginBottom: 4, fontSize: 9, color: "rgba(255,255,255,0.7)" }}>
-              👁 Дивляться ({viewers.length}): {viewers.join(", ")}
+            <div style={{ marginBottom: 3, fontSize: 10, fontWeight: 700 }}>
+              🔴 <strong>LIVE:</strong> {session.match_title.substring(0, 30)}
             </div>
-            <div style={{ display: "flex", gap: 2 }}>
-              {!isWatching && (
-                <button style={s.joinBtn} onClick={handleJoin}>🎮 Приєднатись</button>
-              )}
-              {isWatching && !showPlayer && (
-                <button style={s.joinBtn} onClick={() => {
-                  setShowPlayer(true);
-                  setMinimized(false);
-                  window.open(session.match_url, "_blank");
-                }}>
-                  ▶ Матч
+            <div style={{ marginBottom: 5, fontSize: 9, color: "rgba(255,255,255,0.7)" }}>
+              👁 ({viewers.length}): {viewers.join(", ")}
+            </div>
+            <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+              {canJoin && (
+                <button style={s.joinBtn} onClick={handleJoin}>
+                  🎮 Приєднатись
                 </button>
               )}
-              {session.started_by === userName && (
-                <button style={s.stopBtn} onClick={handleStop}>⏹</button>
+              {showPlayer && !hasLeft && !isHost && (
+                <button style={s.stopBtn} onClick={handleLeave}>
+                  ↩ Вийти
+                </button>
+              )}
+              {isHost && (
+                <button style={{ ...s.stopBtn, background: "rgba(220,50,50,0.2)" }} onClick={handleStop}>
+                  ⏹ Зупинити
+                </button>
               )}
             </div>
           </div>
@@ -225,7 +252,13 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
               width="100%"
               height="100%"
               controls
-              onLoadedMetadata={handlePlayerReady}
+              onLoadedMetadata={() => {
+                if (seekOnReadyRef.current > 0 && playerRef.current) {
+                  (playerRef.current as HTMLVideoElement).currentTime = seekOnReadyRef.current;
+                  console.log(`[TV] Seeked to ${seekOnReadyRef.current}s`);
+                  seekOnReadyRef.current = 0;
+                }
+              }}
               style={{ minHeight: 320, display: "block", background: "#000", objectFit: "cover" }}
             >
               <source src={videoUrl} type="video/mp4" />

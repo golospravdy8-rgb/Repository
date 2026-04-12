@@ -5,7 +5,7 @@ const pool = new Pool({ connectionString: process.env.POSTGRES_URL });
 
 export async function GET() {
   const { rows } = await pool.query(`
-    SELECT s.id, s.match_id, s.match_title, s.match_url, s.started_by, s.started_at,
+    SELECT s.id, s.match_id, s.match_title, s.match_url, s.started_by, s.started_at, s.video_started_at,
            COALESCE(array_agg(v.user_name) FILTER (WHERE v.user_name IS NOT NULL), '{}') as viewers
     FROM tv_session s
     LEFT JOIN tv_viewers v ON v.session_id = s.id
@@ -40,4 +40,13 @@ export async function DELETE(req: Request) {
   const { sessionId } = await req.json();
   await pool.query(`DELETE FROM tv_session WHERE id=$1`, [sessionId]);
   return NextResponse.json({ success: true });
+}
+
+export async function PUT(req: Request) {
+  const { sessionId } = await req.json();
+  await pool.query(
+    `UPDATE tv_session SET video_started_at = NOW() WHERE id = $1 AND video_started_at IS NULL`,
+    [sessionId]
+  );
+  return NextResponse.json({ ok: true });
 }
