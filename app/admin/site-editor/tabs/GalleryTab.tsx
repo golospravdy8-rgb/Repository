@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useTransition } from "react";
+import { upload } from "@vercel/blob/client";
 import type { GameRow } from "../SiteEditorClient";
 
 // ── Photo Gallery ──────────────────────────────────────────────────────────────
@@ -40,32 +41,95 @@ function AlbumEditor({ album: initialAlbum, game }: { album: Album; game: GameRo
     setUploading(true);
     const newPhotos: Photo[] = [];
     const newVideos: Video[] = [];
+
     for (const file of toUpload) {
-      const fd = new FormData();
-      fd.append("file", file);
-      fd.append("gameId", String(initialAlbum.gameId));
       try {
-        const res = await fetch("/api/gallery", { method: "POST", body: fd, credentials: "include" });
-        const data = await res.json();
-        if (res.ok && data.url) {
-          const mediaItem = { id: data.id, url: data.url, createdAt: new Date().toISOString() };
-          if (file.type?.startsWith("video/")) {
-            newVideos.push(mediaItem as Video);
-          } else {
-            newPhotos.push(mediaItem as Photo);
+        const isVideo = file.type?.startsWith("video/") ?? false;
+        const fileSize = file.size;
+        const fileSizeMB = fileSize / (1024 * 1024);
+
+        // Великі відео (>4.5MB) — client-side upload напряму в Blob
+        if (isVideo && fileSizeMB > 4.5) {
+          console.log(
+            `[AlbumEditor] Large video detected: ${file.name} (${fileSizeMB.toFixed(2)}MB)`
+          );
+
+          // Отримай client token від сервера
+          const tokenRes = await fetch("/api/gallery/upload-token", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              gameId: initialAlbum.gameId,
+              filename: file.name,
+              contentType: file.type,
+            }),
+          });
+
+          if (!tokenRes.ok) {
+            const err = await tokenRes.json();
+            throw new Error(err.error || "Не вдалося отримати токен завантаження");
           }
+
+          const { clientToken } = await tokenRes.json();
+
+          // Завантаж напряму в Blob (без ліміту розміру)
+          console.log(`[AlbumEditor] Uploading ${file.name} to Vercel Blob...`);
+          const blob = await upload(file.name, file, {
+            access: "public",
+            handleUploadUrl: "/api/gallery/upload-token",
+            clientPayload: clientToken,
+          });
+
+          console.log(`[AlbumEditor] ✅ Blob upload complete: ${blob.url}`);
+
+          // Webhook callback вже сохранив в БД, але давай зареєструємо локально
+          const videoItem: Video = {
+            id: Math.random(), // placeholder, реальний id прийде від callback
+            url: blob.url,
+            createdAt: new Date().toISOString(),
+          };
+          newVideos.push(videoItem);
         } else {
-          setError(data.error ?? "Помилка завантаження");
+          // Фото або малі відео (<4.5MB) — через звичайний API
+          const fd = new FormData();
+          fd.append("file", file);
+          fd.append("gameId", String(initialAlbum.gameId));
+
+          const res = await fetch("/api/gallery", {
+            method: "POST",
+            body: fd,
+            credentials: "include",
+          });
+          const data = await res.json();
+
+          if (res.ok && data.url) {
+            const mediaItem = {
+              id: data.id,
+              url: data.url,
+              createdAt: new Date().toISOString(),
+            };
+            if (isVideo) {
+              newVideos.push(mediaItem as Video);
+            } else {
+              newPhotos.push(mediaItem as Photo);
+            }
+          } else {
+            setError(data.error ?? "Помилка завантаження");
+          }
         }
-      } catch {
-        setError("Помилка мережі");
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "Помилка мережі";
+        setError(msg);
+        console.error("[AlbumEditor] Upload error:", msg);
       }
     }
+
     const updatedPhotos = [...photos, ...newPhotos];
     const updatedVideos = [...videos, ...newVideos];
     setPhotos(updatedPhotos);
     setVideos(updatedVideos);
     if (!cover && updatedPhotos.length > 0) setCover(updatedPhotos[0].url);
+
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
     setUploading(false);
