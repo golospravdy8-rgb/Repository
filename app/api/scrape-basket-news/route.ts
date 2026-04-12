@@ -36,11 +36,22 @@ async function getNewsImage(url: string): Promise<string | null> {
   }
 }
 
+function extractDateFromUrl(url: string): string | null {
+  const match = url.match(/\/(\d{4})\/(\d{2})\/(\d{2})\//);
+  return match ? `${match[1]}-${match[2]}-${match[3]}` : null;
+}
+
 async function scrapeBasketNews(): Promise<NewsItem[]> {
   const headers = { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" };
 
-  // --- БЛОК 1: "НОВИНИ ДНЯ" (кнопки 1-6) ---
-  const newsDay: { title: string; link: string }[] = [];
+  // Отримуємо поточну дату та вчорашню дату в форматі YYYY-MM-DD
+  const today = new Date();
+  const todayStr = today.toISOString().split("T")[0];
+  const yesterday = new Date(today.getTime() - 86400000);
+  const yesterdayStr = yesterday.toISOString().split("T")[0];
+
+  const allNews: { title: string; link: string }[] = [];
+
   try {
     const res = await fetch("https://basket.com.ua/", {
       headers,
@@ -49,54 +60,48 @@ async function scrapeBasketNews(): Promise<NewsItem[]> {
     const html = await res.text();
     const $ = cheerio.load(html);
 
-    // Знаходимо секцію НОВИНИ ДНЯ
+    // Збираємо ВСІ новини зі сторінки
     $("a").each((_, el) => {
       const link = $(el).attr("href") || "";
       const title = $(el).text().trim();
       const fullLink = link.startsWith("http") ? link : `https://basket.com.ua${link}`;
       if (
         fullLink.includes("basket.com.ua/news/newsday/") &&
-        fullLink.split("/").length > 7 && // це конкретна новина, не категорія
-        title.length > 10 &&
-        !newsDay.find(n => n.link === fullLink)
-      ) {
-        newsDay.push({ title, link: fullLink });
-      }
-    });
-    console.log(`[НОВИНИ ДНЯ] знайдено: ${newsDay.length}`);
-  } catch (e) {
-    console.error("[НОВИНИ ДНЯ] помилка:", e);
-  }
-
-  // --- БЛОК 2: "СТРІЧКА НОВИН" (кнопки 7-12) ---
-  const newsStrychka: { title: string; link: string }[] = [];
-  try {
-    const strRes = await fetch("https://basket.com.ua/news/newsday/", {
-      headers,
-      signal: AbortSignal.timeout(15000),
-    });
-    const strHtml = await strRes.text();
-    const $str = cheerio.load(strHtml);
-
-    $str("a[href*='/news/newsday/']").each((_, el) => {
-      const link = $str(el).attr("href") || "";
-      const title = $str(el).text().trim();
-      const fullLink = link.startsWith("http") ? link : `https://basket.com.ua${link}`;
-      if (
-        fullLink !== "https://basket.com.ua/news/newsday/" &&
         fullLink.split("/").length > 7 &&
         title.length > 10 &&
-        !newsStrychka.find(n => n.link === fullLink)
+        !allNews.find(n => n.link === fullLink)
       ) {
-        newsStrychka.push({ title, link: fullLink });
+        allNews.push({ title, link: fullLink });
       }
     });
-    console.log(`[СТРІЧКА НОВИН] знайдено: ${newsStrychka.length}`);
+    console.log(`[ВСЬОГО] знайдено: ${allNews.length}`);
   } catch (e) {
-    console.error("[СТРІЧКА НОВИН] помилка:", e);
+    console.error("[ПАРСИНГ] помилка:", e);
   }
 
-  const top6Day = newsDay.slice(0, 6);
+  // --- РОЗДІЛЕННЯ ПО ДАТАМ ---
+  let newsDay: { title: string; link: string }[] = [];
+  let newsStrychka: { title: string; link: string }[] = [];
+
+  allNews.forEach(item => {
+    const dateFromUrl = extractDateFromUrl(item.link);
+    if (dateFromUrl === todayStr) {
+      newsDay.push(item);
+    } else if (dateFromUrl === yesterdayStr || (dateFromUrl && dateFromUrl < yesterdayStr)) {
+      newsStrychka.push(item);
+    }
+  });
+
+  console.log(`[НОВИНИ ДНЯ (${todayStr})] ${newsDay.length} | [СТРІЧКА (вчора/раніше)] ${newsStrychka.length}`);
+
+  // Якщо новин дня менше 6 — доповнюємо вчорашніми
+  let top6Day = newsDay.slice(0, 6);
+  if (top6Day.length < 6) {
+    const needed = 6 - top6Day.length;
+    top6Day = [...top6Day, ...newsStrychka.slice(0, needed)];
+    newsStrychka = newsStrychka.slice(needed);
+  }
+
   const top6Str = newsStrychka.slice(0, 6);
   const combined = [...top6Day, ...top6Str];
 
