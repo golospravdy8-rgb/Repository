@@ -24,12 +24,18 @@ export async function GET() {
       ORDER BY g.id
     `);
 
-    const albums = result.rows.map(row => ({
-      gameId: row.gameId,
-      photos: (row.photos || []).filter((p: any) => p.url && p.url.startsWith('http')),
-      coverPhoto: row.photos && row.photos[0]?.url ? row.photos[0].url : null,
-      createdAt: new Date().toISOString()
-    }));
+    const albums = result.rows.map(row => {
+      const allMedia = (row.photos || []).filter((p: any) => p.url && p.url.startsWith('http'));
+      const photos = allMedia.filter((m: any) => !m.url.includes('/videos/'));
+      const videos = allMedia.filter((m: any) => m.url.includes('/videos/'));
+      return {
+        gameId: row.gameId,
+        photos,
+        videos,
+        coverPhoto: allMedia[0]?.url || null,
+        createdAt: new Date().toISOString()
+      };
+    });
 
     return NextResponse.json({ albums });
   } catch (e) {
@@ -56,14 +62,17 @@ export async function POST(req: Request) {
 
     const ext = file.name.split(".").pop() || "jpg";
     const uploadId = Math.random().toString(36).substring(7);
-    const blobPath = `gallery/${gameId}/${uploadId}-${Date.now()}.${ext}`;
+    const isVideo = file.type?.startsWith("video/");
+    const folder = isVideo ? "videos" : "gallery";
+    const blobPath = `${folder}/${gameId}/${uploadId}-${Date.now()}.${ext}`;
+    const contentType = file.type || (isVideo ? "video/mp4" : "image/jpeg");
 
-    console.log(`[gallery ${uploadId}] Uploading to Vercel Blob: ${blobPath}`);
+    console.log(`[gallery ${uploadId}] Uploading ${isVideo ? "video" : "photo"} to Vercel Blob: ${blobPath}`);
 
     const buffer = Buffer.from(await file.arrayBuffer());
     const blob = await put(blobPath, buffer, {
       access: "public",
-      contentType: file.type || "image/jpeg",
+      contentType: contentType,
       token: token,
     });
 
