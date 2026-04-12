@@ -40,31 +40,6 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
   }, []);
 
-  useEffect(() => {
-    if (!showPlayer || !playerRef.current) return;
-
-    const handleTimeUpdate = () => {
-      if (!isHostRef.current || !currentSessionIdRef.current) return;
-
-      const ct = Math.floor(playerRef.current!.currentTime);
-      // Відправляємо кожні 3 секунди (ct % 3 === 0)
-      if (ct > 0 && ct % 3 === 0) {
-        console.log(`[HOST] sending ${ct}s to session ${currentSessionIdRef.current}`);
-        fetch("/api/tv-session", {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            sessionId: currentSessionIdRef.current,
-            currentTimeSec: ct
-          }),
-        }).catch(() => {});
-      }
-    };
-
-    const videoEl = playerRef.current;
-    videoEl.addEventListener("timeupdate", handleTimeUpdate);
-    return () => videoEl.removeEventListener("timeupdate", handleTimeUpdate);
-  }, [showPlayer]);
 
   const handleWatch = async (match: Match) => {
     const sr = await fetch("/api/tv-session", {
@@ -286,18 +261,40 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
               height="100%"
               controls
               onLoadedMetadata={() => {
-                // Після завантаження: seekTo target якщо є
-                if (!isHostRef.current && seekTargetRef.current > 0 && playerRef.current) {
+                // VIEWER: перша спроба seekTo (може спрацювати раніше onTimeUpdate)
+                if (!isHostRef.current && !didSeekRef.current && seekTargetRef.current > 0 && playerRef.current) {
                   console.log(`[VIEWER] onLoadedMetadata seekTo ${seekTargetRef.current}s`);
                   playerRef.current.currentTime = seekTargetRef.current;
+                  // НЕ скидаємо didSeekRef тут — перевіримо в onTimeUpdate що seek дійсно відбувся
                 }
               }}
               onTimeUpdate={() => {
-                // VIEWER: перевіряємо чи вже seekнули
-                if (isHostRef.current || !playerRef.current) return;
+                if (!playerRef.current) return;
 
-                if (!didSeekRef.current && seekTargetRef.current > 0) {
-                  console.log(`[VIEWER] onTimeUpdate seekTo ${seekTargetRef.current}s, currently at ${Math.floor(playerRef.current.currentTime)}s`);
+                // HOST: надсилаємо currentTime кожні 3 секунди
+                if (isHostRef.current && currentSessionIdRef.current) {
+                  const ct = Math.floor(playerRef.current.currentTime);
+                  if (ct > 0 && ct % 3 === 0) {
+                    const key = `_sent_${ct}`;
+                    if (!(playerRef.current as any)[key]) {
+                      (playerRef.current as any)[key] = true;
+                      console.log(`[HOST] ⬆ ${ct}s → session ${currentSessionIdRef.current}`);
+                      fetch("/api/tv-session", {
+                        method: "PUT",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          sessionId: currentSessionIdRef.current,
+                          currentTimeSec: ct
+                        }),
+                      }).catch(() => {});
+                    }
+                  }
+                  return;
+                }
+
+                // VIEWER: один раз seekTo після старту
+                if (!isHostRef.current && !didSeekRef.current && seekTargetRef.current > 0) {
+                  console.log(`[VIEWER] onTimeUpdate seekTo ${seekTargetRef.current}s`);
                   playerRef.current.currentTime = seekTargetRef.current;
                   didSeekRef.current = true;
                   seekTargetRef.current = 0;
