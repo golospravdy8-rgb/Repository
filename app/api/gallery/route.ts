@@ -69,8 +69,8 @@ export async function POST(req: Request) {
 
     // Зберігаємо в таблицю Video
     const result = await pool.query(
-      `INSERT INTO "Video" (url, type, "createdAt") VALUES ($1, $2, NOW()) RETURNING *`,
-      [blob.url, 'gallery']
+      `INSERT INTO "Video" (title, url, type, "createdAt") VALUES ($1, $2, $3, NOW()) RETURNING *`,
+      [file.name, blob.url, 'gallery']
     );
 
     console.log(`[gallery ${uploadId}] ✅ Photo saved: ${blob.url}`);
