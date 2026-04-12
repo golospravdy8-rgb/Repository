@@ -147,6 +147,7 @@ model Video {
   thumbnail   String?
   type        String   @default("highlights")
   publishedAt DateTime @default(now())
+  createdAt   DateTime @default(now())
   isPublished Boolean  @default(true)
 }
 
@@ -286,6 +287,30 @@ model ChatStreak {
   currentStreak Int      @default(0)
   lastVisit     String   @default("")
   updatedAt     DateTime @updatedAt
+}
+
+model TvSession {
+  id            Int       @id @default(autoincrement())
+  match_id      String?
+  match_title   String
+  match_url     String
+  started_by    String
+  started_at    DateTime  @default(now())
+  video_started_at DateTime?
+  current_time_sec Float   @default(0)
+  time_updated_at  DateTime?
+  viewers       TvViewer[]
+
+  @@map("tv_session")
+}
+
+model TvViewer {
+  id          Int       @id @default(autoincrement())
+  session_id  Int
+  user_name   String
+  session     TvSession @relation(fields: [session_id], references: [id], onDelete: Cascade)
+
+  @@map("tv_viewers")
 }
 
 model ChatOnline {
