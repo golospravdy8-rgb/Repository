@@ -4,7 +4,6 @@ export const dynamic = "force-dynamic";
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSettings } from "@/lib/site-settings";
-import { supabase, getChatChannelName } from "@/lib/supabase";
 
 // ── POST ──────────────────────────────────────────────────────────────────
 export async function POST(req: NextRequest) {
@@ -153,16 +152,6 @@ export async function POST(req: NextRequest) {
       ? (await prisma.guestContact.findUnique({ where: { phone }, select: { hp: true } }))?.hp ?? null
       : null;
 
-    // Broadcast на Supabase Realtime
-    const channel = supabase.channel(getChatChannelName(roomId));
-    await channel.send({
-      type: "broadcast",
-      event: "message",
-      payload: { message: serializeMsg(msg, isMod) },
-    }).catch((err) => {
-      console.error("[chat broadcast error]", err);
-    });
-
     return Response.json({ ok: true, hpGained, newHp });
   }
 
@@ -181,19 +170,6 @@ export async function POST(req: NextRequest) {
       await prisma.chatReaction.create({ data: { messageId: Number(messageId), phone, emoji } });
     }
     const reactions = await prisma.chatReaction.findMany({ where: { messageId: Number(messageId) } });
-
-    // Broadcast reactions on Supabase
-    const msg = await prisma.chatMessage.findUnique({ where: { id: Number(messageId) } });
-    if (msg) {
-      const channel = supabase.channel(getChatChannelName(msg.roomId));
-      await channel.send({
-        type: "broadcast",
-        event: "reactions",
-        payload: { messageId: Number(messageId), reactions },
-      }).catch((err) => {
-        console.error("[reactions broadcast error]", err);
-      });
-    }
 
     return Response.json({ ok: true });
   }
@@ -228,16 +204,6 @@ export async function POST(req: NextRequest) {
       await prisma.chatPinnedMessage.deleteMany();
     }
 
-    // Broadcast pin on Supabase (general room)
-    const channel = supabase.channel(getChatChannelName("general"));
-    await channel.send({
-      type: "broadcast",
-      event: "pin",
-      payload: { text: text ?? null },
-    }).catch((err) => {
-      console.error("[pin broadcast error]", err);
-    });
-
     return Response.json({ ok: true });
   }
 
@@ -252,16 +218,6 @@ export async function POST(req: NextRequest) {
       return Response.json({ error: "Недостатньо прав" }, { status: 403 });
 
     await prisma.chatMessage.delete({ where: { id: Number(messageId) } });
-
-    // Broadcast deletion on Supabase
-    const channel = supabase.channel(getChatChannelName(msg.roomId));
-    await channel.send({
-      type: "broadcast",
-      event: "delete_message",
-      payload: { messageId: Number(messageId) },
-    }).catch((err) => {
-      console.error("[delete broadcast error]", err);
-    });
 
     return Response.json({ ok: true });
   }
@@ -285,16 +241,6 @@ export async function POST(req: NextRequest) {
     const durLabel = hours ? `${hours}г` : banMinutes ? `${banMinutes}хв` : "назавжди";
     await prisma.chatModAction.create({
       data: { action: "ban", modPhone: phone, modName, targetPhone, targetName, details: `Бан ${durLabel}: ${reason ?? ""}` },
-    });
-
-    // Broadcast ban on Supabase
-    const channel = supabase.channel(getChatChannelName("general"));
-    await channel.send({
-      type: "broadcast",
-      event: "ban",
-      payload: { phone: targetPhone },
-    }).catch((err) => {
-      console.error("[ban broadcast error]", err);
     });
 
     return Response.json({ ok: true });
@@ -336,16 +282,6 @@ export async function POST(req: NextRequest) {
       data: { action: "mute", modPhone: phone, modName, targetPhone, targetName, details: `Мют ${muteMins} хв` },
     });
 
-    // Broadcast mute on Supabase
-    const channel = supabase.channel(getChatChannelName("general"));
-    await channel.send({
-      type: "broadcast",
-      event: "mute",
-      payload: { phone: targetPhone, mutedUntil: mutedUntil.toISOString() },
-    }).catch((err) => {
-      console.error("[mute broadcast error]", err);
-    });
-
     return Response.json({ ok: true });
   }
 
@@ -377,26 +313,7 @@ export async function POST(req: NextRequest) {
       await prisma.chatModAction.create({
         data: { action: "autoban", modPhone: "system", modName: "Система", targetPhone, targetName, details: "Автобан після 3 варнів" },
       });
-      // Broadcast auto-ban on Supabase
-      const channel = supabase.channel(getChatChannelName("general"));
-      await channel.send({
-        type: "broadcast",
-        event: "ban",
-        payload: { phone: targetPhone },
-      }).catch((err) => {
-        console.error("[auto-ban broadcast error]", err);
-      });
     }
-
-    // Broadcast warn on Supabase
-    const channel = supabase.channel(getChatChannelName("general"));
-    await channel.send({
-      type: "broadcast",
-      event: "warn",
-      payload: { phone: targetPhone, count: warnCount, reason: reason ?? "" },
-    }).catch((err) => {
-      console.error("[warn broadcast error]", err);
-    });
 
     return Response.json({ ok: true, warnCount, autoBanned: warnCount >= 3 });
   }
@@ -509,22 +426,4 @@ export async function POST(req: NextRequest) {
 async function isModOrAdmin(phone: string): Promise<boolean> {
   if (!phone) return false;
   return !!(await prisma.chatModerator.findUnique({ where: { phone } }));
-}
-
-function serializeMsg(msg: {
-  id: number; phone: string; name: string; text: string; createdAt: Date; roomId?: string;
-  replyTo: { id: number; name: string; text: string } | null;
-  reactions: { id: number; phone: string; emoji: string }[];
-}, isMod: boolean) {
-  return {
-    id: msg.id,
-    phone: msg.phone,
-    name: msg.name,
-    text: msg.text,
-    roomId: msg.roomId ?? "general",
-    createdAt: msg.createdAt.toISOString(),
-    isMod,
-    replyTo: msg.replyTo ? { id: msg.replyTo.id, name: msg.replyTo.name, text: msg.replyTo.text } : null,
-    reactions: msg.reactions,
-  };
 }

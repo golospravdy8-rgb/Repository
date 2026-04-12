@@ -6,7 +6,6 @@ import ChatActivePoll, { ChatPollData } from "./ChatActivePoll";
 import NewsTicker from "@/components/NewsTicker";
 import TvBlock from "@/components/TvBlock";
 import { createChatPoll, finishChatPoll } from "@/actions/chat-poll";
-import { supabase, getChatChannelName } from "@/lib/supabase";
 
 const LS_KEY = "ldbl_chat_user";
 const EMOJIS = ["👍", "❤️", "😂", "😮", "🔥", "🏀"];
@@ -604,66 +603,63 @@ export default function ChatPage() {
     return () => clearInterval(interval);
   }, [step]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Supabase Realtime for chat messages ────────────────────────────────
+  // ── Polling for chat messages (every 1.5s) ──────────────────────────────
   useEffect(() => {
-    if (step !== "chat") return;
+    if (step !== "chat" || !user) return;
 
-    const roomId = activeRoomRef.current || "general";
+    let lastMessageId = 0;
+    let isMounted = true;
 
-    const channel = supabase
-      .channel(getChatChannelName(roomId), { config: { broadcast: { self: true } } })
-      .on("broadcast", { event: "message" }, (payload: any) => {
-        if (payload.payload?.message) {
-          setMessages((prev) => [...prev.slice(-199), payload.payload.message]);
+    const poll = async () => {
+      try {
+        const roomId = activeRoomRef.current || "general";
+        const headers: Record<string, string> = {};
+        if (roomId === "parents") {
+          const token = typeof window !== "undefined" ? localStorage.getItem("parent_token") : null;
+          if (token) headers["Authorization"] = `Bearer ${token}`;
         }
-      })
-      .on("broadcast", { event: "reactions" }, (payload: any) => {
-        const { messageId, reactions } = payload.payload || {};
-        if (messageId !== undefined) {
-          setMessages((prev) =>
-            prev.map((m) =>
-              m.id === messageId ? { ...m, reactions: reactions || [] } : m
-            )
-          );
-        }
-      })
-      .on("broadcast", { event: "delete_message" }, (payload: any) => {
-        const { messageId } = payload.payload || {};
-        if (messageId !== undefined) {
-          setMessages((prev) => prev.filter((m) => m.id !== messageId));
-        }
-      })
-      .on("broadcast", { event: "pin" }, (payload: any) => {
-        const { text } = payload.payload || {};
-        setPinnedMessage(text ?? null);
-      })
-      .on("broadcast", { event: "ban" }, (payload: any) => {
-        const { phone } = payload.payload || {};
-        if (phone === user?.phone) {
-          notify("Вас заблоковано в чаті");
-          setStep("form");
-          localStorage.removeItem(LS_KEY);
-        }
-      })
-      .on("broadcast", { event: "mute" }, (payload: any) => {
-        const { phone, mutedUntil } = payload.payload || {};
-        if (phone === user?.phone) {
-          notify(`Вас замовчано до ${new Date(mutedUntil).toLocaleTimeString("uk-UA")}`);
-        }
-      })
-      .on("broadcast", { event: "warn" }, (payload: any) => {
-        const { phone, count, reason } = payload.payload || {};
-        if (phone === user?.phone) {
-          notify(`⚠️ Попередження: ${reason || "порушення правил"} (${count}/3)`);
-          setUser((u) => (u ? { ...u, warns: count ?? 0 } : u));
-        }
-      })
-      .subscribe();
 
-    return () => {
-      channel.unsubscribe().catch(() => {});
+        const res = await fetch(`/api/chat/messages?room=${roomId}&limit=50`, { headers });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+        const data = await res.json();
+        if (!isMounted) return;
+
+        const newMessages = data.messages || [];
+
+        // Add only new messages since last poll
+        if (newMessages.length > 0) {
+          const maxId = Math.max(...newMessages.map((m: any) => m.id));
+          if (maxId > lastMessageId) {
+            const freshMessages = newMessages.filter((m: any) => m.id > lastMessageId);
+            if (freshMessages.length > 0) {
+              lastMessageId = maxId;
+              setMessages((prev) => [...prev.slice(-199), ...freshMessages]);
+            }
+          } else if (lastMessageId === 0) {
+            // Initial load
+            lastMessageId = newMessages.length > 0 ? maxId : 0;
+            setMessages(newMessages);
+          }
+        }
+
+        if (data.pinnedMessage !== undefined) {
+          setPinnedMessage(data.pinnedMessage);
+        }
+      } catch (err) {
+        console.error("[chat polling error]", err);
+      }
+
+      if (isMounted) {
+        setTimeout(poll, 1500);
+      }
     };
-  }, [step]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    poll();
+    return () => {
+      isMounted = false;
+    };
+  }, [step, user?.phone]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleSSE(ev: {
     type: string; message?: ChatMessage; messageId?: number; reactions?: Reaction[];
