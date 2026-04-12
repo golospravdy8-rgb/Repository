@@ -623,7 +623,7 @@ export default function ChatPage() {
       const msgRoom = (ev.message as { roomId?: string }).roomId ?? "general";
       const currentRoom = activeRoomRef.current;
       // Only add message if it belongs to the currently viewed room
-      if (msgRoom === currentRoom || (msgRoom === "general" && currentRoom === "general")) {
+      if (msgRoom === currentRoom) {
         setMessages((prev) => [...prev.slice(-199), ev.message!]);
       }
     }
@@ -901,20 +901,34 @@ export default function ChatPage() {
 
   async function sendSpecial(text: string) {
     if (!user) return;
-    await fetch("/api/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        action: "message",
-        phone: user.phone,
-        name: `${user.firstName} ${user.lastName}`,
-        text,
-        replyToId: replyTo?.id ?? null,
-        roomId: activeRoom,
-      }),
-    });
-    setReplyTo(null);
-    setOpenPanel(null);
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "message",
+          phone: user.phone,
+          name: `${user.firstName} ${user.lastName}`,
+          text,
+          replyToId: replyTo?.id ?? null,
+          roomId: activeRoom,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        // Update HP if sent successfully
+        if (data.newHp != null) {
+          setUser((u) => u ? { ...u, hp: data.newHp } : u);
+        }
+        setReplyTo(null);
+        setOpenPanel(null);
+      } else {
+        const err = await res.json();
+        notify(err.error ?? "Помилка відправки стікера");
+      }
+    } catch {
+      notify("Помилка з'єднання. Стікер не надіслано.");
+    }
   }
 
   function handleLogout() {
