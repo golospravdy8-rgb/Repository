@@ -5,7 +5,7 @@ const pool = new Pool({ connectionString: process.env.POSTGRES_URL });
 
 export async function GET() {
   const { rows } = await pool.query(`
-    SELECT s.id, s.match_id, s.match_title, s.match_url, s.started_by,
+    SELECT s.id, s.match_id, s.match_title, s.match_url, s.started_by, s.started_at,
            COALESCE(array_agg(v.user_name) FILTER (WHERE v.user_name IS NOT NULL), '{}') as viewers
     FROM tv_session s
     LEFT JOIN tv_viewers v ON v.session_id = s.id

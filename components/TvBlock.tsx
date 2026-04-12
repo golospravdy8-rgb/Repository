@@ -15,6 +15,8 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
   const [minimized, setMinimized] = useState(false);
   const [loadingVideo, setLoadingVideo] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const playerRef = useRef<any>(null);
+  const seekOnReadyRef = useRef<number>(0);
 
   useEffect(() => {
     fetch("/api/tv-matches")
@@ -30,7 +32,7 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
       setViewers(d.viewers || []);
     };
     poll();
-    intervalRef.current = setInterval(poll, 3000);
+    intervalRef.current = setInterval(poll, 5000);
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
   }, []);
 
@@ -58,32 +60,39 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
 
   const handleJoin = async () => {
     if (!session) return;
-    // Додаємо себе до списку viewers
-    const r = await fetch("/api/tv-session", {
+
+    // Один запит — дізнатись точний started_at
+    const r = await fetch("/api/tv-session");
+    const d = await r.json();
+    if (!d.session) return;
+
+    // Рахуємо скільки секунд відео вже грає
+    const startedAt = new Date(d.session.started_at).getTime();
+    const elapsedSec = (Date.now() - startedAt) / 1000;
+
+    // Додати себе до viewers (один запит)
+    const pr = await fetch("/api/tv-session", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ sessionId: session.id, userName }),
     });
-    const d = await r.json();
-    setViewers(d.viewers || []);
-    // Відкриваємо відео
-    if (videoUrl) {
+    const pd = await pr.json();
+    setViewers(pd.viewers || []);
+
+    // Завантажити відео і seekTo потрібної секунди
+    setLoadingVideo(true);
+    const vr = await fetch(`/api/tv-video?url=${encodeURIComponent(d.session.match_url)}`);
+    const vd = await vr.json();
+    setLoadingVideo(false);
+
+    if (vd.videoUrl) {
+      setVideoUrl(vd.videoUrl);
+      setVideoType(vd.type);
+      seekOnReadyRef.current = elapsedSec; // seekTo після onReady
       setShowPlayer(true);
       setMinimized(false);
     } else {
-      // Спробуємо завантажити відео для цього учасника
-      setLoadingVideo(true);
-      const vr = await fetch(`/api/tv-video?url=${encodeURIComponent(session.match_url)}`);
-      const vd = await vr.json();
-      setLoadingVideo(false);
-      if (vd.videoUrl) {
-        setVideoUrl(vd.videoUrl);
-        setVideoType(vd.type);
-        setShowPlayer(true);
-        setMinimized(false);
-      } else {
-        window.open(session.match_url, "_blank");
-      }
+      window.open(d.session.match_url, "_blank");
     }
   };
 
@@ -97,6 +106,13 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
     setShowPlayer(false);
     setVideoUrl(null);
     setVideoType(null);
+  };
+
+  const handlePlayerReady = () => {
+    if (seekOnReadyRef.current > 0 && playerRef.current) {
+      playerRef.current.seekTo(seekOnReadyRef.current, "seconds");
+      seekOnReadyRef.current = 0;
+    }
   };
 
   const s = {
@@ -204,7 +220,14 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
           {videoType === "iframe" ? (
             <iframe src={videoUrl} style={{ width: "100%", height: "100%", minHeight: 320, border: "none", display: "block" }} allowFullScreen />
           ) : (
-            <video width="100%" height="100%" controls style={{ minHeight: 320, display: "block", background: "#000", objectFit: "cover" }}>
+            <video
+              ref={playerRef}
+              width="100%"
+              height="100%"
+              controls
+              onLoadedMetadata={handlePlayerReady}
+              style={{ minHeight: 320, display: "block", background: "#000", objectFit: "cover" }}
+            >
               <source src={videoUrl} type="video/mp4" />
             </video>
           )}
