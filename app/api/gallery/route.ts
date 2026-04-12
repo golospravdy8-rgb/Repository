@@ -113,11 +113,13 @@ export async function POST(req: Request) {
     });
 
     // Зберігаємо в таблицю Video з type=gallery (для фото) або type=highlight (для відео)
+    // Фото: isPublished=false (тільки в адмінці)
+    // Відео: isPublished=true (показувати на /media)
     const result = await pool.query(
-      `INSERT INTO "Video" (title, url, type, "createdAt")
-       VALUES ($1, $2, $3, NOW())
+      `INSERT INTO "Video" (title, url, type, "isPublished", "publishedAt", "createdAt")
+       VALUES ($1, $2, $3, $4, NOW(), NOW())
        RETURNING id, url, type, "createdAt"`,
-      [file.name, blob.url, isVideo ? "highlight" : "gallery"]
+      [file.name, blob.url, isVideo ? "highlight" : "gallery", isVideo]
     );
 
     console.log(`[gallery ${uploadId}] ✅ Saved: ${blob.url}`);
