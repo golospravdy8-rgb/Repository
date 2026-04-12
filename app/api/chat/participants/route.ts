@@ -38,8 +38,7 @@ export async function GET(req: NextRequest) {
       ORDER BY isonline DESC, gc."firstName" ASC
     `;
   } else {
-    // General room: everyone who has ever sent a heartbeat for general,
-    // plus league players — sorted online first then by hp
+    // General room: all GuestContact users, sorted by online status then hp
     rows = await prisma.$queryRaw<ParticipantRow[]>`
       SELECT
         gc.phone,
@@ -48,13 +47,12 @@ export async function GET(req: NextRequest) {
         gc.hp,
         gc.role,
         CASE
-          WHEN co."lastSeen" > NOW() - INTERVAL '2 minutes'
+          WHEN co."lastSeen" > NOW() - INTERVAL '2 minutes' AND co.room = 'general'
           THEN true
           ELSE false
         END AS isonline
       FROM "GuestContact" gc
-      INNER JOIN "ChatOnline" co ON co.phone = gc.phone
-      WHERE co.room = 'general'
+      LEFT JOIN "ChatOnline" co ON co.phone = gc.phone
       ORDER BY isonline DESC, gc.hp DESC
     `;
   }
