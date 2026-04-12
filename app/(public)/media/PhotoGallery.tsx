@@ -3,7 +3,8 @@
 import { useState } from "react";
 import Image from "next/image";
 
-type Album = { gameId: number; photos: string[]; coverPhoto: string | null; createdAt: string };
+type Photo = { id: number; url: string; createdAt: string };
+type Album = { gameId: number; photos: Photo[]; coverPhoto: string | null; createdAt: string };
 
 export default function PhotoGallery({ albums }: { albums: Album[] }) {
   const [lightbox, setLightbox] = useState<string | null>(null);
@@ -25,13 +26,13 @@ export default function PhotoGallery({ albums }: { albums: Album[] }) {
               {new Date(album.createdAt).toLocaleDateString("uk-UA", { day: "numeric", month: "long", year: "numeric" })}
             </p>
             <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-              {album.photos.map((url, i) => (
+              {album.photos.map((photo) => (
                 <button
-                  key={i}
-                  onClick={() => setLightbox(url)}
+                  key={photo.id}
+                  onClick={() => setLightbox(photo.url)}
                   className="relative aspect-square rounded-lg overflow-hidden hover:opacity-90 transition-opacity"
                 >
-                  <Image src={url} alt="" fill className="object-cover" />
+                  <Image src={photo.url} alt="" fill className="object-cover" />
                 </button>
               ))}
             </div>

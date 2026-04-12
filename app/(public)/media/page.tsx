@@ -1,6 +1,4 @@
 import { prisma } from "@/lib/prisma";
-import { readFile } from "fs/promises";
-import path from "path";
 import PhotoGallery from "./PhotoGallery";
 
 export const metadata = { title: "Медіа — ЛДБЛ" };
@@ -12,13 +10,17 @@ const TYPE_LABELS: Record<string, string> = {
   moments: "Кращі моменти",
 };
 
-type Album = { gameId: number; photos: string[]; coverPhoto: string | null; createdAt: string };
+type Photo = { id: number; url: string; createdAt: string };
+type Album = { gameId: number; photos: Photo[]; coverPhoto: string | null; createdAt: string };
 
 async function getGallery(): Promise<Album[]> {
   try {
-    const raw = await readFile(path.join(process.cwd(), "lib", "gallery.data.json"), "utf-8");
-    const data = JSON.parse(raw) as { albums: Album[] };
-    return data.albums.filter((a) => a.photos.length > 0);
+    // Отримуємо фото з API invece of статичного файлу
+    const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3007";
+    const res = await fetch(`${baseUrl}/api/gallery`, { cache: "no-store" });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return (data.albums || []).filter((a: Album) => a.photos.length > 0);
   } catch {
     return [];
   }
