@@ -1550,7 +1550,7 @@ export default function ChatPage() {
       <TvBlock userName={userName} onSendMessage={sendSpecial} />
 
       {/* ── Messages ─────────────────────────────────────────────────────── */}
-      <div style={{ flex: 1, overflowY: "auto", padding: "12px 16px", display: "flex", flexDirection: "column", gap: "4px" }}>
+      <div style={{ flex: 1, overflowY: "auto", padding: "12px 16px", paddingRight: "52%", display: "flex", flexDirection: "column", gap: "4px" }}>
         {/* ── Active Poll Block ──────────────────────────────────────────── */}
         {activePoll && user && (
           <ChatActivePoll

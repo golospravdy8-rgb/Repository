@@ -58,13 +58,33 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
 
   const handleJoin = async () => {
     if (!session) return;
-    await fetch("/api/tv-session", {
+    // Додаємо себе до списку viewers
+    const r = await fetch("/api/tv-session", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ sessionId: session.id, userName }),
     });
-    if (videoUrl) { setShowPlayer(true); setMinimized(false); }
-    else window.open(session.match_url, "_blank");
+    const d = await r.json();
+    setViewers(d.viewers || []);
+    // Відкриваємо відео
+    if (videoUrl) {
+      setShowPlayer(true);
+      setMinimized(false);
+    } else {
+      // Спробуємо завантажити відео для цього учасника
+      setLoadingVideo(true);
+      const vr = await fetch(`/api/tv-video?url=${encodeURIComponent(session.match_url)}`);
+      const vd = await vr.json();
+      setLoadingVideo(false);
+      if (vd.videoUrl) {
+        setVideoUrl(vd.videoUrl);
+        setVideoType(vd.type);
+        setShowPlayer(true);
+        setMinimized(false);
+      } else {
+        window.open(session.match_url, "_blank");
+      }
+    }
   };
 
   const handleStop = async () => {
@@ -85,7 +105,7 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
       top: 0,
       right: 0,
       width: "50%",
-      maxHeight: showPlayer && !minimized ? "50vh" : "auto",
+      maxHeight: showPlayer && !minimized ? "60vh" : "auto",
       zIndex: 10,
       background: "rgba(10, 20, 50, 0.96)",
       backdropFilter: "blur(8px)",
@@ -105,7 +125,7 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
     live: { padding: "5px 8px", background: "rgba(249,115,22,0.1)", borderRadius: 6, border: "1px solid rgba(249,115,22,0.3)", color: "white", fontSize: 10, flexShrink: 0 } as React.CSSProperties,
     joinBtn: { background: "#f97316", color: "white", border: "none", borderRadius: 5, padding: "3px 8px", cursor: "pointer", fontSize: 10, marginRight: 3, fontWeight: 700 } as React.CSSProperties,
     stopBtn: { background: "rgba(255,255,255,0.1)", color: "white", border: "none", borderRadius: 5, padding: "3px 8px", cursor: "pointer", fontSize: 10, fontWeight: 700 } as React.CSSProperties,
-    playerWrap: { flex: 1, overflow: "hidden", minHeight: 180 } as React.CSSProperties,
+    playerWrap: { flex: 1, overflow: "hidden", minHeight: 320 } as React.CSSProperties,
   };
 
   // Мінімізований режим: показувати тільки один рядок
@@ -148,29 +168,43 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
         ))}
       </div>
 
-      {session && (
-        <div style={s.live}>
-          <div style={{ marginBottom: 3, fontSize: 10, fontWeight: 700 }}>🔴 LIVE: {session.match_title.substring(0, 25)}</div>
-          <div style={{ marginBottom: 4, fontSize: 9, color: "rgba(255,255,255,0.7)" }}>
-            👁 {viewers.slice(0, 2).join(", ")}{viewers.length > 2 ? ` +${viewers.length - 2}` : ""}
+      {session && (() => {
+        const isWatching = viewers.includes(userName);
+        return (
+          <div style={s.live}>
+            <div style={{ marginBottom: 3, fontSize: 10, fontWeight: 700 }}>🔴 LIVE: {session.match_title.substring(0, 25)}</div>
+            <div style={{ marginBottom: 4, fontSize: 9, color: "rgba(255,255,255,0.7)" }}>
+              👁 Дивляться ({viewers.length}): {viewers.join(", ")}
+            </div>
+            <div style={{ display: "flex", gap: 2 }}>
+              {!isWatching && (
+                <button style={s.joinBtn} onClick={handleJoin}>🎮 Приєднатись</button>
+              )}
+              {isWatching && !showPlayer && (
+                <button style={s.joinBtn} onClick={() => {
+                  setShowPlayer(true);
+                  setMinimized(false);
+                  window.open(session.match_url, "_blank");
+                }}>
+                  ▶ Матч
+                </button>
+              )}
+              {session.started_by === userName && (
+                <button style={s.stopBtn} onClick={handleStop}>⏹</button>
+              )}
+            </div>
           </div>
-          <div style={{ display: "flex", gap: 2 }}>
-            <button style={s.joinBtn} onClick={handleJoin}>🎮</button>
-            {session.started_by === userName && (
-              <button style={s.stopBtn} onClick={handleStop}>⏹</button>
-            )}
-          </div>
-        </div>
-      )}
+        );
+      })()}
 
       {loadingVideo && <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 10, padding: "4px 8px", textAlign: "center" }}>⏳</div>}
 
       {showPlayer && videoUrl && !minimized && (
         <div style={s.playerWrap}>
           {videoType === "iframe" ? (
-            <iframe src={videoUrl} style={{ width: "100%", height: "100%", minHeight: 180, border: "none", display: "block" }} allowFullScreen />
+            <iframe src={videoUrl} style={{ width: "100%", height: "100%", minHeight: 320, border: "none", display: "block" }} allowFullScreen />
           ) : (
-            <video width="100%" height="100%" controls style={{ minHeight: 180, display: "block", background: "#000", objectFit: "cover" }}>
+            <video width="100%" height="100%" controls style={{ minHeight: 320, display: "block", background: "#000", objectFit: "cover" }}>
               <source src={videoUrl} type="video/mp4" />
             </video>
           )}
