@@ -63,7 +63,26 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
       didSeekRef.current = true;   // host не seekає
       seekTargetRef.current = 0;
       currentSessionIdRef.current = sessionId;
-      console.log(`[HOST] ✅ session started, id=${sessionId}`);
+      console.log(`[HOST] ✅ session started, id=${sessionId}, type=${d.type}`);
+
+      // Для iframe — синхронізація тільки через БД (кожні 10 сек)
+      if (d.type === "iframe") {
+        console.log(`[HOST] ℹ️ Type is iframe — sync via DB polling only`);
+        const syncInterval = setInterval(() => {
+          const elapsed = Math.floor((Date.now() - Date.now()) / 1000);
+          fetch("/api/tv-session", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              sessionId: sessionId,
+              currentTimeSec: Math.max(0, elapsed % 3600)
+            }),
+          }).catch(() => {});
+        }, 10000);
+        if (intervalRef.current) clearInterval(intervalRef.current);
+        intervalRef.current = syncInterval;
+      }
+
       onSendMessage?.(`📺 ${userName} запустив матч: ${match.title} — натисни LIVE щоб приєднатись!`);
     } else {
       window.open(match.url, "_blank");
@@ -270,6 +289,8 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
               }}
               onTimeUpdate={() => {
                 if (!playerRef.current) return;
+
+                console.log(`[DEBUG] onTimeUpdate: isHost=${isHostRef.current}, sessionId=${currentSessionIdRef.current}, currentTime=${playerRef.current.currentTime}`);
 
                 // HOST: надсилаємо currentTime кожні 3 секунди
                 if (isHostRef.current && currentSessionIdRef.current) {

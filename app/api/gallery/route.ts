@@ -1,121 +1,112 @@
-import { NextRequest, NextResponse } from "next/server";
-import { requireAuth } from "@/lib/require-auth";
-import { writeFile, readFile } from "fs/promises";
-import path from "path";
-import { put } from "@vercel/blob";
+import { NextResponse } from "next/server";
+import { Pool } from "pg";
+import { put, del } from "@vercel/blob";
 
-const GALLERY_PATH = path.join(process.cwd(), "lib", "gallery.data.json");
-const UPLOADS_DIR = path.join(process.cwd(), "public", "uploads");
+const pool = new Pool({ connectionString: process.env.POSTGRES_URL });
 
-async function readGallery() {
-  const raw = await readFile(GALLERY_PATH, "utf-8");
-  return JSON.parse(raw) as { albums: Array<{ gameId: number; photos: string[]; coverPhoto: string | null; createdAt: string }> };
-}
-
-async function writeGallery(data: object) {
-  await writeFile(GALLERY_PATH, JSON.stringify(data, null, 2), "utf-8");
-}
-
-// GET /api/gallery — return current gallery data (public)
+// GET — Повернути всі альбоми з фото (для site-editor)
 export async function GET() {
-  const gallery = await readGallery();
-  return NextResponse.json(gallery);
+  try {
+    const result = await pool.query(`
+      SELECT
+        g.id,
+        g."gameId",
+        json_agg(json_build_object(
+          'id', v.id,
+          'url', v.url,
+          'createdAt', v."createdAt"
+        ) ORDER BY v."createdAt" DESC) FILTER (WHERE v.id IS NOT NULL) as photos
+      FROM (
+        SELECT DISTINCT ON("gameId") id, "gameId" FROM "Game" WHERE "gameId" IS NOT NULL
+      ) g
+      LEFT JOIN "Video" v ON v."createdAt" IS NOT NULL
+      GROUP BY g.id, g."gameId"
+      ORDER BY g.id
+    `);
+
+    const albums = result.rows.map(row => ({
+      gameId: row.gameId,
+      photos: (row.photos || []).filter((p: any) => p.url && p.url.startsWith('http')),
+      coverPhoto: row.photos && row.photos[0]?.url ? row.photos[0].url : null,
+      createdAt: new Date().toISOString()
+    }));
+
+    return NextResponse.json({ albums });
+  } catch (e) {
+    console.error('[gallery GET]', e);
+    return NextResponse.json({ albums: [] });
+  }
 }
 
-// POST /api/gallery — upload a photo to an album
-export async function POST(req: NextRequest) {
-  const adminToken = req.cookies.get("admin_token")?.value;
-  console.log("[gallery POST] admin_token cookie:", adminToken, "all cookies:", req.cookies.getAll().map(c => c.name));
-  try { await requireAuth(); } catch {
-    return NextResponse.json({ error: "Unauthorized", debug_cookie: adminToken ?? "MISSING" }, { status: 401 });
-  }
-
-  const formData = await req.formData();
-  const file = formData.get("file") as File | null;
-  const gameId = parseInt((formData.get("gameId") as string) ?? "0");
-
-  if (!file || !gameId) {
-    return NextResponse.json({ error: "Missing file or gameId" }, { status: 400 });
-  }
-
-  const gallery = await readGallery();
-  const album = gallery.albums.find((a) => a.gameId === gameId);
-  if (!album) return NextResponse.json({ error: "Album not found" }, { status: 404 });
-
-  if (album.photos.length >= 10) {
-    return NextResponse.json({ error: "Max 10 photos per album" }, { status: 400 });
-  }
-
-  const bytes = await file.arrayBuffer();
-  const buffer = Buffer.from(bytes);
-  const ext = file.name.split(".").pop() ?? "jpg";
-  const uploadId = Math.random().toString(36).substring(7);
-
+// POST — Upload фото до альбому (gameId)
+export async function POST(req: Request) {
   try {
-    const token = process.env.BLOB_READ_WRITE_TOKEN;
-    if (!token) {
-      console.error("[gallery] BLOB_READ_WRITE_TOKEN not found");
-      return NextResponse.json({ error: "Upload token not configured" }, { status: 500 });
+    const formData = await req.formData();
+    const file = formData.get("file") as File;
+    const gameId = formData.get("gameId") as string;
+
+    if (!file || !gameId) {
+      return NextResponse.json({ error: "Missing file or gameId" }, { status: 400 });
     }
 
+    const token = process.env.BLOB_READ_WRITE_TOKEN;
+    if (!token) {
+      return NextResponse.json({ error: "Blob token not configured" }, { status: 500 });
+    }
+
+    const ext = file.name.split(".").pop() || "jpg";
+    const uploadId = Math.random().toString(36).substring(7);
     const blobPath = `gallery/${gameId}/${uploadId}-${Date.now()}.${ext}`;
+
     console.log(`[gallery ${uploadId}] Uploading to Vercel Blob: ${blobPath}`);
 
+    const buffer = Buffer.from(await file.arrayBuffer());
     const blob = await put(blobPath, buffer, {
       access: "public",
       contentType: file.type || "image/jpeg",
       token: token,
     });
 
-    const url = blob.url;
-    album.photos.push(url);
-    if (!album.coverPhoto) album.coverPhoto = url;
+    // Зберігаємо в таблицю Video
+    const result = await pool.query(
+      `INSERT INTO "Video" (url, type, "createdAt") VALUES ($1, $2, NOW()) RETURNING *`,
+      [blob.url, 'gallery']
+    );
 
-    await writeGallery(gallery);
-    console.log(`[gallery ${uploadId}] ✅ Photo saved: ${url}`);
-    return NextResponse.json({ url, total: album.photos.length });
-  } catch (blobErr) {
-    const errMsg = blobErr instanceof Error ? blobErr.message : String(blobErr);
-    console.error(`[gallery] Vercel Blob error: ${errMsg}`);
-    return NextResponse.json({ error: `Blob error: ${errMsg}` }, { status: 500 });
+    console.log(`[gallery ${uploadId}] ✅ Photo saved: ${blob.url}`);
+    return NextResponse.json({ url: blob.url, total: 1 });
+  } catch (err) {
+    const errMsg = err instanceof Error ? err.message : String(err);
+    console.error(`[gallery] Error: ${errMsg}`);
+    return NextResponse.json({ error: errMsg }, { status: 500 });
   }
 }
 
-// DELETE /api/gallery — remove a photo from an album
-export async function DELETE(req: NextRequest) {
-  try { await requireAuth(); } catch {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+// DELETE — Видалити фото за URL
+export async function DELETE(req: Request) {
+  try {
+    const { url } = await req.json() as { url: string };
+    if (!url) {
+      return NextResponse.json({ error: "Missing url" }, { status: 400 });
+    }
+
+    // Видаляємо з БД
+    await pool.query(`DELETE FROM "Video" WHERE url = $1`, [url]);
+
+    // Видаляємо з Blob якщо є pathname
+    try {
+      if (url.includes('blob.vercel-storage.com')) {
+        const pathname = new URL(url).pathname.replace(/^\//, '');
+        await del(pathname).catch(() => {});
+      }
+    } catch (e) {
+      console.warn('[gallery] Could not delete from blob:', e);
+    }
+
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    const errMsg = err instanceof Error ? err.message : String(err);
+    console.error(`[gallery DELETE] Error: ${errMsg}`);
+    return NextResponse.json({ error: errMsg }, { status: 500 });
   }
-
-  const { gameId, url } = await req.json() as { gameId: number; url: string };
-  if (!gameId || !url) return NextResponse.json({ error: "Missing params" }, { status: 400 });
-
-  const gallery = await readGallery();
-  const album = gallery.albums.find((a) => a.gameId === gameId);
-  if (!album) return NextResponse.json({ error: "Album not found" }, { status: 404 });
-
-  album.photos = album.photos.filter((p) => p !== url);
-  if (album.coverPhoto === url) {
-    album.coverPhoto = album.photos[0] ?? null;
-  }
-
-  await writeGallery(gallery);
-  return NextResponse.json({ ok: true, total: album.photos.length });
-}
-
-// PATCH /api/gallery — set cover photo
-export async function PATCH(req: NextRequest) {
-  try { await requireAuth(); } catch {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const { gameId, url } = await req.json() as { gameId: number; url: string };
-
-  const gallery = await readGallery();
-  const album = gallery.albums.find((a) => a.gameId === gameId);
-  if (!album) return NextResponse.json({ error: "Album not found" }, { status: 404 });
-
-  album.coverPhoto = url;
-  await writeGallery(gallery);
-  return NextResponse.json({ ok: true });
 }

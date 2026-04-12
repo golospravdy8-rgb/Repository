@@ -1,0 +1,184 @@
+================================================================================
+SUPER_FULL_BACKUP.json — CREATION REPORT
+================================================================================
+
+Project: basket-lviv (Федерація Баскетболу Львова)
+Production URL: https://basketball.lviv.ua/
+Created: 2026-04-11 14:34:59 UTC
+Backup File: SUPER_FULL_BACKUP.json
+Size: 8.93 MB
+
+================================================================================
+BACKUP CONTENTS
+================================================================================
+
+1. META SECTION (13 fields)
+   ✓ Project name, production URL
+   ✓ GitHub repo, branch (main), last commit SHA
+   ✓ Vercel project ID, org ID
+   ✓ Vercel Blob store ID
+   ✓ Creation timestamp
+   ✓ Node version (v24.13.0)
+
+2. VERCEL_INFO SECTION (6 fields)
+   ✓ Project name, framework (Next.js)
+   ✓ Git repository info
+   ✓ Build command: prisma generate && next build
+   ✓ Install command: npm install
+
+3. GITHUB_FILE_TREE SECTION
+   ✓ Total files: 380
+   ✓ All files with raw GitHub URLs, sizes, types
+   ✓ Includes: app/, components/, actions/, lib/, config/, prisma/
+
+4. STRUCTURE SECTION (380 code files)
+   ✓ All .ts, .tsx, .js, .mjs, .css, .prisma, .json files
+   ✓ Complete source code of the application
+   ✓ Configuration files included
+
+5. DATA SECTION (Production DB snapshot)
+   ✓ Seasons: 2 (U-14 younger, U-16 older)
+   ✓ Teams: 11
+   ✓ Players: 92
+   ✓ Games: 11
+   ✓ News articles: 1
+   ✓ Shop products: 25
+   ✓ Chat messages: 13
+   ✓ Site settings: 82 key-value pairs
+   ✓ Additional: videos, reviews, guest contacts, MVP votes, etc.
+
+6. MEDIA_REGISTRY SECTION
+   ✓ Vercel Blob Storage:
+     - Store ID: dlrcmjzfg12lm7md
+     - Public Base URL: https://dlrcmjzfg12lm7md.public.blob.vercel-storage.com
+     - Files in store: 1
+     - File: player photo (logos/player-photo-1775907511670-*.jpg)
+   
+   ✓ GitHub /public/ directory:
+     - Total files: 178
+     - Includes: team-logos, images, icons, etc.
+     - All with raw GitHub URLs for download
+
+7. SECRETS SECTION (55 environment variables)
+   ✓ Database credentials (Neon PostgreSQL):
+     - DATABASE_URL
+     - POSTGRES_USER: neondb_owner
+     - POSTGRES_PASSWORD: [PROTECTED]
+     - NEON_PROJECT_ID: super-flower-12396396
+   
+   ✓ Authentication:
+     - NEXTAUTH_SECRET, AUTH_SECRET
+     - JWT_SECRET
+     - CHAT_ADMIN_SECRET
+     - ADMIN_ACTIVATION_SECRET
+   
+   ✓ API Keys:
+     - BLOB_READ_WRITE_TOKEN (Vercel Blob)
+     - TELEGRAM_BOT_TOKEN
+     - YOUTUBE_API_KEY
+     - NEXTAUTH_URL: https://basketball.lviv.ua
+   
+   ✓ External Services:
+     - Supabase URL and anon key
+     - Monobank JAR ID
+     - Email credentials
+   
+   Total secrets: 55 (all live production values)
+
+================================================================================
+QUALITY CHECKS
+================================================================================
+
+JSON Validation:
+  ✓ Valid JSON structure (python3 -m json.tool passed)
+  ✓ All required sections present
+  ✓ No syntax errors
+
+File Integrity:
+  ✓ All 380 source code files readable
+  ✓ All Git repository files included
+  ✓ All configuration files present
+
+Data Completeness:
+  ✓ Fresh database export (2026-04-11 14:34:03 UTC)
+  ✓ All 34 Prisma models covered
+  ✓ Current production state captured
+
+Media Assets:
+  ✓ Vercel Blob registry complete
+  ✓ GitHub public files listed
+  ✓ All URLs are downloadable
+
+Cleanup:
+  ✓ All temporary scripts deleted
+  ✓ No temporary files in root directory
+  ✓ Only SUPER_FULL_BACKUP.json created
+
+================================================================================
+HOW TO USE THIS BACKUP
+================================================================================
+
+1. RESTORE CODE:
+   - Extract all files from structure section
+   - Restore git repository from GitHub
+
+2. RESTORE DATABASE:
+   - Use data section with prisma seed
+   - Import all tables via Prisma migrations
+
+3. RESTORE MEDIA:
+   - Download Blob files via blob_url (publicly accessible)
+   - Restore GitHub /public/ files from raw URLs
+   - Or re-upload to new Vercel Blob store using BLOB_READ_WRITE_TOKEN
+
+4. RESTORE ENVIRONMENT:
+   - Copy secrets section to Vercel Environment Variables
+   - Update DATABASE_URL for target environment
+
+5. REDEPLOY:
+   - git push to GitHub
+   - Vercel auto-deploys
+   - Or: vercel --prod
+
+================================================================================
+CRITICAL INFORMATION FOR FUTURE RESTORES
+================================================================================
+
+GitHub Repository:
+  URL: https://github.com/golospravdy8-rgb/Repository
+  Branch: main
+  Last Commit: d0083dd3119a67611f205ce416fe970f1e682e6d
+
+Vercel Project:
+  Project ID: prj_9IAYJR9IRotcL0sxv1FfTRl6Hr8a
+  Org ID: team_m2ukJoXdRqoOcdBVbc7hjHLJ
+  Production URL: https://basketball.lviv.ua/
+
+Database:
+  Provider: Neon PostgreSQL
+  Project: super-flower-12396396
+  Host: ep-still-frost-an4xb137-pooler.c-6.us-east-1.aws.neon.tech
+  Database: neondb
+
+Vercel Blob Storage:
+  Store ID: dlrcmjzfg12lm7md
+  Public Base: https://dlrcmjzfg12lm7md.public.blob.vercel-storage.com
+
+================================================================================
+BACKUP VERIFICATION
+================================================================================
+
+Timestamp: 2026-04-11T14:34:59.341Z
+Database snapshot: 2026-04-11T14:34:03.662Z
+Git commit: d0083dd3119a67611f205ce416fe970f1e682e6d (main branch)
+Node version: v24.13.0
+
+Total Size: 8.93 MB
+Total source files: 380
+Total data records: ~350+ (across all tables)
+Total media files: 179 (1 Blob + 178 public)
+Total secrets: 55 environment variables
+
+Status: READY FOR PRODUCTION RESTORE
+
+================================================================================
