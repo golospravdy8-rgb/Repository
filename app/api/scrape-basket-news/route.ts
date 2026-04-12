@@ -37,34 +37,75 @@ async function getNewsImage(url: string): Promise<string | null> {
 }
 
 async function scrapeBasketNews(): Promise<NewsItem[]> {
-  // Парсимо сторінку "Вся стрічка" — там тільки новини стрічки
-  const res = await fetch("https://basket.com.ua/news/newsday/", {
-    headers: { "User-Agent": "Mozilla/5.0" },
-    signal: AbortSignal.timeout(12000),
-  });
-  const html = await res.text();
-  const $ = cheerio.load(html);
+  const headers = { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" };
 
-  const links: { title: string; link: string }[] = [];
+  // --- БЛОК 1: "НОВИНИ ДНЯ" (кнопки 1-6) ---
+  const newsDay: { title: string; link: string }[] = [];
+  try {
+    const res = await fetch("https://basket.com.ua/", {
+      headers,
+      signal: AbortSignal.timeout(15000),
+    });
+    const html = await res.text();
+    const $ = cheerio.load(html);
 
-  $("a").each((_, el) => {
-    const link = $(el).attr("href") || "";
-    const title = $(el).text().trim();
-    if (
-      link.includes("basket.com.ua/news/newsday/") &&
-      link !== "https://basket.com.ua/news/newsday/" &&
-      title.length > 10 &&
-      !links.find((n) => n.link === link)
-    ) {
-      links.push({ title, link });
-    }
-  });
+    // Знаходимо секцію НОВИНИ ДНЯ
+    $("a").each((_, el) => {
+      const link = $(el).attr("href") || "";
+      const title = $(el).text().trim();
+      const fullLink = link.startsWith("http") ? link : `https://basket.com.ua${link}`;
+      if (
+        fullLink.includes("basket.com.ua/news/newsday/") &&
+        fullLink.split("/").length > 7 && // це конкретна новина, не категорія
+        title.length > 10 &&
+        !newsDay.find(n => n.link === fullLink)
+      ) {
+        newsDay.push({ title, link: fullLink });
+      }
+    });
+    console.log(`[НОВИНИ ДНЯ] знайдено: ${newsDay.length}`);
+  } catch (e) {
+    console.error("[НОВИНИ ДНЯ] помилка:", e);
+  }
 
-  const top12 = links.slice(0, 12);
+  // --- БЛОК 2: "СТРІЧКА НОВИН" (кнопки 7-12) ---
+  const newsStrychka: { title: string; link: string }[] = [];
+  try {
+    const strRes = await fetch("https://basket.com.ua/news/newsday/", {
+      headers,
+      signal: AbortSignal.timeout(15000),
+    });
+    const strHtml = await strRes.text();
+    const $str = cheerio.load(strHtml);
+
+    $str("a[href*='/news/newsday/']").each((_, el) => {
+      const link = $str(el).attr("href") || "";
+      const title = $str(el).text().trim();
+      const fullLink = link.startsWith("http") ? link : `https://basket.com.ua${link}`;
+      if (
+        fullLink !== "https://basket.com.ua/news/newsday/" &&
+        fullLink.split("/").length > 7 &&
+        title.length > 10 &&
+        !newsStrychka.find(n => n.link === fullLink)
+      ) {
+        newsStrychka.push({ title, link: fullLink });
+      }
+    });
+    console.log(`[СТРІЧКА НОВИН] знайдено: ${newsStrychka.length}`);
+  } catch (e) {
+    console.error("[СТРІЧКА НОВИН] помилка:", e);
+  }
+
+  const top6Day = newsDay.slice(0, 6);
+  const top6Str = newsStrychka.slice(0, 6);
+  const combined = [...top6Day, ...top6Str];
+
+  console.log(`[TOTAL] ${top6Day.length} новин дня + ${top6Str.length} стрічки = ${combined.length} разом`);
 
   const news: NewsItem[] = await Promise.all(
-    top12.map(async (item, i) => {
+    combined.map(async (item, i) => {
       const imageUrl = await getNewsImage(item.link);
+      console.log(`[${i+1}/12] ${item.title.substring(0,50)} | img: ${imageUrl ? "✓" : "✗"}`);
       return {
         id: `news-${Date.now()}-${i}`,
         title: item.title.substring(0, 150),
@@ -79,7 +120,7 @@ async function scrapeBasketNews(): Promise<NewsItem[]> {
     })
   );
 
-  return news.filter((n) => n.title.length > 5);
+  return news.filter(n => n.title.length > 5);
 }
 
 export async function GET() {
