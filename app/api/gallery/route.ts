@@ -6,40 +6,46 @@ const pool = new Pool({ connectionString: process.env.POSTGRES_URL });
 
 /**
  * GET /api/gallery
- * Повертає альбоми матчів з фото/відео, згруповані за gameId
+ * Повертає альбоми матчів з фото/відео, кожен матч отримує ЛИШЕ своє медіа
  */
 export async function GET() {
   try {
-    // Отримаємо всі ігри
+    // Отримаємо всі ігри з командами
     const gamesResult = await pool.query(`
-      SELECT id, "homeTeamId", "awayTeamId", "scheduledAt", status, "homeScore", "awayScore"
-      FROM "Game"
-      ORDER BY "scheduledAt" DESC
+      SELECT g.id, g."scheduledAt",
+             ht.name as "homeName", at.name as "awayName"
+      FROM "Game" g
+      LEFT JOIN "Team" ht ON ht.id = g."homeTeamId"
+      LEFT JOIN "Team" at ON at.id = g."awayTeamId"
+      ORDER BY g."scheduledAt" DESC
     `);
 
     const albums = [];
 
-    // Для кожної гри отримаємо фото/відео з таблиці Video
+    // Для кожної гри отримаємо ЛИШ її фото/відео
     for (const game of gamesResult.rows) {
-      // Фото/відео зберігаються з gameId в URL: /gallery/{gameId}/ або /videos/{gameId}/
-      const gameIdStr = String(game.id);
-      const mediaResult = await pool.query(
-        `SELECT id, title, url, type, "createdAt" FROM "Video"
-         WHERE (type = $1 OR type = $2)
-         AND url LIKE $3
-         ORDER BY "createdAt" DESC`,
-        ["gallery", "highlight", `%/${gameIdStr}/%`]
+      // Фото ЦІЇ гри
+      const photosResult = await pool.query(
+        `SELECT id, url, "createdAt" FROM "Video"
+         WHERE "gameId" = $1 AND type = 'gallery'
+         ORDER BY "createdAt" ASC`,
+        [game.id]
       );
 
-      const photos = mediaResult.rows.filter(
-        (m: any) => !m.url?.includes("/videos/")
+      // Відео ЦІЇ гри
+      const videosResult = await pool.query(
+        `SELECT id, url, title, "createdAt" FROM "Video"
+         WHERE "gameId" = $1 AND type IN ('highlight', 'match')
+         ORDER BY "createdAt" ASC`,
+        [game.id]
       );
-      const videos = mediaResult.rows.filter(
-        (m: any) => m.url?.includes("/videos/")
-      );
+
+      const photos = photosResult.rows;
+      const videos = videosResult.rows;
 
       albums.push({
         gameId: game.id,
+        gameName: `${game.homeName || "Команда"} vs ${game.awayName || "Команда"}`,
         photos: photos.map((p: any) => ({
           id: p.id,
           url: p.url,
@@ -48,6 +54,7 @@ export async function GET() {
         videos: videos.map((v: any) => ({
           id: v.id,
           url: v.url,
+          title: v.title,
           createdAt: v.createdAt,
         })),
         coverPhoto: photos[0]?.url || null,
@@ -67,7 +74,7 @@ export async function GET() {
 
 /**
  * POST /api/gallery
- * Завантажити фото чи відео до альбому матчу
+ * Завантажити фото або відео до конкретної гри
  */
 export async function POST(req: Request) {
   try {
@@ -89,6 +96,18 @@ export async function POST(req: Request) {
       );
     }
 
+    // Перевір що гра існує
+    const gameCheck = await pool.query(
+      `SELECT id FROM "Game" WHERE id = $1`,
+      [Number(gameId)]
+    );
+    if (gameCheck.rows.length === 0) {
+      return NextResponse.json(
+        { error: `Гра з ID ${gameId} не знайдена` },
+        { status: 404 }
+      );
+    }
+
     const token = process.env.BLOB_READ_WRITE_TOKEN;
     if (!token) {
       return NextResponse.json(
@@ -97,15 +116,15 @@ export async function POST(req: Request) {
       );
     }
 
-    const ext = file.name.split(".").pop() || "jpg";
-    const uploadId = Math.random().toString(36).substring(7);
     const isVideo = file.type?.startsWith("video/");
+    const ext = file.name.split(".").pop() || (isVideo ? "mp4" : "jpg");
     const folder = isVideo ? "videos" : "gallery";
+    const uploadId = Math.random().toString(36).substring(7);
     const blobPath = `${folder}/${gameId}/${uploadId}-${Date.now()}.${ext}`;
     const contentType = file.type || (isVideo ? "video/mp4" : "image/jpeg");
 
     console.log(
-      `[gallery ${uploadId}] Uploading ${isVideo ? "video" : "photo"} to Vercel Blob: ${blobPath}`
+      `[gallery ${uploadId}] Uploading ${isVideo ? "video" : "photo"} to gameId=${gameId}: ${blobPath}`
     );
 
     const buffer = Buffer.from(await file.arrayBuffer());
@@ -115,17 +134,15 @@ export async function POST(req: Request) {
       token: token,
     });
 
-    // Зберігаємо в таблицю Video з type=gallery (для фото) або type=highlight (для відео)
-    // Фото: isPublished=false (тільки в адмінці)
-    // Відео: isPublished=true (показувати на /media)
+    // Зберігаємо в БД з gameId
     const result = await pool.query(
-      `INSERT INTO "Video" (title, url, type, "isPublished", "publishedAt", "createdAt")
-       VALUES ($1, $2, $3, $4, NOW(), NOW())
+      `INSERT INTO "Video" (title, url, type, "gameId", "isPublished", "publishedAt", "createdAt")
+       VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
        RETURNING id, url, type, "createdAt"`,
-      [file.name, blob.url, isVideo ? "highlight" : "gallery", isVideo]
+      [file.name, blob.url, isVideo ? "highlight" : "gallery", Number(gameId), isVideo]
     );
 
-    console.log(`[gallery ${uploadId}] ✅ Saved: ${blob.url}`);
+    console.log(`[gallery ${uploadId}] ✅ Saved to gameId=${gameId}: ${blob.url}`);
 
     return NextResponse.json({
       url: blob.url,
@@ -146,7 +163,7 @@ export async function POST(req: Request) {
 export async function DELETE(req: Request) {
   try {
     const body = await req.json();
-    const { url, gameId } = body;
+    const { url } = body;
 
     if (!url) {
       return NextResponse.json(
@@ -161,7 +178,7 @@ export async function DELETE(req: Request) {
       [url]
     );
 
-    // Видаляємо з Vercel Blob
+    // Видаляємо з Blob
     if (url.includes("blob.vercel-storage.com")) {
       try {
         const pathname = new URL(url).pathname.replace(/^\//, "");
@@ -196,7 +213,6 @@ export async function PATCH(req: Request) {
       );
     }
 
-    // Логування, але не прив'язуємо обкладинку до конкретної гри
     console.log(`[gallery] Set cover: game=${gameId}, photo=${url}`);
 
     return NextResponse.json({ ok: true });
