@@ -18,6 +18,9 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const playerRef = useRef<any>(null);
   const seekOnReadyRef = useRef<number>(0);
+  const isHostRef = useRef(false);
+  const lastSentTimeRef = useRef(0);
+  const currentSessionIdRef = useRef<number | null>(null);
 
   useEffect(() => {
     fetch("/api/tv-matches")
@@ -37,6 +40,31 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
   }, []);
 
+  useEffect(() => {
+    if (!showPlayer || !isHostRef.current) return;
+
+    const syncInterval = setInterval(() => {
+      const videoEl = playerRef.current as HTMLVideoElement | null;
+      if (!videoEl || !currentSessionIdRef.current) return;
+
+      const ct = Math.floor(videoEl.currentTime);
+      // Відправляємо тільки якщо змінилось (відео грає)
+      if (ct > 0 && ct !== lastSentTimeRef.current) {
+        lastSentTimeRef.current = ct;
+        fetch("/api/tv-session", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sessionId: currentSessionIdRef.current,
+            currentTimeSec: ct
+          }),
+        }).catch(() => {});
+      }
+    }, 3000);
+
+    return () => clearInterval(syncInterval);
+  }, [showPlayer]);
+
   const handleWatch = async (match: Match) => {
     const sr = await fetch("/api/tv-session", {
       method: "POST",
@@ -55,14 +83,8 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
       setVideoType(d.type);
       setShowPlayer(true);
       setMinimized(false);
-      // Записуємо точний момент коли відео реально почало грати
-      if (sessionId) {
-        fetch("/api/tv-session", {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ sessionId }),
-        }).catch(() => {});
-      }
+      isHostRef.current = true;
+      currentSessionIdRef.current = sessionId;
       onSendMessage?.(`📺 ${userName} запустив матч: ${match.title} — натисни LIVE щоб приєднатись!`);
     } else {
       window.open(match.url, "_blank");
@@ -74,20 +96,18 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
     if (!session) return;
     setHasLeft(false);
 
-    // Отримати актуальні дані сесії з video_started_at
+    // КРОК 1: Отримати поточну секунду відео від host
     const r = await fetch("/api/tv-session");
     const d = await r.json();
     if (!d.session) return;
 
-    // Рахуємо скільки секунд відео вже грає
-    let elapsedSec = 0;
-    if (d.session.video_started_at) {
-      const videoStartedAt = new Date(d.session.video_started_at).getTime();
-      elapsedSec = Math.max(0, (Date.now() - videoStartedAt) / 1000);
-    }
-    console.log(`[TV JOIN] seekTo: ${Math.floor(elapsedSec)}s`);
+    const seekToSec = d.session.current_time_sec
+      ? Math.max(0, d.session.current_time_sec - 2) // -2 сек буфер на завантаження
+      : 0;
 
-    // Додати себе до viewers
+    console.log(`[TV JOIN] seekTo: ${seekToSec}s (host на ${d.session.current_time_sec}s)`);
+
+    // КРОК 2: Додати себе до viewers
     const pr = await fetch("/api/tv-session", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -96,7 +116,7 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
     const pd = await pr.json();
     setViewers(pd.viewers || []);
 
-    // Завантажити відео
+    // КРОК 3: Завантажити відео
     setLoadingVideo(true);
     const vr = await fetch(`/api/tv-video?url=${encodeURIComponent(d.session.match_url)}`);
     const vd = await vr.json();
@@ -105,7 +125,8 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
     if (vd.videoUrl) {
       setVideoUrl(vd.videoUrl);
       setVideoType(vd.type);
-      seekOnReadyRef.current = elapsedSec;
+      seekOnReadyRef.current = seekToSec; // буде використано в onCanPlay
+      isHostRef.current = false;
       setShowPlayer(true);
       setMinimized(false);
     } else {
@@ -252,10 +273,11 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
               width="100%"
               height="100%"
               controls
-              onLoadedMetadata={() => {
+              onCanPlay={() => {
                 if (seekOnReadyRef.current > 0 && playerRef.current) {
-                  (playerRef.current as HTMLVideoElement).currentTime = seekOnReadyRef.current;
-                  console.log(`[TV] Seeked to ${seekOnReadyRef.current}s`);
+                  const videoEl = playerRef.current as HTMLVideoElement;
+                  videoEl.currentTime = seekOnReadyRef.current;
+                  console.log(`[TV] ✅ seekTo ${seekOnReadyRef.current}s виконано`);
                   seekOnReadyRef.current = 0;
                 }
               }}
