@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 import { Pool } from "pg";
 import { put, del } from "@vercel/blob";
 
+// Support large file uploads (videos)
+export const maxDuration = 60;
+export const runtime = "nodejs";
+
 const pool = new Pool({ connectionString: process.env.POSTGRES_URL });
 
 /**
