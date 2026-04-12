@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback, useTransition } from "react";
 import ChatPageMobile from "./ChatPageMobile";
 import ChatActivePoll, { ChatPollData } from "./ChatActivePoll";
 import NewsTicker from "@/components/NewsTicker";
+import TvBlock from "@/components/TvBlock";
 import { createChatPoll, finishChatPoll } from "@/actions/chat-poll";
 
 const LS_KEY = "ldbl_chat_user";
@@ -2546,6 +2547,9 @@ export default function ChatPage() {
             </div>
           );
         })()}
+
+        {/* ── TV Block ──────────────────────────────────────────────── */}
+        <TvBlock userName={userName} onSendMessage={sendSpecial} />
 
         {/* ── News ticker block ──────────────────────────────────────────────── */}
         <div style={{ padding: "14px", borderBottom: "1px solid #1e2d4a", flexShrink: 0, minHeight: "280px" }}>
