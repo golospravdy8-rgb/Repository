@@ -71,7 +71,8 @@ async function scrapeBasketNews(): Promise<NewsItem[]> {
         title.length > 10 &&
         !allNews.find(n => n.link === fullLink)
       ) {
-        allNews.push({ title, link: fullLink });
+        const cleanTitle = title.replace(/^\d{2}\.\d{2}\.\d{4}\s+\d{1,2}:\d{2}\s*/, "").trim();
+        allNews.push({ title: cleanTitle || title, link: fullLink });
       }
     });
     console.log(`[ВСЬОГО] знайдено: ${allNews.length}`);
