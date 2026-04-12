@@ -9,7 +9,10 @@ export async function GET() {
     });
     if (!season) return NextResponse.json({ players: [] });
 
-    const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+    const now = new Date();
+    const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+    console.log('[players/month] now:', now.toISOString(), 'monthStart:', monthStart.toISOString());
+
     const honorPlayers = await prisma.boxScore.groupBy({
       by: ["playerId"],
       where: {
