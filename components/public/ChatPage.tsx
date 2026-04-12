@@ -270,7 +270,7 @@ export default function ChatPage() {
   const [leaderboard, setLeaderboard] = useState<{ phone: string; firstName: string; lastName: string; hp: number; weeklyHp?: number | null }[]>([]);
   const [leaderboardWeekStart, setLeaderboardWeekStart] = useState<string>("");
   const [isPending, startTransition] = useTransition();
-  const esRef = useRef<EventSource | null>(null);
+  // Polling is used instead of EventSource
   const activeRoomRef = useRef<"general" | "parents">("general");
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -603,15 +603,32 @@ export default function ChatPage() {
     return () => clearInterval(interval);
   }, [step]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── SSE ────────────────────────────────────────────────────────────────
+  // ── Polling for new messages ─────────────────────────────────────────────
   useEffect(() => {
     if (step !== "chat") return;
-    const es = new EventSource("/api/chat");
-    esRef.current = es;
-    es.onmessage = (e) => {
-      try { handleSSE(JSON.parse(e.data)); } catch {}
+    let lastMessageId = 0;
+    const poll = async () => {
+      try {
+        const res = await fetch(`/api/chat/poll?lastId=${lastMessageId}&room=${encodeURIComponent(activeRoomRef.current || "general")}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.messages?.length > 0) {
+            const newMsgs = data.messages;
+            setMessages((prev) => [...prev.slice(-199), ...newMsgs]);
+            lastMessageId = newMsgs[newMsgs.length - 1].id;
+          }
+          // Process other events
+          if (data.events?.length > 0) {
+            for (const ev of data.events) {
+              handleSSE(ev);
+            }
+          }
+        }
+      } catch {}
     };
-    return () => { es.close(); esRef.current = null; };
+    poll(); // First poll immediately
+    const interval = setInterval(poll, 2000); // Poll every 2 seconds
+    return () => clearInterval(interval);
   }, [step]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleSSE(ev: {
@@ -932,7 +949,7 @@ export default function ChatPage() {
   }
 
   function handleLogout() {
-    esRef.current?.close();
+    // Polling interval is cleared by useEffect cleanup
     setUser(null);
     setMessages([]);
     localStorage.removeItem(LS_KEY);

@@ -5,43 +5,7 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSettings } from "@/lib/site-settings";
 
-// ── SSE client registry ────────────────────────────────────────────────────
-declare global {
-  // eslint-disable-next-line no-var
-  var chatClients: ReadableStreamDefaultController[];
-}
-global.chatClients = global.chatClients || [];
-
-function broadcast(payload: object) {
-  const chunk = new TextEncoder().encode(`data: ${JSON.stringify(payload)}\n\n`);
-  const dead: ReadableStreamDefaultController[] = [];
-  for (const ctrl of global.chatClients) {
-    try { ctrl.enqueue(chunk); } catch { dead.push(ctrl); }
-  }
-  global.chatClients = global.chatClients.filter((c) => !dead.includes(c));
-}
-
-// ── GET — SSE stream ──────────────────────────────────────────────────────
-export async function GET() {
-  const stream = new ReadableStream({
-    start(ctrl) {
-      global.chatClients.push(ctrl);
-      ctrl.enqueue(new TextEncoder().encode(`data: ${JSON.stringify({ type: "connected" })}\n\n`));
-    },
-    cancel(ctrl) {
-      global.chatClients = global.chatClients.filter((c) => c !== ctrl);
-    },
-  });
-
-  return new Response(stream, {
-    headers: {
-      "Content-Type": "text/event-stream",
-      "Cache-Control": "no-cache, no-transform",
-      "Connection": "keep-alive",
-      "X-Accel-Buffering": "no",
-    },
-  });
-}
+// SSE has been replaced with polling mechanism
 
 // ── POST ──────────────────────────────────────────────────────────────────
 export async function POST(req: NextRequest) {
@@ -190,7 +154,7 @@ export async function POST(req: NextRequest) {
       ? (await prisma.guestContact.findUnique({ where: { phone }, select: { hp: true } }))?.hp ?? null
       : null;
 
-    broadcast({ type: "message", message: serializeMsg(msg, isMod) });
+    // Message will be fetched via polling
     return Response.json({ ok: true, hpGained, newHp });
   }
 
@@ -209,7 +173,7 @@ export async function POST(req: NextRequest) {
       await prisma.chatReaction.create({ data: { messageId: Number(messageId), phone, emoji } });
     }
     const reactions = await prisma.chatReaction.findMany({ where: { messageId: Number(messageId) } });
-    broadcast({ type: "reactions", messageId: Number(messageId), reactions });
+    // Reactions will be fetched via polling
     return Response.json({ ok: true });
   }
 
@@ -222,7 +186,7 @@ export async function POST(req: NextRequest) {
     const month = new Date().toISOString().slice(0, 7);
     try {
       await prisma.chatMvpVote.create({ data: { voterPhone, playerName, month } });
-      broadcast({ type: "mvp_vote", voterPhone, playerName });
+      // Vote will be fetched via polling
       return Response.json({ ok: true, playerName });
     } catch {
       // unique constraint — already voted this month
@@ -242,7 +206,7 @@ export async function POST(req: NextRequest) {
     } else {
       await prisma.chatPinnedMessage.deleteMany();
     }
-    broadcast({ type: "pin", text: text ?? null });
+    // Pin will be fetched via polling
     return Response.json({ ok: true });
   }
 
@@ -257,7 +221,7 @@ export async function POST(req: NextRequest) {
       return Response.json({ error: "Недостатньо прав" }, { status: 403 });
 
     await prisma.chatMessage.delete({ where: { id: Number(messageId) } });
-    broadcast({ type: "delete_message", messageId: Number(messageId) });
+    // Deletion will be fetched via polling
     return Response.json({ ok: true });
   }
 
@@ -281,7 +245,7 @@ export async function POST(req: NextRequest) {
     await prisma.chatModAction.create({
       data: { action: "ban", modPhone: phone, modName, targetPhone, targetName, details: `Бан ${durLabel}: ${reason ?? ""}` },
     });
-    broadcast({ type: "banned", phone: targetPhone });
+    // Ban notification handled via client polling
     return Response.json({ ok: true });
   }
 
@@ -320,7 +284,7 @@ export async function POST(req: NextRequest) {
     await prisma.chatModAction.create({
       data: { action: "mute", modPhone: phone, modName, targetPhone, targetName, details: `Мют ${muteMins} хв` },
     });
-    broadcast({ type: "muted", phone: targetPhone, mutedUntil });
+    // Mute notification handled via client polling
     return Response.json({ ok: true });
   }
 
@@ -352,10 +316,10 @@ export async function POST(req: NextRequest) {
       await prisma.chatModAction.create({
         data: { action: "autoban", modPhone: "system", modName: "Система", targetPhone, targetName, details: "Автобан після 3 варнів" },
       });
-      broadcast({ type: "banned", phone: targetPhone });
+      // Ban notification handled via client polling
     }
 
-    broadcast({ type: "warn", phone: targetPhone, count: warnCount, reason: reason ?? "" });
+    // Warning notification handled via client polling
     return Response.json({ ok: true, warnCount, autoBanned: warnCount >= 3 });
   }
 
@@ -378,7 +342,7 @@ export async function POST(req: NextRequest) {
       data: { action: "slowMode", modPhone: phone, modName, targetPhone: "", targetName: "", details: enabled ? "Увімкнено повільний режим" : "Вимкнено повільний режим" },
     });
 
-    broadcast({ type: "slow_mode", roomId: roomKey, enabled: !!enabled });
+    // Slow mode notification handled via client polling
     return Response.json({ ok: true, slowMode: !!enabled });
   }
 
