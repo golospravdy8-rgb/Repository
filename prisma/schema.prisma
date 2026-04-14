@@ -272,9 +272,36 @@ model LiveSession {
   isActive      Boolean   @default(false)
   lastChecked   DateTime  @default(now())
   checkCount    Int       @default(0)
+
+  // 10-minute search window tracking
+  firstSearchAt   DateTime?  // Timestamp of first search attempt (at game start)
+  secondSearchAt  DateTime?  // Timestamp of second search attempt (at +10 min)
+  searchCompleted Boolean    @default(false)  // ⭐ true = no more searches for this game
+
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
+  @@index([gameTime])
+  @@index([isActive])
+  @@index([searchCompleted])
+}
+
+model UserStream {
+  id          String    @id @default(cuid())
+  gameId      String    // NBA game ID
+  gameTitle   String    // "Lakers vs Knicks"
+  gameTime    DateTime  // Game start time
+  kyivTime    DateTime  // Time in Kyiv timezone
+
+  streamUrl   String    // The live stream link
+  submittedBy String    // Username or anonymous
+
+  isActive    Boolean   @default(true)
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([gameId])
   @@index([gameTime])
   @@index([isActive])
 }

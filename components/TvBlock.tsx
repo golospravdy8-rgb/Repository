@@ -6,6 +6,7 @@ interface Match { id: string; title: string; url: string; date: string }
 interface Session { id: number; match_id?: string; match_title: string; match_url: string; started_by: string }
 interface NbaGame { id: string; homeTeam: string; awayTeam: string; kyivTimeFormatted: string; status: string }
 interface LiveSession { id: string; gameId: string; homeTeam: string; awayTeam: string; isActive: boolean; liveUrl?: string; liveSource?: string }
+interface UserStream { id: string; gameId: string; gameTitle: string; gameTime: string; kyivTime: string; streamUrl: string; submittedBy: string }
 interface Props { userName: string; onSendMessage?: (text: string) => void }
 
 export default function TvBlock({ userName, onSendMessage }: Props) {
@@ -28,6 +29,16 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
   const [loadingSchedule, setLoadingSchedule] = useState(false);
   const [liveSessions, setLiveSessions] = useState<LiveSession[]>([]);
   const [liveMatch, setLiveMatch] = useState<LiveSession | null>(null);
+
+  // New state for 10-minute search window + user streams + instruction modal
+  const [showInstructionModal, setShowInstructionModal] = useState(false);
+  const [userStreams, setUserStreams] = useState<UserStream[]>([]);
+  const [loadingUserStreams, setLoadingUserStreams] = useState(false);
+  const [selectedGameForStream, setSelectedGameForStream] = useState<NbaGame | null>(null);
+  const [streamUrlInput, setStreamUrlInput] = useState("");
+  const [submittingStream, setSubmittingStream] = useState(false);
+  const [refreshingSchedule, setRefreshingSchedule] = useState(false);
+
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const playerRef = useRef<HTMLVideoElement | null>(null);
   const playerWrapRef = useRef<HTMLDivElement | null>(null);
@@ -409,6 +420,10 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
   const handleOpenSchedule = async () => {
     setShowSchedule(true);
     setLoadingSchedule(true);
+    // Lock body scroll when modal opens
+    if (typeof document !== "undefined") {
+      document.body.style.overflow = "hidden";
+    }
     try {
       const r = await fetch("/api/nba-schedule");
       const d = await r.json();
@@ -419,6 +434,98 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
       console.error("Error loading NBA schedule:", e);
     } finally {
       setLoadingSchedule(false);
+    }
+  };
+
+  const handleCloseSchedule = () => {
+    setShowSchedule(false);
+    setSelectedGameForStream(null);
+    setStreamUrlInput("");
+    // Unlock body scroll
+    if (typeof document !== "undefined") {
+      document.body.style.overflow = "auto";
+    }
+  };
+
+  const handleRefreshSchedule = async () => {
+    setRefreshingSchedule(true);
+    try {
+      const r = await fetch("/api/nba-schedule");
+      const d = await r.json();
+      if (d.games) {
+        setNbaGames(d.games);
+      }
+    } catch (e) {
+      console.error("Error refreshing schedule:", e);
+    } finally {
+      setRefreshingSchedule(false);
+    }
+  };
+
+  const handleAddUserStream = async (game: NbaGame) => {
+    if (!streamUrlInput.trim()) {
+      alert("Вставте посилання");
+      return;
+    }
+
+    setSubmittingStream(true);
+    try {
+      const res = await fetch("/api/user-streams", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          gameId: game.id,
+          gameTitle: `${game.awayTeam} @ ${game.homeTeam}`,
+          gameTime: new Date().toISOString(), // Use current time, backend will handle
+          kyivTime: new Date().toISOString(),
+          streamUrl: streamUrlInput.trim(),
+          submittedBy: userName,
+        }),
+      });
+
+      if (res.ok) {
+        setStreamUrlInput("");
+        setSelectedGameForStream(null);
+        onSendMessage?.(
+          `📺 Користувач ${userName} додав посилання на ${game.awayTeam} @ ${game.homeTeam}`
+        );
+        // Reload user streams
+        await loadUserStreamsForGame(game.id);
+      } else {
+        const error = await res.json();
+        alert(`Помилка: ${error.error}`);
+      }
+    } catch (e) {
+      console.error("Error adding stream:", e);
+      alert("Помилка при додаванні посилання");
+    } finally {
+      setSubmittingStream(false);
+    }
+  };
+
+  const loadUserStreamsForGame = async (gameId: string) => {
+    try {
+      const r = await fetch(`/api/user-streams?gameId=${gameId}`);
+      const d = await r.json();
+      if (d.streams) {
+        setUserStreams(d.streams);
+      }
+    } catch (e) {
+      console.error("Error loading user streams:", e);
+    }
+  };
+
+  const handleOpenInstructionModal = () => {
+    setShowInstructionModal(true);
+    if (typeof document !== "undefined") {
+      document.body.style.overflow = "hidden";
+    }
+  };
+
+  const handleCloseInstructionModal = () => {
+    setShowInstructionModal(false);
+    if (typeof document !== "undefined") {
+      document.body.style.overflow = "auto";
     }
   };
 
@@ -567,6 +674,22 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
             }}
           >
             📅 Schedule
+          </button>
+          <button
+            onClick={handleOpenInstructionModal}
+            title="Інструкція телевізора"
+            style={{
+              background: "#3b82f6",
+              border: "none",
+              color: "white",
+              cursor: "pointer",
+              fontSize: 10,
+              padding: "2px 6px",
+              borderRadius: 3,
+              fontWeight: 700,
+            }}
+          >
+            ℹ️ Інструкція
           </button>
           <button onClick={() => setMinimized(true)} style={{ background: "none", border: "none", color: "#f97316", cursor: "pointer", fontSize: 12, padding: 0 }}>
             ✕
@@ -915,25 +1038,45 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
                 padding: "16px",
                 borderBottom: "1px solid rgba(255,255,255,0.12)",
                 flexShrink: 0,
+                gap: "8px",
               }}
             >
               <h3 style={{ color: "white", margin: 0, fontSize: "16px", fontWeight: 700 }}>
                 📅 NBA Schedule
               </h3>
-              <button
-                onClick={() => setShowSchedule(false)}
-                style={{
-                  background: "none",
-                  border: "none",
-                  color: "#f97316",
-                  cursor: "pointer",
-                  fontSize: "24px",
-                  padding: 0,
-                  lineHeight: 1,
-                }}
-              >
-                ✕
-              </button>
+              <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                <button
+                  onClick={handleRefreshSchedule}
+                  disabled={refreshingSchedule}
+                  title="Оновити розклад"
+                  style={{
+                    background: "none",
+                    border: "none",
+                    color: refreshingSchedule ? "#64748b" : "#f97316",
+                    cursor: refreshingSchedule ? "not-allowed" : "pointer",
+                    fontSize: "16px",
+                    padding: "4px 8px",
+                    lineHeight: 1,
+                    opacity: refreshingSchedule ? 0.6 : 1,
+                  }}
+                >
+                  🔄
+                </button>
+                <button
+                  onClick={handleCloseSchedule}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    color: "#f97316",
+                    cursor: "pointer",
+                    fontSize: "24px",
+                    padding: 0,
+                    lineHeight: 1,
+                  }}
+                >
+                  ✕
+                </button>
+              </div>
             </div>
 
             {/* Content */}
@@ -976,21 +1119,95 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
                           fontSize: "13px",
                           transition: "background 0.2s",
                         }}
-                        onMouseEnter={(e) => {
-                          (e.currentTarget as HTMLDivElement).style.background =
-                            "rgba(255,255,255,0.08)";
-                        }}
-                        onMouseLeave={(e) => {
-                          (e.currentTarget as HTMLDivElement).style.background =
-                            "rgba(255,255,255,0.05)";
-                        }}
                       >
                         <div style={{ fontWeight: 600, marginBottom: "6px" }}>
                           {game.awayTeam} @ {game.homeTeam}
                         </div>
-                        <div style={{ color: "#f97316", fontWeight: 700, fontSize: "12px" }}>
+                        <div style={{ color: "#f97316", fontWeight: 700, fontSize: "12px", marginBottom: "8px" }}>
                           🕐 {game.kyivTimeFormatted}
                         </div>
+
+                        {/* User stream submission form */}
+                        {selectedGameForStream?.id === game.id ? (
+                          <div style={{ background: "rgba(59, 130, 246, 0.1)", padding: "8px", borderRadius: "4px", marginBottom: "8px" }}>
+                            <input
+                              type="text"
+                              placeholder="https://streameast.live/..."
+                              value={streamUrlInput}
+                              onChange={(e) => setStreamUrlInput(e.target.value)}
+                              style={{
+                                width: "100%",
+                                padding: "6px",
+                                borderRadius: "4px",
+                                border: "1px solid rgba(255,255,255,0.2)",
+                                background: "rgba(255,255,255,0.08)",
+                                color: "white",
+                                fontSize: "11px",
+                                marginBottom: "6px",
+                                boxSizing: "border-box",
+                              }}
+                            />
+                            <div style={{ display: "flex", gap: "6px", fontSize: "11px" }}>
+                              <button
+                                onClick={() => handleAddUserStream(game)}
+                                disabled={submittingStream}
+                                style={{
+                                  flex: 1,
+                                  padding: "4px 8px",
+                                  background: "#3b82f6",
+                                  color: "white",
+                                  border: "none",
+                                  borderRadius: "3px",
+                                  cursor: submittingStream ? "not-allowed" : "pointer",
+                                  fontWeight: 700,
+                                  opacity: submittingStream ? 0.6 : 1,
+                                }}
+                              >
+                                {submittingStream ? "⏳" : "✓"}
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setSelectedGameForStream(null);
+                                  setStreamUrlInput("");
+                                }}
+                                style={{
+                                  flex: 1,
+                                  padding: "4px 8px",
+                                  background: "rgba(255,255,255,0.1)",
+                                  color: "white",
+                                  border: "none",
+                                  borderRadius: "3px",
+                                  cursor: "pointer",
+                                  fontWeight: 700,
+                                }}
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => {
+                              setSelectedGameForStream(game);
+                              setStreamUrlInput("");
+                              loadUserStreamsForGame(game.id);
+                            }}
+                            style={{
+                              width: "100%",
+                              padding: "4px 8px",
+                              background: "rgba(59, 130, 246, 0.3)",
+                              color: "#60a5fa",
+                              border: "1px solid rgba(59, 130, 246, 0.5)",
+                              borderRadius: "3px",
+                              cursor: "pointer",
+                              fontSize: "11px",
+                              fontWeight: 700,
+                              marginBottom: "8px",
+                            }}
+                          >
+                            + Додати посилання
+                          </button>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -1015,6 +1232,108 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
         </div>
       )}
 
+      {/* Інструкція телевізора Modal */}
+      {showInstructionModal && (
+        <div
+          onClick={handleCloseInstructionModal}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.75)",
+            zIndex: 10000,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "20px",
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: "#0a1432",
+              border: "1px solid rgba(255,255,255,0.15)",
+              borderRadius: "10px",
+              width: "100%",
+              maxWidth: "520px",
+              maxHeight: "85vh",
+              display: "flex",
+              flexDirection: "column",
+              overflow: "hidden",
+            }}
+          >
+            {/* Header */}
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                padding: "16px",
+                borderBottom: "1px solid rgba(255,255,255,0.12)",
+                flexShrink: 0,
+              }}
+            >
+              <h3 style={{ color: "white", margin: 0, fontSize: "16px", fontWeight: 700 }}>
+                📺 Інструкція телевізора
+              </h3>
+              <button
+                onClick={handleCloseInstructionModal}
+                style={{
+                  background: "none",
+                  border: "none",
+                  color: "#f97316",
+                  cursor: "pointer",
+                  fontSize: "24px",
+                  padding: 0,
+                  lineHeight: 1,
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Content */}
+            <div
+              style={{
+                flex: 1,
+                overflowY: "auto",
+                overflowX: "hidden",
+                padding: "16px",
+                color: "rgba(255,255,255,0.9)",
+                fontSize: "13px",
+                lineHeight: "1.6",
+                scrollBehavior: "smooth",
+              }}
+              className="instruction-modal-scroll"
+            >
+              <div style={{ whiteSpace: "pre-wrap", fontFamily: "inherit" }}>
+{`Інструкція телевізора
+
+📅 Розклад матчів
+У цьому вікні ви бачите всі матчі NBA за Київським часом.
+
+🔴 Пряма трансляція
+Система автоматично шукає посилання тільки в перші 10 хвилин матчу (перша спроба на старті + друга через 10 хв). Якщо знайдено — з'являється червона кнопка Live.
+
+📌 Своє посилання
+Якщо ви знайшли хороше посилання раніше — вставте його в спеціальне поле (або прямо під матчем у розкладі). Після цього всі учасники чату зможуть приєднатися до перегляду.
+
+📼 Матчі в записі
+Нижче в слайдері ви можете обрати будь-який матч у записі.
+
+🔗 Як поділитися трансляцією
+1. Знайдіть якісне посилання
+2. Вставте його в поле
+3. Натисніть «Запустити в телевізорі»
+
+Топ-джерела 2026: basketball-video.com, streameast.live (зеркала), sportsurge.net
+
+Приємного перегляду! 🏀`}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <style>{`
         .nba-games-list {
           scrollbar-width: thin;
@@ -1033,6 +1352,30 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
         }
         .nba-games-list::-webkit-scrollbar-thumb:hover {
           background-color: rgba(249, 115, 22, 0.8);
+        }
+
+        .instruction-modal-scroll {
+          scrollbar-width: thin;
+          scrollbar-color: rgba(59, 130, 246, 0.5) rgba(255, 255, 255, 0.05);
+        }
+        .instruction-modal-scroll::-webkit-scrollbar {
+          width: 8px;
+        }
+        .instruction-modal-scroll::-webkit-scrollbar-track {
+          background: rgba(255, 255, 255, 0.05);
+        }
+        .instruction-modal-scroll::-webkit-scrollbar-thumb {
+          background-color: rgba(59, 130, 246, 0.6);
+          border-radius: 4px;
+          border: 2px solid rgba(255, 255, 255, 0.05);
+        }
+        .instruction-modal-scroll::-webkit-scrollbar-thumb:hover {
+          background-color: rgba(59, 130, 246, 0.8);
+        }
+
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.6; }
         }
       `}</style>
     </div>
