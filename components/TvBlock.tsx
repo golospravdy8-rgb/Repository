@@ -1036,18 +1036,19 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
       )}
 
       {/* Модальне вікно розкладу NBA — горизонтальний слайдер */}
+      {/* ═══ SCHEDULE MODAL (NEW) ═══ */}
       {showSchedule && (
         <div
           onClick={handleCloseSchedule}
           style={{
             position: "fixed",
             inset: 0,
-            background: "rgba(0,0,0,0.82)",
+            background: "rgba(0,0,0,0.85)",
             zIndex: 9999,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            padding: "16px",
+            padding: "20px",
           }}
         >
           <div
@@ -1057,64 +1058,46 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
               border: "1px solid rgba(255,255,255,0.15)",
               borderRadius: "14px",
               width: "100%",
-              maxWidth: "min(92vw, 960px)",
-              maxHeight: "80vh",
+              maxWidth: "90vw",
+              maxHeight: "75vh",
               display: "flex",
               flexDirection: "column",
               overflow: "hidden",
             }}
           >
             {/* Header */}
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                padding: "14px 18px",
-                borderBottom: "1px solid rgba(255,255,255,0.1)",
-                flexShrink: 0,
-              }}
-            >
+            <div style={{ padding: "16px 20px", borderBottom: "1px solid rgba(255,255,255,0.1)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
-                <h3 style={{ color: "white", margin: 0, fontSize: "15px", fontWeight: 700, lineHeight: 1.2 }}>
-                  📅 Розклад матчів NBA
-                </h3>
-                <div style={{ color: "rgba(255,255,255,0.45)", fontSize: "11px", marginTop: "2px" }}>
-                  Додай посилання або натисни Enter щоб запустити
-                </div>
+                <h2 style={{ color: "white", margin: 0, fontSize: "18px", fontWeight: 700 }}>📅 Розклад матчів NBA</h2>
               </div>
-              <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+              <div style={{ display: "flex", gap: "8px" }}>
                 <button
                   onClick={handleRefreshSchedule}
                   disabled={refreshingSchedule}
-                  title="Оновити розклад"
                   style={{
-                    background: "rgba(249,115,22,0.15)",
-                    border: "1px solid rgba(249,115,22,0.3)",
-                    color: refreshingSchedule ? "#64748b" : "#f97316",
+                    background: refreshingSchedule ? "rgba(100,100,100,0.2)" : "#f97316",
+                    color: "white",
+                    border: "none",
+                    borderRadius: "6px",
+                    padding: "6px 12px",
                     cursor: refreshingSchedule ? "not-allowed" : "pointer",
                     fontSize: "13px",
-                    padding: "5px 10px",
-                    borderRadius: "6px",
-                    lineHeight: 1,
-                    opacity: refreshingSchedule ? 0.6 : 1,
                     fontWeight: 700,
+                    opacity: refreshingSchedule ? 0.6 : 1,
                   }}
                 >
                   {refreshingSchedule ? "⏳" : "🔄"} Оновити
                 </button>
                 <button
                   onClick={handleOpenInstructionModal}
-                  title="Інструкція телевізора"
                   style={{
-                    background: "rgba(59,130,246,0.15)",
-                    border: "1px solid rgba(59,130,246,0.3)",
-                    color: "#3b82f6",
+                    background: "#3b82f6",
+                    color: "white",
+                    border: "none",
+                    borderRadius: "6px",
+                    padding: "6px 12px",
                     cursor: "pointer",
                     fontSize: "13px",
-                    padding: "5px 10px",
-                    borderRadius: "6px",
-                    lineHeight: 1,
                     fontWeight: 700,
                   }}
                 >
@@ -1122,17 +1105,15 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
                 </button>
                 <button
                   onClick={handleCloseSchedule}
-                  title="Закрити"
                   style={{
-                    background: "rgba(249,115,22,0.15)",
-                    border: "1px solid rgba(249,115,22,0.3)",
+                    background: "transparent",
                     color: "#f97316",
-                    cursor: "pointer",
-                    fontSize: "16px",
-                    padding: "5px 10px",
+                    border: "none",
                     borderRadius: "6px",
-                    lineHeight: 1,
+                    cursor: "pointer",
+                    fontSize: "20px",
                     fontWeight: 700,
+                    padding: "0 8px",
                   }}
                 >
                   ✕
@@ -1140,42 +1121,25 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
               </div>
             </div>
 
-            {/* Slider content */}
+            {/* Slider Container */}
             <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
               {loadingSchedule ? (
-                <div
-                  style={{
-                    color: "rgba(255,255,255,0.55)",
-                    fontSize: "14px",
-                    textAlign: "center",
-                    padding: "60px 20px",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    flexDirection: "column",
-                    gap: "8px",
-                  }}
-                >
-                  <div style={{ fontSize: "28px" }}>⏳</div>
-                  Завантаження матчів...
+                <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "rgba(255,255,255,0.5)" }}>
+                  ⏳ Завантаження...
                 </div>
               ) : nbaGames.length > 0 ? (
-                /* ── HORIZONTAL SLIDER ── */
                 <div
                   style={{
                     display: "flex",
                     overflowX: "auto",
                     overflowY: "hidden",
-                    gap: "12px",
-                    padding: "16px 18px 12px",
+                    gap: "10px",
+                    padding: "16px 20px",
                     scrollSnapType: "x mandatory",
-                    WebkitOverflowScrolling: "touch" as any,
                     scrollBehavior: "smooth",
-                    alignItems: "stretch",
                     flex: 1,
-                    minHeight: 0,
                   } as React.CSSProperties}
-                  className="nba-games-list"
+                  className="schedule-games-slider"
                 >
                   {nbaGames.map((game) => (
                     <div
@@ -1185,166 +1149,110 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
                         maxWidth: "340px",
                         flexShrink: 0,
                         scrollSnapAlign: "start",
-                        background: "linear-gradient(145deg, #111e3a 0%, #0c1628 100%)",
-                        border: game.status === "live"
-                          ? "1px solid rgba(239,68,68,0.6)"
-                          : "1px solid rgba(255,255,255,0.1)",
-                        borderRadius: "12px",
-                        padding: "16px",
+                        background: "linear-gradient(145deg, #1a2f5a 0%, #0f1e3a 100%)",
+                        border: "1px solid rgba(249,115,22,0.3)",
+                        borderRadius: "10px",
+                        padding: "14px",
                         display: "flex",
                         flexDirection: "column",
-                        gap: "10px",
-                        position: "relative",
-                        boxShadow: game.status === "live"
-                          ? "0 0 16px rgba(239,68,68,0.2)"
-                          : "none",
-                      }}
+                        gap: "8px",
+                      } as React.CSSProperties}
                     >
-                      {/* Status badge */}
-                      <div style={{ display: "flex", justifyContent: "flex-end" }}>
-                        {game.status === "live" ? (
-                          <span style={{
-                            background: "#ef4444",
-                            color: "white",
-                            fontSize: "10px",
-                            fontWeight: 800,
-                            padding: "2px 8px",
-                            borderRadius: "20px",
-                            letterSpacing: "0.5px",
-                            animation: "pulse 1.5s infinite",
-                          }}>
-                            🔴 LIVE
-                          </span>
-                        ) : (
-                          <span style={{
-                            background: "rgba(249,115,22,0.15)",
-                            color: "#f97316",
-                            fontSize: "10px",
-                            fontWeight: 700,
-                            padding: "2px 8px",
-                            borderRadius: "20px",
-                            border: "1px solid rgba(249,115,22,0.3)",
-                          }}>
-                            📅 UPCOMING
-                          </span>
-                        )}
+                      {/* Status */}
+                      <div style={{ fontSize: "11px", fontWeight: 700, color: game.status === "live" ? "#ef4444" : "#f97316" }}>
+                        {game.status === "live" ? "🔴 LIVE" : "📅 UPCOMING"}
                       </div>
 
                       {/* Teams */}
-                      <div style={{
-                        fontSize: "15px",
-                        fontWeight: 700,
-                        color: "white",
-                        lineHeight: 1.3,
-                      }}>
+                      <div style={{ fontSize: "14px", fontWeight: 700, color: "white", lineHeight: 1.2 }}>
                         {game.awayTeam} — {game.homeTeam}
                       </div>
 
-                      {/* Date */}
-                      <div style={{
-                        fontSize: "12px",
-                        color: "rgba(255,255,255,0.5)",
-                        fontWeight: 500,
-                      }}>
-                        {game.dateStr || "—"}
+                      {/* Date + Time */}
+                      <div style={{ fontSize: "12px", color: "rgba(255,255,255,0.6)" }}>
+                        {game.dateStr}
+                      </div>
+                      <div style={{ fontSize: "12px", fontWeight: 700, color: "#f97316" }}>
+                        {game.etTimeFormatted} → {game.kyivTimeFormatted}
                       </div>
 
-                      {/* Time: ET → Kyiv */}
-                      <div style={{
-                        fontSize: "13px",
-                        fontWeight: 700,
-                        color: "#f97316",
-                        lineHeight: 1.4,
-                      }}>
-                        {game.etTimeFormatted || "—"} → {game.kyivTimeFormatted}
-                      </div>
+                      <div style={{ height: "1px", background: "rgba(255,255,255,0.1)", margin: "4px 0" }} />
 
-                      {/* Divider */}
-                      <div style={{ height: "1px", background: "rgba(255,255,255,0.07)" }} />
-
-                      {/* + Додати посилання */}
+                      {/* Input or Button */}
                       {selectedGameForStream?.id === game.id ? (
                         <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
                           <input
-                            type="url"
-                            placeholder="https://streameast.live/..."
+                            type="text"
+                            placeholder="https://..."
                             value={streamUrlInput}
                             onChange={(e) => setStreamUrlInput(e.target.value)}
                             onKeyDown={(e) => {
-                              if (e.key === "Enter" && !submittingStream) {
+                              if (e.key === "Enter" && !submittingStream && streamUrlInput.trim()) {
                                 handleAddUserStream(game, true);
                               }
                             }}
+                            autoFocus
                             style={{
                               width: "100%",
-                              padding: "7px 10px",
-                              borderRadius: "6px",
-                              border: "1px solid rgba(59,130,246,0.4)",
-                              background: "rgba(59,130,246,0.08)",
+                              padding: "6px 8px",
+                              borderRadius: "5px",
+                              border: "1px solid rgba(249,115,22,0.4)",
+                              background: "rgba(249,115,22,0.08)",
                               color: "white",
-                              fontSize: "12px",
+                              fontSize: "11px",
                               outline: "none",
                               boxSizing: "border-box",
                             }}
-                            autoFocus
                           />
-                          <div style={{ display: "flex", gap: "6px" }}>
-                            <button
-                              onClick={() => handleAddUserStream(game, true)}
-                              disabled={submittingStream || !streamUrlInput.trim()}
-                              title="Зберегти посилання та запустити (або Enter)"
-                              style={{
-                                flex: 1,
-                                padding: "6px",
-                                background: "#f97316",
-                                color: "white",
-                                border: "none",
-                                borderRadius: "6px",
-                                cursor: submittingStream || !streamUrlInput.trim() ? "not-allowed" : "pointer",
-                                fontWeight: 700,
-                                fontSize: "12px",
-                                opacity: submittingStream || !streamUrlInput.trim() ? 0.6 : 1,
-                                transition: "background 0.2s",
-                              }}
-                            >
-                              {submittingStream ? "⏳ Завантажуємо..." : "▶ Запустити"}
-                            </button>
-                            <button
-                              onClick={() => { setSelectedGameForStream(null); setStreamUrlInput(""); }}
-                              style={{
-                                padding: "6px 10px",
-                                background: "rgba(255,255,255,0.08)",
-                                color: "rgba(255,255,255,0.7)",
-                                border: "1px solid rgba(255,255,255,0.15)",
-                                borderRadius: "6px",
-                                cursor: "pointer",
-                                fontSize: "12px",
-                                fontWeight: 700,
-                              }}
-                            >
-                              ✕
-                            </button>
-                          </div>
+                          <button
+                            onClick={() => handleAddUserStream(game, true)}
+                            disabled={submittingStream || !streamUrlInput.trim()}
+                            style={{
+                              width: "100%",
+                              padding: "7px",
+                              background: streamUrlInput.trim() ? "#f97316" : "rgba(249,115,22,0.3)",
+                              color: "white",
+                              border: "none",
+                              borderRadius: "5px",
+                              cursor: submittingStream || !streamUrlInput.trim() ? "not-allowed" : "pointer",
+                              fontSize: "12px",
+                              fontWeight: 700,
+                              opacity: submittingStream || !streamUrlInput.trim() ? 0.6 : 1,
+                            }}
+                          >
+                            {submittingStream ? "⏳..." : "▶ Запустити"}
+                          </button>
+                          <button
+                            onClick={() => { setSelectedGameForStream(null); setStreamUrlInput(""); }}
+                            style={{
+                              padding: "4px",
+                              background: "rgba(255,255,255,0.08)",
+                              color: "rgba(255,255,255,0.7)",
+                              border: "none",
+                              borderRadius: "5px",
+                              cursor: "pointer",
+                              fontSize: "11px",
+                            }}
+                          >
+                            ✕ Скасувати
+                          </button>
                         </div>
                       ) : (
                         <button
                           onClick={() => {
                             setSelectedGameForStream(game);
                             setStreamUrlInput("");
-                            loadUserStreamsForGame(game.id);
                           }}
                           style={{
                             width: "100%",
                             padding: "8px",
-                            background: "rgba(249,115,22,0.12)",
+                            background: "rgba(249,115,22,0.15)",
                             color: "#f97316",
-                            border: "1px solid rgba(249,115,22,0.35)",
-                            borderRadius: "7px",
+                            border: "1px solid rgba(249,115,22,0.3)",
+                            borderRadius: "5px",
                             cursor: "pointer",
                             fontSize: "12px",
                             fontWeight: 700,
-                            textAlign: "center",
-                            transition: "background 0.2s",
                           }}
                         >
                           + Додати посилання
@@ -1354,43 +1262,35 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
                   ))}
                 </div>
               ) : (
-                <div
-                  style={{
-                    color: "rgba(255,255,255,0.5)",
-                    fontSize: "13px",
-                    textAlign: "center",
-                    padding: "60px 20px",
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: "10px",
-                  }}
-                >
-                  <div style={{ fontSize: "32px" }}>🏀</div>
-                  Матчів не знайдено
-                  <button
-                    onClick={handleRefreshSchedule}
-                    style={{
-                      marginTop: "8px",
-                      padding: "8px 16px",
-                      background: "#f97316",
-                      color: "white",
-                      border: "none",
-                      borderRadius: "8px",
-                      cursor: "pointer",
-                      fontWeight: 700,
-                      fontSize: "13px",
-                    }}
-                  >
-                    🔄 Спробувати ще раз
-                  </button>
+                <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "rgba(255,255,255,0.5)" }}>
+                  🏀 Матчів не знайдено
                 </div>
               )}
             </div>
           </div>
         </div>
       )}
+
+      <style>{`
+        .schedule-games-slider {
+          scrollbar-width: thin;
+          scrollbar-color: #f97316 rgba(255, 255, 255, 0.05);
+        }
+        .schedule-games-slider::-webkit-scrollbar {
+          height: 8px;
+        }
+        .schedule-games-slider::-webkit-scrollbar-track {
+          background: rgba(255, 255, 255, 0.05);
+          borderRadius: 4px;
+        }
+        .schedule-games-slider::-webkit-scrollbar-thumb {
+          background-color: #f97316;
+          borderRadius: 4px;
+        }
+        .schedule-games-slider::-webkit-scrollbar-thumb:hover {
+          background-color: #ff9d4d;
+        }
+      `}</style>
 
       {/* Інструкція телевізора Modal */}
       {showInstructionModal && (
