@@ -5,6 +5,7 @@ import { supabase } from "@/lib/supabase";
 interface Match { id: string; title: string; url: string; date: string }
 interface Session { id: number; match_id?: string; match_title: string; match_url: string; started_by: string }
 interface NbaGame { id: string; homeTeam: string; awayTeam: string; kyivTimeFormatted: string; status: string }
+interface LiveSession { id: string; gameId: string; homeTeam: string; awayTeam: string; isActive: boolean; liveUrl?: string; liveSource?: string }
 interface Props { userName: string; onSendMessage?: (text: string) => void }
 
 export default function TvBlock({ userName, onSendMessage }: Props) {
@@ -25,6 +26,7 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
   const [showSchedule, setShowSchedule] = useState(false);
   const [nbaGames, setNbaGames] = useState<NbaGame[]>([]);
   const [loadingSchedule, setLoadingSchedule] = useState(false);
+  const [liveSessions, setLiveSessions] = useState<LiveSession[]>([]);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const playerRef = useRef<HTMLVideoElement | null>(null);
   const playerWrapRef = useRef<HTMLDivElement | null>(null);
@@ -50,6 +52,24 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
     poll();
     intervalRef.current = setInterval(poll, 5000);
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
+  }, []);
+
+  // Polling для live sessions з NBA
+  useEffect(() => {
+    const pollLive = async () => {
+      try {
+        const r = await fetch("/api/live-sessions");
+        const d = await r.json();
+        if (d.sessions) {
+          setLiveSessions(d.sessions.filter((s: LiveSession) => s.isActive));
+        }
+      } catch (e) {
+        console.error("[TvBlock] Error fetching live sessions:", e);
+      }
+    };
+    pollLive();
+    const liveInterval = setInterval(pollLive, 30000); // Poll every 30 seconds
+    return () => clearInterval(liveInterval);
   }, []);
 
   // Supabase Realtime для TV синхронізації
@@ -497,6 +517,38 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
           </div>
         ))}
       </div>
+
+      {/* Live NBA Sessions Button */}
+      {liveSessions.length > 0 && (
+        <div style={{ padding: "6px 8px", background: "rgba(239,68,68,0.15)", borderTop: "1px solid rgba(239,68,68,0.3)", borderBottom: "1px solid rgba(239,68,68,0.3)" }}>
+          <div style={{ display: "flex", gap: 4, flexWrap: "wrap", alignItems: "center" }}>
+            <span style={{ color: "#ef4444", fontSize: 11, fontWeight: 700, whiteSpace: "nowrap" }}>🔴 LIVE NBA:</span>
+            {liveSessions.map((session) => (
+              <a
+                key={session.id}
+                href={session.liveUrl || "#"}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  display: "inline-block",
+                  background: "#ef4444",
+                  color: "white",
+                  padding: "4px 8px",
+                  borderRadius: 4,
+                  fontSize: 10,
+                  fontWeight: 700,
+                  textDecoration: "none",
+                  whiteSpace: "nowrap",
+                  cursor: session.liveUrl ? "pointer" : "default",
+                  opacity: session.liveUrl ? 1 : 0.6,
+                }}
+              >
+                {session.awayTeam.substring(0, 3)} vs {session.homeTeam.substring(0, 3)}
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
 
       {session && (() => {
         const canJoin = !viewers.includes(userName) || hasLeft || !showPlayer;
