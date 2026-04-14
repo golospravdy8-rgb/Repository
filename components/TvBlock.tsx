@@ -1160,89 +1160,71 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
                       flex: 1,
                       overflowY: "auto",
                       overflowX: "hidden",
-                      padding: "16px 20px 20px",
+                      padding: "12px 16px 16px",
                     }}>
                       {dates.map((date) => (
-                        <div key={date} style={{ marginBottom: "20px" }}>
+                        <div key={date} style={{ marginBottom: "16px" }}>
                           {/* Заголовок даты */}
                           <div style={{
                             color: "#f97316",
-                            fontSize: "12px",
+                            fontSize: "11px",
                             fontWeight: 700,
-                            marginBottom: "10px",
+                            marginBottom: "8px",
                             textTransform: "uppercase",
                             letterSpacing: "0.5px",
                           }}>
                             📅 {date}
                           </div>
 
-                          {/* Горизонтальный слайдер карточек */}
-                          <div
-                            className="schedule-slider"
-                            style={{
-                              display: "flex",
-                              gap: "14px",
-                              overflowX: "auto",
-                              overflowY: "hidden",
-                              paddingBottom: "10px",
-                              scrollSnapType: "x mandatory",
-                              scrollBehavior: "smooth",
-                              WebkitOverflowScrolling: "touch",
-                            } as React.CSSProperties}
-                          >
+                          {/* Сетка 2 колонки — БЕЗ горизонтального скролла */}
+                          <div style={{
+                            display: "grid",
+                            gridTemplateColumns: "1fr 1fr",
+                            gap: "10px",
+                          }}>
                             {grouped[date].map((game) => (
                               <div
                                 key={game.id}
                                 style={{
-                                  width: "310px",
-                                  minWidth: "310px",
-                                  maxWidth: "310px",
-                                  flexShrink: 0,
-                                  scrollSnapAlign: "start",
                                   background: "linear-gradient(145deg, #111e3a 0%, #0c1628 100%)",
                                   border: game.status === "live"
                                     ? "1px solid rgba(239,68,68,0.6)"
                                     : "1px solid rgba(249,115,22,0.25)",
-                                  borderRadius: "12px",
-                                  padding: "14px",
+                                  borderRadius: "10px",
+                                  padding: "10px 12px",
                                   display: "flex",
                                   flexDirection: "column",
-                                  gap: "8px",
+                                  gap: "6px",
                                   boxSizing: "border-box",
                                 }}
                               >
                                 {/* Статус */}
-                                <div style={{ display: "flex", justifyContent: "flex-end" }}>
-                                  {game.status === "live" ? (
-                                    <span style={{
-                                      background: "#ef4444",
-                                      color: "white",
-                                      fontSize: "10px",
-                                      fontWeight: 800,
-                                      padding: "2px 8px",
-                                      borderRadius: "20px",
-                                      letterSpacing: "0.5px",
-                                    }}>
-                                      🔴 LIVE
-                                    </span>
-                                  ) : (
-                                    <span style={{
-                                      background: "rgba(249,115,22,0.15)",
-                                      color: "#f97316",
-                                      fontSize: "10px",
-                                      fontWeight: 700,
-                                      padding: "2px 8px",
-                                      borderRadius: "20px",
-                                      border: "1px solid rgba(249,115,22,0.3)",
-                                    }}>
-                                      📅 UPCOMING
-                                    </span>
-                                  )}
-                                </div>
+                                {game.status === "live" ? (
+                                  <span style={{
+                                    alignSelf: "flex-start",
+                                    background: "#ef4444",
+                                    color: "white",
+                                    fontSize: "9px",
+                                    fontWeight: 800,
+                                    padding: "2px 6px",
+                                    borderRadius: "20px",
+                                  }}>🔴 LIVE</span>
+                                ) : (
+                                  <span style={{
+                                    alignSelf: "flex-start",
+                                    background: "rgba(249,115,22,0.15)",
+                                    color: "#f97316",
+                                    fontSize: "9px",
+                                    fontWeight: 700,
+                                    padding: "2px 6px",
+                                    borderRadius: "20px",
+                                    border: "1px solid rgba(249,115,22,0.3)",
+                                  }}>📅 UPCOMING</span>
+                                )}
 
                                 {/* Команды */}
                                 <div style={{
-                                  fontSize: "14px",
+                                  fontSize: "12px",
                                   fontWeight: 700,
                                   color: "white",
                                   lineHeight: 1.3,
@@ -1252,22 +1234,21 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
 
                                 {/* Время */}
                                 <div style={{
-                                  fontSize: "12px",
+                                  fontSize: "11px",
                                   fontWeight: 600,
                                   color: "#f97316",
                                 }}>
                                   {game.etTimeFormatted} → {game.kyivTimeFormatted}
                                 </div>
 
-                                {/* Разделитель */}
                                 <div style={{ height: "1px", background: "rgba(255,255,255,0.08)" }} />
 
-                                {/* Ввод ссылки */}
+                                {/* Кнопка / Инпут */}
                                 {selectedGameForStream?.id === game.id ? (
-                                  <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                                  <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
                                     <input
                                       type="text"
-                                      placeholder="https://streameast.live/..."
+                                      placeholder="https://..."
                                       value={streamUrlInput}
                                       onChange={(e) => setStreamUrlInput(e.target.value)}
                                       onKeyDown={(e) => {
@@ -1278,69 +1259,63 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
                                       autoFocus
                                       style={{
                                         width: "100%",
-                                        padding: "7px 10px",
-                                        borderRadius: "6px",
+                                        padding: "5px 8px",
+                                        borderRadius: "5px",
                                         border: "1px solid rgba(249,115,22,0.5)",
                                         background: "rgba(249,115,22,0.08)",
                                         color: "white",
-                                        fontSize: "12px",
+                                        fontSize: "11px",
                                         outline: "none",
                                         boxSizing: "border-box",
                                       }}
                                     />
-                                    <div style={{ display: "flex", gap: "6px" }}>
+                                    <div style={{ display: "flex", gap: "5px" }}>
                                       <button
                                         onClick={() => handleAddUserStream(game, true)}
                                         disabled={submittingStream || !streamUrlInput.trim()}
                                         style={{
                                           flex: 1,
-                                          padding: "7px",
+                                          padding: "6px",
                                           background: "#f97316",
                                           color: "white",
                                           border: "none",
-                                          borderRadius: "6px",
-                                          cursor: submittingStream || !streamUrlInput.trim() ? "not-allowed" : "pointer",
-                                          fontSize: "12px",
+                                          borderRadius: "5px",
+                                          cursor: "pointer",
+                                          fontSize: "11px",
                                           fontWeight: 700,
                                           opacity: submittingStream || !streamUrlInput.trim() ? 0.6 : 1,
                                         }}
                                       >
-                                        {submittingStream ? "⏳..." : "▶ Запустити"}
+                                        {submittingStream ? "⏳" : "▶ Запустити"}
                                       </button>
                                       <button
                                         onClick={() => { setSelectedGameForStream(null); setStreamUrlInput(""); }}
                                         style={{
-                                          padding: "7px 10px",
+                                          padding: "6px 8px",
                                           background: "rgba(255,255,255,0.06)",
                                           color: "rgba(255,255,255,0.6)",
                                           border: "1px solid rgba(255,255,255,0.12)",
-                                          borderRadius: "6px",
+                                          borderRadius: "5px",
                                           cursor: "pointer",
-                                          fontSize: "12px",
+                                          fontSize: "11px",
                                         }}
-                                      >
-                                        ✕
-                                      </button>
+                                      >✕</button>
                                     </div>
                                   </div>
                                 ) : (
                                   <button
-                                    onClick={() => {
-                                      setSelectedGameForStream(game);
-                                      setStreamUrlInput("");
-                                    }}
+                                    onClick={() => { setSelectedGameForStream(game); setStreamUrlInput(""); }}
                                     style={{
                                       width: "100%",
-                                      padding: "8px",
+                                      padding: "6px",
                                       background: "rgba(249,115,22,0.1)",
                                       color: "#f97316",
                                       border: "1px solid rgba(249,115,22,0.35)",
-                                      borderRadius: "6px",
+                                      borderRadius: "5px",
                                       cursor: "pointer",
-                                      fontSize: "12px",
+                                      fontSize: "11px",
                                       fontWeight: 700,
                                       textAlign: "center",
-                                      transition: "background 0.2s",
                                     }}
                                   >
                                     + Додати посилання
@@ -1348,30 +1323,6 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
                                 )}
                               </div>
                             ))}
-
-                            {/* Пустые слоты (только для последней даты если нужно) */}
-                            {date === dates[dates.length - 1] &&
-                              Array.from({ length: Math.max(0, 4 - grouped[date].length) }).map((_, i) => (
-                                <div
-                                  key={`empty-${i}`}
-                                  style={{
-                                    width: "310px",
-                                    minWidth: "310px",
-                                    flexShrink: 0,
-                                    background: "rgba(255,255,255,0.02)",
-                                    border: "1px dashed rgba(255,255,255,0.08)",
-                                    borderRadius: "12px",
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "center",
-                                    color: "rgba(255,255,255,0.15)",
-                                    fontSize: "12px",
-                                  }}
-                                >
-                                  —
-                                </div>
-                              ))
-                            }
                           </div>
                         </div>
                       ))}
@@ -1409,23 +1360,6 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
               )}
             </div>
 
-            {/* CSS для scrollbar слайдера */}
-            <style>{`
-              .schedule-slider::-webkit-scrollbar {
-                height: 6px;
-              }
-              .schedule-slider::-webkit-scrollbar-track {
-                background: rgba(255,255,255,0.04);
-                border-radius: 3px;
-              }
-              .schedule-slider::-webkit-scrollbar-thumb {
-                background: #f97316;
-                border-radius: 3px;
-              }
-              .schedule-slider::-webkit-scrollbar-thumb:hover {
-                background: #ff9d4d;
-              }
-            `}</style>
           </div>
         </div>
       )}
