@@ -1103,6 +1103,8 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
                     flex: 1,
                     padding: "12px 16px",
                     scrollBehavior: "smooth",
+                    maxHeight: "calc(80vh - 140px)",
+                    minHeight: 0,
                   }}
                   className="nba-games-list"
                 >
@@ -1337,21 +1339,25 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
       <style>{`
         .nba-games-list {
           scrollbar-width: thin;
-          scrollbar-color: rgba(249, 115, 22, 0.5) rgba(255, 255, 255, 0.05);
+          scrollbar-color: #f97316 rgba(255, 255, 255, 0.05);
         }
         .nba-games-list::-webkit-scrollbar {
           width: 8px;
         }
         .nba-games-list::-webkit-scrollbar-track {
           background: rgba(255, 255, 255, 0.05);
+          border-radius: 4px;
         }
         .nba-games-list::-webkit-scrollbar-thumb {
-          background-color: rgba(249, 115, 22, 0.6);
+          background-color: #f97316;
           border-radius: 4px;
-          border: 2px solid rgba(255, 255, 255, 0.05);
+          transition: background-color 0.2s;
         }
         .nba-games-list::-webkit-scrollbar-thumb:hover {
-          background-color: rgba(249, 115, 22, 0.8);
+          background-color: #ff9d4d;
+        }
+        .nba-games-list::-webkit-scrollbar-thumb:active {
+          background-color: #ff9d4d;
         }
 
         .instruction-modal-scroll {

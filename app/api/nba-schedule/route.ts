@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   try {
     const now = new Date();
-    const nextDays = new Date(now.getTime() + 4 * 24 * 60 * 60 * 1000); // 4 days ahead
+    const nextDays = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000); // 7 days ahead for more games
 
     // Спробуємо отримати з бази даних
     const schedule = await prisma.nbaSchedule.findMany({
@@ -24,7 +24,7 @@ export async function GET() {
         status: { not: "finished" },
       },
       orderBy: { gameTime: "asc" },
-      take: 20,
+      take: 50,
     });
 
     if (schedule.length > 0) {
@@ -54,7 +54,7 @@ export async function GET() {
         status: { not: "finished" },
       },
       orderBy: { gameTime: "asc" },
-      take: 20,
+      take: 50,
     });
 
     return NextResponse.json({
@@ -96,7 +96,7 @@ function formatKyivTime(date: Date): string {
 async function syncNbaSchedule() {
   try {
     const now = new Date();
-    const nextDays = new Date(now.getTime() + 4 * 24 * 60 * 60 * 1000);
+    const nextDays = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
 
     // Використовуємо balldontlie.io API (безкоштовна альтернатива)
     // API: https://api.balldontlie.io/v1/games?start_date=YYYY-MM-DD&end_date=YYYY-MM-DD
