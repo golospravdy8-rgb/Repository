@@ -1044,10 +1044,9 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
             background: "rgba(0,0,0,0.85)",
             zIndex: 9999,
             display: "flex",
-            alignItems: "flex-start",
+            alignItems: "center",
             justifyContent: "center",
             padding: "16px",
-            paddingTop: "4vh",
           }}
         >
           <div
@@ -1058,8 +1057,7 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
               borderRadius: "14px",
               width: "100%",
               maxWidth: "min(1100px, 96vw)",
-              maxHeight: "92vh",
-              height: "92vh",
+              maxHeight: "82vh",
               display: "flex",
               flexDirection: "column",
               overflow: "hidden",
@@ -1155,7 +1153,7 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
                     if (!grouped[key]) grouped[key] = [];
                     grouped[key].push(game);
                   });
-                  const dates = Object.keys(grouped).sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
+                  const dates = Object.keys(grouped);
 
                   return (
                     <div style={{
@@ -1163,7 +1161,6 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
                       overflowY: "auto",
                       overflowX: "hidden",
                       padding: "12px 16px 16px",
-                      minHeight: 0,
                     }}>
                       {dates.map((date) => (
                         <div key={date} style={{ marginBottom: "16px" }}>
