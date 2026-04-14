@@ -87,6 +87,26 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
     return () => clearInterval(liveInterval);
   }, []);
 
+  // Polling для NBA schedule коли розклад відкритий
+  useEffect(() => {
+    if (!showSchedule) return;
+
+    const pollSchedule = async () => {
+      try {
+        const r = await fetch("/api/nba-schedule");
+        const d = await r.json();
+        if (d.games) {
+          setNbaGames(d.games);
+        }
+      } catch (e) {
+        console.error("[TvBlock] Error polling schedule:", e);
+      }
+    };
+
+    const scheduleInterval = setInterval(pollSchedule, 30000); // Poll every 30 seconds
+    return () => clearInterval(scheduleInterval);
+  }, [showSchedule]);
+
   // Supabase Realtime для TV синхронізації
   useEffect(() => {
     if (!session || isHostRef.current) return; // тільки для глядачів
@@ -429,6 +449,31 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
       const d = await r.json();
       if (d.games) {
         setNbaGames(d.games);
+
+        // Trigger search for games that are currently playing or about to start
+        const now = new Date();
+        for (const game of d.games) {
+          const gameTime = new Date(game.gameTime);
+          const tenMinutesAfterStart = new Date(gameTime.getTime() + 10 * 60 * 1000);
+
+          // If game is within 10 minutes of start → trigger search
+          if (now >= gameTime && now <= tenMinutesAfterStart) {
+            console.log(`[UI] Triggering search for ${game.awayTeam} vs ${game.homeTeam}`);
+
+            // Non-blocking search trigger
+            fetch("/api/live-sessions/trigger-search", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                gameId: game.id,
+                awayTeam: game.awayTeam,
+                homeTeam: game.homeTeam,
+                gameTime: game.gameTime,
+                kyivTime: game.kyivTime,
+              }),
+            }).catch(err => console.warn("[UI] Search trigger failed:", err));
+          }
+        }
       }
     } catch (e) {
       console.error("Error loading NBA schedule:", e);

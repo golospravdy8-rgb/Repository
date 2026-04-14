@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
-import * as cheerio from "cheerio";
+import { findLiveStream } from "@/lib/live-stream-finder";
 
 const prisma = new PrismaClient();
 
@@ -8,11 +8,17 @@ export const dynamic = "force-dynamic";
 
 /**
  * Cron endpoint: POST /api/cron/find-live-streams
- * Запускається кожні 10 хвилин під час ігор
- * Шукає робочі посилання на LIVE трансляції NBA
+ * Запускається кожні 10 хвилин (24/7)
+ * Шукає посилання на LIVE трансляції NBA з множинних джерел
+ *
+ * Логика:
+ * 1. Знаходимо ігри в "вікні пошуку" (від старту до старту + 10 хв)
+ * 2. Для кожної гри:
+ *    - Першу спробу: якщо нема firstSearchAt
+ *    - Другу спробу: якщо прошло >= 10 хвилин після першої
+ * 3. Якщо знайдено посилання → update LiveSession + NbaSchedule.status
  */
 export async function POST(req: NextRequest) {
-  // Перевіримо Vercel Cron Secret для безпеки
   const authHeader = req.headers.get("authorization");
   const cronSecret = process.env.CRON_SECRET;
 
@@ -23,30 +29,30 @@ export async function POST(req: NextRequest) {
   try {
     const now = new Date();
     const oneHourLater = new Date(now.getTime() + 60 * 60 * 1000);
+    const fourHoursAgo = new Date(now.getTime() - 4 * 60 * 60 * 1000);
 
-    // Знаходимо ігри, які зараз або незабаром мають починатися
+    // Знаходимо ігри для пошуку
     const currentGames = await prisma.nbaSchedule.findMany({
       where: {
         gameTime: {
-          gte: new Date(now.getTime() - 4 * 60 * 60 * 1000), // 4 години назад (матч може триватиcь)
-          lte: oneHourLater,
+          gte: fourHoursAgo, // 4 години назад (матч може триватись)
+          lte: oneHourLater, // 1 година вперед
         },
         status: { not: "finished" },
       },
     });
 
-    console.log(`[CRON] Found ${currentGames.length} current/upcoming games`);
+    console.log(`[CRON] Found ${currentGames.length} games in search window`);
 
     const results = [];
 
     for (const game of currentGames) {
-      // Перевіримо, чи вже є активна live-сесія
+      // Знаходимо або створюємо live-сесію
       let liveSession = await prisma.liveSession.findUnique({
         where: { gameId: game.gameId },
       });
 
       if (!liveSession) {
-        // Створюємо нову live-сесію
         liveSession = await prisma.liveSession.create({
           data: {
             gameId: game.gameId,
@@ -58,31 +64,57 @@ export async function POST(req: NextRequest) {
             checkCount: 0,
           },
         });
-        console.log(`[CRON] Created new live session for ${game.awayTeam} vs ${game.homeTeam}`);
+        console.log(
+          `[CRON] Created live session for ${game.awayTeam} vs ${game.homeTeam}`
+        );
       }
 
-      // Перевіримо, чи ми вже шукали цю гру (макс 2 спроби)
-      if (liveSession.checkCount >= 2) {
-        console.log(`[CRON] Skipping ${game.awayTeam} vs ${game.homeTeam} (already checked 2 times)`);
+      // Перевіряємо, чи заповнений пошук (searchCompleted)
+      if (liveSession.searchCompleted) {
+        console.log(
+          `[CRON] Skipping ${game.awayTeam} vs ${game.homeTeam} (search completed)`
+        );
         continue;
       }
 
-      // Шукаємо live посилання
-      const liveUrl = await findLiveStream(game.awayTeam, game.homeTeam);
+      // ЛОГИКА ПОШУКУ:
+      // 1 спроба: якщо нема firstSearchAt
+      // 2 спроба: якщо прошло >= 10 хвилин після першої
 
-      if (liveUrl) {
+      const TEN_MINUTES = 10 * 60 * 1000;
+      const shouldSearch = determineSearchAttempt(liveSession, now, TEN_MINUTES);
+
+      if (!shouldSearch) {
+        console.log(
+          `[CRON] Not yet time to search ${game.awayTeam} vs ${game.homeTeam}`
+        );
+        continue;
+      }
+
+      // ШУКАЄМО
+      const searchResult = await findLiveStream(
+        game.awayTeam,
+        game.homeTeam,
+        game.gameId
+      );
+
+      if (searchResult) {
+        const { url, source } = searchResult;
+
+        // Обновляємо live-сесію
         await prisma.liveSession.update({
-          where: { id: liveSession.id },
+          where: { gameId: game.gameId },
           data: {
-            liveUrl,
-            liveSource: extractSource(liveUrl),
+            liveUrl: url,
+            liveSource: source,
             isActive: true,
             lastChecked: new Date(),
-            checkCount: liveSession.checkCount + 1,
+            secondSearchAt: liveSession.firstSearchAt ? new Date() : undefined,
+            searchCompleted: !!liveSession.firstSearchAt, // Close if was first search
           },
         });
 
-        // Update NBA schedule status to "live"
+        // Обновляємо NBA Schedule статус
         try {
           await prisma.nbaSchedule.update({
             where: { gameId: game.gameId },
@@ -90,25 +122,40 @@ export async function POST(req: NextRequest) {
           });
           console.log(`[LIVE] Game marked as LIVE: ${game.gameId}`);
         } catch (err) {
-          console.warn(`[LIVE] Could not update schedule for ${game.gameId}: ${String(err)}`);
+          console.warn(
+            `[LIVE] Could not update schedule for ${game.gameId}: ${String(err)}`
+          );
         }
 
         results.push({
           game: `${game.awayTeam} vs ${game.homeTeam}`,
-          liveUrl,
-          source: extractSource(liveUrl),
+          liveUrl: url,
+          source,
           found: true,
         });
 
-        console.log(`[CRON] ✅ Found live stream for ${game.awayTeam} vs ${game.homeTeam}`);
+        console.log(
+          `[CRON] ✅ Found live stream (${source}): ${game.awayTeam} vs ${game.homeTeam}`
+        );
       } else {
-        // Оновлюємо checkCount без посилання
+        // Не знайдено - оновляємо тільки мітки часу та counter
+        const update: any = {
+          lastChecked: new Date(),
+          checkCount: liveSession.checkCount + 1,
+        };
+
+        // Записуємо мітку першої спроби, якщо це перший пошук
+        if (!liveSession.firstSearchAt) {
+          update.firstSearchAt = new Date();
+        } else if (liveSession.firstSearchAt && !liveSession.secondSearchAt) {
+          // Це друга спроба
+          update.secondSearchAt = new Date();
+          update.searchCompleted = true;
+        }
+
         await prisma.liveSession.update({
-          where: { id: liveSession.id },
-          data: {
-            lastChecked: new Date(),
-            checkCount: liveSession.checkCount + 1,
-          },
+          where: { gameId: game.gameId },
+          data: update,
         });
 
         results.push({
@@ -116,7 +163,9 @@ export async function POST(req: NextRequest) {
           found: false,
         });
 
-        console.log(`[CRON] ❌ No live stream found for ${game.awayTeam} vs ${game.homeTeam}`);
+        console.log(
+          `[CRON] ❌ No live stream found: ${game.awayTeam} vs ${game.homeTeam}`
+        );
       }
     }
 
@@ -137,62 +186,29 @@ export async function POST(req: NextRequest) {
 }
 
 /**
- * Шукає live посилання для гри в basketball-video.com, ok.ru, dailymotion тощо
+ * Determine if we should search on this cron run
  */
-async function findLiveStream(awayTeam: string, homeTeam: string): Promise<string | null> {
-  try {
-    // Спочатку шукаємо в basketball-video.com (наш основний джерело)
-    const searchQuery = `${awayTeam.replace(/\s+/g, "-")} vs ${homeTeam.replace(/\s+/g, "-")}`.toLowerCase();
-
-    // Спроба 1: basketball-video.com
-    const bbvideoUrl = `https://basketball-video.com/?s=${encodeURIComponent(`${awayTeam} ${homeTeam}`)}`;
-    const bbvideoRes = await fetch(bbvideoUrl, {
-      headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" },
-      signal: AbortSignal.timeout(5000),
-    });
-
-    if (bbvideoRes.ok) {
-      const html = await bbvideoRes.text();
-      const $ = cheerio.load(html);
-
-      // Шукаємо "LIVE" посилання або сьогоднішні матчи
-      const liveLink = $("a:contains('LIVE'), a:contains('LIVE Game'), h2:contains('Today')").first().attr("href");
-      if (liveLink && liveLink.startsWith("http")) {
-        console.log(`[CRON] Found basketball-video.com link: ${liveLink.substring(0, 80)}`);
-        return liveLink;
-      }
-    }
-
-    // Спроба 2: ok.ru (шукаємо через простий пошук)
-    const okruSearch = `https://ok.ru/search?q=${encodeURIComponent(`NBA ${awayTeam} ${homeTeam} live`)}`;
-    const okruRes = await fetch(okruSearch, {
-      headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" },
-      signal: AbortSignal.timeout(5000),
-    });
-
-    if (okruRes.ok) {
-      const html = await okruRes.text();
-      if (html.includes("videoembed") || html.includes("video")) {
-        console.log(`[CRON] Found potential ok.ru stream`);
-        return `https://ok.ru/search?q=${encodeURIComponent(`NBA ${awayTeam} ${homeTeam}`)}`;
-      }
-    }
-
-    console.log(`[CRON] No live stream found for ${awayTeam} vs ${homeTeam}`);
-    return null;
-  } catch (e) {
-    console.error(`[CRON] Error searching for ${awayTeam} vs ${homeTeam}:`, e);
-    return null;
+function determineSearchAttempt(
+  liveSession: any,
+  now: Date,
+  tenMinutes: number
+): boolean {
+  // Якщо пошук завершений - пропускаємо
+  if (liveSession.searchCompleted) {
+    return false;
   }
-}
 
-/**
- * Витягує джерело з URL
- */
-function extractSource(url: string): string {
-  if (url.includes("ok.ru")) return "ok.ru";
-  if (url.includes("dailymotion")) return "dailymotion";
-  if (url.includes("youtube")) return "youtube";
-  if (url.includes("basketball-video")) return "basketball-video";
-  return "unknown";
+  // Якщо ще не робили першу спробу - робимо
+  if (!liveSession.firstSearchAt) {
+    return true;
+  }
+
+  // Якщо першу робили, але другу ще ні, і пройшло >= 10 хвилин - робимо другу
+  if (liveSession.firstSearchAt && !liveSession.secondSearchAt) {
+    const timeSinceFirst = now.getTime() - liveSession.firstSearchAt.getTime();
+    return timeSinceFirst >= tenMinutes;
+  }
+
+  // Інші случаї - не шукаємо
+  return false;
 }
