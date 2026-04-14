@@ -158,6 +158,7 @@ export async function GET(req: Request) {
           name: isDM ? `Server #${serverNum} (DM)` : `Server #${serverNum}`,
           parts: [],
         };
+        console.log(`[TV] Found ${currentServer.name}`);
       } else if (text.match(/Part\s*\d+/i) && currentServer) {
         const partNum = text.match(/Part\s*(\d+)/i)?.[1] || "?";
         if (link) {
@@ -165,10 +166,12 @@ export async function GET(req: Request) {
             label: `Part ${partNum}`,
             url: link,
           });
+          console.log(`[TV]   → Added Part ${partNum} to ${currentServer.name}`);
         }
       } else if (text.match(/Watch/i) && currentServer && link) {
         if (currentServer.parts.length === 0) {
           currentServer.watchUrl = link;
+          console.log(`[TV]   → Added Watch button to ${currentServer.name}`);
         }
       }
     });
@@ -176,7 +179,10 @@ export async function GET(req: Request) {
     if (currentServer) servers.push(currentServer);
 
     console.log(`[TV] Parsed ${servers.length} servers from basketball-video.com`);
-    servers.forEach((s, i) => console.log(`  [${i}] ${s.name} - ${s.parts.length} parts, watchUrl: ${s.watchUrl ? 'yes' : 'no'}`));
+    servers.forEach((s, i) => {
+      const partInfo = s.parts.length > 0 ? `${s.parts.length} parts` : s.watchUrl ? 'watch url' : 'no content';
+      console.log(`[TV]   [${i}] ${s.name} - ${partInfo}`);
+    });
 
     // Витягаємо прямі embed URLs з watchUrl (без частин)
     // щоб замість повної сторінки завантажувати чистий плеєр
