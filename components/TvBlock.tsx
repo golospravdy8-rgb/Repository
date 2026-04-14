@@ -582,7 +582,22 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
       {showPlayer && videoUrl && !minimized && (
         <div style={s.playerWrap} ref={playerWrapRef}>
           {videoType === "iframe" || videoType === "external" ? (
-            <iframe src={videoUrl} style={{ width: "100%", height: "100%", minHeight: 320, border: "none", display: "block", flex: 1 }} allowFullScreen />
+            <iframe
+              src={videoUrl}
+              style={{
+                width: "100%",
+                height: "100%",
+                minHeight: 320,
+                border: "none",
+                display: "block",
+                flex: 1,
+                overflow: "hidden"
+              }}
+              allowFullScreen
+              allow="autoplay; fullscreen; picture-in-picture"
+              frameBorder="0"
+              scrolling="no"
+            />
           ) : (
             <>
               {/* Контейнер відео з максимальною висотою — flex: 1 займає весь доступний простір */}

@@ -8,7 +8,8 @@ interface Server {
 }
 
 /**
- * Витягує прямий iframe src з сторінки (наприклад ok.ru/videoembed/...)
+ * Витягує прямий iframe src з сторінки (ok.ru, dailymotion, youtube, тощо)
+ * Агресивний пошук: iframe → регулярні вирази → meta tags → скрипти
  */
 async function extractEmbedUrl(pageUrl: string): Promise<string | null> {
   try {
@@ -22,22 +23,99 @@ async function extractEmbedUrl(pageUrl: string): Promise<string | null> {
     const html = await res.text();
     const $ = cheerio.load(html);
 
-    // Шукаємо першу iframe з src (ok.ru, youtube, тощо)
-    const iframeSrc = $('iframe[src]').first().attr('src');
-    if (iframeSrc && iframeSrc.startsWith('//')) {
-      return 'https:' + iframeSrc;
+    console.log(`[TV] extractEmbedUrl: parsing ${pageUrl.substring(0, 80)}`);
+
+    // 1. Шукаємо всі iframe src (не лише першу)
+    const iframes: string[] = [];
+    $('iframe[src]').each((_, el) => {
+      let src = $(el).attr('src') || '';
+      if (src.startsWith('//')) src = 'https:' + src;
+      if (src.startsWith('http')) iframes.push(src);
+    });
+
+    // Пріоритет: ok.ru > dailymotion > youtube > інші
+    for (const src of iframes) {
+      if (src.includes('ok.ru/videoembed')) {
+        console.log(`[TV] Found OK.ru embed: ${src.substring(0, 70)}`);
+        return src;
+      }
     }
-    if (iframeSrc && iframeSrc.startsWith('http')) {
-      return iframeSrc;
+    for (const src of iframes) {
+      if (src.includes('dailymotion.com') && src.includes('/embed/')) {
+        console.log(`[TV] Found Dailymotion embed: ${src.substring(0, 70)}`);
+        return src;
+      }
+    }
+    for (const src of iframes) {
+      if (src.includes('youtube.com/embed') || src.includes('youtu.be')) {
+        console.log(`[TV] Found YouTube embed: ${src.substring(0, 70)}`);
+        return src;
+      }
+    }
+    for (const src of iframes) {
+      if (src.length > 0) {
+        console.log(`[TV] Found generic iframe: ${src.substring(0, 70)}`);
+        return src;
+      }
     }
 
-    // Шукаємо в скриптах
+    // 2. Шукаємо в HTML атрибутах (data-src, src= у div тощо)
+    const dataSrcMatch = html.match(/data-src=["']([^"']*(?:ok\.ru|dailymotion|youtube|youtu\.be)[^"']*)/i);
+    if (dataSrcMatch && dataSrcMatch[1]) {
+      let url = dataSrcMatch[1];
+      if (url.startsWith('//')) url = 'https:' + url;
+      console.log(`[TV] Found data-src: ${url.substring(0, 70)}`);
+      return url;
+    }
+
+    // 3. Шукаємо в скриптах (js змінні, json, тощо)
     const scripts = $('script').text();
-    const urlMatch = scripts.match(/https?:\/\/[^\s"'<>]+(?:ok\.ru|youtube\.com|youtu\.be)[^\s"'<>]*/i);
-    if (urlMatch) {
-      return urlMatch[0];
+
+    // OK.ru
+    let match = scripts.match(/["']([^"']*ok\.ru\/videoembed\/\d+[^"']*)/i);
+    if (match && match[1]) {
+      console.log(`[TV] Found OK.ru in script: ${match[1].substring(0, 70)}`);
+      return match[1];
     }
 
+    // Dailymotion embed
+    match = scripts.match(/["']([^"']*dailymotion\.com\/embed\/[^"']*)/i);
+    if (match && match[1]) {
+      console.log(`[TV] Found Dailymotion in script: ${match[1].substring(0, 70)}`);
+      return match[1];
+    }
+
+    // YouTube
+    match = scripts.match(/["']([^"']*youtube\.com\/embed\/[^"']*)/i);
+    if (match && match[1]) {
+      console.log(`[TV] Found YouTube in script: ${match[1].substring(0, 70)}`);
+      return match[1];
+    }
+
+    // Будь-яке посилання на embed-сервіс
+    match = scripts.match(/["']?(https?:\/\/[^\s"'<>]+\/(?:embed|videoembed)\/[^\s"'<>]*)/i);
+    if (match && match[1]) {
+      console.log(`[TV] Found generic embed: ${match[1].substring(0, 70)}`);
+      return match[1];
+    }
+
+    // 4. Шукаємо у meta tags (og:video, twitter:player)
+    const ogVideo = $('meta[property="og:video"]').attr('content');
+    if (ogVideo && (ogVideo.includes('embed') || ogVideo.includes('videoembed'))) {
+      console.log(`[TV] Found og:video: ${ogVideo.substring(0, 70)}`);
+      return ogVideo;
+    }
+
+    // 5. Шукаємо src= у будь-яких HTML елементах (іноді embed в div)
+    const allSrcs = $('[src*="embed"], [src*="videoembed"]').map((_, el) => $(el).attr('src')).get();
+    for (const src of allSrcs) {
+      if (src && src.startsWith('http')) {
+        console.log(`[TV] Found src attribute: ${src.substring(0, 70)}`);
+        return src;
+      }
+    }
+
+    console.log('[TV] No embed URL found, returning null');
     return null;
   } catch (e) {
     console.error('[TV] extractEmbedUrl error:', e);
