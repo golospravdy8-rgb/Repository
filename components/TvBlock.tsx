@@ -897,12 +897,14 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
             border: "1px solid rgba(255,255,255,0.12)",
             borderRadius: "8px",
             padding: "16px",
-            maxWidth: "420px",
+            maxWidth: "450px",
             width: "100%",
-            maxHeight: "70vh",
+            maxHeight: "80vh",
+            minHeight: "200px",
             display: "flex",
             flexDirection: "column" as const,
             backdropFilter: "blur(8px)",
+            overflow: "hidden",
           }}>
             <div style={{
               display: "flex",
@@ -934,7 +936,16 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
                 ⏳ Loading...
               </div>
             ) : nbaGames.length > 0 ? (
-              <div style={{ display: "flex", flexDirection: "column", gap: "8px", overflowY: "auto", flex: 1, paddingRight: "4px" }}>
+              <div style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "8px",
+                overflowY: "auto",
+                overflowX: "hidden",
+                flex: 1,
+                paddingRight: "8px",
+                minHeight: "100px",
+              }}>
                 {nbaGames.map((game) => (
                   <div
                     key={game.id}
@@ -942,16 +953,24 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
                       background: "rgba(255,255,255,0.05)",
                       border: "1px solid rgba(255,255,255,0.1)",
                       borderRadius: "4px",
-                      padding: "10px",
+                      padding: "12px",
                       color: "white",
-                      fontSize: "12px",
+                      fontSize: "13px",
                       flexShrink: 0,
+                      transition: "background 0.2s",
+                      cursor: "default",
+                    }}
+                    onMouseEnter={(e) => {
+                      (e.currentTarget as HTMLDivElement).style.background = "rgba(255,255,255,0.08)";
+                    }}
+                    onMouseLeave={(e) => {
+                      (e.currentTarget as HTMLDivElement).style.background = "rgba(255,255,255,0.05)";
                     }}
                   >
-                    <div style={{ fontWeight: 500, marginBottom: "4px" }}>
+                    <div style={{ fontWeight: 600, marginBottom: "6px", lineHeight: "1.3" }}>
                       {game.awayTeam} @ {game.homeTeam}
                     </div>
-                    <div style={{ color: "#f97316", fontWeight: 700, fontSize: "11px" }}>
+                    <div style={{ color: "#f97316", fontWeight: 700, fontSize: "12px", marginTop: "4px" }}>
                       🕐 {game.kyivTimeFormatted}
                     </div>
                   </div>
