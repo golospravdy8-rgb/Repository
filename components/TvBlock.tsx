@@ -1160,7 +1160,7 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
                       flex: 1,
                       overflowY: "auto",
                       overflowX: "hidden",
-                      padding: "12px 16px 16px",
+                      padding: "60px 16px 16px",
                       minHeight: 0,
                     }}>
                       {dates.map((date) => {
