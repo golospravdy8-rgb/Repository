@@ -1163,7 +1163,7 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
                       padding: "12px 16px 16px",
                       minHeight: 0,
                     }}>
-                      {dates.length > 0 && <div style={{ height: "110px" }} />}
+                      {dates.length > 0 && <div style={{ height: "160px" }} />}
                       {dates.map((date) => {
                         // Виявляємо Play-In дати (14-17 квітня)
                         const isPlayIn = date.includes("14 квітня") ||
