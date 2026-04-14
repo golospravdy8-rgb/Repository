@@ -1160,19 +1160,19 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
                       flex: 1,
                       overflowY: "auto",
                       overflowX: "hidden",
-                      padding: "60px 16px 16px",
+                      padding: "12px 16px 16px",
                       minHeight: 0,
                     }}>
-                      {dates.map((date, idx) => {
+                      {dates.length > 0 && <div style={{ height: "110px" }} />}
+                      {dates.map((date) => {
                         // Виявляємо Play-In дати (14-17 квітня)
                         const isPlayIn = date.includes("14 квітня") ||
                                         date.includes("15 квітня") ||
                                         date.includes("16 квітня") ||
                                         date.includes("17 квітня");
-                        const isFirstDate = idx === 0;
 
                         return (
-                        <div key={date} style={{ marginBottom: "16px", marginTop: isFirstDate ? "100px" : "0px" }}>
+                        <div key={date} style={{ marginBottom: "16px" }}>
                           {/* Заголовок даты */}
                           <div style={{
                             color: "#f97316",
