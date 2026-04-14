@@ -329,6 +329,12 @@ function getStaticFallbackGames(period: NbaPeriod): ParsedGame[] {
 async function syncNbaSchedule(): Promise<void> {
   console.log("[NBA-SYNC] Starting sync...");
 
+  const now = new Date();
+  const deleted = await prisma.nbaSchedule.deleteMany({
+    where: { gameTime: { lt: now } }
+  });
+  console.log(`[NBA-SYNC] Deleted ${deleted.count} past games`);
+
   let games: ParsedGame[];
   try {
     games = await fetchNbaScheduleFromWeb();
