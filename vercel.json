@@ -35,7 +35,7 @@
     },
     {
       "path": "/api/cron/find-live-streams",
-      "schedule": "*/10 12-23 * * *"
+      "schedule": "*/10 * * * *"
     }
   ]
 }

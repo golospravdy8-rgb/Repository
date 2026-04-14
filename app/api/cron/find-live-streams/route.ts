@@ -82,6 +82,17 @@ export async function POST(req: NextRequest) {
           },
         });
 
+        // Update NBA schedule status to "live"
+        try {
+          await prisma.nbaSchedule.update({
+            where: { gameId: game.gameId },
+            data: { status: "live" },
+          });
+          console.log(`[LIVE] Game marked as LIVE: ${game.gameId}`);
+        } catch (err) {
+          console.warn(`[LIVE] Could not update schedule for ${game.gameId}: ${String(err)}`);
+        }
+
         results.push({
           game: `${game.awayTeam} vs ${game.homeTeam}`,
           liveUrl,
