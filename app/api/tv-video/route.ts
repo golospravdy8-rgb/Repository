@@ -153,7 +153,7 @@ export async function GET(req: Request) {
       if (text.match(/Server\s*#\d+/i)) {
         if (currentServer) servers.push(currentServer);
         const serverNum = text.match(/Server\s*#(\d+)/i)?.[1] || "?";
-        const isDM = text.includes("(DM)");
+        const isDM = text.includes("(DM)") || text.includes("Dailymotion") || text.includes("dailymotion");
         currentServer = {
           name: isDM ? `Server #${serverNum} (DM)` : `Server #${serverNum}`,
           parts: [],
@@ -176,6 +176,7 @@ export async function GET(req: Request) {
     if (currentServer) servers.push(currentServer);
 
     console.log(`[TV] Parsed ${servers.length} servers from basketball-video.com`);
+    servers.forEach((s, i) => console.log(`  [${i}] ${s.name} - ${s.parts.length} parts, watchUrl: ${s.watchUrl ? 'yes' : 'no'}`));
 
     // Витягаємо прямі embed URLs з watchUrl (без частин)
     // щоб замість повної сторінки завантажувати чистий плеєр

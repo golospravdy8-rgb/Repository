@@ -8,7 +8,7 @@ export async function GET() {
   try {
     // Спробуємо отримати матчи з бази даних
     const dbMatches = await prisma.tvMatch.findMany({
-      orderBy: { matchDate: "desc" },
+      orderBy: { createdAt: "asc" },  // ← Зберігаємо порядок вставки з парсингу сайту
       take: 12,
     });
 
@@ -27,9 +27,9 @@ export async function GET() {
     // Якщо база пуста, парсимо basketball-video.com
     await syncMatches();
 
-    // Повертаємо матчи з бази
+    // Повертаємо матчи з бази в порядку вставки (порядок з сайту)
     const freshMatches = await prisma.tvMatch.findMany({
-      orderBy: { matchDate: "desc" },
+      orderBy: { createdAt: "asc" },  // ← Порядок з сайту
       take: 12,
     });
 
@@ -104,12 +104,8 @@ async function syncMatches() {
       return;
     }
 
-    // Сортуємо по датам (свіжіші спочатку)
-    newMatches.sort(
-      (a, b) => new Date(b.matchDate).getTime() - new Date(a.matchDate).getTime()
-    );
-
-    // Беремо 12 найсвіжіших
+    // НЕ сортуємо! Зберігаємо порядок з сайту як displayOrder
+    // Беремо перші 12 матчів в тому порядку, в якому вони з'явилися на сайті
     const top12New = newMatches.slice(0, 12);
 
     // Отримуємо поточні матчи з бази
@@ -126,11 +122,13 @@ async function syncMatches() {
       `[TV] ${urlsToAdd.length} new matches to add, ${existingMatches.length} existing`
     );
 
-    // Додаємо нові матчи
+    // Додаємо нові матчи (в тому порядку, в якому вони були розпарсені з сайту)
     for (const match of top12New) {
       await prisma.tvMatch.upsert({
         where: { url: match.url },
-        update: { matchDate: match.matchDate },
+        update: {
+          matchDate: match.matchDate,
+        },
         create: {
           title: match.title,
           url: match.url,

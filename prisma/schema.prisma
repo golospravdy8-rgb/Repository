@@ -233,13 +233,14 @@ model ChatBan {
 }
 
 model TvMatch {
-  id          String    @id @default(cuid())
-  title       String
-  url         String    @unique
-  matchDate   DateTime
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id        String    @id @default(cuid())
+  title     String
+  url       String    @unique
+  matchDate DateTime
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
+  @@index([createdAt])
   @@index([matchDate])
 }
 
