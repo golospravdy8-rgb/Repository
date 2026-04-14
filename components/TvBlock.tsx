@@ -959,7 +959,9 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
                     overflowX: "hidden",
                     flex: 1,
                     padding: "12px 16px",
+                    scrollBehavior: "smooth",
                   }}
+                  className="nba-games-list"
                 >
                   <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
                     {nbaGames.map((game) => (
@@ -1012,6 +1014,27 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
           </div>
         </div>
       )}
+
+      <style>{`
+        .nba-games-list {
+          scrollbar-width: thin;
+          scrollbar-color: rgba(249, 115, 22, 0.5) rgba(255, 255, 255, 0.05);
+        }
+        .nba-games-list::-webkit-scrollbar {
+          width: 8px;
+        }
+        .nba-games-list::-webkit-scrollbar-track {
+          background: rgba(255, 255, 255, 0.05);
+        }
+        .nba-games-list::-webkit-scrollbar-thumb {
+          background-color: rgba(249, 115, 22, 0.6);
+          border-radius: 4px;
+          border: 2px solid rgba(255, 255, 255, 0.05);
+        }
+        .nba-games-list::-webkit-scrollbar-thumb:hover {
+          background-color: rgba(249, 115, 22, 0.8);
+        }
+      `}</style>
     </div>
   );
 }
