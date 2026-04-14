@@ -462,7 +462,7 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
     }
   };
 
-  const handleAddUserStream = async (game: NbaGame) => {
+  const handleAddUserStream = async (game: NbaGame, playVideo: boolean = false) => {
     if (!streamUrlInput.trim()) {
       alert("Вставте посилання");
       return;
@@ -484,6 +484,7 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
       });
 
       if (res.ok) {
+        const url = streamUrlInput.trim();
         setStreamUrlInput("");
         setSelectedGameForStream(null);
         onSendMessage?.(
@@ -491,6 +492,40 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
         );
         // Reload user streams
         await loadUserStreamsForGame(game.id);
+
+        // Якщо потрібно запустити відео — закриваємо модалку та запускаємо плеєр
+        if (playVideo) {
+          setShowSchedule(false);
+          if (typeof document !== "undefined") {
+            document.body.style.overflow = "auto";
+          }
+          // Стартуємо відео
+          setLoadingVideo(true);
+          try {
+            const vr = await fetch(`/api/tv-video?url=${encodeURIComponent(url)}`);
+            const vd = await vr.json();
+            setLoadingVideo(false);
+
+            if (vd.videoUrl) {
+              setVideoUrl(vd.videoUrl);
+              setVideoType(vd.type || "external");
+              setShowPlayer(true);
+              setMinimized(false);
+              isHostRef.current = false;
+              onSendMessage?.(`📺 ${userName} запустив трансляцію: ${game.awayTeam} @ ${game.homeTeam}`);
+            } else if (url) {
+              // Fallback: спробуємо URL як iframe
+              setVideoUrl(url);
+              setVideoType("external");
+              setShowPlayer(true);
+              setMinimized(false);
+              isHostRef.current = false;
+            }
+          } catch (e) {
+            console.error("Error loading stream:", e);
+            setLoadingVideo(false);
+          }
+        }
       } else {
         const error = await res.json();
         alert(`Помилка: ${error.error}`);
@@ -1042,10 +1077,10 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
             >
               <div>
                 <h3 style={{ color: "white", margin: 0, fontSize: "15px", fontWeight: 700, lineHeight: 1.2 }}>
-                  🏀 NBA Playoffs 2026
+                  📅 Розклад матчів NBA
                 </h3>
                 <div style={{ color: "rgba(255,255,255,0.45)", fontSize: "11px", marginTop: "2px" }}>
-                  Прокрути вліво-вправо для перегляду матчів
+                  Додай посилання або натисни Enter щоб запустити
                 </div>
               </div>
               <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
@@ -1066,10 +1101,28 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
                     fontWeight: 700,
                   }}
                 >
-                  {refreshingSchedule ? "⏳" : "🔄"}
+                  {refreshingSchedule ? "⏳" : "🔄"} Оновити
+                </button>
+                <button
+                  onClick={handleOpenInstructionModal}
+                  title="Інструкція телевізора"
+                  style={{
+                    background: "rgba(59,130,246,0.15)",
+                    border: "1px solid rgba(59,130,246,0.3)",
+                    color: "#3b82f6",
+                    cursor: "pointer",
+                    fontSize: "13px",
+                    padding: "5px 10px",
+                    borderRadius: "6px",
+                    lineHeight: 1,
+                    fontWeight: 700,
+                  }}
+                >
+                  ℹ️ Інструкція
                 </button>
                 <button
                   onClick={handleCloseSchedule}
+                  title="Закрити"
                   style={{
                     background: "rgba(249,115,22,0.15)",
                     border: "1px solid rgba(249,115,22,0.3)",
@@ -1217,6 +1270,11 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
                             placeholder="https://streameast.live/..."
                             value={streamUrlInput}
                             onChange={(e) => setStreamUrlInput(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" && !submittingStream) {
+                                handleAddUserStream(game, true);
+                              }
+                            }}
                             style={{
                               width: "100%",
                               padding: "7px 10px",
@@ -1228,25 +1286,28 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
                               outline: "none",
                               boxSizing: "border-box",
                             }}
+                            autoFocus
                           />
                           <div style={{ display: "flex", gap: "6px" }}>
                             <button
-                              onClick={() => handleAddUserStream(game)}
-                              disabled={submittingStream}
+                              onClick={() => handleAddUserStream(game, true)}
+                              disabled={submittingStream || !streamUrlInput.trim()}
+                              title="Зберегти посилання та запустити (або Enter)"
                               style={{
                                 flex: 1,
                                 padding: "6px",
-                                background: "#3b82f6",
+                                background: "#f97316",
                                 color: "white",
                                 border: "none",
                                 borderRadius: "6px",
-                                cursor: submittingStream ? "not-allowed" : "pointer",
+                                cursor: submittingStream || !streamUrlInput.trim() ? "not-allowed" : "pointer",
                                 fontWeight: 700,
                                 fontSize: "12px",
-                                opacity: submittingStream ? 0.6 : 1,
+                                opacity: submittingStream || !streamUrlInput.trim() ? 0.6 : 1,
+                                transition: "background 0.2s",
                               }}
                             >
-                              {submittingStream ? "⏳ Зберігаємо..." : "✓ Зберегти"}
+                              {submittingStream ? "⏳ Завантажуємо..." : "▶ Запустити"}
                             </button>
                             <button
                               onClick={() => { setSelectedGameForStream(null); setStreamUrlInput(""); }}
@@ -1275,9 +1336,9 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
                           style={{
                             width: "100%",
                             padding: "8px",
-                            background: "rgba(59,130,246,0.12)",
-                            color: "#60a5fa",
-                            border: "1px solid rgba(59,130,246,0.35)",
+                            background: "rgba(249,115,22,0.12)",
+                            color: "#f97316",
+                            border: "1px solid rgba(249,115,22,0.35)",
                             borderRadius: "7px",
                             cursor: "pointer",
                             fontSize: "12px",
