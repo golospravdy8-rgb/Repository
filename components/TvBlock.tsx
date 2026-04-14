@@ -4,6 +4,7 @@ import { supabase } from "@/lib/supabase";
 
 interface Match { id: string; title: string; url: string; date: string }
 interface Session { id: number; match_id?: string; match_title: string; match_url: string; started_by: string }
+interface NbaGame { id: string; homeTeam: string; awayTeam: string; kyivTimeFormatted: string; status: string }
 interface Props { userName: string; onSendMessage?: (text: string) => void }
 
 export default function TvBlock({ userName, onSendMessage }: Props) {
@@ -21,6 +22,9 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [showSchedule, setShowSchedule] = useState(false);
+  const [nbaGames, setNbaGames] = useState<NbaGame[]>([]);
+  const [loadingSchedule, setLoadingSchedule] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const playerRef = useRef<HTMLVideoElement | null>(null);
   const playerWrapRef = useRef<HTMLDivElement | null>(null);
@@ -361,6 +365,22 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
     setVideoType(null);
   };
 
+  const handleOpenSchedule = async () => {
+    setShowSchedule(true);
+    setLoadingSchedule(true);
+    try {
+      const r = await fetch("/api/nba-schedule");
+      const d = await r.json();
+      if (d.games) {
+        setNbaGames(d.games);
+      }
+    } catch (e) {
+      console.error("Error loading NBA schedule:", e);
+    } finally {
+      setLoadingSchedule(false);
+    }
+  };
+
   // Форматування часу: 125 -> "2:05"
   const formatTime = (seconds: number): string => {
     if (!seconds || !isFinite(seconds)) return "0:00";
@@ -445,9 +465,27 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
     <div style={s.wrap}>
       <div style={s.title}>
         <span>📺 Телевізор</span>
-        <button onClick={() => setMinimized(true)} style={{ background: "none", border: "none", color: "#f97316", cursor: "pointer", fontSize: 12, padding: 0 }}>
-          ✕
-        </button>
+        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+          <button
+            onClick={handleOpenSchedule}
+            title="Розклад NBA"
+            style={{
+              background: "#f97316",
+              border: "none",
+              color: "white",
+              cursor: "pointer",
+              fontSize: 10,
+              padding: "2px 6px",
+              borderRadius: 3,
+              fontWeight: 700,
+            }}
+          >
+            📅 Розклад
+          </button>
+          <button onClick={() => setMinimized(true)} style={{ background: "none", border: "none", color: "#f97316", cursor: "pointer", fontSize: 12, padding: 0 }}>
+            ✕
+          </button>
+        </div>
       </div>
 
       <div style={s.slider}>
@@ -721,6 +759,89 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
         </div>
       )}
 
+      {/* Модальне вікно розкладу NBA */}
+      {showSchedule && (
+        <div style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: "rgba(0,0,0,0.8)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          zIndex: 1000,
+          padding: "10px",
+        }}>
+          <div style={{
+            background: "rgba(10, 20, 50, 0.96)",
+            border: "1px solid rgba(255,255,255,0.12)",
+            borderRadius: "8px",
+            padding: "16px",
+            maxWidth: "400px",
+            width: "100%",
+            maxHeight: "80vh",
+            overflow: "auto",
+            backdropFilter: "blur(8px)",
+          }}>
+            <div style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: "12px",
+              paddingBottom: "12px",
+              borderBottom: "1px solid rgba(255,255,255,0.12)",
+            }}>
+              <h3 style={{ color: "white", margin: 0, fontSize: "14px", fontWeight: 700 }}>📅 Розклад NBA (Київський час)</h3>
+              <button
+                onClick={() => setShowSchedule(false)}
+                style={{
+                  background: "none",
+                  border: "none",
+                  color: "#f97316",
+                  cursor: "pointer",
+                  fontSize: "16px",
+                  padding: 0,
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {loadingSchedule ? (
+              <div style={{ color: "rgba(255,255,255,0.6)", fontSize: "11px", textAlign: "center", padding: "20px" }}>
+                ⏳ Завантаження...
+              </div>
+            ) : nbaGames.length > 0 ? (
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                {nbaGames.map((game) => (
+                  <div
+                    key={game.id}
+                    style={{
+                      background: "rgba(255,255,255,0.05)",
+                      border: "1px solid rgba(255,255,255,0.1)",
+                      borderRadius: "4px",
+                      padding: "8px",
+                      color: "white",
+                      fontSize: "11px",
+                    }}
+                  >
+                    <div>{game.awayTeam} — {game.homeTeam}</div>
+                    <div style={{ color: "#f97316", fontWeight: 700, marginTop: "4px" }}>
+                      {game.kyivTimeFormatted}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div style={{ color: "rgba(255,255,255,0.6)", fontSize: "11px", textAlign: "center", padding: "20px" }}>
+                Немає ігор на найближчі дні
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -244,6 +244,41 @@ model TvMatch {
   @@index([matchDate])
 }
 
+model NbaSchedule {
+  id           String    @id @default(cuid())
+  gameId       String    @unique
+  homeTeam     String
+  awayTeam     String
+  gameTime     DateTime
+  kyivTime     DateTime  // Київський час (UTC+3)
+  status       String    @default("scheduled") // scheduled, live, finished
+  season       Int
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([gameTime])
+  @@index([status])
+}
+
+model LiveSession {
+  id            String    @id @default(cuid())
+  gameId        String    @unique
+  homeTeam      String
+  awayTeam      String
+  gameTime      DateTime
+  kyivTime      DateTime
+  liveUrl       String?   // Робоче посилання на трансляцію
+  liveSource    String?   // ok.ru, dailymotion, youtube, tbd
+  isActive      Boolean   @default(false)
+  lastChecked   DateTime  @default(now())
+  checkCount    Int       @default(0)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([gameTime])
+  @@index([isActive])
+}
+
 model ChatMute {
   id         Int      @id @default(autoincrement())
   phone      String   @unique

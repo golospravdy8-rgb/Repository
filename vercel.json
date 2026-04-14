@@ -32,6 +32,10 @@
     {
       "path": "/api/cron/hp-decay",
       "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/api/cron/find-live-streams",
+      "schedule": "*/10 12-23 * * *"
     }
   ]
 }
