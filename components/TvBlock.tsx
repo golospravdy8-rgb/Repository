@@ -879,43 +879,47 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
 
       {/* Модальне вікно розкладу NBA */}
       {showSchedule && (
-        <div style={{
-          position: "fixed",
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: "rgba(0,0,0,0.8)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          zIndex: 1000,
-          padding: "10px",
-        }}>
-          <div style={{
-            background: "rgba(10, 20, 50, 0.96)",
-            border: "1px solid rgba(255,255,255,0.12)",
-            borderRadius: "8px",
-            padding: "16px",
-            maxWidth: "520px",
-            width: "100%",
-            maxHeight: "88vh",
-            minHeight: "340px",
+        <div
+          onClick={() => setShowSchedule(false)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.75)",
+            zIndex: 9999,
             display: "flex",
-            flexDirection: "column" as const,
-            backdropFilter: "blur(8px)",
-            overflow: "hidden",
-          }}>
-            <div style={{
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "20px",
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: "#0a1432",
+              border: "1px solid rgba(255,255,255,0.15)",
+              borderRadius: "10px",
+              width: "100%",
+              maxWidth: "480px",
+              maxHeight: "80vh",
               display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              marginBottom: "12px",
-              paddingBottom: "12px",
-              borderBottom: "1px solid rgba(255,255,255,0.12)",
-              flexShrink: 0,
-            }}>
-              <h3 style={{ color: "white", margin: 0, fontSize: "14px", fontWeight: 700 }}>📅 NBA Schedule</h3>
+              flexDirection: "column",
+              overflow: "hidden",
+            }}
+          >
+            {/* Header */}
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                padding: "16px",
+                borderBottom: "1px solid rgba(255,255,255,0.12)",
+                flexShrink: 0,
+              }}
+            >
+              <h3 style={{ color: "white", margin: 0, fontSize: "16px", fontWeight: 700 }}>
+                📅 NBA Schedule
+              </h3>
               <button
                 onClick={() => setShowSchedule(false)}
                 style={{
@@ -923,65 +927,88 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
                   border: "none",
                   color: "#f97316",
                   cursor: "pointer",
-                  fontSize: "16px",
+                  fontSize: "24px",
                   padding: 0,
+                  lineHeight: 1,
                 }}
               >
                 ✕
               </button>
             </div>
 
-            {loadingSchedule ? (
-              <div style={{ color: "rgba(255,255,255,0.6)", fontSize: "11px", textAlign: "center", padding: "20px" }}>
-                ⏳ Loading...
-              </div>
-            ) : nbaGames.length > 0 ? (
-              <div style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: "8px",
-                overflowY: "auto",
-                overflowX: "hidden",
-                flex: 1,
-                maxHeight: "calc(88vh - 180px)",
-                paddingRight: "16px",
-                minHeight: "240px",
-              }}>
-                {nbaGames.map((game) => (
-                  <div
-                    key={game.id}
-                    style={{
-                      background: "rgba(255,255,255,0.05)",
-                      border: "1px solid rgba(255,255,255,0.1)",
-                      borderRadius: "4px",
-                      padding: "12px",
-                      color: "white",
-                      fontSize: "13px",
-                      flexShrink: 0,
-                      transition: "background 0.2s",
-                      cursor: "default",
-                    }}
-                    onMouseEnter={(e) => {
-                      (e.currentTarget as HTMLDivElement).style.background = "rgba(255,255,255,0.08)";
-                    }}
-                    onMouseLeave={(e) => {
-                      (e.currentTarget as HTMLDivElement).style.background = "rgba(255,255,255,0.05)";
-                    }}
-                  >
-                    <div style={{ fontWeight: 600, marginBottom: "6px", lineHeight: "1.3" }}>
-                      {game.awayTeam} @ {game.homeTeam}
-                    </div>
-                    <div style={{ color: "#f97316", fontWeight: 700, fontSize: "12px", marginTop: "4px" }}>
-                      🕐 {game.kyivTimeFormatted}
-                    </div>
+            {/* Content */}
+            <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+              {loadingSchedule ? (
+                <div
+                  style={{
+                    color: "rgba(255,255,255,0.6)",
+                    fontSize: "14px",
+                    textAlign: "center",
+                    padding: "40px 20px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  ⏳ Loading...
+                </div>
+              ) : nbaGames.length > 0 ? (
+                <div
+                  style={{
+                    overflowY: "auto",
+                    overflowX: "hidden",
+                    flex: 1,
+                    padding: "12px 16px",
+                  }}
+                >
+                  <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                    {nbaGames.map((game) => (
+                      <div
+                        key={game.id}
+                        style={{
+                          background: "rgba(255,255,255,0.05)",
+                          border: "1px solid rgba(255,255,255,0.1)",
+                          borderRadius: "6px",
+                          padding: "12px",
+                          color: "white",
+                          fontSize: "13px",
+                          transition: "background 0.2s",
+                        }}
+                        onMouseEnter={(e) => {
+                          (e.currentTarget as HTMLDivElement).style.background =
+                            "rgba(255,255,255,0.08)";
+                        }}
+                        onMouseLeave={(e) => {
+                          (e.currentTarget as HTMLDivElement).style.background =
+                            "rgba(255,255,255,0.05)";
+                        }}
+                      >
+                        <div style={{ fontWeight: 600, marginBottom: "6px" }}>
+                          {game.awayTeam} @ {game.homeTeam}
+                        </div>
+                        <div style={{ color: "#f97316", fontWeight: 700, fontSize: "12px" }}>
+                          🕐 {game.kyivTimeFormatted}
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-            ) : (
-              <div style={{ color: "rgba(255,255,255,0.6)", fontSize: "11px", textAlign: "center", padding: "20px" }}>
-                No games in the next few days
-              </div>
-            )}
+                </div>
+              ) : (
+                <div
+                  style={{
+                    color: "rgba(255,255,255,0.6)",
+                    fontSize: "13px",
+                    textAlign: "center",
+                    padding: "40px 20px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  No games in the next few days
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
