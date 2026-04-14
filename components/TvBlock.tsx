@@ -1084,7 +1084,7 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
                   Вставте посилання та натисніть Enter для запуску
                 </div>
               </div>
-              <div style={{ display: "flex", gap: "8px" }}>
+              <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
                 <button
                   onClick={handleRefreshSchedule}
                   disabled={refreshingSchedule}
@@ -1120,14 +1120,21 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
                 <button
                   onClick={handleCloseSchedule}
                   style={{
-                    padding: "6px 10px",
-                    background: "transparent",
-                    color: "#f97316",
-                    border: "1px solid rgba(249,115,22,0.4)",
+                    padding: "8px 12px",
+                    background: "#ef4444",
+                    color: "white",
+                    border: "none",
                     borderRadius: "6px",
                     cursor: "pointer",
-                    fontSize: "14px",
+                    fontSize: "18px",
                     fontWeight: 700,
+                    lineHeight: 1,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    minWidth: "36px",
+                    minHeight: "36px",
+                    flexShrink: 0,
                   }}
                 >
                   ✕
@@ -1444,13 +1451,21 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
               <button
                 onClick={handleCloseInstructionModal}
                 style={{
-                  background: "none",
+                  background: "#ef4444",
                   border: "none",
-                  color: "#f97316",
+                  color: "white",
                   cursor: "pointer",
-                  fontSize: "24px",
-                  padding: 0,
+                  fontSize: "18px",
+                  padding: "8px 12px",
                   lineHeight: 1,
+                  borderRadius: "6px",
+                  minWidth: "36px",
+                  minHeight: "36px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  flexShrink: 0,
+                  fontWeight: 700,
                 }}
               >
                 ✕
