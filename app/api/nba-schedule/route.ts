@@ -5,23 +5,41 @@ const prisma = new PrismaClient();
 
 export const dynamic = "force-dynamic";
 
+// ─── Types ────────────────────────────────────────────────────────────────────
+type NbaPeriod = {
+  type: "playoffs" | "playin" | "summer_league" | "preseason" | "regular_season" | "offseason";
+  label: string;
+  primaryUrl: string;
+  fallbackUrl: string;
+  year: number;
+};
+
+type ParsedGame = {
+  gameId: string;
+  homeTeam: string;
+  awayTeam: string;
+  gameTime: Date;
+  status: string;
+  periodType: string;
+};
+
 // ─── Українські місяці ────────────────────────────────────────────────────────
 const MONTHS_UK = [
   "січня","лютого","березня","квітня","травня","червня",
   "липня","серпня","вересня","жовтня","листопада","грудня",
 ];
 
+// ─── NBA Headers для обходу блокування bot ─────────────────────────────────
+const NBA_HEADERS = {
+  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+  "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+  "Accept-Language": "en-US,en;q=0.5",
+  "Accept-Encoding": "gzip, deflate, br",
+  "Referer": "https://www.nba.com/",
+  "Cache-Control": "no-cache",
+};
+
 // ─── Конвертація UTC → ET та Kyiv з форматуванням ────────────────────────────
-/**
- * Повертає відформатовані рядки для карточки:
- *   dateStr          — "18 квітня"
- *   etTimeFormatted  — "18:00 ET"
- *   kyivTimeFormatted— "01:00 (19 квітня) Київ"  або  "22:00 Київ" (той самий день)
- *
- * NBA ігри — в базі зберігаються як UTC.
- * ET = UTC-4 (квітень–жовтень, EDT)
- * Kyiv = UTC+3
- */
 function formatGameDisplay(gameTimeUTC: Date): {
   etTimeFormatted: string;
   kyivTimeFormatted: string;
@@ -57,25 +75,39 @@ export async function GET() {
   try {
     const now = new Date();
     const future = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+    const period = getNbaSeasonPeriod();
 
-    // Перевіряємо час останньої синхронізації (зберігаємо в SiteSettings)
-    const syncMarker = await prisma.siteSettings.findUnique({
-      where: { key: "nba_schedule_last_sync" },
+    // Перевіряємо час останньої синхронізації
+    const lastSyncRow = await prisma.siteSettings.findUnique({
+      where: { key: "nba_sched_last_sync" },
     });
 
-    const lastSync = syncMarker ? new Date(syncMarker.value) : null;
-    const needsSync =
-      !lastSync ||
-      now.getTime() - lastSync.getTime() > 24 * 60 * 60 * 1000; // > 24 годин
+    const lastSync = lastSyncRow ? new Date(lastSyncRow.value) : null;
 
-    if (needsSync) {
-      console.log("[NBA] Triggering schedule sync (>24h since last sync)");
+    // Розраховуємо інтервал синхронізації залежно від періоду
+    const syncIntervalMs = {
+      playin: 15 * 60 * 1000,        // 15 хв
+      playoffs: 30 * 60 * 1000,      // 30 хв
+      regular_season: 2 * 60 * 60 * 1000,  // 2 год
+      summer_league: 60 * 60 * 1000, // 1 год
+      preseason: 3 * 60 * 60 * 1000, // 3 год
+      offseason: 24 * 60 * 60 * 1000, // 24 год
+    }[period.type] || 2 * 60 * 60 * 1000;
+
+    const gamesCount = await prisma.nbaSchedule.count();
+    const shouldSync = gamesCount === 0 || !lastSync || (now.getTime() - lastSync.getTime() > syncIntervalMs);
+
+    if (shouldSync) {
+      console.log(`[NBA] Triggering sync (period: ${period.type}, interval: ${syncIntervalMs}ms)`);
       await syncNbaSchedule();
     }
 
-    // Завантажуємо ігри починаючи з 14 апреля 2026 (Play-In) або з сьогодні, якщо раніше
-    const playInStart = new Date("2026-04-14T00:00:00Z");
-    const filterStart = playInStart < now ? now : playInStart;
+    // Фільтруємо ігри залежно від періоду
+    let filterStart = now;
+    if (period.type === "playin" || period.type === "playoffs") {
+      const playInStart = new Date("2026-04-14T00:00:00Z");
+      filterStart = playInStart < now ? now : playInStart;
+    }
 
     const schedule = await prisma.nbaSchedule.findMany({
       where: {
@@ -104,220 +136,506 @@ export async function GET() {
     return NextResponse.json({
       success: true,
       games,
-      lastSync: lastSync?.toISOString() ?? null,
+      period: {
+        type: period.type,
+        label: period.label,
+        sourceUrl: period.primaryUrl,
+        lastSync: lastSync?.toISOString() ?? null,
+      },
       count: games.length,
     });
   } catch (e) {
     console.error("[NBA] Schedule error:", e);
-    return NextResponse.json({ success: false, error: "Failed", games: [] });
+    return NextResponse.json({ success: false, error: "Failed", games: [], period: null });
   } finally {
     await prisma.$disconnect();
   }
 }
 
-// ─── Синхронізація з NBA Stats API ────────────────────────────────────────────
-/**
- * data.nba.com — офіційний NBA data endpoint, повертає JSON без ключа.
- * Використовуємо scheduleLeagueV2.json — актуальний розклад на поточний день.
- * Endpoint: https://cdn.nba.com/static/json/staticData/scheduleLeagueV2.json
- *
- * Якщо NBA CDN недоступний — пробуємо balldontlie.io.
- * Якщо обидва недоступні — залишаємо наявні дані в БД без змін.
- */
-async function syncNbaSchedule(): Promise<void> {
-  let synced = false;
+// ─── БЛОК 1: Визначення поточного NBA-періоду ─────────────────────────────────
+function getNbaSeasonPeriod(): NbaPeriod {
+  const now = new Date();
+  const month = now.getMonth() + 1; // 1-12
+  const day = now.getDate();
+  const year = now.getFullYear();
 
-  // Спроба 1: NBA CDN (офіційний, без ключа, завжди актуальний)
-  synced = await syncFromNbaCdn();
-
-  // Спроба 2: balldontlie.io (якщо NBA CDN не спрацював)
-  if (!synced) {
-    synced = await syncFromBallDontLie();
+  // PLAYOFFS (квітень-червень)
+  if ((month === 4 && day >= 18) || month === 5 || (month === 6 && day <= 22)) {
+    return {
+      type: "playoffs",
+      label: "NBA Playoffs",
+      primaryUrl: `https://www.nba.com/news/${year}-nba-playoffs-schedule`,
+      fallbackUrl: `https://www.nba.com/schedule`,
+      year,
+    };
   }
 
-  // Спроба 3: якщо база пуста — генеруємо динамічний плей-офф (без хардкоду дат)
-  if (!synced) {
-    const count = await prisma.nbaSchedule.count({ where: { status: { not: "finished" } } });
-    if (count === 0) {
-      console.warn("[NBA] All sources failed — generating dynamic playoff schedule");
-      await syncDynamicPlayoff();
-    }
+  // PLAY-IN (14-17 квітня)
+  if (month === 4 && day >= 14 && day <= 17) {
+    return {
+      type: "playin",
+      label: "NBA Play-In Tournament",
+      primaryUrl: `https://www.nba.com/news/${year}-nba-playoffs-schedule`,
+      fallbackUrl: `https://www.nba.com/schedule`,
+      year,
+    };
   }
 
-  // Оновлюємо маркер часу синхронізації
-  await prisma.siteSettings.upsert({
-    where: { key: "nba_schedule_last_sync" },
-    update: { value: new Date().toISOString() },
-    create: { key: "nba_schedule_last_sync", value: new Date().toISOString() },
-  });
+  // SUMMER LEAGUE (кінець червня — серпень)
+  if ((month === 6 && day >= 23) || month === 7 || (month === 8 && day <= 20)) {
+    return {
+      type: "summer_league",
+      label: "NBA Summer League",
+      primaryUrl: `https://www.nba.com/schedule?season=2${year - 1}${year}&seasonType=SummerLeague`,
+      fallbackUrl: `https://www.nba.com/games`,
+      year,
+    };
+  }
 
-  console.log(`[NBA] Sync complete. synced=${synced}`);
+  // PRESEASON (жовтень 1-15)
+  if (month === 10 && day <= 15) {
+    return {
+      type: "preseason",
+      label: "NBA Preseason",
+      primaryUrl: `https://www.nba.com/schedule?season=2${year}${year + 1}&seasonType=Pre+Season`,
+      fallbackUrl: `https://www.nba.com/schedule`,
+      year,
+    };
+  }
+
+  // REGULAR SEASON (жовтень 16 — квітень 13)
+  if (month >= 10 || (month <= 4 && day <= 13)) {
+    const seasonYear = month >= 10 ? year + 1 : year;
+    return {
+      type: "regular_season",
+      label: `NBA Regular Season ${year}-${seasonYear}`,
+      primaryUrl: `https://www.nba.com/schedule`,
+      fallbackUrl: `https://www.nba.com/games`,
+      year: seasonYear,
+    };
+  }
+
+  // OFFSEASON (серпень-вересень)
+  return {
+    type: "offseason",
+    label: "NBA Offseason",
+    primaryUrl: `https://www.nba.com/schedule`,
+    fallbackUrl: `https://www.nba.com/games`,
+    year,
+  };
 }
 
-// ─── Метод 1: NBA CDN scheduleLeagueV2 ───────────────────────────────────────
+// ─── БЛОК 2: Основний парсер nba.com ──────────────────────────────────────────
+async function fetchNbaScheduleFromWeb(): Promise<ParsedGame[]> {
+  const period = getNbaSeasonPeriod();
+  console.log(`[NBA-PARSER] Period: ${period.label}, URL: ${period.primaryUrl}`);
+
+  // Зберігаємо поточний period
+  await prisma.siteSettings.upsert({
+    where: { key: "nba_current_period" },
+    update: { value: JSON.stringify({ type: period.type, label: period.label, url: period.primaryUrl, updatedAt: new Date().toISOString() }) },
+    create: { key: "nba_current_period", value: JSON.stringify({ type: period.type, label: period.label, url: period.primaryUrl, updatedAt: new Date().toISOString() }) },
+  });
+
+  // Якщо offseason — не парсимо
+  if (period.type === "offseason") {
+    console.log("[NBA-PARSER] Offseason — no games to parse");
+    return [];
+  }
+
+  let games: ParsedGame[] = [];
+
+  // Спробуй primaryUrl
+  try {
+    games = await parseNbaPage(period.primaryUrl, period.type);
+  } catch (err) {
+    console.warn(`[NBA-PARSER] Primary URL failed: ${err}`);
+  }
+
+  // Якщо не знайшов — спробуй fallback
+  if (games.length === 0) {
+    console.warn(`[NBA-PARSER] No games from primary, trying fallback: ${period.fallbackUrl}`);
+    try {
+      games = await parseNbaPage(period.fallbackUrl, period.type);
+    } catch (err) {
+      console.warn(`[NBA-PARSER] Fallback also failed: ${err}`);
+    }
+  }
+
+  // Якщо взагалі нічого — використовуй статичні дані
+  if (games.length === 0) {
+    console.warn("[NBA-PARSER] All sources failed, using static fallback data");
+    games = getStaticFallbackGames(period);
+  }
+
+  console.log(`[NBA-PARSER] Found ${games.length} games for period: ${period.label}`);
+  return games;
+}
+
+// ─── БЛОК 3: parseNbaPage() — логіка парсингу HTML ───────────────────────────
+async function parseNbaPage(url: string, periodType: string): Promise<ParsedGame[]> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 10000);
+
+  try {
+    const res = await fetch(url, {
+      headers: NBA_HEADERS,
+      signal: controller.signal as any,
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const html = await res.text();
+
+    // Стратегія 1: __NEXT_DATA__
+    const nextDataMatch = html.match(/<script id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/);
+    if (nextDataMatch) {
+      try {
+        const nextData = JSON.parse(nextDataMatch[1]);
+        const games = extractGamesFromNextData(nextData, periodType);
+        if (games.length > 0) return games;
+      } catch (e) {
+        console.warn("[NBA-PARSER] __NEXT_DATA__ parse failed");
+      }
+    }
+
+    // Стратегія 2: JSON blob
+    const jsonPatterns = [
+      /\"games\":\s*(\[[\s\S]*?\])/,
+      /\"schedule\":\s*(\[[\s\S]*?\])/,
+      /\"gameDates\":\s*(\[[\s\S]*?\])/,
+    ];
+
+    for (const pattern of jsonPatterns) {
+      const match = html.match(pattern);
+      if (match) {
+        try {
+          const data = JSON.parse(match[1]);
+          const games = normalizeGamesArray(data, periodType);
+          if (games.length > 0) return games;
+        } catch (e) {}
+      }
+    }
+
+    // Стратегія 3: текстовий пошук
+    return extractGamesFromHtml(html, periodType);
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+function extractGamesFromNextData(data: any, periodType: string): ParsedGame[] {
+  const games: ParsedGame[] = [];
+
+  function traverse(obj: any, depth = 0): void {
+    if (depth > 10 || !obj) return;
+
+    const gameKeys = ["games", "gameCards", "schedule", "gameDates", "props"];
+
+    if (Array.isArray(obj)) {
+      if (obj.length > 0 && obj[0]?.gameId) {
+        for (const g of obj) {
+          const parsed = parseGameObject(g, periodType);
+          if (parsed) games.push(parsed);
+        }
+        return;
+      }
+      obj.forEach(item => traverse(item, depth + 1));
+    } else if (typeof obj === "object") {
+      for (const key of gameKeys) {
+        if (obj[key]) traverse(obj[key], depth + 1);
+      }
+      if (obj.pageProps) traverse(obj.pageProps, depth + 1);
+    }
+  }
+
+  traverse(data);
+  return games;
+}
+
+function parseGameObject(g: any, periodType: string): ParsedGame | null {
+  const gameId = g.gameId || g.id || g.game_id;
+  if (!gameId) return null;
+
+  const homeTeam = g.homeTeam?.teamName || g.hTeam?.teamName || g.homeTeamName || g.home?.name || "";
+  const awayTeam = g.awayTeam?.teamName || g.vTeam?.teamName || g.awayTeamName || g.away?.name || "";
+  if (!homeTeam || !awayTeam) return null;
+
+  const timeStr = g.gameTimeUTC || g.gameEt || g.startTimeUTC || g.scheduledTime || "";
+  const gameTime = timeStr ? new Date(timeStr) : new Date();
+  if (isNaN(gameTime.getTime())) return null;
+
+  const statusRaw = g.gameStatus || g.status || g.gameStatusText || 1;
+  let status = "scheduled";
+  if (statusRaw === 2 || statusRaw === "live" || String(statusRaw).includes("Qtr") || String(statusRaw).includes("Half")) {
+    status = "live";
+  } else if (statusRaw === 3 || statusRaw === "finished" || statusRaw === "Final") {
+    status = "finished";
+  }
+
+  return {
+    gameId: String(gameId),
+    homeTeam,
+    awayTeam,
+    gameTime,
+    status,
+    periodType,
+  };
+}
+
+function extractGamesFromHtml(html: string, periodType: string): ParsedGame[] {
+  // Базовий текстовий пошук — якщо не знайшли JSON
+  const teamPattern = /(Atlanta Hawks|Boston Celtics|Brooklyn Nets|Charlotte Hornets|Chicago Bulls|Cleveland Cavaliers|Dallas Mavericks|Denver Nuggets|Detroit Pistons|Golden State Warriors|Houston Rockets|Indiana Pacers|Los Angeles Clippers|Los Angeles Lakers|Memphis Grizzlies|Miami Heat|Milwaukee Bucks|Minnesota Timberwolves|New Orleans Pelicans|New York Knicks|Oklahoma City Thunder|Orlando Magic|Philadelphia 76ers|Phoenix Suns|Portland Trail Blazers|Sacramento Kings|San Antonio Spurs|Toronto Raptors|Utah Jazz|Washington Wizards)/g;
+
+  const teamMatches = html.match(teamPattern);
+  if (teamMatches && teamMatches.length >= 2) {
+    console.log(`[NBA-PARSER] Found ${teamMatches.length} team mentions in HTML but can't extract full schedule`);
+  }
+
+  return [];
+}
+
+function normalizeGamesArray(data: any[], periodType: string): ParsedGame[] {
+  return data
+    .map(g => parseGameObject(g, periodType))
+    .filter(Boolean) as ParsedGame[];
+}
+
+// ─── БЛОК 4: getStaticFallbackGames() — резервні дані ────────────────────────
+function getStaticFallbackGames(period: NbaPeriod): ParsedGame[] {
+  if (period.type === "playoffs" || period.type === "playin") {
+    const BASE = new Date("2026-04-14T00:00:00Z");
+    const g = (id: string, away: string, home: string, d: number, h: number, m: number) => ({
+      gameId: id,
+      awayTeam: away,
+      homeTeam: home,
+      gameTime: new Date(BASE.getTime() + d*86400000 + h*3600000 + m*60000),
+      status: "scheduled",
+      periodType: period.type,
+    });
+    return [
+      // Play-In
+      g("pi_e1", "Charlotte Hornets",    "Miami Heat",             0, 23, 30),
+      g("pi_w1", "Phoenix Suns",         "Portland Trail Blazers", 1,  2,  0),
+      g("pi_e2", "Philadelphia 76ers",   "Orlando Magic",          1, 23, 30),
+      g("pi_w2", "Los Angeles Clippers", "Golden State Warriors",  2,  2,  0),
+      // First Round Game 1 (відомі серії)
+      g("r1_e3_g1", "New York Knicks",       "Atlanta Hawks",           4, 17,  0),
+      g("r1_e4_g1", "Cleveland Cavaliers",   "Toronto Raptors",         4, 19, 30),
+      g("r1_w4_g1", "Los Angeles Lakers",    "Houston Rockets",         4, 22,  0),
+      g("r1_w3_g1", "Denver Nuggets",        "Minnesota Timberwolves",  5, 22,  0),
+    ];
+  }
+  return [];
+}
+
+// ─── БЛОК 5: Оновлена syncNbaSchedule() ───────────────────────────────────────
+async function syncNbaSchedule(): Promise<void> {
+  console.log("[NBA-SYNC] Starting smart sync...");
+
+  let games: ParsedGame[];
+  try {
+    // Спробуємо живий парсинг
+    games = await fetchNbaScheduleFromWeb();
+  } catch (err) {
+    console.error("[NBA-SYNC] Web fetch failed:", err);
+    const period = getNbaSeasonPeriod();
+    games = getStaticFallbackGames(period);
+  }
+
+  if (games.length === 0) {
+    console.log("[NBA-SYNC] No games found, skipping DB write");
+    return;
+  }
+
+  // Upsert всі ігри в БД
+  let inserted = 0;
+  for (const game of games) {
+    await prisma.nbaSchedule.upsert({
+      where: { gameId: game.gameId },
+      update: {
+        homeTeam: game.homeTeam,
+        awayTeam: game.awayTeam,
+        gameTime: game.gameTime,
+        kyivTime: new Date(game.gameTime.getTime() + 3 * 60 * 60 * 1000),
+        status: game.status,
+      },
+      create: {
+        gameId: game.gameId,
+        homeTeam: game.homeTeam,
+        awayTeam: game.awayTeam,
+        gameTime: game.gameTime,
+        kyivTime: new Date(game.gameTime.getTime() + 3 * 60 * 60 * 1000),
+        status: game.status,
+        season: 2026,
+      },
+    });
+    inserted++;
+  }
+
+  // Зберігаємо час останньої синхронізації
+  await prisma.siteSettings.upsert({
+    where: { key: "nba_sched_last_sync" },
+    update: { value: new Date().toISOString() },
+    create: { key: "nba_sched_last_sync", value: new Date().toISOString() },
+  });
+
+  console.log(`[NBA-SYNC] Done. Upserted ${inserted} games.`);
+}
+
+// ─── Хелпери (збережено з оригіналу) ──────────────────────────────────────────
+
+function mapNbaStatus(status: number | string | undefined): string {
+  if (status === 1 || status === "1") return "scheduled";
+  if (status === 2 || status === "2") return "live";
+  if (status === 3 || status === "3") return "finished";
+  return "scheduled";
+}
+
+function parseFallbackDate(datePart?: string, timePart?: string): Date | null {
+  try {
+    if (!datePart) return null;
+    let isoDate = datePart;
+    if (datePart.includes("/")) {
+      const [m, d, y] = datePart.split("/");
+      isoDate = `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
+    }
+
+    let utcHour = 0;
+    let utcMin = 0;
+    if (timePart) {
+      const cleaned = timePart.toLowerCase().replace("et", "").trim();
+      const timeMatch = cleaned.match(/(\d{1,2}):(\d{2})\s*(am|pm)?/);
+      if (timeMatch) {
+        let h = parseInt(timeMatch[1]);
+        const m = parseInt(timeMatch[2]);
+        const ampm = timeMatch[3];
+        if (ampm === "pm" && h !== 12) h += 12;
+        if (ampm === "am" && h === 12) h = 0;
+        // ET to UTC: +4 hours
+        utcHour = (h + 4) % 24;
+        utcMin = m;
+      }
+    }
+
+    const isoStr = `${isoDate}T${String(utcHour).padStart(2, "0")}:${String(utcMin).padStart(2, "0")}:00Z`;
+    const dt = new Date(isoStr);
+    return isNaN(dt.getTime()) ? null : dt;
+  } catch (e) {
+    return null;
+  }
+}
+
+// ─── Оригінальні функції синхронізації (збережено для сумісності) ──────────────
+
 async function syncFromNbaCdn(): Promise<boolean> {
   try {
-    // NBA CDN static schedule — оновлюється щодня, містить весь сезон
-    const url = "https://cdn.nba.com/static/json/staticData/scheduleLeagueV2.json";
-    console.log("[NBA-CDN] Fetching:", url);
-
-    const res = await fetch(url, {
-      headers: {
-        "User-Agent": "Mozilla/5.0 (compatible; NBA schedule fetcher)",
-        Accept: "application/json",
-        Referer: "https://www.nba.com/schedule",
-        Origin: "https://www.nba.com",
-      },
-      signal: AbortSignal.timeout(15000),
+    const res = await fetch("https://cdn.nba.com/static/json/staticData/scheduleLeagueV2.json", {
+      signal: AbortSignal.timeout(10000) as any,
     });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
-    if (!res.ok) {
-      console.warn(`[NBA-CDN] HTTP ${res.status}`);
-      return false;
-    }
-
-    const data = (await res.json()) as NbaCdnSchedule;
-    const gameDates = data?.leagueSchedule?.gameDates ?? [];
-
-    if (gameDates.length === 0) {
-      console.warn("[NBA-CDN] Empty gameDates");
-      return false;
-    }
+    const data = (await res.json()) as any;
+    const gameDates = data?.leagueSchedule?.gameDates || [];
 
     const now = new Date();
     const future = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+
     let count = 0;
+    for (const gd of gameDates) {
+      const games = gd.games || [];
+      for (const g of games) {
+        const timeStr = g.gameDateTimeUTC;
+        if (!timeStr) continue;
+        const gameTime = new Date(timeStr);
+        if (gameTime < now || gameTime > future) continue;
 
-    for (const dateEntry of gameDates) {
-      for (const game of dateEntry.games ?? []) {
-        // gameDateTimeUTC: "2026-04-18T22:00:00Z"
-        const gameTime = game.gameDateTimeUTC
-          ? new Date(game.gameDateTimeUTC)
-          : parseFallbackDate(game.gameDateEst, game.gameTimeEst);
+        const homeTeam = g.homeTeam?.teamName || "";
+        const awayTeam = g.awayTeam?.teamName || "";
+        if (!homeTeam || !awayTeam) continue;
 
-        if (!gameTime || gameTime < now || gameTime > future) continue;
-
-        const homeTeam = game.homeTeam?.teamName
-          ? `${game.homeTeam.teamCity} ${game.homeTeam.teamName}`
-          : game.homeTeam?.teamTricode ?? "Unknown";
-
-        const awayTeam = game.awayTeam?.teamName
-          ? `${game.awayTeam.teamCity} ${game.awayTeam.teamName}`
-          : game.awayTeam?.teamTricode ?? "Unknown";
-
-        const status = mapNbaStatus(game.gameStatus);
-        const kyivTime = new Date(gameTime.getTime() + 3 * 60 * 60 * 1000);
-
+        const status = mapNbaStatus(g.gameStatus);
         await prisma.nbaSchedule.upsert({
-          where: { gameId: String(game.gameId) },
-          update: { homeTeam, awayTeam, gameTime, kyivTime, status },
+          where: { gameId: String(g.gameId) },
+          update: { homeTeam, awayTeam, gameTime, status },
           create: {
-            gameId: String(game.gameId),
+            gameId: String(g.gameId),
             homeTeam,
             awayTeam,
             gameTime,
-            kyivTime,
-            season: data.leagueSchedule?.seasonYear
-              ? parseInt(String(data.leagueSchedule.seasonYear).substring(0, 4))
-              : 2025,
+            kyivTime: new Date(gameTime.getTime() + 3 * 60 * 60 * 1000),
             status,
+            season: parseInt(data?.leagueSchedule?.seasonYear || "2026"),
           },
         });
         count++;
       }
     }
 
-    console.log(`[NBA-CDN] Upserted ${count} upcoming games`);
+    console.log(`[NBA-CDN] Synced ${count} games`);
     return count > 0;
   } catch (e) {
-    console.error("[NBA-CDN] Error:", e);
+    console.warn("[NBA-CDN] Failed:", e);
     return false;
   }
 }
 
-// ─── Метод 2: balldontlie.io ──────────────────────────────────────────────────
 async function syncFromBallDontLie(): Promise<boolean> {
   try {
-    const apiKey = process.env.BALL_DONT_LIE_API_KEY ?? "";
+    const apiKey = process.env.BALL_DONT_LIE_API_KEY;
     if (!apiKey) {
-      console.warn("[BDL] No API key — skipping");
+      console.warn("[NBA-BDL] No API key");
       return false;
     }
 
-    const now = new Date();
-    const future = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
-    const startDate = now.toISOString().split("T")[0];
-    const endDate = future.toISOString().split("T")[0];
-
-    // postseason=true для плей-офф
-    const url = `https://api.balldontlie.io/v1/games?start_date=${startDate}&end_date=${endDate}&postseason=true&seasons[]=2025&per_page=100`;
-    const res = await fetch(url, {
-      headers: { Authorization: `Bearer ${apiKey}` },
-      signal: AbortSignal.timeout(10000),
-    });
-
-    if (!res.ok) {
-      console.warn(`[BDL] HTTP ${res.status}`);
-      return false;
-    }
+    const res = await fetch(
+      "https://api.balldontlie.io/v1/games?postseason=true&seasons[]=2025&per_page=100",
+      {
+        headers: { Authorization: `Bearer ${apiKey}` },
+        signal: AbortSignal.timeout(10000) as any,
+      }
+    );
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
     const data = (await res.json()) as any;
-    const games: any[] = data.data ?? [];
+    const games = data?.data || [];
 
-    if (games.length === 0) {
-      console.warn("[BDL] No playoff games returned");
-      return false;
-    }
+    let count = 0;
+    for (const g of games) {
+      const gameTime = new Date(g.date);
+      const homeTeam = g.home_team?.full_name || "";
+      const awayTeam = g.visitor_team?.full_name || "";
 
-    for (const game of games) {
-      // balldontlie повертає дату як ISO string (UTC) або date-only
-      const gameTime = new Date(game.date);
-      const kyivTime = new Date(gameTime.getTime() + 3 * 60 * 60 * 1000);
-      const status = game.status === "Final" ? "finished" : "scheduled";
+      if (!homeTeam || !awayTeam) continue;
 
       await prisma.nbaSchedule.upsert({
-        where: { gameId: String(game.id) },
-        update: { status },
+        where: { gameId: String(g.id) },
+        update: { status: g.status },
         create: {
-          gameId: String(game.id),
-          homeTeam: game.home_team?.full_name ?? "Unknown",
-          awayTeam: game.visitor_team?.full_name ?? "Unknown",
+          gameId: String(g.id),
+          homeTeam,
+          awayTeam,
           gameTime,
-          kyivTime,
-          season: game.season ?? 2025,
-          status,
+          kyivTime: new Date(gameTime.getTime() + 3 * 60 * 60 * 1000),
+          status: g.status || "scheduled",
+          season: g.season || 2025,
         },
       });
+      count++;
     }
 
-    console.log(`[BDL] Upserted ${games.length} games`);
-    return true;
+    console.log(`[NBA-BDL] Synced ${count} games`);
+    return count > 0;
   } catch (e) {
-    console.error("[BDL] Error:", e);
+    console.warn("[NBA-BDL] Failed:", e);
     return false;
   }
 }
 
-// ─── Метод 3: Динамічний плей-офф з Play-In Tournament + 1-й раунд ─────────────
-/**
- * Генерує розклад з РЕАЛЬНИМИ matchups НБА 2026.
- *
- * Структура:
- *   - Play-In Tournament: 14–17 квітня (8 матчів)
- *   - Перший раунд: 18+ квітня (8 серій × 4 гри = 32 матчі)
- */
 async function syncDynamicPlayoff(): Promise<void> {
-  const now = new Date();
   const BASE = new Date("2026-04-14T00:00:00Z");
-
-  // Якщо сьогодні вже після 14 квітня — використовуємо сьогодні
-  const startDay = BASE > now ? BASE : new Date(now);
-  startDay.setUTCHours(0, 0, 0, 0);
 
   const gameAt = (offsetDays: number, utcH: number, utcM: number): Date =>
     new Date(BASE.getTime() + offsetDays * 86400000 + utcH * 3600000 + utcM * 60000);
 
-  // ── PLAY-IN TOURNAMENT: 14–17 квітня 2026 (8 матчів) ──
   const playInGames = [
     { gameId: "playin_e1_2026", away: "Atlanta Hawks",          home: "Washington Wizards",      dayOff: 0, utcH: 22, utcM: 0  },
     { gameId: "playin_w1_2026", away: "Golden State Warriors",  home: "Denver Nuggets",          dayOff: 1, utcH:  0, utcM: 30 },
@@ -329,7 +647,6 @@ async function syncDynamicPlayoff(): Promise<void> {
     { gameId: "playin_w4_2026", away: "Sacramento Kings",       home: "Memphis Grizzlies",       dayOff: 4, utcH:  0, utcM: 30 },
   ];
 
-  // ── ПЕРШИЙ РАУНД ПЛЕЙ-ОФФ: починається 18 квітня ──
   const firstRoundMatchups = [
     { id: "r1_e1", away: "New York Knicks",       home: "Detroit Pistons",      isWest: false, startOffset: 4 },
     { id: "r1_e2", away: "Boston Celtics",         home: "Orlando Magic",        isWest: false, startOffset: 4 },
@@ -343,7 +660,6 @@ async function syncDynamicPlayoff(): Promise<void> {
 
   const allGames: Array<{ gameId: string; homeTeam: string; awayTeam: string; gameTime: Date }> = [];
 
-  // Додаємо Play-In матчі
   for (const g of playInGames) {
     allGames.push({
       gameId: g.gameId,
@@ -353,7 +669,6 @@ async function syncDynamicPlayoff(): Promise<void> {
     });
   }
 
-  // Додаємо матчі першого раунду (ігри 1–4 кожної серії)
   for (const m of firstRoundMatchups) {
     const utcH = m.isWest ? 0 : 22;
     const utcM = m.isWest ? 30 : 0;
@@ -370,7 +685,6 @@ async function syncDynamicPlayoff(): Promise<void> {
     }
   }
 
-  // Записуємо в БД
   let count = 0;
   for (const game of allGames) {
     await prisma.nbaSchedule.upsert({
@@ -381,7 +695,7 @@ async function syncDynamicPlayoff(): Promise<void> {
         homeTeam: game.homeTeam,
         awayTeam: game.awayTeam,
         gameTime: game.gameTime,
-        kyivTime: new Date(game.gameTime.getTime() + 7 * 60 * 60 * 1000),
+        kyivTime: new Date(game.gameTime.getTime() + 3 * 60 * 60 * 1000),
         status: "scheduled",
         season: 2026,
       },
@@ -392,51 +706,6 @@ async function syncDynamicPlayoff(): Promise<void> {
   console.log(`[NBA-DYN] Записано ${count} ігор: 8 Play-In + 32 First Round`);
 }
 
-// ─── Хелпери ─────────────────────────────────────────────────────────────────
-
-function mapNbaStatus(status: number | string | undefined): string {
-  // NBA CDN: 1=scheduled, 2=live, 3=final
-  if (status === 1 || status === "1") return "scheduled";
-  if (status === 2 || status === "2") return "live";
-  if (status === 3 || status === "3") return "finished";
-  return "scheduled";
-}
-
-/** Fallback: якщо gameDateTimeUTC відсутнє, збираємо з gameDateEst + gameTimeEst */
-function parseFallbackDate(datePart?: string, timePart?: string): Date | null {
-  try {
-    if (!datePart) return null;
-    // datePart: "04/18/2026"  або "2026-04-18"
-    // timePart: "6:00 pm ET"  або "18:00"
-    let isoDate = datePart;
-    if (datePart.includes("/")) {
-      const [m, d, y] = datePart.split("/");
-      isoDate = `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
-    }
-
-    let utcHour = 0;
-    let utcMin = 0;
-    if (timePart) {
-      const cleaned = timePart.toLowerCase().replace("et", "").trim();
-      const isPm = cleaned.includes("pm");
-      const timeNum = cleaned.replace("am", "").replace("pm", "").trim();
-      const [h, min = "0"] = timeNum.split(":");
-      let hour = parseInt(h);
-      if (isPm && hour !== 12) hour += 12;
-      if (!isPm && hour === 12) hour = 0;
-      // ET (UTC-4) → UTC
-      utcHour = hour + 4;
-      utcMin = parseInt(min);
-    }
-
-    const dt = new Date(`${isoDate}T${String(utcHour).padStart(2, "0")}:${String(utcMin).padStart(2, "0")}:00.000Z`);
-    return isNaN(dt.getTime()) ? null : dt;
-  } catch {
-    return null;
-  }
-}
-
-// ─── NBA CDN типи (спрощені) ──────────────────────────────────────────────────
 interface NbaCdnTeam {
   teamId?: number;
   teamCity?: string;
