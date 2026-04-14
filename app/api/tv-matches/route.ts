@@ -1,46 +1,160 @@
 import { NextResponse } from "next/server";
 import * as cheerio from "cheerio";
+import { PrismaClient } from "@prisma/client";
 
-let cache: { data: unknown; ts: number } | null = null;
+const prisma = new PrismaClient();
 
 export async function GET() {
-  if (cache && Date.now() - cache.ts < 3600000) {
-    return NextResponse.json(cache.data);
-  }
   try {
-    const res = await fetch("https://watchreplay.net/", {
+    // Спробуємо отримати матчи з бази даних
+    const dbMatches = await prisma.tvMatch.findMany({
+      orderBy: { matchDate: "desc" },
+      take: 12,
+    });
+
+    if (dbMatches.length > 0) {
+      const result = {
+        matches: dbMatches.map((m) => ({
+          id: m.id,
+          title: m.title,
+          url: m.url,
+          date: m.matchDate.toISOString().split("T")[0],
+        })),
+      };
+      return NextResponse.json(result);
+    }
+
+    // Якщо база пуста, парсимо basketball-video.com
+    await syncMatches();
+
+    // Повертаємо матчи з бази
+    const freshMatches = await prisma.tvMatch.findMany({
+      orderBy: { matchDate: "desc" },
+      take: 12,
+    });
+
+    const result = {
+      matches: freshMatches.map((m) => ({
+        id: m.id,
+        title: m.title,
+        url: m.url,
+        date: m.matchDate.toISOString().split("T")[0],
+      })),
+    };
+
+    return NextResponse.json(result);
+  } catch (e) {
+    console.error("tv-matches error:", e);
+    return NextResponse.json({ matches: [] });
+  } finally {
+    await prisma.$disconnect();
+  }
+}
+
+/**
+ * Синхронізує матчи з basketball-video.com
+ * Парсить головну сторінку й зберігає 12 найсвіжіших матчів
+ */
+async function syncMatches() {
+  try {
+    const res = await fetch("https://basketball-video.com/", {
       headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" },
       signal: AbortSignal.timeout(12000),
     });
     const html = await res.text();
     const $ = cheerio.load(html);
-    const matches: { id: string; title: string; url: string; date: string }[] = [];
+    const newMatches: { title: string; url: string; matchDate: Date }[] = [];
 
-    $("a[href]").each((_, el) => {
-      const href = $(el).attr("href") || "";
-      const text = $(el).text().trim();
-      const fullUrl = href.startsWith("http") ? href : `https://watchreplay.net${href}`;
-      if (
-        fullUrl.includes("watchreplay.net") &&
-        (href.includes("-vs-") || href.includes("_vs_")) &&
-        text.length > 5 &&
-        !matches.find((m) => m.url === fullUrl)
-      ) {
-        const slug = href.split("/").filter(Boolean).pop() || "";
-        matches.push({
-          id: slug,
-          title: text.substring(0, 80),
+    // Парсимо .short_item блоки (центральна секція матчів)
+    $(".short_item").each((_, el) => {
+      const titleEl = $(el).find("h3 a");
+      const title = titleEl.text().trim();
+      const href = titleEl.attr("href") || "";
+
+      if (!title || !href) return;
+
+      // Витягуємо дату з назви (напр. "April 12, 2026")
+      const dateMatch = title.match(/([A-Z][a-z]+\s+\d{1,2},\s+\d{4})/);
+      let matchDate = new Date();
+      if (dateMatch) {
+        const dateStr = dateMatch[1];
+        const parsed = new Date(dateStr);
+        if (!isNaN(parsed.getTime())) {
+          matchDate = parsed;
+        }
+      }
+
+      const fullUrl = href.startsWith("http")
+        ? href
+        : `https://basketball-video.com${href}`;
+
+      if (!newMatches.find((m) => m.url === fullUrl)) {
+        newMatches.push({
+          title: title.substring(0, 150),
           url: fullUrl,
-          date: "",
+          matchDate,
         });
       }
     });
 
-    const result = { matches: matches.slice(0, 20) };
-    cache = { data: result, ts: Date.now() };
-    return NextResponse.json(result);
+    console.log(`[TV] Parsed ${newMatches.length} matches from basketball-video.com`);
+
+    if (newMatches.length === 0) {
+      console.log("[TV] No matches parsed");
+      return;
+    }
+
+    // Сортуємо по датам (свіжіші спочатку)
+    newMatches.sort(
+      (a, b) => new Date(b.matchDate).getTime() - new Date(a.matchDate).getTime()
+    );
+
+    // Беремо 12 найсвіжіших
+    const top12New = newMatches.slice(0, 12);
+
+    // Отримуємо поточні матчи з бази
+    const existingMatches = await prisma.tvMatch.findMany({
+      orderBy: { matchDate: "desc" },
+    });
+
+    // Знаходимо яких матчів не має у базі
+    const urlsToAdd = top12New
+      .filter((m) => !existingMatches.find((em) => em.url === m.url))
+      .map((m) => m.url);
+
+    console.log(
+      `[TV] ${urlsToAdd.length} new matches to add, ${existingMatches.length} existing`
+    );
+
+    // Додаємо нові матчи
+    for (const match of top12New) {
+      await prisma.tvMatch.upsert({
+        where: { url: match.url },
+        update: { matchDate: match.matchDate },
+        create: {
+          title: match.title,
+          url: match.url,
+          matchDate: match.matchDate,
+        },
+      });
+    }
+
+    // Отримуємо всі матчи, відсортовані по датам
+    const allMatches = await prisma.tvMatch.findMany({
+      orderBy: { matchDate: "desc" },
+    });
+
+    // Якщо матчів більше ніж 12 — видаляємо найстаріші
+    if (allMatches.length > 12) {
+      const toDelete = allMatches.slice(12).map((m) => m.id);
+      console.log(`[TV] Deleting ${toDelete.length} old matches`);
+      await prisma.tvMatch.deleteMany({
+        where: { id: { in: toDelete } },
+      });
+    }
+
+    console.log("[TV] Sync complete");
   } catch (e) {
-    console.error("tv-matches error:", e);
-    return NextResponse.json({ matches: [] });
+    console.error("[TV] Sync error:", e);
   }
 }

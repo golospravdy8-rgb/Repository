@@ -232,6 +232,17 @@ model ChatBan {
   createdAt   DateTime  @default(now())
 }
 
+model TvMatch {
+  id          String    @id @default(cuid())
+  title       String
+  url         String    @unique
+  matchDate   DateTime
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([matchDate])
+}
+
 model ChatMute {
   id         Int      @id @default(autoincrement())
   phone      String   @unique

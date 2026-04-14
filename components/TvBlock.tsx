@@ -146,18 +146,39 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
     const r = await fetch(`/api/tv-video?url=${encodeURIComponent(match.url)}`);
     const d = await r.json();
     setLoadingVideo(false);
+
+    // Якщо є сервери з частинами — показуємо UI для вибору
+    if (d.servers && d.servers.length > 0) {
+      console.log(`[HOST] 📺 Found ${d.servers.length} servers with options`);
+      // Зберігаємо інфо в sessionRef для подальшого вибору
+      (window as any).__tvServerInfo = {
+        servers: d.servers,
+        sessionId,
+        matchUrl: match.url,
+        matchTitle: match.title,
+      };
+      // Показуємо плеєр (але без відео), для вибору сервера
+      setShowPlayer(true);
+      setMinimized(false);
+      isHostRef.current = true;
+      currentSessionIdRef.current = sessionId;
+      setVideoUrl(null); // Ще не обрано відео
+      setVideoType("server-selection");
+      onSendMessage?.(`📺 ${userName} запустив матч: ${match.title} — натисни LIVE щоб приєднатись!`);
+      return;
+    }
+
     if (d.videoUrl) {
       setVideoUrl(d.videoUrl);
       setVideoType(d.type);
       setShowPlayer(true);
       setMinimized(false);
       isHostRef.current = true;
-      didSeekRef.current = true;   // host не seekає
+      didSeekRef.current = true;
       seekTargetRef.current = 0;
       currentSessionIdRef.current = sessionId;
       console.log(`[HOST] ✅ session started, id=${sessionId}, type=${d.type}`);
 
-      // Для iframe — синхронізація тільки через БД (кожні 10 сек)
       if (d.type === "iframe") {
         console.log(`[HOST] ℹ️ Type is iframe — sync via DB polling only`);
         const syncInterval = setInterval(() => {
@@ -179,6 +200,29 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
     } else {
       window.open(match.url, "_blank");
       onSendMessage?.(`📺 ${userName} запустив матч: ${match.title} (відкрився в новій вкладці)`);
+    }
+  };
+
+  const handleSelectPart = async (partUrl: string) => {
+    const serverInfo = (window as any).__tvServerInfo;
+    if (!serverInfo) return;
+
+    setLoadingVideo(true);
+    try {
+      const r = await fetch(`/api/tv-video?url=${encodeURIComponent(serverInfo.matchUrl)}&part=${encodeURIComponent(partUrl)}`);
+      const d = await r.json();
+
+      if (d.videoUrl) {
+        setVideoUrl(d.videoUrl);
+        setVideoType(d.type || "external");
+        didSeekRef.current = true;
+        seekTargetRef.current = 0;
+        console.log(`[HOST] ✅ Loaded ${partUrl}, type=${d.type}`);
+      }
+    } catch (e) {
+      console.error("Error selecting part:", e);
+    } finally {
+      setLoadingVideo(false);
     }
   };
 
@@ -454,11 +498,83 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
         );
       })()}
 
-      {loadingVideo && <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 10, padding: "4px 8px", textAlign: "center" }}>⏳</div>}
+      {loadingVideo && <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 10, padding: "4px 8px", textAlign: "center" }}>⏳ Завантажуємо...</div>}
+
+      {showPlayer && videoType === "server-selection" && !minimized && (
+        <div style={s.playerWrap} ref={playerWrapRef}>
+          <div style={{ flex: 1, display: "flex", flexDirection: "column" as const, overflow: "auto", padding: "10px", background: "#000" }}>
+            {(() => {
+              const serverInfo = (window as any).__tvServerInfo;
+              if (!serverInfo?.servers) return <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 11 }}>Завантажуємо...</div>;
+
+              return (
+                <div>
+                  <div style={{ color: "rgba(255,255,255,0.8)", fontSize: 12, fontWeight: 700, marginBottom: 8 }}>
+                    Виберіть сервер й частину:
+                  </div>
+                  {serverInfo.servers.map((server: any, i: number) => (
+                    <div key={i} style={{ marginBottom: 12, paddingBottom: 10, borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
+                      <div style={{ color: "rgba(255,255,255,0.7)", fontSize: 10, fontWeight: 700, marginBottom: 4 }}>
+                        📺 {server.name}
+                      </div>
+                      {server.parts.length > 0 ? (
+                        <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+                          {server.parts.map((part: any, j: number) => (
+                            <button
+                              key={j}
+                              onClick={() => handleSelectPart(part.url)}
+                              style={{
+                                background: "#f97316",
+                                color: "white",
+                                border: "none",
+                                borderRadius: 4,
+                                padding: "5px 10px",
+                                fontSize: 10,
+                                cursor: "pointer",
+                                fontWeight: 700,
+                                flex: "1 1 auto",
+                                minWidth: 60,
+                              }}
+                            >
+                              ▶ {part.label}
+                            </button>
+                          ))}
+                        </div>
+                      ) : server.watchUrl ? (
+                        <a
+                          href={server.watchUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{
+                            display: "inline-block",
+                            background: "#f97316",
+                            color: "white",
+                            border: "none",
+                            borderRadius: 4,
+                            padding: "5px 10px",
+                            fontSize: 10,
+                            cursor: "pointer",
+                            fontWeight: 700,
+                            textDecoration: "none",
+                          }}
+                        >
+                          🔗 Відкрити
+                        </a>
+                      ) : (
+                        <div style={{ color: "rgba(255,255,255,0.4)", fontSize: 9 }}>Немає посилань</div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
+          </div>
+        </div>
+      )}
 
       {showPlayer && videoUrl && !minimized && (
         <div style={s.playerWrap} ref={playerWrapRef}>
-          {videoType === "iframe" ? (
+          {videoType === "iframe" || videoType === "external" ? (
             <iframe src={videoUrl} style={{ width: "100%", height: "100%", minHeight: 320, border: "none", display: "block", flex: 1 }} allowFullScreen />
           ) : (
             <>
@@ -520,26 +636,46 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
                   <source src={videoUrl} type="video/mp4" />
                 </video>
 
-                {/* Кнопка fullscreen у правому верхньому куті */}
-                <button
-                  onClick={handleFullscreen}
-                  title={isFullscreen ? "Вийти з повного екрана" : "Повний екран"}
-                  style={{
-                    position: "absolute",
-                    bottom: 12,
-                    right: 12,
-                    background: "rgba(0,0,0,0.6)",
-                    border: "none",
-                    color: "white",
-                    cursor: "pointer",
-                    fontSize: 18,
-                    padding: "6px 10px",
-                    borderRadius: 4,
-                    transition: "background 0.2s",
-                  }}
-                >
-                  {isFullscreen ? "✖️" : "⛶"}
-                </button>
+                {/* Кнопки управління у правому верхньому куті */}
+                <div style={{ position: "absolute", bottom: 12, right: 12, display: "flex", gap: 6 }}>
+                  {videoType === "external" && (
+                    <button
+                      onClick={() => {
+                        setVideoUrl(null);
+                        setVideoType("server-selection");
+                      }}
+                      title="Обрати іншу частину"
+                      style={{
+                        background: "rgba(0,0,0,0.6)",
+                        border: "none",
+                        color: "white",
+                        cursor: "pointer",
+                        fontSize: 14,
+                        padding: "6px 10px",
+                        borderRadius: 4,
+                        transition: "background 0.2s",
+                      }}
+                    >
+                      ↪ Назад
+                    </button>
+                  )}
+                  <button
+                    onClick={handleFullscreen}
+                    title={isFullscreen ? "Вийти з повного екрана" : "Повний екран"}
+                    style={{
+                      background: "rgba(0,0,0,0.6)",
+                      border: "none",
+                      color: "white",
+                      cursor: "pointer",
+                      fontSize: 18,
+                      padding: "6px 10px",
+                      borderRadius: 4,
+                      transition: "background 0.2s",
+                    }}
+                  >
+                    {isFullscreen ? "✖️" : "⛶"}
+                  </button>
+                </div>
               </div>
 
               {/* Прогрес-бар та відображення часу */}
