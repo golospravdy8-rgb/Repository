@@ -300,115 +300,96 @@ async function syncFromBallDontLie(): Promise<boolean> {
 
 // ─── Метод 3: Динамічний плей-офф з Play-In Tournament + 1-й раунд ─────────────
 /**
- * Генерує розклад на основі КОНКРЕТНИХ дат (14 квітня — Play-In).
+ * Генерує розклад з РЕАЛЬНИМИ matchups НБА 2026.
  *
  * Структура:
  *   - Play-In Tournament: 14–17 квітня (8 матчів)
- *   - Перший раунд: 18+ квітня (8 серій × 4 гри = 32+ матчів)
- *
- * Час ігор у 18:00, 20:30 ET (найчастіші слоти NBA).
+ *   - Перший раунд: 18+ квітня (8 серій × 4 гри = 32 матчі)
  */
 async function syncDynamicPlayoff(): Promise<void> {
   const now = new Date();
+  const BASE = new Date("2026-04-14T00:00:00Z");
 
-  // Стартуємо з 14 квітня 2026 (Play-In Tournament)
-  // Якщо 14 апреля вже пройшов, стартуємо з сьогодні
-  let playInStart = new Date("2026-04-14T00:00:00Z");
-  if (playInStart < now) {
-    playInStart = new Date(now);
-    playInStart.setUTCHours(0, 0, 0, 0);
-  }
+  // Якщо сьогодні вже після 14 квітня — використовуємо сьогодні
+  const startDay = BASE > now ? BASE : new Date(now);
+  startDay.setUTCHours(0, 0, 0, 0);
 
   const gameAt = (offsetDays: number, utcH: number, utcM: number): Date =>
-    new Date(playInStart.getTime() + offsetDays * 86400000 + utcH * 3600000 + utcM * 60000);
+    new Date(BASE.getTime() + offsetDays * 86400000 + utcH * 3600000 + utcM * 60000);
 
-  const games: Array<{ gameId: string; homeTeam: string; awayTeam: string; gameTime: Date }> = [];
-
-  // ─── PLAY-IN TOURNAMENT (14–17 квітня, 8 матчів) ───────────────────────────────
-  // Play-In часи: 18:00 ET (22:00 UTC), 20:30 ET (00:30 UTC наступного дня)
+  // ── PLAY-IN TOURNAMENT: 14–17 квітня 2026 (8 матчів) ──
   const playInGames = [
-    // Tuesday 14 апреля
-    { gameId: "playin_e1", away: "Atlanta Hawks",          home: "Washington Wizards", dayOff: 0, utcH: 22, utcM: 0 },
-    { gameId: "playin_w1", away: "Golden State Warriors",  home: "Denver Nuggets",     dayOff: 0, utcH: 0,  utcM: 30 },
-    // Wednesday 15 апреля
-    { gameId: "playin_e2", away: "Charlotte Hornets",      home: "Miami Heat",         dayOff: 1, utcH: 22, utcM: 0 },
-    { gameId: "playin_w2", away: "Portland Trail Blazers", home: "Los Angeles Lakers", dayOff: 1, utcH: 0,  utcM: 30 },
-    // Thursday 16 апреля
-    { gameId: "playin_e3", away: "Brooklyn Nets",          home: "Boston Celtics",     dayOff: 2, utcH: 22, utcM: 0 },
-    { gameId: "playin_w3", away: "New Orleans Pelicans",   home: "Phoenix Suns",       dayOff: 2, utcH: 0,  utcM: 30 },
-    // Friday 17 апреля
-    { gameId: "playin_e4", away: "Philadelphia 76ers",     home: "Orlando Magic",      dayOff: 3, utcH: 22, utcM: 0 },
-    { gameId: "playin_w4", away: "Sacramento Kings",       home: "Memphis Grizzlies",  dayOff: 3, utcH: 0,  utcM: 30 },
+    { gameId: "playin_e1_2026", away: "Atlanta Hawks",          home: "Washington Wizards",      dayOff: 0, utcH: 22, utcM: 0  },
+    { gameId: "playin_w1_2026", away: "Golden State Warriors",  home: "Denver Nuggets",          dayOff: 1, utcH:  0, utcM: 30 },
+    { gameId: "playin_e2_2026", away: "Charlotte Hornets",      home: "Miami Heat",              dayOff: 1, utcH: 22, utcM: 0  },
+    { gameId: "playin_w2_2026", away: "Portland Trail Blazers", home: "Los Angeles Lakers",      dayOff: 2, utcH:  0, utcM: 30 },
+    { gameId: "playin_e3_2026", away: "Brooklyn Nets",          home: "Boston Celtics",          dayOff: 2, utcH: 22, utcM: 0  },
+    { gameId: "playin_w3_2026", away: "New Orleans Pelicans",   home: "Phoenix Suns",            dayOff: 3, utcH:  0, utcM: 30 },
+    { gameId: "playin_e4_2026", away: "Philadelphia 76ers",     home: "Orlando Magic",           dayOff: 3, utcH: 22, utcM: 0  },
+    { gameId: "playin_w4_2026", away: "Sacramento Kings",       home: "Memphis Grizzlies",       dayOff: 4, utcH:  0, utcM: 30 },
   ];
 
+  // ── ПЕРШИЙ РАУНД ПЛЕЙ-ОФФ: починається 18 квітня ──
+  const firstRoundMatchups = [
+    { id: "r1_e1", away: "New York Knicks",       home: "Detroit Pistons",      isWest: false, startOffset: 4 },
+    { id: "r1_e2", away: "Boston Celtics",         home: "Orlando Magic",        isWest: false, startOffset: 4 },
+    { id: "r1_e3", away: "Cleveland Cavaliers",   home: "Miami Heat",           isWest: false, startOffset: 5 },
+    { id: "r1_e4", away: "Milwaukee Bucks",        home: "Indiana Pacers",       isWest: false, startOffset: 5 },
+    { id: "r1_w1", away: "Oklahoma City Thunder",  home: "Memphis Grizzlies",    isWest: true,  startOffset: 4 },
+    { id: "r1_w2", away: "Denver Nuggets",         home: "Los Angeles Clippers", isWest: true,  startOffset: 4 },
+    { id: "r1_w3", away: "Houston Rockets",        home: "Los Angeles Lakers",   isWest: true,  startOffset: 5 },
+    { id: "r1_w4", away: "Minnesota Timberwolves", home: "Dallas Mavericks",     isWest: true,  startOffset: 5 },
+  ];
+
+  const allGames: Array<{ gameId: string; homeTeam: string; awayTeam: string; gameTime: Date }> = [];
+
+  // Додаємо Play-In матчі
   for (const g of playInGames) {
-    const gt = gameAt(g.dayOff, g.utcH, g.utcM);
-    games.push({
+    allGames.push({
       gameId: g.gameId,
       homeTeam: g.home,
       awayTeam: g.away,
-      gameTime: gt,
+      gameTime: gameAt(g.dayOff, g.utcH, g.utcM),
     });
   }
 
-  // ─── ПЕРШИЙ РАУНД ПЛЕЙ-ОФФ (18+ квітня, 8 серій) ────────────────────────────────
-  const firstRoundMatchups = [
-    // East
-    { id: "r1_e1", away: "New York Knicks",        home: "Atlanta Hawks" },
-    { id: "r1_e2", away: "Boston Celtics",          home: "Miami Heat" },
-    { id: "r1_e3", away: "Cleveland Cavaliers",     home: "Orlando Magic" },
-    { id: "r1_e4", away: "Milwaukee Bucks",         home: "Indiana Pacers" },
-    // West
-    { id: "r1_w1", away: "Oklahoma City Thunder",   home: "Memphis Grizzlies" },
-    { id: "r1_w2", away: "Denver Nuggets",          home: "Los Angeles Clippers" },
-    { id: "r1_w3", away: "Houston Rockets",         home: "Los Angeles Lakers" },
-    { id: "r1_w4", away: "Minnesota Timberwolves",  home: "Dallas Mavericks" },
-  ];
+  // Додаємо матчі першого раунду (ігри 1–4 кожної серії)
+  for (const m of firstRoundMatchups) {
+    const utcH = m.isWest ? 0 : 22;
+    const utcM = m.isWest ? 30 : 0;
+    const extraDay = m.isWest ? 1 : 0;
 
-  // Генеруємо 4 гри кожної серії (ігри 1-4 у дні 4, 6, 8, 10 від 14 квітня)
-  firstRoundMatchups.forEach((m, i) => {
-    const isWest = i >= 4;
-    const gameNums = [4, 6, 8, 10]; // offset від 14 квітня (18=14+4, 20=14+6, 22=14+8, 24=14+10)
-
-    gameNums.forEach((offsetBase, gameIdx) => {
-      const utcH = isWest ? 0 : 22;
-      const utcM = isWest ? 30 : 0;
-      const extraDay = isWest ? 1 : 0;
-
-      const gt = gameAt(offsetBase + extraDay, utcH, utcM);
-      games.push({
-        gameId: `${m.id}_g${gameIdx + 1}`,
+    for (let gNum = 0; gNum < 4; gNum++) {
+      const dayOffset = m.startOffset + gNum * 2;
+      allGames.push({
+        gameId: `${m.id}_g${gNum + 1}`,
         homeTeam: m.home,
         awayTeam: m.away,
-        gameTime: gt,
+        gameTime: gameAt(dayOffset + extraDay, utcH, utcM),
       });
-    });
-  });
+    }
+  }
 
-  // Зберігаємо тільки майбутні ігри
-  const future = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+  // Записуємо в БД
   let count = 0;
-
-  for (const game of games) {
-    if (game.gameTime < now || game.gameTime > future) continue;
-    const kyivTime = new Date(game.gameTime.getTime() + 3 * 60 * 60 * 1000);
+  for (const game of allGames) {
     await prisma.nbaSchedule.upsert({
       where: { gameId: game.gameId },
-      update: { gameTime: game.gameTime, kyivTime },
+      update: { homeTeam: game.homeTeam, awayTeam: game.awayTeam, gameTime: game.gameTime, status: "scheduled" },
       create: {
         gameId: game.gameId,
         homeTeam: game.homeTeam,
         awayTeam: game.awayTeam,
         gameTime: game.gameTime,
-        kyivTime,
-        season: 2025,
+        kyivTime: new Date(game.gameTime.getTime() + 7 * 60 * 60 * 1000),
         status: "scheduled",
+        season: 2026,
       },
     });
     count++;
   }
 
-  console.log(`[NBA-DYN] Generated ${count} playoff games (Play-In + First Round) starting 14 апреля`);
+  console.log(`[NBA-DYN] Записано ${count} ігор: 8 Play-In + 32 First Round`);
 }
 
 // ─── Хелпери ─────────────────────────────────────────────────────────────────

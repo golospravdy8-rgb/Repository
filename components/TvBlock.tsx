@@ -1163,7 +1163,14 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
                       padding: "12px 16px 16px",
                       minHeight: 0,
                     }}>
-                      {dates.map((date) => (
+                      {dates.map((date) => {
+                        // Виявляємо Play-In дати (14-17 квітня)
+                        const isPlayIn = date.includes("14 квітня") ||
+                                        date.includes("15 квітня") ||
+                                        date.includes("16 квітня") ||
+                                        date.includes("17 квітня");
+
+                        return (
                         <div key={date} style={{ marginBottom: "16px" }}>
                           {/* Заголовок даты */}
                           <div style={{
@@ -1175,6 +1182,20 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
                             letterSpacing: "0.5px",
                           }}>
                             📅 {date}
+                            {isPlayIn && (
+                              <span style={{
+                                marginLeft: "8px",
+                                background: "rgba(220,38,38,0.2)",
+                                color: "#ef4444",
+                                padding: "2px 6px",
+                                borderRadius: "4px",
+                                fontSize: "9px",
+                                fontWeight: 800,
+                                border: "1px solid rgba(220,38,38,0.4)",
+                              }}>
+                                [PLAY-IN]
+                              </span>
+                            )}
                           </div>
 
                           {/* Сетка 2 колонки — БЕЗ горизонтального скролла */}
@@ -1326,7 +1347,9 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
                             ))}
                           </div>
                         </div>
-                      ))}
+                      );
+                      })}
+
                     </div>
                   );
                 })()
