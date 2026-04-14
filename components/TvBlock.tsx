@@ -1057,7 +1057,7 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
               borderRadius: "14px",
               width: "100%",
               maxWidth: "min(1100px, 96vw)",
-              maxHeight: "82vh",
+              maxHeight: "90vh",
               display: "flex",
               flexDirection: "column",
               overflow: "hidden",
@@ -1161,6 +1161,7 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
                       overflowY: "auto",
                       overflowX: "hidden",
                       padding: "12px 16px 16px",
+                      minHeight: 0,
                     }}>
                       {dates.map((date) => (
                         <div key={date} style={{ marginBottom: "16px" }}>
