@@ -294,60 +294,84 @@ async function syncFromBallDontLie(): Promise<boolean> {
   }
 }
 
-// ─── Метод 3: Динамічний плей-офф (якщо всі API недоступні) ─────────────────
+// ─── Метод 3: Динамічний плей-офф з Play-In Tournament + 1-й раунд ─────────────
 /**
- * Генерує розклад на основі ВІДНОСНИХ зміщень від поточного дня.
- * Типова структура першого раунду NBA плей-офф:
- *   - 8 матчів у дні D+0, D+2 (гра 1 і гра 2 кожної серії)
- *   - 8 матчів у дні D+4, D+6 (гра 3 і гра 4)
- *   - Фінали серій D+8..D+14
+ * Генерує розклад на основі КОНКРЕТНИХ дат (14 квітня — Play-In).
+ *
+ * Структура:
+ *   - Play-In Tournament: 14–17 квітня (8 матчів)
+ *   - Перший раунд: 18+ квітня (8 серій × 4 гри = 32+ матчів)
  *
  * Час ігор у 18:00, 20:30 ET (найчастіші слоти NBA).
- * Matchups — актуальні учасники плей-офф 2026 за відомими seed-ами.
- * Без хардкоду дат — всі дати обчислюються від now().
  */
 async function syncDynamicPlayoff(): Promise<void> {
   const now = new Date();
 
-  // Знаходимо наступний понеділок або поточний день як стартовий
-  // (плей-офф зазвичай стартує у суботу/неділю/понеділок)
-  const startDay = new Date(now);
-  startDay.setUTCHours(0, 0, 0, 0);
+  // Стартуємо з 14 квітня 2026 (Play-In Tournament)
+  // Якщо 14 апреля вже пройшов, стартуємо з сьогодні
+  let playInStart = new Date("2026-04-14T00:00:00Z");
+  if (playInStart < now) {
+    playInStart = new Date(now);
+    playInStart.setUTCHours(0, 0, 0, 0);
+  }
 
-  // Функція: UTC datetime для (offset_days, utcHour, utcMin)
   const gameAt = (offsetDays: number, utcH: number, utcM: number): Date =>
-    new Date(startDay.getTime() + offsetDays * 86400000 + utcH * 3600000 + utcM * 60000);
+    new Date(playInStart.getTime() + offsetDays * 86400000 + utcH * 3600000 + utcM * 60000);
 
-  // Перший раунд: 8 серій, ігри 1-2 в перші 3 дні
-  // 18:00 ET = 22:00 UTC, 20:30 ET = 00:30 UTC (наступного дня)
-  const matchups = [
-    // East
-    { id: "dyn_e1", away: "New York Knicks",        home: "Atlanta Hawks" },
-    { id: "dyn_e2", away: "Boston Celtics",          home: "Miami Heat" },
-    { id: "dyn_e3", away: "Cleveland Cavaliers",     home: "Orlando Magic" },
-    { id: "dyn_e4", away: "Milwaukee Bucks",         home: "Indiana Pacers" },
-    // West
-    { id: "dyn_w1", away: "Oklahoma City Thunder",   home: "Memphis Grizzlies" },
-    { id: "dyn_w2", away: "Denver Nuggets",          home: "Los Angeles Clippers" },
-    { id: "dyn_w3", away: "Houston Rockets",         home: "Los Angeles Lakers" },
-    { id: "dyn_w4", away: "Minnesota Timberwolves",  home: "Dallas Mavericks" },
-  ];
-
-  // Генеруємо ігри 1-4 для кожного матчапу (offset: 0, 2, 4, 6 днів)
   const games: Array<{ gameId: string; homeTeam: string; awayTeam: string; gameTime: Date }> = [];
 
-  matchups.forEach((m, i) => {
-    // East-серії у slot 18:00 ET (22:00 UTC), West у slot 20:30 ET (00:30 UTC наст. дня)
-    const isWest = i >= 4;
-    const gameNum = [0, 2, 4, 6]; // offset days for games 1-4
+  // ─── PLAY-IN TOURNAMENT (14–17 квітня, 8 матчів) ───────────────────────────────
+  // Play-In часи: 18:00 ET (22:00 UTC), 20:30 ET (00:30 UTC наступного дня)
+  const playInGames = [
+    // Tuesday 14 апреля
+    { gameId: "playin_e1", away: "Atlanta Hawks",          home: "Washington Wizards", dayOff: 0, utcH: 22, utcM: 0 },
+    { gameId: "playin_w1", away: "Golden State Warriors",  home: "Denver Nuggets",     dayOff: 0, utcH: 0,  utcM: 30 },
+    // Wednesday 15 апреля
+    { gameId: "playin_e2", away: "Charlotte Hornets",      home: "Miami Heat",         dayOff: 1, utcH: 22, utcM: 0 },
+    { gameId: "playin_w2", away: "Portland Trail Blazers", home: "Los Angeles Lakers", dayOff: 1, utcH: 0,  utcM: 30 },
+    // Thursday 16 апреля
+    { gameId: "playin_e3", away: "Brooklyn Nets",          home: "Boston Celtics",     dayOff: 2, utcH: 22, utcM: 0 },
+    { gameId: "playin_w3", away: "New Orleans Pelicans",   home: "Phoenix Suns",       dayOff: 2, utcH: 0,  utcM: 30 },
+    // Friday 17 апреля
+    { gameId: "playin_e4", away: "Philadelphia 76ers",     home: "Orlando Magic",      dayOff: 3, utcH: 22, utcM: 0 },
+    { gameId: "playin_w4", away: "Sacramento Kings",       home: "Memphis Grizzlies",  dayOff: 3, utcH: 0,  utcM: 30 },
+  ];
 
-    gameNum.forEach((offsetBase, gameIdx) => {
-      const dayOffset = offsetBase + Math.floor(i / 2) * 1; // розподіл серій по дням
+  for (const g of playInGames) {
+    const gt = gameAt(g.dayOff, g.utcH, g.utcM);
+    games.push({
+      gameId: g.gameId,
+      homeTeam: g.home,
+      awayTeam: g.away,
+      gameTime: gt,
+    });
+  }
+
+  // ─── ПЕРШИЙ РАУНД ПЛЕЙ-ОФФ (18+ квітня, 8 серій) ────────────────────────────────
+  const firstRoundMatchups = [
+    // East
+    { id: "r1_e1", away: "New York Knicks",        home: "Atlanta Hawks" },
+    { id: "r1_e2", away: "Boston Celtics",          home: "Miami Heat" },
+    { id: "r1_e3", away: "Cleveland Cavaliers",     home: "Orlando Magic" },
+    { id: "r1_e4", away: "Milwaukee Bucks",         home: "Indiana Pacers" },
+    // West
+    { id: "r1_w1", away: "Oklahoma City Thunder",   home: "Memphis Grizzlies" },
+    { id: "r1_w2", away: "Denver Nuggets",          home: "Los Angeles Clippers" },
+    { id: "r1_w3", away: "Houston Rockets",         home: "Los Angeles Lakers" },
+    { id: "r1_w4", away: "Minnesota Timberwolves",  home: "Dallas Mavericks" },
+  ];
+
+  // Генеруємо 4 гри кожної серії (ігри 1-4 у дні 4, 6, 8, 10 від 14 квітня)
+  firstRoundMatchups.forEach((m, i) => {
+    const isWest = i >= 4;
+    const gameNums = [4, 6, 8, 10]; // offset від 14 квітня (18=14+4, 20=14+6, 22=14+8, 24=14+10)
+
+    gameNums.forEach((offsetBase, gameIdx) => {
       const utcH = isWest ? 0 : 22;
       const utcM = isWest ? 30 : 0;
-      const extraDay = isWest ? 1 : 0; // 20:30 ET = 00:30 UTC наст. дня
+      const extraDay = isWest ? 1 : 0;
 
-      const gt = gameAt(dayOffset + extraDay, utcH, utcM);
+      const gt = gameAt(offsetBase + extraDay, utcH, utcM);
       games.push({
         gameId: `${m.id}_g${gameIdx + 1}`,
         homeTeam: m.home,
@@ -380,7 +404,7 @@ async function syncDynamicPlayoff(): Promise<void> {
     count++;
   }
 
-  console.log(`[NBA-DYN] Generated ${count} dynamic playoff games from today`);
+  console.log(`[NBA-DYN] Generated ${count} playoff games (Play-In + First Round) starting 14 апреля`);
 }
 
 // ─── Хелпери ─────────────────────────────────────────────────────────────────
