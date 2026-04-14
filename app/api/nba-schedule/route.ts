@@ -167,22 +167,22 @@ async function syncMockSchedule() {
     const mockGames = [
       {
         gameId: `mock_${Date.now()}_1`,
-        homeTeam: "Лос-Анджелес Лейкерс",
-        awayTeam: "Нью-Йорк Нікс",
+        homeTeam: "Los Angeles Lakers",
+        awayTeam: "New York Knicks",
         gameTime: new Date(now.getTime() + 2 * 60 * 60 * 1000),
         season: 2026,
       },
       {
         gameId: `mock_${Date.now()}_2`,
-        homeTeam: "Майамі Гіт",
-        awayTeam: "Бостон Селтікс",
+        homeTeam: "Miami Heat",
+        awayTeam: "Boston Celtics",
         gameTime: new Date(now.getTime() + 24 * 60 * 60 * 1000),
         season: 2026,
       },
       {
         gameId: `mock_${Date.now()}_3`,
-        homeTeam: "Золотий Стейт Ворріорс",
-        awayTeam: "Денвер Нагетс",
+        homeTeam: "Golden State Warriors",
+        awayTeam: "Denver Nuggets",
         gameTime: new Date(now.getTime() + 48 * 60 * 60 * 1000),
         season: 2026,
       },

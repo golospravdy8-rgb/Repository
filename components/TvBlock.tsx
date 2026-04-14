@@ -897,10 +897,10 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
             border: "1px solid rgba(255,255,255,0.12)",
             borderRadius: "8px",
             padding: "16px",
-            maxWidth: "450px",
+            maxWidth: "500px",
             width: "100%",
-            maxHeight: "80vh",
-            minHeight: "200px",
+            height: "85vh",
+            minHeight: "300px",
             display: "flex",
             flexDirection: "column" as const,
             backdropFilter: "blur(8px)",
@@ -943,8 +943,9 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
                 overflowY: "auto",
                 overflowX: "hidden",
                 flex: 1,
-                paddingRight: "8px",
-                minHeight: "100px",
+                maxHeight: "calc(85vh - 150px)",
+                paddingRight: "12px",
+                minHeight: "150px",
               }}>
                 {nbaGames.map((game) => (
                   <div
