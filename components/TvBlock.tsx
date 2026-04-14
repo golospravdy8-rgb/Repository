@@ -1071,6 +1071,10 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
               padding: "14px 20px",
               borderBottom: "1px solid rgba(255,255,255,0.08)",
               flexShrink: 0,
+              position: "sticky",
+              top: 0,
+              background: "#0d1b2e",
+              zIndex: 100,
             }}>
               <div>
                 <div style={{ color: "white", fontSize: "16px", fontWeight: 700 }}>
@@ -1428,6 +1432,10 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
                 padding: "16px",
                 borderBottom: "1px solid rgba(255,255,255,0.12)",
                 flexShrink: 0,
+                position: "sticky",
+                top: 0,
+                background: "#0d1b2e",
+                zIndex: 100,
               }}
             >
               <h3 style={{ color: "white", margin: 0, fontSize: "16px", fontWeight: 700 }}>
