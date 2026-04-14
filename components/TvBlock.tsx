@@ -208,6 +208,7 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
     if (!serverInfo) return;
 
     setLoadingVideo(true);
+    setVideoUrl(null); // Очищаємо попередній URL для гладкого переходу
     try {
       const r = await fetch(`/api/tv-video?url=${encodeURIComponent(serverInfo.matchUrl)}&part=${encodeURIComponent(partUrl)}`);
       const d = await r.json();
@@ -451,7 +452,7 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
 
       <div style={s.slider}>
         {matches.length === 0 && <div style={{ color: "rgba(255,255,255,0.4)", fontSize: 10, padding: "4px 8px" }}>Завантаження...</div>}
-        {[...matches].reverse().map((m) => (
+        {matches.map((m) => (
           <div key={m.id} style={s.card}>
             <div style={s.cardText}>{m.title}</div>
             <button style={s.btn} onClick={() => handleWatch(m)}>▶</button>
@@ -644,7 +645,7 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
 
                 {/* Кнопки управління у правому верхньому куті */}
                 <div style={{ position: "absolute", bottom: 12, right: 12, display: "flex", gap: 6 }}>
-                  {videoType === "external" && (
+                  {videoType && videoType !== "server-selection" && (
                     <button
                       onClick={() => {
                         setVideoUrl(null);

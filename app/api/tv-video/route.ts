@@ -72,9 +72,20 @@ export async function GET(req: Request) {
             type: "external",
             servers,
             currentPart: part,
+            message: "Part loaded successfully",
           });
         }
       }
+    }
+
+    // Якщо просимо конкретний watchUrl напряму
+    if (part && typeof part === "string" && part.startsWith("http")) {
+      return NextResponse.json({
+        videoUrl: part,
+        type: "external",
+        servers,
+        message: "Watch URL loaded as iframe",
+      });
     }
 
     // Стара логіка для watchreplay.net (iframe, video, scripts)
