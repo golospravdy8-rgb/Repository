@@ -27,6 +27,7 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
   const [nbaGames, setNbaGames] = useState<NbaGame[]>([]);
   const [loadingSchedule, setLoadingSchedule] = useState(false);
   const [liveSessions, setLiveSessions] = useState<LiveSession[]>([]);
+  const [liveMatch, setLiveMatch] = useState<LiveSession | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const playerRef = useRef<HTMLVideoElement | null>(null);
   const playerWrapRef = useRef<HTMLDivElement | null>(null);
@@ -61,7 +62,10 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
         const r = await fetch("/api/live-sessions");
         const d = await r.json();
         if (d.sessions) {
-          setLiveSessions(d.sessions.filter((s: LiveSession) => s.isActive));
+          const activeSessions = d.sessions.filter((s: LiveSession) => s.isActive);
+          setLiveSessions(activeSessions);
+          // Set the first active live match (if any)
+          setLiveMatch(activeSessions.length > 0 ? activeSessions[0] : null);
         }
       } catch (e) {
         console.error("[TvBlock] Error fetching live sessions:", e);
@@ -155,6 +159,23 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
 
     document.addEventListener("fullscreenchange", handleFullscreenChange);
     return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
+  }, []);
+
+  // Inject pulse animation CSS
+  useEffect(() => {
+    const style = document.createElement("style");
+    style.textContent = `
+      @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.6; }
+      }
+    `;
+    document.head.appendChild(style);
+    return () => {
+      if (document.head.contains(style)) {
+        document.head.removeChild(style);
+      }
+    };
   }, []);
 
   const handleWatch = async (match: Match) => {
@@ -401,6 +422,32 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
     }
   };
 
+  const handleLiveButtonClick = async () => {
+    if (!liveMatch?.liveUrl) return;
+    // Open live stream in extractEmbedUrl flow or direct link
+    setLoadingVideo(true);
+    try {
+      const r = await fetch(`/api/tv-video?url=${encodeURIComponent(liveMatch.liveUrl)}`);
+      const d = await r.json();
+      setLoadingVideo(false);
+
+      if (d.videoUrl) {
+        setVideoUrl(d.videoUrl);
+        setVideoType(d.type || "external");
+        setShowPlayer(true);
+        setMinimized(false);
+        isHostRef.current = false;
+        onSendMessage?.(`🔴 LIVE: ${liveMatch.awayTeam} vs ${liveMatch.homeTeam}`);
+      } else {
+        window.open(liveMatch.liveUrl, "_blank");
+      }
+    } catch (e) {
+      console.error("Error loading live stream:", e);
+      window.open(liveMatch.liveUrl, "_blank");
+      setLoadingVideo(false);
+    }
+  };
+
   // Форматування часу: 125 -> "2:05"
   const formatTime = (seconds: number): string => {
     if (!seconds || !isFinite(seconds)) return "0:00";
@@ -486,9 +533,28 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
       <div style={s.title}>
         <span>📺 Телевізор</span>
         <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+          {liveMatch && liveMatch.liveUrl && (
+            <button
+              onClick={handleLiveButtonClick}
+              title={`LIVE: ${liveMatch.awayTeam} vs ${liveMatch.homeTeam}`}
+              style={{
+                background: "#ef4444",
+                border: "none",
+                color: "white",
+                cursor: "pointer",
+                fontSize: 10,
+                padding: "2px 6px",
+                borderRadius: 3,
+                fontWeight: 700,
+                animation: "pulse 1.5s ease-in-out infinite",
+              }}
+            >
+              🔴 LIVE
+            </button>
+          )}
           <button
             onClick={handleOpenSchedule}
-            title="Розклад NBA"
+            title="NBA Schedule"
             style={{
               background: "#f97316",
               border: "none",
@@ -500,7 +566,7 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
               fontWeight: 700,
             }}
           >
-            📅 Розклад
+            📅 Schedule
           </button>
           <button onClick={() => setMinimized(true)} style={{ background: "none", border: "none", color: "#f97316", cursor: "pointer", fontSize: 12, padding: 0 }}>
             ✕
@@ -831,10 +897,11 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
             border: "1px solid rgba(255,255,255,0.12)",
             borderRadius: "8px",
             padding: "16px",
-            maxWidth: "400px",
+            maxWidth: "420px",
             width: "100%",
-            maxHeight: "80vh",
-            overflow: "auto",
+            maxHeight: "70vh",
+            display: "flex",
+            flexDirection: "column" as const,
             backdropFilter: "blur(8px)",
           }}>
             <div style={{
@@ -844,8 +911,9 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
               marginBottom: "12px",
               paddingBottom: "12px",
               borderBottom: "1px solid rgba(255,255,255,0.12)",
+              flexShrink: 0,
             }}>
-              <h3 style={{ color: "white", margin: 0, fontSize: "14px", fontWeight: 700 }}>📅 Розклад NBA (Київський час)</h3>
+              <h3 style={{ color: "white", margin: 0, fontSize: "14px", fontWeight: 700 }}>📅 NBA Schedule</h3>
               <button
                 onClick={() => setShowSchedule(false)}
                 style={{
@@ -863,10 +931,10 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
 
             {loadingSchedule ? (
               <div style={{ color: "rgba(255,255,255,0.6)", fontSize: "11px", textAlign: "center", padding: "20px" }}>
-                ⏳ Завантаження...
+                ⏳ Loading...
               </div>
             ) : nbaGames.length > 0 ? (
-              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px", overflowY: "auto", flex: 1, paddingRight: "4px" }}>
                 {nbaGames.map((game) => (
                   <div
                     key={game.id}
@@ -874,21 +942,24 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
                       background: "rgba(255,255,255,0.05)",
                       border: "1px solid rgba(255,255,255,0.1)",
                       borderRadius: "4px",
-                      padding: "8px",
+                      padding: "10px",
                       color: "white",
-                      fontSize: "11px",
+                      fontSize: "12px",
+                      flexShrink: 0,
                     }}
                   >
-                    <div>{game.awayTeam} — {game.homeTeam}</div>
-                    <div style={{ color: "#f97316", fontWeight: 700, marginTop: "4px" }}>
-                      {game.kyivTimeFormatted}
+                    <div style={{ fontWeight: 500, marginBottom: "4px" }}>
+                      {game.awayTeam} @ {game.homeTeam}
+                    </div>
+                    <div style={{ color: "#f97316", fontWeight: 700, fontSize: "11px" }}>
+                      🕐 {game.kyivTimeFormatted}
                     </div>
                   </div>
                 ))}
               </div>
             ) : (
               <div style={{ color: "rgba(255,255,255,0.6)", fontSize: "11px", textAlign: "center", padding: "20px" }}>
-                Немає ігор на найближчі дні
+                No games in the next few days
               </div>
             )}
           </div>
