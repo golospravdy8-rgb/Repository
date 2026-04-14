@@ -73,9 +73,13 @@ export async function GET() {
       await syncNbaSchedule();
     }
 
+    // Завантажуємо ігри починаючи з 14 апреля 2026 (Play-In) або з сьогодні, якщо раніше
+    const playInStart = new Date("2026-04-14T00:00:00Z");
+    const filterStart = playInStart < now ? now : playInStart;
+
     const schedule = await prisma.nbaSchedule.findMany({
       where: {
-        gameTime: { gte: now, lte: future },
+        gameTime: { gte: filterStart, lte: future },
         status: { not: "finished" },
       },
       orderBy: { gameTime: "asc" },
