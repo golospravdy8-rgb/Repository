@@ -7,6 +7,44 @@ interface Server {
   watchUrl?: string;
 }
 
+/**
+ * Витягує прямий iframe src з сторінки (наприклад ok.ru/videoembed/...)
+ */
+async function extractEmbedUrl(pageUrl: string): Promise<string | null> {
+  try {
+    const res = await fetch(pageUrl, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+        "Referer": "https://basketball-video.com/",
+      },
+      signal: AbortSignal.timeout(8000),
+    });
+    const html = await res.text();
+    const $ = cheerio.load(html);
+
+    // Шукаємо першу iframe з src (ok.ru, youtube, тощо)
+    const iframeSrc = $('iframe[src]').first().attr('src');
+    if (iframeSrc && iframeSrc.startsWith('//')) {
+      return 'https:' + iframeSrc;
+    }
+    if (iframeSrc && iframeSrc.startsWith('http')) {
+      return iframeSrc;
+    }
+
+    // Шукаємо в скриптах
+    const scripts = $('script').text();
+    const urlMatch = scripts.match(/https?:\/\/[^\s"'<>]+(?:ok\.ru|youtube\.com|youtu\.be)[^\s"'<>]*/i);
+    if (urlMatch) {
+      return urlMatch[0];
+    }
+
+    return null;
+  } catch (e) {
+    console.error('[TV] extractEmbedUrl error:', e);
+    return null;
+  }
+}
+
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const url = searchParams.get("url");
@@ -61,12 +99,27 @@ export async function GET(req: Request) {
 
     console.log(`[TV] Parsed ${servers.length} servers from basketball-video.com`);
 
+    // Витягаємо прямі embed URLs з watchUrl (без частин)
+    // щоб замість повної сторінки завантажувати чистий плеєр
+    for (const server of servers) {
+      if (server.watchUrl && server.parts.length === 0) {
+        const embedUrl = await extractEmbedUrl(server.watchUrl);
+        if (embedUrl) {
+          server.watchUrl = embedUrl;
+          console.log(`[TV] Extracted embed URL: ${embedUrl.substring(0, 50)}...`);
+        }
+      }
+    }
+
     // Якщо просимо частину - повертаємо видео прямо
     if (part && part.startsWith("part")) {
       for (const server of servers) {
         const partIndex = parseInt(part.replace("part", ""));
         if (server.parts[partIndex - 1]) {
-          const videoUrl = server.parts[partIndex - 1].url;
+          const partUrl = server.parts[partIndex - 1].url;
+          // Спробуємо витягти прямий embed URL з сторінки
+          const embedUrl = await extractEmbedUrl(partUrl);
+          const videoUrl = embedUrl || partUrl;
           return NextResponse.json({
             videoUrl,
             type: "external",
@@ -78,10 +131,12 @@ export async function GET(req: Request) {
       }
     }
 
-    // Якщо просимо конкретний watchUrl напряму
+    // Якщо просимо конкретний watchUrl напряму (з кнопки "Відкрити")
     if (part && typeof part === "string" && part.startsWith("http")) {
+      // Витягаємо прямий embed URL замість повної сторінки
+      const embedUrl = await extractEmbedUrl(part);
       return NextResponse.json({
-        videoUrl: part,
+        videoUrl: embedUrl || part,
         type: "external",
         servers,
         message: "Watch URL loaded as iframe",
