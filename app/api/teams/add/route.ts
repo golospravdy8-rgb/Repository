@@ -34,6 +34,19 @@ type AddTeamRequest = z.infer<typeof AddTeamSchema>;
 
 export async function POST(req: NextRequest) {
   try {
+    // Check Supabase env vars at request time, not module load time
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+      console.error('[/api/teams/add] Supabase credentials missing');
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Service unavailable',
+          message: 'Supabase configuration missing',
+        },
+        { status: 503 }
+      );
+    }
+
     const body = await req.json();
 
     // Validate request body

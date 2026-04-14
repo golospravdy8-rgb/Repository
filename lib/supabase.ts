@@ -3,19 +3,27 @@ import { createClient } from "@supabase/supabase-js";
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
 
+// Don't throw during build — let API routes handle missing env gracefully
 if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error(
-    "Відсутні Supabase env vars: NEXT_PUBLIC_SUPABASE_URL та NEXT_PUBLIC_SUPABASE_ANON_KEY"
-  );
+  if (typeof window === 'undefined' && !process.env.VERCEL) {
+    // Only warn if not in build environment
+    console.warn("⚠️  Supabase env vars missing (expected during build)");
+  }
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  realtime: {
-    params: {
-      eventsPerSecond: 10,
+// Create client with fallback to dummy values during build
+// Actual requests will fail gracefully with proper error messages
+export const supabase = createClient(
+  supabaseUrl || "https://placeholder.supabase.co",
+  supabaseAnonKey || "placeholder-key",
+  {
+    realtime: {
+      params: {
+        eventsPerSecond: 10,
+      },
     },
-  },
-});
+  }
+);
 
 /**
  * Каналу для чату: chat:room:{roomId}
