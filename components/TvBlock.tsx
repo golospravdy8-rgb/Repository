@@ -214,10 +214,18 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
 
       if (d.videoUrl) {
         setVideoUrl(d.videoUrl);
+        // Для зовнішніх посилань (watchUrl) використовуємо iframe
         setVideoType(d.type || "external");
         didSeekRef.current = true;
         seekTargetRef.current = 0;
-        console.log(`[HOST] ✅ Loaded ${partUrl}, type=${d.type}`);
+        console.log(`[HOST] ✅ Loaded part, type=${d.type}`);
+      } else if (partUrl) {
+        // Якщо немає videoUrl (для watchUrl), просто завантажуємо посилання як iframe
+        setVideoUrl(partUrl);
+        setVideoType("external");
+        didSeekRef.current = true;
+        seekTargetRef.current = 0;
+        console.log(`[HOST] ✅ Loaded external URL`);
       }
     } catch (e) {
       console.error("Error selecting part:", e);
@@ -443,7 +451,7 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
 
       <div style={s.slider}>
         {matches.length === 0 && <div style={{ color: "rgba(255,255,255,0.4)", fontSize: 10, padding: "4px 8px" }}>Завантаження...</div>}
-        {matches.map((m) => (
+        {[...matches].reverse().map((m) => (
           <div key={m.id} style={s.card}>
             <div style={s.cardText}>{m.title}</div>
             <button style={s.btn} onClick={() => handleWatch(m)}>▶</button>
@@ -541,10 +549,8 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
                           ))}
                         </div>
                       ) : server.watchUrl ? (
-                        <a
-                          href={server.watchUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
+                        <button
+                          onClick={() => handleSelectPart(server.watchUrl)}
                           style={{
                             display: "inline-block",
                             background: "#f97316",
@@ -559,7 +565,7 @@ export default function TvBlock({ userName, onSendMessage }: Props) {
                           }}
                         >
                           🔗 Відкрити
-                        </a>
+                        </button>
                       ) : (
                         <div style={{ color: "rgba(255,255,255,0.4)", fontSize: 9 }}>Немає посилань</div>
                       )}
