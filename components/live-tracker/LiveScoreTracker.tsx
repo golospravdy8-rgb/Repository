@@ -230,7 +230,6 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
                     }`}
                     style={{
                       backgroundColor: isSelected ? "rgba(249, 115, 22, 0.6)" : "transparent",
-                      ringColor: accentColor,
                       color: isSelected ? "#ffffff" : "#ffffff",
                     }}
                   >
@@ -445,7 +444,6 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
                     }`}
                     style={{
                       backgroundColor: isSelected ? "rgba(249, 115, 22, 0.25)" : "transparent",
-                      ringColor: accentColor,
                       color: "#1f2937",
                     }}
                   >
