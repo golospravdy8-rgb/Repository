@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { prisma } from "@/lib/prisma";
 import { getSettings } from "@/lib/site-settings";
+import { getBackupGames, enrichGamesWithTeams } from "@/lib/backup-loader";
 import StandingsTable from "@/components/public/StandingsTable";
 import NewsCard from "@/components/public/NewsCard";
 import HeroButtons from "@/components/public/HeroButtons";
@@ -15,6 +16,10 @@ export const dynamic = "force-dynamic";
 export default async function HomePage({ searchParams }: { searchParams: { ag?: string } }) {
   const ag = searchParams.ag === "older" ? "older" : "younger";
   const season = await prisma.season.findFirst({ where: { isActive: true, ageGroup: ag } }).catch(() => null);
+
+  // Load games from backup (up to 12 for carousel)
+  const backupGames = await getBackupGames(ag, 12);
+  const enrichedBackupGames = await enrichGamesWithTeams(backupGames);
 
   const [settings, games, news] = await Promise.all([
     getSettings([
@@ -64,17 +69,7 @@ export default async function HomePage({ searchParams }: { searchParams: { ag?: 
       "stream.countdownThresholdMinutes",
       "stream.youtubeChannelId",
     ]),
-    season
-      ? prisma.game.findMany({
-          where: { seasonId: season.id },
-          orderBy: { scheduledAt: "asc" },
-          include: {
-            homeTeam: true,
-            awayTeam: true,
-            season: true,
-          },
-        })
-      : [],
+    Promise.resolve(enrichedBackupGames),
     prisma.news.findMany({
       where: { isPublished: true },
       orderBy: { publishedAt: "desc" },
@@ -87,7 +82,7 @@ export default async function HomePage({ searchParams }: { searchParams: { ag?: 
   const honorPlayers = season
     ? await prisma.boxScore.groupBy({
         by: ["playerId"],
-        where: { game: { seasonId: season.id, scheduledAt: { gte: monthStart }, status: "FINAL" } },
+        where: { game: { seasonId: season.id, scheduledAt: { gte: monthStart }, status: { in: ["FINAL", "FINISHED", "COMPLETED", "LIVE"] } } },
         _sum: { points: true },
         _count: { gameId: true },
         orderBy: { _sum: { points: "desc" } },
@@ -113,3 +108,4 @@ export default async function HomePage({ searchParams }: { searchParams: { ag?: 
   // Render neon homepage instead of traditional layout
   return <HomePageNeon season={season} standings={[]} players={honorTop3} ag={ag} games={games} news={news} settings={settings} />;
 }
+

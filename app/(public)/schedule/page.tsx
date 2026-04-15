@@ -22,6 +22,20 @@ export default async function SchedulePage({ searchParams }: { searchParams: { a
         })
       : [];
 
+    // Sort games: Completed first, then by scheduledAt ascending
+    const sortedGames = games.sort((a, b) => {
+      const aIsFinished = a.status === "FINAL";
+      const bIsFinished = b.status === "FINAL";
+
+      // Completed games first
+      if (aIsFinished !== bIsFinished) {
+        return aIsFinished ? -1 : 1;
+      }
+
+      // Then by scheduled date
+      return new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime();
+    });
+
     return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
         <h1 className="text-xl font-black mb-1" style={{ color: "var(--color-heading)" }}>
@@ -31,10 +45,10 @@ export default async function SchedulePage({ searchParams }: { searchParams: { a
           <AgeGroupTabs />
         </Suspense>
         <div className="mt-4 space-y-3">
-          {games.length === 0 ? (
+          {sortedGames.length === 0 ? (
             <p className="text-gray-500">Ігор не знайдено.</p>
           ) : (
-            games.map((g) => <GameCard key={g.id} game={g} />)
+            sortedGames.map((g) => <GameCard key={g.id} game={g} />)
           )}
         </div>
       </div>
