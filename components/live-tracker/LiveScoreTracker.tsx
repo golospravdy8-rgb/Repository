@@ -34,10 +34,10 @@ function RosterPanel({ players, teamId, team, onCourtIds, selectedId, onSelect, 
 
   return (
     <div style={{
-      padding: "6px",
+      padding: "4px 3px",
       background: isHome ? "#0d1520" : "#f3f4f6",
       fontSize: "11px",
-      overflow: "hidden",
+      overflowY: "auto",
       display: "flex",
       flexDirection: "column",
       minHeight: 0
@@ -47,27 +47,26 @@ function RosterPanel({ players, teamId, team, onCourtIds, selectedId, onSelect, 
         color: isHome ? "#3a6fa5" : "#4a7fa5",
         textTransform: "uppercase",
         letterSpacing: ".4px",
-        paddingBottom: "3px",
-        borderBottom: `1px solid ${isHome ? "#1a2e40" : "#e5e7eb"}`,
-        marginBottom: "3px",
+        padding: "2px 4px",
+        marginBottom: "1px",
         whiteSpace: "nowrap"
       }}>
         {team.name}
       </div>
 
-      <div style={{ overflow: "hidden", flex: 1, display: "flex", flexDirection: "column", gap: "2px" }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: "0px" }}>
         {/* На паркеті */}
         <div style={{
-          fontSize: "8px",
+          fontSize: "10px",
           color: isHome ? "#2ecc71" : "#059669",
-          background: isHome ? "#0d2a15" : "#d1fae5",
-          borderRadius: "3px",
-          padding: "1px 3px",
+          background: isHome ? "transparent" : "transparent",
+          padding: "2px 4px",
+          marginBottom: "1px",
           fontWeight: "bold"
         }}>
           ● На паркеті ({onCourt.length})
         </div>
-        <div style={{ overflow: "hidden", flex: onCourt.length > 0 ? 1 : "auto" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "0px" }}>
           {onCourt.map(p => (
             <button
               key={p.id}
@@ -76,17 +75,19 @@ function RosterPanel({ players, teamId, team, onCourtIds, selectedId, onSelect, 
                 display: "flex",
                 alignItems: "center",
                 gap: "4px",
-                padding: "2px 3px",
-                borderRadius: "3px",
+                padding: "2px 6px",
+                borderRadius: "2px",
                 cursor: "pointer",
                 background: selectedId === p.id ? (isHome ? "#163a5c" : "#fed7aa") : "transparent",
                 transition: "background .1s",
                 width: "100%",
                 border: "none",
-                fontSize: "10px",
+                fontSize: "11px",
                 textAlign: "left",
                 color: isHome ? (selectedId === p.id ? "#5ab3f4" : "#c8d8e8") : (selectedId === p.id ? "#92400e" : "#374151"),
-                minHeight: "18px"
+                height: "24px",
+                lineHeight: "20px",
+                margin: 0
               }}
             >
               <span style={{ width: "5px", height: "5px", borderRadius: "50%", background: isHome ? "#2ecc71" : "#059669", flexShrink: 0 }} />
@@ -100,17 +101,17 @@ function RosterPanel({ players, teamId, team, onCourtIds, selectedId, onSelect, 
 
         {/* Лавка */}
         <div style={{
-          fontSize: "8px",
+          fontSize: "10px",
           color: isHome ? "#4a7fa5" : "#6b7280",
-          borderRadius: "3px",
-          padding: "1px 3px",
+          padding: "2px 4px",
+          marginBottom: "1px",
           fontWeight: "bold",
           marginTop: "2px"
         }}>
           ○ Лавка ({bench.length})
         </div>
-        <div style={{ overflow: "hidden", flex: 1 }}>
-          {bench.slice(0, 8).map(p => (
+        <div style={{ display: "flex", flexDirection: "column", gap: "0px" }}>
+          {bench.map(p => (
             <button
               key={p.id}
               onClick={() => onSelect(p.id)}
@@ -118,16 +119,18 @@ function RosterPanel({ players, teamId, team, onCourtIds, selectedId, onSelect, 
                 display: "flex",
                 alignItems: "center",
                 gap: "4px",
-                padding: "2px 3px",
-                borderRadius: "3px",
+                padding: "2px 6px",
+                borderRadius: "2px",
                 cursor: "pointer",
                 background: selectedId === p.id ? (isHome ? "#163a5c" : "#fed7aa") : "transparent",
                 width: "100%",
                 border: "none",
-                fontSize: "10px",
+                fontSize: "11px",
                 textAlign: "left",
                 color: isHome ? (selectedId === p.id ? "#5ab3f4" : "#c8d8e8") : (selectedId === p.id ? "#92400e" : "#6b7280"),
-                minHeight: "18px"
+                height: "24px",
+                lineHeight: "20px",
+                margin: 0
               }}
             >
               <span style={{ width: "5px", height: "5px", borderRadius: "50%", background: isHome ? "#2a4060" : "#d1d5db", flexShrink: 0 }} />

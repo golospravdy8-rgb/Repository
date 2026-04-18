@@ -40,7 +40,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="w-full flex-1" style={{ padding: 0, margin: 0 }}>
         {children}
       </main>
     </div>
