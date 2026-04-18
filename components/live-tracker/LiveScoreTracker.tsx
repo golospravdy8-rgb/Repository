@@ -95,7 +95,7 @@ function RosterPanel({ players, teamId, team, onCourtIds, selectedId, onSelect, 
           >
             <span style={{ width: "4px", height: "4px", borderRadius: "50%", background: isHome ? "#2ecc71" : "#059669", flexShrink: 0 }} />
             <span style={{ minWidth: "18px", fontWeight: "bold", fontSize: "26px" }}>#{p.number}</span>
-            <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "55px", fontSize: "24px" }}>
+            <span style={{ fontSize: "13px" }}>
               {p.lastName} {p.firstName[0]}.
             </span>
           </button>
@@ -139,7 +139,7 @@ function RosterPanel({ players, teamId, team, onCourtIds, selectedId, onSelect, 
           >
             <span style={{ width: "4px", height: "4px", borderRadius: "50%", background: isHome ? "#2a4060" : "#d1d5db", flexShrink: 0 }} />
             <span style={{ minWidth: "18px", fontWeight: "bold", fontSize: "26px" }}>#{p.number}</span>
-            <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "55px", fontSize: "24px" }}>
+            <span style={{ fontSize: "13px" }}>
               {p.lastName} {p.firstName[0]}.
             </span>
           </button>
@@ -398,7 +398,7 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
       {/* MAIN LAYOUT — 3 колонки */}
       <div style={{
         display: "grid",
-        gridTemplateColumns: "155px 1fr 155px",
+        gridTemplateColumns: "200px 1fr 200px",
         flex: 1,
         overflow: "hidden",
         gap: 6,
@@ -420,10 +420,10 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
         {/* CENTER — 5 рядів кнопок з правильними пропорціями */}
         <div style={{
           flex: 1, display: "flex", flexDirection: "column",
-          gap: 3, padding: 3, minHeight: 0
+          gap: 2, padding: 2, minHeight: 0
         }}>
           {/* РЯД 1 — вузький 36px */}
-          <div style={{ flex: "0 0 36px", display: "flex", gap: 3 }}>
+          <div style={{ flex: "0 0 36px", display: "flex", gap: 2 }}>
             <button
               onClick={() => startTransition(() => nextQuarter(game.id))}
               disabled={!isLive}
@@ -460,7 +460,7 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
           </div>
 
           {/* РЯД 2 — великий flex:2.2 */}
-          <div style={{ flex: 2.2, display: "flex", gap: 3 }}>
+          <div style={{ flex: 2.2, display: "flex", gap: 2 }}>
             <button
               onClick={() => selectedPlayerId && runAction(() => addScoreWithType(game.id, selectedTeamId, selectedPlayerId, 1, eventType))}
               disabled={disabled}
@@ -490,7 +490,7 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
           </div>
 
           {/* РЯД 3 — середній flex:1.3 */}
-          <div style={{ flex: 1.3, display: "flex", gap: 3 }}>
+          <div style={{ flex: 1.3, display: "flex", gap: 2 }}>
             <button
               onClick={() => selectedPlayerId && runAction(() => addMissFg2(game.id, selectedTeamId, selectedPlayerId))}
               disabled={disabled}
@@ -520,7 +520,7 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
           </div>
 
           {/* РЯД 4 — великий flex:2 */}
-          <div style={{ flex: 2, display: "flex", gap: 3 }}>
+          <div style={{ flex: 2, display: "flex", gap: 2 }}>
             <button
               onClick={() => selectedPlayerId && runAction(() => addAssist(game.id, selectedTeamId, selectedPlayerId))}
               disabled={disabled}
@@ -554,7 +554,7 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
           </div>
 
           {/* РЯД 5 — вузький 36px */}
-          <div style={{ flex: "0 0 36px", display: "flex", gap: 3 }}>
+          <div style={{ flex: "0 0 36px", display: "flex", gap: 2 }}>
             <button
               onClick={() => setEventType("normal")}
               style={{ flex:1, height:"100%", background: eventType === "normal" ? "#163a5c" : "#1a2e40", color: eventType === "normal" ? "#5ab3f4" : "#8ab8d0", fontSize:26, fontWeight:600, border: eventType === "normal" ? "1px solid #2a5a8a" : "none", borderRadius:3, cursor:"pointer" }}
