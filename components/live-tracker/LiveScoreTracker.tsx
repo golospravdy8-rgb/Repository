@@ -95,7 +95,7 @@ function RosterPanel({ players, teamId, team, onCourtIds, selectedId, onSelect, 
           >
             <span style={{ width: "4px", height: "4px", borderRadius: "50%", background: isHome ? "#2ecc71" : "#059669", flexShrink: 0 }} />
             <span style={{ minWidth: "18px", fontWeight: "bold", fontSize: "26px" }}>#{p.number}</span>
-            <span style={{ fontSize: "24px" }}>
+            <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "55px", fontSize: "24px" }}>
               {p.lastName} {p.firstName[0]}.
             </span>
           </button>
@@ -139,7 +139,7 @@ function RosterPanel({ players, teamId, team, onCourtIds, selectedId, onSelect, 
           >
             <span style={{ width: "4px", height: "4px", borderRadius: "50%", background: isHome ? "#2a4060" : "#d1d5db", flexShrink: 0 }} />
             <span style={{ minWidth: "18px", fontWeight: "bold", fontSize: "26px" }}>#{p.number}</span>
-            <span style={{ fontSize: "24px" }}>
+            <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "55px", fontSize: "24px" }}>
               {p.lastName} {p.firstName[0]}.
             </span>
           </button>
@@ -254,19 +254,13 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
     <div style={{
       display: "flex",
       flexDirection: "column",
-      minHeight: "100vh",
-      background: "#0d1520",
+      height: "100%",
+      flex: 1,
+      background: "#f9fafb",
+      overflow: "hidden",
       margin: 0,
       padding: 0
     }}>
-      {/* UPPER BLOCK — fits exactly one viewport (100vh) */}
-      <div style={{
-        height: "100vh",
-        display: "flex",
-        flexDirection: "column",
-        overflow: "hidden",
-        background: "#0d1520"
-      }}>
       {/* HEADER */}
       <header style={{
         display: "grid",
@@ -404,7 +398,7 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
       {/* MAIN LAYOUT — 3 колонки */}
       <div style={{
         display: "grid",
-        gridTemplateColumns: "220px 1fr 220px",
+        gridTemplateColumns: "155px 1fr 155px",
         flex: 1,
         overflow: "hidden",
         gap: 6,
@@ -592,27 +586,20 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
           isHome={false}
         />
       </div>
-      </div>
-      {/* End of UPPER BLOCK (100vh) */}
 
-      {/* ACTION LOG — below viewport, accessible via page scroll */}
+      {/* ACTION LOG — vertical list */}
       <div
+        ref={logContainerRef}
         style={{
-          background: "#0a0f15",
-          borderTop: "2px solid #1a3a54",
-          padding: "10px 16px",
-          minHeight: "200px",
-          flexShrink: 0
+          background: "#080f18",
+          borderTop: "1px solid #1a2e40",
+          padding: "4px 8px",
+          flex: "0 0 120px",
+          overflowY: "auto",
+          display: "flex",
+          flexDirection: "column",
+          gap: "0px"
         }}
-      >
-        <div style={{ color: "#3a6fa5", fontSize: 11, fontWeight: 700, marginBottom: 8 }}>LOG:</div>
-        <div
-          ref={logContainerRef}
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            gap: "4px"
-          }}
       >
         {game.events.map((e, i) => {
           let eventColor = "#5a7a9a";
@@ -660,7 +647,6 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
             </div>
           );
         })}
-        </div>
       </div>
 
       {/* SHOOTING FOUL MODAL */}

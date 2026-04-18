@@ -71,13 +71,14 @@
 
   html {
     height: 100%;
-    overflow-x: hidden;
+    overflow: hidden;
     margin: 0;
     padding: 0;
   }
 
   body {
-    min-height: 100vh;
+    height: 100%;
+    overflow: hidden;
     margin: 0;
     padding: 0;
     background-color: #f1f5f9;
@@ -85,7 +86,8 @@
   }
 
   #__next {
-    min-height: 100vh;
+    height: 100%;
+    overflow: hidden;
     margin: 0;
     padding: 0;
   }
