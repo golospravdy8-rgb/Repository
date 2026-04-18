@@ -454,36 +454,32 @@ export default function HomePageNeon({ season, standings = [], players = [], ag 
   // RECENT RESULTS SECTION (CAROUSEL)
   // ═══════════════════════════════════════════════════════════════
   const RecentResultsSection = () => {
-    const [currentIndex, setCurrentIndex] = React.useState(0);
-    const scrollRef = React.useRef<HTMLDivElement>(null);
-
     if (!games || games.length === 0) return null;
-
-    const CARDS_VISIBLE = 4;
-    const maxIndex = Math.max(0, games.length - CARDS_VISIBLE);
-
-    const scrollTo = (index: number) => {
-      const clamped = Math.max(0, Math.min(index, maxIndex));
-      setCurrentIndex(clamped);
-      if (scrollRef.current) {
-        const cardWidth = scrollRef.current.scrollWidth / games.length;
-        scrollRef.current.scrollTo({ left: cardWidth * clamped, behavior: 'smooth' });
-      }
-    };
 
     const TeamLogo = ({ logoUrl, name }: { logoUrl: string | null; name: string }) => (
       <div style={{
-        width: 36, height: 36, borderRadius: '50%',
+        width: 32, height: 32, borderRadius: '50%',
         border: '2px solid #a78bfa', overflow: 'hidden', flexShrink: 0,
         background: 'rgba(15,23,42,0.5)', display: 'flex',
         alignItems: 'center', justifyContent: 'center', position: 'relative',
       }}>
         {logoUrl
           ? <Image src={logoUrl} alt={name} fill style={{ objectFit: 'contain' }} />
-          : <span style={{ fontSize: 12, fontWeight: 800, color: '#94a3b8' }}>{name[0]}</span>
+          : <span style={{ fontSize: 11, fontWeight: 800, color: '#94a3b8' }}>{name[0]}</span>
         }
       </div>
     );
+
+    // Групування по датах, беремо останні 6-8 матчів
+    const recentGames = games.slice(-8);
+    const groupedByDate = recentGames.reduce((acc: { [key: string]: any[] }, game: any) => {
+      const dateKey = new Date(game.scheduledAt).toLocaleDateString('uk-UA', {
+        day: '2-digit', month: 'long', year: 'numeric',
+      });
+      if (!acc[dateKey]) acc[dateKey] = [];
+      acc[dateKey].push(game);
+      return acc;
+    }, {});
 
     return (
       <section style={{ background: 'rgba(15,23,42,0.95)', borderTop: '1px solid rgba(168,85,247,0.3)', padding: '32px 16px' }}>
@@ -495,126 +491,96 @@ export default function HomePageNeon({ season, standings = [], players = [], ag 
             </a>
           </div>
 
-          <div style={{ position: 'relative' }}>
-            {/* Left Arrow */}
-            {currentIndex > 0 && (
-              <button onClick={() => scrollTo(currentIndex - 1)} style={{
-                position: 'absolute', left: -20, top: '50%', transform: 'translateY(-50%)',
-                zIndex: 10, width: 40, height: 40, borderRadius: '50%',
-                background: '#7c3aed', border: '1px solid #a78bfa', color: '#fff',
-                fontSize: 22, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                transition: 'all 0.2s',
-              }}
-              onMouseEnter={(e) => {
-                (e.currentTarget as HTMLButtonElement).style.background = '#a78bfa';
-                (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 0 15px rgba(167,139,250,0.6)';
-              }}
-              onMouseLeave={(e) => {
-                (e.currentTarget as HTMLButtonElement).style.background = '#7c3aed';
-                (e.currentTarget as HTMLButtonElement).style.boxShadow = 'none';
-              }}>
-                ‹
-              </button>
-            )}
+          <div>
+            {Object.entries(groupedByDate).reverse().map(([dateKey, dateGames]: [string, any[]]) => (
+              <div key={dateKey} style={{ marginBottom: 24 }}>
+                {/* Date Header */}
+                <div style={{
+                  background: 'rgba(30,26,75,0.6)', padding: '10px 16px',
+                  borderRadius: '6px 6px 0 0', borderBottom: '1px solid rgba(168,85,247,0.3)',
+                  fontSize: 13, fontWeight: 700, color: '#a78bfa',
+                  textTransform: 'uppercase', letterSpacing: '0.05em',
+                }}>
+                  {dateKey}
+                </div>
 
-            {/* Carousel Container */}
-            <div ref={scrollRef} style={{
-              display: 'flex', gap: 16, overflowX: 'hidden', scrollSnapType: 'x mandatory',
-              scrollBehavior: 'smooth',
-            }}>
-              {games.map((game: any) => {
-                const isFinal = game.status === 'FINAL';
-                const isLive = game.status === 'LIVE';
-                const hasScore = isFinal || isLive;
-                const dateStr = new Date(game.scheduledAt).toLocaleDateString('uk-UA', {
-                  day: '2-digit', month: '2-digit', year: 'numeric',
-                });
-                return (
-                  <Link key={game.id} href={`/game/${game.id}`} style={{
-                    textDecoration: 'none', scrollSnapAlign: 'start',
-                    minWidth: 'calc(25% - 12px)', flexShrink: 0,
-                  }}>
-                    <div style={{
-                      padding: 16, borderRadius: 12, height: '100%',
-                      background: hasScore
-                        ? 'linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%)'
-                        : 'linear-gradient(135deg, #0f172a 0%, #0c2340 100%)',
-                      border: `1px solid ${hasScore ? 'rgba(168,85,247,0.5)' : 'rgba(59,130,246,0.4)'}`,
-                      display: 'flex', flexDirection: 'column',
-                      cursor: 'pointer',
-                      transition: 'all 0.3s',
-                    }}
-                    onMouseEnter={(e) => {
-                      (e.currentTarget as HTMLDivElement).style.boxShadow = '0 0 20px rgba(168,85,247,0.4)';
-                      (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-2px)';
-                    }}
-                    onMouseLeave={(e) => {
-                      (e.currentTarget as HTMLDivElement).style.boxShadow = 'none';
-                      (e.currentTarget as HTMLDivElement).style.transform = 'translateY(0)';
-                    }}>
-                      <div style={{ fontSize: 11, color: hasScore ? '#c4b5fd' : '#93c5fd', fontWeight: 700, marginBottom: 12 }}>
-                        {dateStr}
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-                        <TeamLogo logoUrl={game.homeTeam?.logoUrl ?? null} name={game.homeTeam?.name ?? 'N/A'} />
-                        <span style={{ color: '#fff', fontSize: 12, fontWeight: 700, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {game.homeTeam?.name}
-                        </span>
-                        {hasScore && <span style={{ color: '#fb923c', fontWeight: 900, fontSize: 16, flexShrink: 0 }}>{game.homeScore}</span>}
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-                        <TeamLogo logoUrl={game.awayTeam?.logoUrl ?? null} name={game.awayTeam?.name ?? 'N/A'} />
-                        <span style={{ color: '#fff', fontSize: 12, fontWeight: 700, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {game.awayTeam?.name}
-                        </span>
-                        {hasScore && <span style={{ color: '#fb923c', fontWeight: 900, fontSize: 16, flexShrink: 0 }}>{game.awayScore}</span>}
-                      </div>
-                      {!hasScore && (
-                        <div style={{ fontSize: 11, color: '#94a3b8', textAlign: 'center', marginBottom: 4 }}>vs</div>
-                      )}
-                      <div style={{ fontSize: 11, fontWeight: 900, textAlign: 'center', marginTop: 'auto', color: hasScore ? '#fb923c' : '#60a5fa' }}>
-                        {isLive ? `● LIVE Q${game.quarter}` : isFinal ? 'ЗІГРАНО' : 'ЗАПЛАНОВАНО'}
-                      </div>
-                    </div>
-                  </Link>
-                );
-              })}
-            </div>
+                {/* Games List */}
+                {dateGames.map((game: any) => {
+                  const isFinal = game.status === 'FINAL';
+                  const isLive = game.status === 'LIVE';
+                  const hasScore = isFinal || isLive;
 
-            {/* Right Arrow */}
-            {currentIndex < maxIndex && (
-              <button onClick={() => scrollTo(currentIndex + 1)} style={{
-                position: 'absolute', right: -20, top: '50%', transform: 'translateY(-50%)',
-                zIndex: 10, width: 40, height: 40, borderRadius: '50%',
-                background: '#7c3aed', border: '1px solid #a78bfa', color: '#fff',
-                fontSize: 22, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                transition: 'all 0.2s',
-              }}
-              onMouseEnter={(e) => {
-                (e.currentTarget as HTMLButtonElement).style.background = '#a78bfa';
-                (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 0 15px rgba(167,139,250,0.6)';
-              }}
-              onMouseLeave={(e) => {
-                (e.currentTarget as HTMLButtonElement).style.background = '#7c3aed';
-                (e.currentTarget as HTMLButtonElement).style.boxShadow = 'none';
-              }}>
-                ›
-              </button>
-            )}
+                  const homeWins = hasScore && game.homeScore > game.awayScore;
+                  const awayWins = hasScore && game.awayScore > game.homeScore;
+
+                  const statusLabel = isLive ? `● LIVE Q${game.quarter}` : isFinal ? 'ЗІГРАНО' : 'ЗАПЛАНОВАНО';
+                  const statusColor = isLive ? '#ef4444' : isFinal ? '#fb923c' : '#60a5fa';
+
+                  return (
+                    <Link key={game.id} href={`/game/${game.id}`} style={{ textDecoration: 'none' }}>
+                      <div style={{
+                        display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px',
+                        borderBottom: '1px solid rgba(168,85,247,0.2)',
+                        cursor: 'pointer', transition: 'all 0.2s',
+                        background: 'rgba(15,23,42,0.5)',
+                      }}
+                      onMouseEnter={(e) => {
+                        (e.currentTarget as HTMLDivElement).style.background = 'rgba(15,23,42,0.8)';
+                      }}
+                      onMouseLeave={(e) => {
+                        (e.currentTarget as HTMLDivElement).style.background = 'rgba(15,23,42,0.5)';
+                      }}>
+                        {/* Home Team */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0 }}>
+                          <TeamLogo logoUrl={game.homeTeam?.logoUrl ?? null} name={game.homeTeam?.name ?? 'N/A'} />
+                          <span style={{
+                            color: homeWins ? '#fff' : '#cbd5e1', fontSize: 13, fontWeight: homeWins ? 700 : 500,
+                            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1,
+                          }}>
+                            {game.homeTeam?.name ?? 'N/A'}
+                          </span>
+                        </div>
+
+                        {/* Score */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                          {hasScore && (
+                            <>
+                              <span style={{ fontSize: 18, fontWeight: 800, color: homeWins ? '#fb923c' : '#cbd5e1', minWidth: 24, textAlign: 'right' }}>
+                                {game.homeScore}
+                              </span>
+                              <span style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>:</span>
+                              <span style={{ fontSize: 18, fontWeight: 800, color: awayWins ? '#fb923c' : '#cbd5e1', minWidth: 24, textAlign: 'left' }}>
+                                {game.awayScore}
+                              </span>
+                            </>
+                          )}
+                          {!hasScore && (
+                            <span style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>vs</span>
+                          )}
+                        </div>
+
+                        {/* Away Team */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0, justifyContent: 'flex-end' }}>
+                          <span style={{
+                            color: awayWins ? '#fff' : '#cbd5e1', fontSize: 13, fontWeight: awayWins ? 700 : 500,
+                            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, textAlign: 'right',
+                          }}>
+                            {game.awayTeam?.name ?? 'N/A'}
+                          </span>
+                          <TeamLogo logoUrl={game.awayTeam?.logoUrl ?? null} name={game.awayTeam?.name ?? 'N/A'} />
+                        </div>
+
+                        {/* Status */}
+                        <span style={{ fontSize: 10, fontWeight: 700, color: statusColor, textTransform: 'uppercase', flexShrink: 0, minWidth: 80, textAlign: 'right' }}>
+                          {statusLabel}
+                        </span>
+                      </div>
+                    </Link>
+                  );
+                })}
+              </div>
+            ))}
           </div>
-
-          {/* Pagination Dots */}
-          {games.length > CARDS_VISIBLE && (
-            <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginTop: 16 }}>
-              {Array.from({ length: maxIndex + 1 }).map((_, i) => (
-                <button key={i} onClick={() => scrollTo(i)} style={{
-                  width: i === currentIndex ? 16 : 8, height: 8, borderRadius: 4,
-                  background: i === currentIndex ? '#fb923c' : '#4c1d95',
-                  border: 'none', cursor: 'pointer', transition: 'all 0.2s', padding: 0,
-                }} />
-              ))}
-            </div>
-          )}
         </div>
       </section>
     );
