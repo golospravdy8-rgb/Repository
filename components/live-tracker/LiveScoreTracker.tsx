@@ -254,9 +254,10 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
     <div style={{
       display: "flex",
       flexDirection: "column",
-      minHeight: "100vh",
-      overflowY: "auto",
-      background: "#0a1525",
+      height: "100%",
+      flex: 1,
+      background: "#f9fafb",
+      overflow: "hidden",
       margin: 0,
       padding: 0
     }}>
@@ -592,8 +593,9 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
         style={{
           background: "#080f18",
           borderTop: "1px solid #1a2e40",
-          padding: "8px 12px",
-          minHeight: "300px",
+          padding: "4px 8px",
+          flex: "0 0 120px",
+          overflowY: "auto",
           display: "flex",
           flexDirection: "column",
           gap: "0px"
