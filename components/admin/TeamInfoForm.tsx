@@ -55,7 +55,12 @@ export default function TeamInfoForm({ teamId, teamName, initialData }: TeamInfo
   return (
     <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow p-6 mb-6" style={{ position: "relative" }}>
       <button
-        onClick={() => setShowPanel(false)}
+        type="button"
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setShowPanel(false);
+        }}
         style={{
           position: "absolute",
           top: 8,
@@ -68,7 +73,6 @@ export default function TeamInfoForm({ teamId, teamName, initialData }: TeamInfo
           lineHeight: 1,
           padding: "2px 6px"
         }}
-        type="button"
       >
         ×
       </button>
