@@ -13,6 +13,7 @@ interface TeamInfoFormProps {
 }
 
 export default function TeamInfoForm({ teamId, teamName, initialData }: TeamInfoFormProps) {
+  const [showPanel, setShowPanel] = useState(true);
   const [formData, setFormData] = useState({
     coachName: initialData.coachName || "",
     assistantCoach: initialData.assistantCoach || "",
@@ -40,8 +41,37 @@ export default function TeamInfoForm({ teamId, teamName, initialData }: TeamInfo
     }
   };
 
+  if (!showPanel) {
+    return (
+      <button
+        onClick={() => setShowPanel(true)}
+        className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded text-sm font-medium transition mb-4 w-full"
+      >
+        👥 {teamName}
+      </button>
+    );
+  }
+
   return (
-    <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow p-6 mb-6">
+    <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow p-6 mb-6" style={{ position: "relative" }}>
+      <button
+        onClick={() => setShowPanel(false)}
+        style={{
+          position: "absolute",
+          top: 8,
+          right: 8,
+          background: "none",
+          border: "none",
+          fontSize: 20,
+          cursor: "pointer",
+          color: "#666",
+          lineHeight: 1,
+          padding: "2px 6px"
+        }}
+        type="button"
+      >
+        ×
+      </button>
       <h3 className="text-base font-bold mb-4">{teamName}</h3>
 
       {message && (

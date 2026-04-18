@@ -16,6 +16,7 @@ interface GameInfoFormProps {
 }
 
 export default function GameInfoForm({ gameId, initialData }: GameInfoFormProps) {
+  const [showPanel, setShowPanel] = useState(true);
   const [formData, setFormData] = useState({
     commissioner: initialData.commissioner || "",
     referee1: initialData.referee1 || "",
@@ -47,8 +48,37 @@ export default function GameInfoForm({ gameId, initialData }: GameInfoFormProps)
     }
   };
 
+  if (!showPanel) {
+    return (
+      <button
+        onClick={() => setShowPanel(true)}
+        className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded text-sm font-medium transition mb-4"
+      >
+        ⚙️ FIBA
+      </button>
+    );
+  }
+
   return (
-    <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow p-6 mb-6">
+    <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow p-6 mb-6" style={{ position: "relative" }}>
+      <button
+        onClick={() => setShowPanel(false)}
+        style={{
+          position: "absolute",
+          top: 8,
+          right: 8,
+          background: "none",
+          border: "none",
+          fontSize: 20,
+          cursor: "pointer",
+          color: "#666",
+          lineHeight: 1,
+          padding: "2px 6px"
+        }}
+        type="button"
+      >
+        ×
+      </button>
       <h2 className="text-lg font-bold mb-4">Налаштування гри (FIBA протокол)</h2>
 
       {message && (
