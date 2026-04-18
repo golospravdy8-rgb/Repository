@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition, useEffect, useRef, useCallback } from "react";
-import { nextQuarter, endGame, startGame, undoLastEvent, addAssist, addSteal, addReboundOff, addReboundDef, addBlock, addTurnover, addScore, addMissFt, addMissFg2, addMissFg3, addFoul, addFoulTechnical, addFoulUnsportsmanlike } from "@/actions/game";
+import { nextQuarter, endGame, startGame, undoLastEvent, addAssist, addSteal, addReboundOff, addReboundDef, addBlock, addTurnover, addScore, addMissFt, addMissFg2, addMissFg3, addFoul, addFoulTechnical, addFoulUnsportsmanlike, addScoreWithType, updateOnCourt, addSubstitution } from "@/actions/game";
 import ActionLog from "./ActionLog";
 import type { Game, Team, Player, GameEvent } from "@prisma/client";
 
@@ -43,9 +43,45 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
   // Player selection
   const [selectedPlayerId, setSelectedPlayerId] = useState<number | null>(null);
 
+  // Event type selector
+  const [eventType, setEventType] = useState<"normal" | "fastbreak" | "second_chance" | "off_turnover">("normal");
+
+  // Substitution modal state
+  const [showSubModal, setShowSubModal] = useState(false);
+  const [subPlayerOut, setSubPlayerOut] = useState<number | null>(null);
+  const [subPlayerIn, setSubPlayerIn] = useState<number | null>(null);
+
+  // Fouls and timeouts tracking
+  const [homeFouls, setHomeFouls] = useState<number>(0);
+  const [awayFouls, setAwayFouls] = useState<number>(0);
+  const [homeTimeouts, setHomeTimeouts] = useState<number>(2);
+  const [awayTimeouts, setAwayTimeouts] = useState<number>(2);
+
+  // On-court players tracking
+  const [onCourtHome, setOnCourtHome] = useState<Set<number>>(new Set());
+  const [onCourtAway, setOnCourtAway] = useState<Set<number>>(new Set());
+
   // Pending для server actions
   const [actionPending, setActionPending] = useState(false);
   const [pending, startTransition] = useTransition();
+
+  // Initialize on-court players from GameOnCourt data on load
+  useEffect(() => {
+    // This would come from the database, but for now we'll set default starters
+    if (game.status === "SCHEDULED" && onCourtHome.size === 0) {
+      const homeStarters = game.homeTeam.players.slice(0, 5).map(p => p.id);
+      const awayStarters = game.awayTeam.players.slice(0, 5).map(p => p.id);
+      setOnCourtHome(new Set(homeStarters));
+      setOnCourtAway(new Set(awayStarters));
+      // Initialize on-court status in DB
+      homeStarters.forEach(playerId => {
+        startTransition(() => updateOnCourt(game.id, playerId, game.homeTeamId, true));
+      });
+      awayStarters.forEach(playerId => {
+        startTransition(() => updateOnCourt(game.id, playerId, game.awayTeamId, true));
+      });
+    }
+  }, [game.id, game.status, game.homeTeamId, game.awayTeamId, game.homeTeam.players, game.awayTeam.players, onCourtHome.size, startTransition]);
 
   // Reset timer when quarter changes
   useEffect(() => {
@@ -159,47 +195,63 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
           </div>
         </div>
 
-        {/* Bottom row: Buttons */}
-        <div className="flex items-center justify-center gap-1 flex-wrap">
-          {isScheduled ? (
-            <button
-              onClick={() => startTransition(() => startGame(game.id))}
-              disabled={pending}
-              className="bg-green-500 hover:bg-green-600 text-white text-xs px-2 py-0.5 rounded-full font-bold transition-colors disabled:opacity-50"
-            >
-              ▶ Почати
-            </button>
-          ) : isLive ? (
-            <>
+        {/* Bottom row: Buttons and Counters */}
+        <div className="flex items-center justify-between gap-1 flex-wrap">
+          <div className="flex items-center justify-center gap-1 flex-wrap flex-1">
+            {isScheduled ? (
               <button
-                onClick={timerRunning ? stopTimer : startTimer}
-                className="bg-white/20 hover:bg-white/30 text-white text-xs px-2 py-0.5 rounded-full font-bold transition-colors"
-              >
-                {timerRunning ? "⏸ Пауза" : "▶ Старт"}
-              </button>
-              {game.quarter < 4 && (
-                <button
-                  onClick={handleNextQuarter}
-                  disabled={pending}
-                  className="bg-white/20 hover:bg-white/30 text-white text-xs px-2 py-0.5 rounded-full font-bold transition-colors disabled:opacity-50"
-                >
-                  → Наст.
-                </button>
-              )}
-              <button
-                onClick={() => {
-                  if (confirm("Завершити матч?")) {
-                    stopTimer();
-                    startTransition(() => endGame(game.id));
-                  }
-                }}
+                onClick={() => startTransition(() => startGame(game.id))}
                 disabled={pending}
-                className="bg-red-500 hover:bg-red-600 text-white text-xs px-2 py-0.5 rounded-full font-bold transition-colors disabled:opacity-50"
+                className="bg-green-500 hover:bg-green-600 text-white text-xs px-2 py-0.5 rounded-full font-bold transition-colors disabled:opacity-50"
               >
-                Завершити
+                ▶ Почати
               </button>
-            </>
-          ) : null}
+            ) : isLive ? (
+              <>
+                <button
+                  onClick={timerRunning ? stopTimer : startTimer}
+                  className="bg-white/20 hover:bg-white/30 text-white text-xs px-2 py-0.5 rounded-full font-bold transition-colors"
+                >
+                  {timerRunning ? "⏸ Пауза" : "▶ Старт"}
+                </button>
+                {game.quarter < 4 && (
+                  <button
+                    onClick={handleNextQuarter}
+                    disabled={pending}
+                    className="bg-white/20 hover:bg-white/30 text-white text-xs px-2 py-0.5 rounded-full font-bold transition-colors disabled:opacity-50"
+                  >
+                    → Наст.
+                  </button>
+                )}
+                <button
+                  onClick={() => {
+                    if (confirm("Завершити матч?")) {
+                      stopTimer();
+                      startTransition(() => endGame(game.id));
+                    }
+                  }}
+                  disabled={pending}
+                  className="bg-red-500 hover:bg-red-600 text-white text-xs px-2 py-0.5 rounded-full font-bold transition-colors disabled:opacity-50"
+                >
+                  Завершити
+                </button>
+              </>
+            ) : null}
+          </div>
+
+          {/* Fouls and Timeouts Counters */}
+          {isLive && (
+            <div className="flex items-center gap-1.5 text-white text-xs font-bold">
+              <div className="flex items-center gap-0.5 bg-white/10 px-1.5 py-0.5 rounded-full">
+                <span>ФОЛ:</span>
+                <span>{homeFouls}</span>
+              </div>
+              <div className="flex items-center gap-0.5 bg-white/10 px-1.5 py-0.5 rounded-full">
+                <span>⏱:</span>
+                <span>{homeTimeouts}</span>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -212,27 +264,30 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
           className="rounded p-1 flex flex-col overflow-hidden basis-1/3 text-white"
           style={{ backgroundColor: homeColor }}
         >
-          <div className="text-white font-bold text-xs leading-tight mb-0.5">
-            {game.homeTeam.name}
+          <div className="text-white font-bold text-xs leading-tight mb-0.5 flex items-center justify-between">
+            <span>{game.homeTeam.name}</span>
+            <span className="text-green-300 text-xs">⚫ {onCourtHome.size}</span>
           </div>
           <div className="flex-1 flex flex-col overflow-hidden">
             {homePlayers.length > 0 ? (
               homePlayers.map((player) => {
                 const isSelected = selectedPlayerId === player.id;
+                const isOnCourt = onCourtHome.has(player.id);
                 return (
                   <button
                     key={player.id}
                     onClick={() => setSelectedPlayerId(player.id)}
-                    className={`w-full text-left px-1 py-0.5 rounded text-xs leading-tight font-medium transition-all flex-shrink-0 text-white ${
+                    className={`w-full text-left px-1 py-0.5 rounded text-xs leading-tight font-medium transition-all flex-shrink-0 text-white flex items-center gap-1 ${
                       isSelected
                         ? "ring-1 font-bold"
                         : "hover:bg-white/10"
                     }`}
                     style={{
-                      backgroundColor: isSelected ? "rgba(249, 115, 22, 0.6)" : "transparent",
+                      backgroundColor: isSelected ? "rgba(249, 115, 22, 0.6)" : isOnCourt ? "rgba(34, 197, 94, 0.2)" : "transparent",
                       color: isSelected ? "#ffffff" : "#ffffff",
                     }}
                   >
+                    {isOnCourt && <span className="text-green-300 text-xs">●</span>}
                     <span className="font-bold">#{player.number}</span> {truncateName(player.firstName, player.lastName)}
                   </button>
                 );
@@ -313,10 +368,36 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
             </button>
           </div>
 
-          {/* Row 3: Scoring (1pt, 2pt, 3pt) + Misses (×1, ×2, ×3) */}
+          {/* Row 3a: Event Type Selector */}
+          <div className="flex gap-0.5 justify-center">
+            {["normal", "fastbreak", "second_chance", "off_turnover"].map((type) => (
+              <button
+                key={type}
+                onClick={() => setEventType(type as any)}
+                className={`flex-1 px-1 py-1 rounded text-xs font-bold transition-all text-white ${
+                  eventType === type ? "ring-1 ring-white" : "hover:opacity-80"
+                }`}
+                style={{
+                  backgroundColor:
+                    type === "normal" ? blueBtn :
+                    type === "fastbreak" ? "#10b981" :
+                    type === "second_chance" ? "#f59e0b" :
+                    "#ec4899",
+                }}
+                title={type === "normal" ? "Звичайний" : type === "fastbreak" ? "Відрив" : type === "second_chance" ? "Другий шанс" : "Після втрат"}
+              >
+                {type === "normal" && "Звич"}
+                {type === "fastbreak" && "⚡Відр"}
+                {type === "second_chance" && "🔄Шанс"}
+                {type === "off_turnover" && "💥Втр"}
+              </button>
+            ))}
+          </div>
+
+          {/* Row 3b: Scoring (1pt, 2pt, 3pt) + Misses (×1, ×2, ×3) */}
           <div className="flex gap-0.5 justify-center">
             <button
-              onClick={() => selectedPlayerId && runAction(() => addScore(game.id, selectedTeamId, selectedPlayerId, 1))}
+              onClick={() => selectedPlayerId && runAction(() => addScoreWithType(game.id, selectedTeamId, selectedPlayerId, 1, eventType))}
               disabled={disabled}
               className="w-14 h-14 rounded-full flex items-center justify-center font-bold text-base transition-all shadow-sm hover:shadow-md hover:scale-110 disabled:opacity-40 disabled:cursor-not-allowed text-white"
               style={{ backgroundColor: blueBtn }}
@@ -326,7 +407,7 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
             </button>
 
             <button
-              onClick={() => selectedPlayerId && runAction(() => addScore(game.id, selectedTeamId, selectedPlayerId, 2))}
+              onClick={() => selectedPlayerId && runAction(() => addScoreWithType(game.id, selectedTeamId, selectedPlayerId, 2, eventType))}
               disabled={disabled}
               className="w-14 h-14 rounded-full flex items-center justify-center font-bold text-base transition-all shadow-sm hover:shadow-md hover:scale-110 disabled:opacity-40 disabled:cursor-not-allowed text-white"
               style={{ backgroundColor: blueBtn }}
@@ -336,7 +417,7 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
             </button>
 
             <button
-              onClick={() => selectedPlayerId && runAction(() => addScore(game.id, selectedTeamId, selectedPlayerId, 3))}
+              onClick={() => selectedPlayerId && runAction(() => addScoreWithType(game.id, selectedTeamId, selectedPlayerId, 3, eventType))}
               disabled={disabled}
               className="w-14 h-14 rounded-full flex items-center justify-center font-bold text-base transition-all shadow-sm hover:shadow-md hover:scale-110 disabled:opacity-40 disabled:cursor-not-allowed text-white"
               style={{ backgroundColor: accentColor }}
@@ -379,7 +460,7 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
             </button>
           </div>
 
-          {/* Row 4: Fouls (Personal, Technical, Unsportsmanlike) + Undo */}
+          {/* Row 4: Fouls (Personal, Technical, Unsportsmanlike) + Substitution/Timeout + Undo */}
           <div className="flex gap-0.5 justify-center">
             <button
               onClick={() => selectedPlayerId && runAction(() => addFoul(game.id, selectedTeamId, selectedPlayerId))}
@@ -413,6 +494,28 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
             </button>
 
             <button
+              onClick={() => setShowSubModal(!showSubModal)}
+              disabled={!isLive || actionPending || pending}
+              className="w-14 h-14 rounded-full flex flex-col items-center justify-center font-bold transition-all shadow-sm hover:shadow-md hover:scale-110 disabled:opacity-40 disabled:cursor-not-allowed text-white"
+              style={{ backgroundColor: "#06b6d4" }}
+              title="Заміна гравця"
+            >
+              <div className="text-lg">↕</div>
+              <div className="text-xs font-bold">Замін</div>
+            </button>
+
+            <button
+              onClick={() => homeTimeouts > 0 && setHomeTimeouts(homeTimeouts - 1)}
+              disabled={!isLive || actionPending || pending || homeTimeouts === 0}
+              className="w-14 h-14 rounded-full flex flex-col items-center justify-center font-bold transition-all shadow-sm hover:shadow-md hover:scale-110 disabled:opacity-40 disabled:cursor-not-allowed text-white"
+              style={{ backgroundColor: "#f59e0b" }}
+              title="Тайм-аут"
+            >
+              <div className="text-xs font-bold">⏱</div>
+              <div className="text-xs font-bold">{homeTimeouts}</div>
+            </button>
+
+            <button
               onClick={() => startTransition(() => undoLastEvent(game.id))}
               disabled={actionPending || pending || game.events.length === 0}
               className="w-14 h-14 rounded-full flex items-center justify-center font-bold transition-all shadow-sm hover:shadow-md hover:scale-110 disabled:opacity-40 disabled:cursor-not-allowed text-white"
@@ -426,27 +529,30 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
 
         {/* RIGHT PANEL — AWAY TEAM PLAYERS */}
         <div className="rounded p-1 flex flex-col overflow-hidden basis-1/3 bg-gray-100 text-gray-800">
-          <div className="text-gray-800 font-bold text-xs leading-tight mb-0.5">
-            {game.awayTeam.name}
+          <div className="text-gray-800 font-bold text-xs leading-tight mb-0.5 flex items-center justify-between">
+            <span>{game.awayTeam.name}</span>
+            <span className="text-green-600 text-xs">⚫ {onCourtAway.size}</span>
           </div>
           <div className="flex-1 flex flex-col overflow-hidden">
             {awayPlayers.length > 0 ? (
               awayPlayers.map((player) => {
                 const isSelected = selectedPlayerId === player.id;
+                const isOnCourt = onCourtAway.has(player.id);
                 return (
                   <button
                     key={player.id}
                     onClick={() => setSelectedPlayerId(player.id)}
-                    className={`w-full text-left px-1 py-0.5 rounded text-xs leading-tight font-medium transition-all flex-shrink-0 text-gray-800 ${
+                    className={`w-full text-left px-1 py-0.5 rounded text-xs leading-tight font-medium transition-all flex-shrink-0 text-gray-800 flex items-center gap-1 ${
                       isSelected
                         ? "ring-1 font-bold"
                         : "hover:bg-gray-200"
                     }`}
                     style={{
-                      backgroundColor: isSelected ? "rgba(249, 115, 22, 0.25)" : "transparent",
+                      backgroundColor: isSelected ? "rgba(249, 115, 22, 0.25)" : isOnCourt ? "rgba(34, 197, 94, 0.15)" : "transparent",
                       color: "#1f2937",
                     }}
                   >
+                    {isOnCourt && <span className="text-green-600 text-xs">●</span>}
                     <span className="font-bold">#{player.number}</span> {truncateName(player.firstName, player.lastName)}
                   </button>
                 );
@@ -472,6 +578,147 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
           />
         </div>
       </div>
+
+      {/* ══════════════════════════════════════════════════════════════════════
+          SUBSTITUTION MODAL — OVERLAY
+          ══════════════════════════════════════════════════════════════════════ */}
+      {showSubModal && isLive && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2">
+          <div className="bg-white rounded-lg shadow-lg max-w-md w-full p-4">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-base font-bold text-gray-800">Заміна гравця</h2>
+              <button
+                onClick={() => setShowSubModal(false)}
+                className="text-gray-400 hover:text-gray-600 text-xl font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              {/* Select player OUT (from on-court) */}
+              <div>
+                <label className="text-xs font-bold text-gray-600 block mb-1">Гравець НА ВИХОДІ (з поля)</label>
+                <div className="max-h-32 overflow-y-auto border border-gray-200 rounded">
+                  {selectedTeamId === game.homeTeamId
+                    ? homePlayers.filter(p => onCourtHome.has(p.id)).map(player => (
+                        <button
+                          key={player.id}
+                          onClick={() => setSubPlayerOut(player.id)}
+                          className={`w-full text-left px-2 py-1.5 text-xs font-medium transition-all ${
+                            subPlayerOut === player.id
+                              ? "bg-orange-100 text-orange-700 font-bold"
+                              : "hover:bg-gray-50"
+                          }`}
+                        >
+                          #{player.number} {player.firstName} {player.lastName}
+                        </button>
+                      ))
+                    : awayPlayers.filter(p => onCourtAway.has(p.id)).map(player => (
+                        <button
+                          key={player.id}
+                          onClick={() => setSubPlayerOut(player.id)}
+                          className={`w-full text-left px-2 py-1.5 text-xs font-medium transition-all ${
+                            subPlayerOut === player.id
+                              ? "bg-orange-100 text-orange-700 font-bold"
+                              : "hover:bg-gray-50"
+                          }`}
+                        >
+                          #{player.number} {player.firstName} {player.lastName}
+                        </button>
+                      ))
+                  }
+                </div>
+              </div>
+
+              {/* Select player IN (from bench) */}
+              <div>
+                <label className="text-xs font-bold text-gray-600 block mb-1">Гравець НА ВХОДІ (з лавки)</label>
+                <div className="max-h-32 overflow-y-auto border border-gray-200 rounded">
+                  {selectedTeamId === game.homeTeamId
+                    ? homePlayers.filter(p => !onCourtHome.has(p.id)).map(player => (
+                        <button
+                          key={player.id}
+                          onClick={() => setSubPlayerIn(player.id)}
+                          className={`w-full text-left px-2 py-1.5 text-xs font-medium transition-all ${
+                            subPlayerIn === player.id
+                              ? "bg-green-100 text-green-700 font-bold"
+                              : "hover:bg-gray-50"
+                          }`}
+                        >
+                          #{player.number} {player.firstName} {player.lastName}
+                        </button>
+                      ))
+                    : awayPlayers.filter(p => !onCourtAway.has(p.id)).map(player => (
+                        <button
+                          key={player.id}
+                          onClick={() => setSubPlayerIn(player.id)}
+                          className={`w-full text-left px-2 py-1.5 text-xs font-medium transition-all ${
+                            subPlayerIn === player.id
+                              ? "bg-green-100 text-green-700 font-bold"
+                              : "hover:bg-gray-50"
+                          }`}
+                        >
+                          #{player.number} {player.firstName} {player.lastName}
+                        </button>
+                      ))
+                  }
+                </div>
+              </div>
+
+              {/* Buttons */}
+              <div className="flex gap-2 pt-2">
+                <button
+                  onClick={() => {
+                    setShowSubModal(false);
+                    setSubPlayerOut(null);
+                    setSubPlayerIn(null);
+                  }}
+                  className="flex-1 px-3 py-1.5 rounded bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold text-xs transition-colors"
+                >
+                  Скасувати
+                </button>
+                <button
+                  onClick={() => {
+                    if (subPlayerOut && subPlayerIn) {
+                      runAction(() =>
+                        addSubstitution(
+                          game.id,
+                          selectedTeamId,
+                          subPlayerOut,
+                          subPlayerIn,
+                          game.quarter,
+                          formatTime(timeLeft)
+                        )
+                      ).then(() => {
+                        // Update on-court state
+                        if (selectedTeamId === game.homeTeamId) {
+                          const newOnCourt = new Set(onCourtHome);
+                          newOnCourt.delete(subPlayerOut);
+                          newOnCourt.add(subPlayerIn);
+                          setOnCourtHome(newOnCourt);
+                        } else {
+                          const newOnCourt = new Set(onCourtAway);
+                          newOnCourt.delete(subPlayerOut);
+                          newOnCourt.add(subPlayerIn);
+                          setOnCourtAway(newOnCourt);
+                        }
+                        setShowSubModal(false);
+                        setSubPlayerOut(null);
+                        setSubPlayerIn(null);
+                      });
+                    }
+                  }}
+                  disabled={!subPlayerOut || !subPlayerIn || actionPending}
+                  className="flex-1 px-3 py-1.5 rounded bg-green-500 hover:bg-green-600 text-white font-bold text-xs transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Замінити
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

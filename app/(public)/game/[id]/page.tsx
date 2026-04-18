@@ -32,9 +32,15 @@ function calcPlayerStats(
   const turnovers = pe.filter((e) => e.type === "TURNOVER").length;
   const fouls = pe.filter((e) => ["FOUL", "FOUL_TECHNICAL", "FOUL_UNSPORTSMANLIKE"].includes(e.type)).length;
   const pct = (m: number, a: number) => (a > 0 ? `${Math.round((m / a) * 100)}%` : "-");
+
+  // Calculate efficiency: (pts + reb + ast + stl + blk) - (fg_miss + ft_miss + tov)
+  const fgMiss = pe.filter((e) => e.type === "MISS_2P" || e.type === "MISS_3P").length;
+  const efficiency = (points + rebounds + assists + steals + blocks) - (fgMiss + ftMiss + turnovers);
+
   return {
     points, fg2Made, fg2Att, fg3Made, fg3Att, ftMade, ftAtt, fgMade, fgAtt,
     reboundsOff, reboundsDef, rebounds, assists, steals, blocks, turnovers, fouls,
+    efficiency,
     fmtFg: fg2Att + fg3Att > 0 ? `${fgMade}-${fgAtt}` : "-",
     fmtFg2: fg2Att > 0 ? `${fg2Made}-${fg2Att}` : "-",
     fmtFg3: fg3Att > 0 ? `${fg3Made}-${fg3Att}` : "-",
@@ -360,6 +366,8 @@ export default async function GamePage({ params }: { params: Promise<{ id: strin
                       <th className="px-1.5 py-1 text-center">ВТ</th>
                       <th className="px-1.5 py-1 text-center">БЛК</th>
                       <th className="px-1.5 py-1 text-center">ФОЛ</th>
+                      <th className="px-1.5 py-1 text-center font-bold text-blue-600">ЕФК</th>
+                      <th className="px-1.5 py-1 text-center font-bold text-orange-600">+/-</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -405,6 +413,8 @@ export default async function GamePage({ params }: { params: Promise<{ id: strin
                           <td className="px-1.5 py-1 text-center text-gray-600">{stats.turnovers || "-"}</td>
                           <td className="px-1.5 py-1 text-center text-gray-600">{stats.blocks || "-"}</td>
                           <td className="px-1.5 py-1 text-center text-red-500">{stats.fouls || "-"}</td>
+                          <td className="px-1.5 py-1 text-center font-bold text-blue-600">{stats.efficiency || "0"}</td>
+                          <td className="px-1.5 py-1 text-center font-bold text-orange-600">{bs.plusMinus >= 0 ? "+" : ""}{bs.plusMinus || "0"}</td>
                         </tr>
                       );
 
@@ -432,6 +442,8 @@ export default async function GamePage({ params }: { params: Promise<{ id: strin
                       <td className="px-1.5 py-1 text-center text-gray-700">{box.totals.turnovers}</td>
                       <td className="px-1.5 py-1 text-center text-gray-700">{box.totals.blocks}</td>
                       <td className="px-1.5 py-1 text-center text-red-500">{box.totals.fouls}</td>
+                      <td className="px-1.5 py-1 text-center text-gray-600">—</td>
+                      <td className="px-1.5 py-1 text-center text-gray-600">—</td>
                     </tr>
                   </tbody>
                 </table>
@@ -439,11 +451,66 @@ export default async function GamePage({ params }: { params: Promise<{ id: strin
             </div>
           ))}
 
+          {/* Team Advanced Statistics Section */}
+          <div className="space-y-3 mb-3">
+            {[
+              { team: game.homeTeam, stats: game, isHome: true },
+              { team: game.awayTeam, stats: game, isHome: false },
+            ].map(({ team, stats, isHome }) => (
+              <div key={team.id} className="bg-white rounded-xl shadow overflow-hidden">
+                <div
+                  className="px-3 py-1.5 font-bold text-white text-xs flex items-center gap-2"
+                  style={{ backgroundColor: "#1a2744" }}
+                >
+                  <span>РОЗШИРЕНА СТАТИСТИКА · {team.name}</span>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-2 p-3" style={{ fontSize: "12px" }}>
+                  <div className="text-center p-2 bg-gray-50 rounded border border-gray-100">
+                    <div className="text-gray-500 text-xs font-semibold uppercase leading-tight mb-1">Очки після втрат</div>
+                    <div className="font-black text-lg" style={{ color: "#1a2744" }}>
+                      {isHome ? stats.ptsOffTurnovers : stats.awayPtsOffTurnovers}
+                    </div>
+                  </div>
+                  <div className="text-center p-2 bg-gray-50 rounded border border-gray-100">
+                    <div className="text-gray-500 text-xs font-semibold uppercase leading-tight mb-1">Відриву</div>
+                    <div className="font-black text-lg text-green-600">
+                      {isHome ? stats.ptsFastBreak : stats.awayPtsFastBreak}
+                    </div>
+                  </div>
+                  <div className="text-center p-2 bg-gray-50 rounded border border-gray-100">
+                    <div className="text-gray-500 text-xs font-semibold uppercase leading-tight mb-1">Другий шанс</div>
+                    <div className="font-black text-lg text-amber-600">
+                      {isHome ? stats.ptsSecondChance : stats.awayPtsSecondChance}
+                    </div>
+                  </div>
+                  <div className="text-center p-2 bg-gray-50 rounded border border-gray-100">
+                    <div className="text-gray-500 text-xs font-semibold uppercase leading-tight mb-1">Після замін</div>
+                    <div className="font-black text-lg text-blue-600">
+                      {isHome ? stats.ptsAfterSubstitutions : stats.awayPtsAfterSubstitutions}
+                    </div>
+                  </div>
+                  <div className="text-center p-2 bg-gray-50 rounded border border-gray-100">
+                    <div className="text-gray-500 text-xs font-semibold uppercase leading-tight mb-1">Найбільша переваги</div>
+                    <div className="font-black text-lg text-orange-600">
+                      +{isHome ? stats.biggestLead : stats.awayBiggestLead}
+                    </div>
+                  </div>
+                  <div className="text-center p-2 bg-gray-50 rounded border border-gray-100">
+                    <div className="text-gray-500 text-xs font-semibold uppercase leading-tight mb-1">Найдовший забіг</div>
+                    <div className="font-black text-lg text-purple-600">
+                      {isHome ? stats.biggestRun : stats.awayBiggestRun}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
           {/* Legend */}
           <div className="text-gray-400 px-1 leading-relaxed" style={{ fontSize: "10px" }}>
             КП — кидки з поля | 2О — двоочкові | 3О — триочкові |
             ШТ — штрафні | НПД — підбір напад | ЗПД — підбір захист |
-            ПДБ — підбори | ПЕР — передачі | ВТ — втрати | БЛК — блоки | ФОЛ — фоли | * — стартовий
+            ПДБ — підбори | ПЕР — передачі | ВТ — втрати | БЛК — блоки | ФОЛ — фоли | ЕФК — ефективність | +/- — плюс/мінус | * — стартовий
           </div>
         </div>
       )}
