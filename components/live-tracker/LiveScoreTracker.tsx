@@ -94,8 +94,8 @@ function RosterPanel({ players, teamId, team, onCourtIds, selectedId, onSelect, 
             }}
           >
             <span style={{ width: "4px", height: "4px", borderRadius: "50%", background: isHome ? "#2ecc71" : "#059669", flexShrink: 0 }} />
-            <span style={{ minWidth: "18px", fontWeight: "bold", fontSize: "11px" }}>#{p.number}</span>
-            <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "55px", fontSize: "10px" }}>
+            <span style={{ minWidth: "18px", fontWeight: "bold", fontSize: "13px" }}>#{p.number}</span>
+            <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "55px", fontSize: "12px" }}>
               {p.lastName} {p.firstName[0]}.
             </span>
           </button>
@@ -138,8 +138,8 @@ function RosterPanel({ players, teamId, team, onCourtIds, selectedId, onSelect, 
             }}
           >
             <span style={{ width: "4px", height: "4px", borderRadius: "50%", background: isHome ? "#2a4060" : "#d1d5db", flexShrink: 0 }} />
-            <span style={{ minWidth: "18px", fontWeight: "bold", fontSize: "11px" }}>#{p.number}</span>
-            <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "55px", fontSize: "10px" }}>
+            <span style={{ minWidth: "18px", fontWeight: "bold", fontSize: "13px" }}>#{p.number}</span>
+            <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "55px", fontSize: "12px" }}>
               {p.lastName} {p.firstName[0]}.
             </span>
           </button>
@@ -427,7 +427,7 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
             <button
               onClick={() => startTransition(() => nextQuarter(game.id))}
               disabled={!isLive}
-              style={{ flex:1, height:"100%", background: !isLive ? "#1a2e40" : "#1a2e40", color: !isLive ? "#4a7fa5" : "#8ab8d0", fontSize:11, fontWeight:600, border:"none", borderRadius:3, cursor: !isLive ? "not-allowed" : "pointer", opacity: !isLive ? 0.5 : 1 }}
+              style={{ flex:1, height:"100%", background: !isLive ? "#1a2e40" : "#1a2e40", color: !isLive ? "#4a7fa5" : "#8ab8d0", fontSize:13, fontWeight:600, border:"none", borderRadius:3, cursor: !isLive ? "not-allowed" : "pointer", opacity: !isLive ? 0.5 : 1 }}
             >Наст чверть</button>
             <button
               onClick={() => {
@@ -436,17 +436,17 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
                 }
               }}
               disabled={!selectedPlayerId || !isLive || homeTimeouts === 0}
-              style={{ flex:1, height:"100%", background: (!selectedPlayerId || !isLive || homeTimeouts === 0) ? "#1a2e40" : "#3a2500", color: (!selectedPlayerId || !isLive || homeTimeouts === 0) ? "#4a7fa5" : "#f4cc5a", fontSize:11, fontWeight:600, border:"none", borderRadius:3, cursor: (!selectedPlayerId || !isLive || homeTimeouts === 0) ? "not-allowed" : "pointer", opacity: (!selectedPlayerId || !isLive || homeTimeouts === 0) ? 0.5 : 1 }}
+              style={{ flex:1, height:"100%", background: (!selectedPlayerId || !isLive || homeTimeouts === 0) ? "#1a2e40" : "#3a2500", color: (!selectedPlayerId || !isLive || homeTimeouts === 0) ? "#4a7fa5" : "#f4cc5a", fontSize:13, fontWeight:600, border:"none", borderRadius:3, cursor: (!selectedPlayerId || !isLive || homeTimeouts === 0) ? "not-allowed" : "pointer", opacity: (!selectedPlayerId || !isLive || homeTimeouts === 0) ? 0.5 : 1 }}
             >Тайм-аут</button>
             <button
               onClick={() => startTransition(() => undoLastEvent(game.id))}
               disabled={!isLive || game.events.length === 0}
-              style={{ flex:1, height:"100%", background: (!isLive || game.events.length === 0) ? "#1a2e40" : "#3a2500", color: (!isLive || game.events.length === 0) ? "#4a7fa5" : "#f4cc5a", fontSize:11, fontWeight:600, border:"none", borderRadius:3, cursor: (!isLive || game.events.length === 0) ? "not-allowed" : "pointer", opacity: (!isLive || game.events.length === 0) ? 0.5 : 1 }}
+              style={{ flex:1, height:"100%", background: (!isLive || game.events.length === 0) ? "#1a2e40" : "#3a2500", color: (!isLive || game.events.length === 0) ? "#4a7fa5" : "#f4cc5a", fontSize:13, fontWeight:600, border:"none", borderRadius:3, cursor: (!isLive || game.events.length === 0) ? "not-allowed" : "pointer", opacity: (!isLive || game.events.length === 0) ? 0.5 : 1 }}
             >↩ Відкат</button>
             <button
               onClick={() => startTransition(() => undoLastEvent(game.id))}
               disabled={!isLive || game.events.length === 0}
-              style={{ flex:1, height:"100%", background: (!isLive || game.events.length === 0) ? "#1a2e40" : "#1a2e40", color: (!isLive || game.events.length === 0) ? "#4a7fa5" : "#8ab8d0", fontSize:11, fontWeight:600, border:"none", borderRadius:3, cursor: (!isLive || game.events.length === 0) ? "not-allowed" : "pointer", opacity: (!isLive || game.events.length === 0) ? 0.5 : 1 }}
+              style={{ flex:1, height:"100%", background: (!isLive || game.events.length === 0) ? "#1a2e40" : "#1a2e40", color: (!isLive || game.events.length === 0) ? "#4a7fa5" : "#8ab8d0", fontSize:13, fontWeight:600, border:"none", borderRadius:3, cursor: (!isLive || game.events.length === 0) ? "not-allowed" : "pointer", opacity: (!isLive || game.events.length === 0) ? 0.5 : 1 }}
             >Скасувати</button>
             <button
               onClick={() => {
@@ -455,7 +455,7 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
                   startTransition(() => endGame(game.id));
                 }
               }}
-              style={{ flex:1, height:"100%", background:"#0f2a10", color:"#4ef472", fontSize:11, fontWeight:600, border:"none", borderRadius:3, cursor:"pointer" }}
+              style={{ flex:1, height:"100%", background:"#0f2a10", color:"#4ef472", fontSize:13, fontWeight:600, border:"none", borderRadius:3, cursor:"pointer" }}
             >Завершити</button>
           </div>
 
@@ -464,29 +464,29 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
             <button
               onClick={() => selectedPlayerId && runAction(() => addScoreWithType(game.id, selectedTeamId, selectedPlayerId, 1, eventType))}
               disabled={disabled}
-              style={{ flex:1, height:"100%", background: disabled ? "#1a2e40" : "#0f3a1a", color: disabled ? "#4a7fa5" : "#4ef472", fontSize:22, fontWeight:700, border: disabled ? "none" : "1px solid #1a5028", borderRadius:3, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.5 : 1 }}
-            ><span>+1</span><span style={{fontSize:9}}>Очко</span></button>
+              style={{ flex:1, height:"100%", background: disabled ? "#1a2e40" : "#0f3a1a", color: disabled ? "#4a7fa5" : "#4ef472", fontSize:32, fontWeight:800, border: disabled ? "none" : "1px solid #1a5028", borderRadius:3, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.5 : 1 }}
+            ><span>+1</span><span style={{fontSize:13}}>Очко</span></button>
             <button
               onClick={() => selectedPlayerId && runAction(() => addScoreWithType(game.id, selectedTeamId, selectedPlayerId, 2, eventType))}
               disabled={disabled}
-              style={{ flex:1, height:"100%", background: disabled ? "#1a2e40" : "#0f3a1a", color: disabled ? "#4a7fa5" : "#4ef472", fontSize:22, fontWeight:700, border: disabled ? "none" : "1px solid #1a5028", borderRadius:3, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.5 : 1 }}
-            ><span>+2</span><span style={{fontSize:9}}>Двоочковий</span></button>
+              style={{ flex:1, height:"100%", background: disabled ? "#1a2e40" : "#0f3a1a", color: disabled ? "#4a7fa5" : "#4ef472", fontSize:32, fontWeight:800, border: disabled ? "none" : "1px solid #1a5028", borderRadius:3, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.5 : 1 }}
+            ><span>+2</span><span style={{fontSize:13}}>Двоочковий</span></button>
             <button
               onClick={() => selectedPlayerId && runAction(() => addScoreWithType(game.id, selectedTeamId, selectedPlayerId, 3, eventType))}
               disabled={disabled}
-              style={{ flex:1, height:"100%", background: disabled ? "#1a2e40" : "#0f3a1a", color: disabled ? "#4a7fa5" : "#4ef472", fontSize:22, fontWeight:700, border: disabled ? "none" : "1px solid #1a5028", borderRadius:3, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.5 : 1 }}
-            ><span>+3</span><span style={{fontSize:9}}>Триочковий</span></button>
+              style={{ flex:1, height:"100%", background: disabled ? "#1a2e40" : "#0f3a1a", color: disabled ? "#4a7fa5" : "#4ef472", fontSize:32, fontWeight:800, border: disabled ? "none" : "1px solid #1a5028", borderRadius:3, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.5 : 1 }}
+            ><span>+3</span><span style={{fontSize:13}}>Триочковий</span></button>
             <div style={{ width:1, background:"#1a2e40" }} />
             <button
               onClick={() => selectedPlayerId && runAction(() => addReboundDef(game.id, selectedTeamId, selectedPlayerId))}
               disabled={disabled}
-              style={{ flex:1, height:"100%", background: disabled ? "#1a2e40" : "#1a0f3a", color: disabled ? "#4a7fa5" : "#b07af4", fontSize:14, fontWeight:700, border: disabled ? "none" : "1px solid #2a1a5a", borderRadius:3, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.5 : 1 }}
-            ><span>Підбір</span><span style={{fontSize:9}}>захист</span></button>
+              style={{ flex:1, height:"100%", background: disabled ? "#1a2e40" : "#1a0f3a", color: disabled ? "#4a7fa5" : "#b07af4", fontSize:18, fontWeight:700, border: disabled ? "none" : "1px solid #2a1a5a", borderRadius:3, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.5 : 1 }}
+            ><span>Підбір</span><span style={{fontSize:10}}>захист</span></button>
             <button
               onClick={() => selectedPlayerId && runAction(() => addReboundOff(game.id, selectedTeamId, selectedPlayerId))}
               disabled={disabled}
-              style={{ flex:1, height:"100%", background: disabled ? "#1a2e40" : "#1a0f3a", color: disabled ? "#4a7fa5" : "#b07af4", fontSize:14, fontWeight:700, border: disabled ? "none" : "1px solid #2a1a5a", borderRadius:3, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.5 : 1 }}
-            ><span>Підбір</span><span style={{fontSize:9}}>напад</span></button>
+              style={{ flex:1, height:"100%", background: disabled ? "#1a2e40" : "#1a0f3a", color: disabled ? "#4a7fa5" : "#b07af4", fontSize:18, fontWeight:700, border: disabled ? "none" : "1px solid #2a1a5a", borderRadius:3, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.5 : 1 }}
+            ><span>Підбір</span><span style={{fontSize:10}}>напад</span></button>
           </div>
 
           {/* РЯД 3 — середній flex:1.3 */}
@@ -494,28 +494,28 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
             <button
               onClick={() => selectedPlayerId && runAction(() => addMissFg2(game.id, selectedTeamId, selectedPlayerId))}
               disabled={disabled}
-              style={{ flex:1, height:"100%", background: disabled ? "#1a2e40" : "#2d0a0a", color: disabled ? "#4a7fa5" : "#f47a7a", fontSize:12, fontWeight:700, border:"none", borderRadius:3, cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.5 : 1 }}
+              style={{ flex:1, height:"100%", background: disabled ? "#1a2e40" : "#2d0a0a", color: disabled ? "#4a7fa5" : "#f47a7a", fontSize:15, fontWeight:700, border:"none", borderRadius:3, cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.5 : 1 }}
             >1 Невлучно</button>
             <button
               onClick={() => selectedPlayerId && runAction(() => addMissFg2(game.id, selectedTeamId, selectedPlayerId))}
               disabled={disabled}
-              style={{ flex:1, height:"100%", background: disabled ? "#1a2e40" : "#2d0a0a", color: disabled ? "#4a7fa5" : "#f47a7a", fontSize:12, fontWeight:700, border:"none", borderRadius:3, cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.5 : 1 }}
+              style={{ flex:1, height:"100%", background: disabled ? "#1a2e40" : "#2d0a0a", color: disabled ? "#4a7fa5" : "#f47a7a", fontSize:15, fontWeight:700, border:"none", borderRadius:3, cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.5 : 1 }}
             >2 Невлучно</button>
             <button
               onClick={() => selectedPlayerId && runAction(() => addMissFg3(game.id, selectedTeamId, selectedPlayerId))}
               disabled={disabled}
-              style={{ flex:1, height:"100%", background: disabled ? "#1a2e40" : "#2d0a0a", color: disabled ? "#4a7fa5" : "#f47a7a", fontSize:12, fontWeight:700, border:"none", borderRadius:3, cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.5 : 1 }}
+              style={{ flex:1, height:"100%", background: disabled ? "#1a2e40" : "#2d0a0a", color: disabled ? "#4a7fa5" : "#f47a7a", fontSize:15, fontWeight:700, border:"none", borderRadius:3, cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.5 : 1 }}
             >3 Невлучно</button>
             <div style={{ width:1, background:"#1a2e40" }} />
             <button
               onClick={() => selectedPlayerId && runAction(() => addTurnover(game.id, selectedTeamId, selectedPlayerId))}
               disabled={disabled}
-              style={{ flex:1, height:"100%", background: disabled ? "#1a2e40" : "#2d1a00", color: disabled ? "#4a7fa5" : "#f4cc5a", fontSize:12, fontWeight:700, border:"none", borderRadius:3, cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.5 : 1 }}
+              style={{ flex:1, height:"100%", background: disabled ? "#1a2e40" : "#2d1a00", color: disabled ? "#4a7fa5" : "#f4cc5a", fontSize:15, fontWeight:700, border:"none", borderRadius:3, cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.5 : 1 }}
             >Втрата</button>
             <button
               onClick={() => selectedPlayerId && runAction(() => addFoul(game.id, selectedTeamId, selectedPlayerId))}
               disabled={disabled}
-              style={{ flex:1.5, height:"100%", background: disabled ? "#1a2e40" : "#2d0808", color: disabled ? "#4a7fa5" : "#f47a7a", fontSize:12, fontWeight:700, border:"none", borderRadius:3, cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.5 : 1 }}
+              style={{ flex:1.5, height:"100%", background: disabled ? "#1a2e40" : "#2d0808", color: disabled ? "#4a7fa5" : "#f47a7a", fontSize:15, fontWeight:700, border:"none", borderRadius:3, cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.5 : 1 }}
             >Фол персональний</button>
           </div>
 
@@ -524,23 +524,23 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
             <button
               onClick={() => selectedPlayerId && runAction(() => addAssist(game.id, selectedTeamId, selectedPlayerId))}
               disabled={disabled}
-              style={{ flex:1, height:"100%", background: disabled ? "#1a2e40" : "#0a2a10", color: disabled ? "#4a7fa5" : "#4ef472", fontSize:14, fontWeight:700, border: disabled ? "none" : "1px solid #1a4020", borderRadius:3, cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.5 : 1 }}
+              style={{ flex:1, height:"100%", background: disabled ? "#1a2e40" : "#0a2a10", color: disabled ? "#4a7fa5" : "#4ef472", fontSize:18, fontWeight:700, border: disabled ? "none" : "1px solid #1a4020", borderRadius:3, cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.5 : 1 }}
             >Передача</button>
             <button
               onClick={() => selectedPlayerId && runAction(() => addSteal(game.id, selectedTeamId, selectedPlayerId))}
               disabled={disabled}
-              style={{ flex:1, height:"100%", background: disabled ? "#1a2e40" : "#0a1a3a", color: disabled ? "#4a7fa5" : "#5ae8f4", fontSize:14, fontWeight:700, border: disabled ? "none" : "1px solid #1a2a5a", borderRadius:3, cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.5 : 1 }}
+              style={{ flex:1, height:"100%", background: disabled ? "#1a2e40" : "#0a1a3a", color: disabled ? "#4a7fa5" : "#5ae8f4", fontSize:18, fontWeight:700, border: disabled ? "none" : "1px solid #1a2a5a", borderRadius:3, cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.5 : 1 }}
             >Перехват</button>
             <button
               onClick={() => selectedPlayerId && runAction(() => addBlock(game.id, selectedTeamId, selectedPlayerId))}
               disabled={disabled}
-              style={{ flex:1, height:"100%", background: disabled ? "#1a2e40" : "#2a1800", color: disabled ? "#4a7fa5" : "#f4a050", fontSize:14, fontWeight:700, border: disabled ? "none" : "1px solid #5a3800", borderRadius:3, cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.5 : 1 }}
+              style={{ flex:1, height:"100%", background: disabled ? "#1a2e40" : "#2a1800", color: disabled ? "#4a7fa5" : "#f4a050", fontSize:18, fontWeight:700, border: disabled ? "none" : "1px solid #5a3800", borderRadius:3, cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.5 : 1 }}
             >Блокшот</button>
             <div style={{ width:1, background:"#1a2e40" }} />
             <button
               onClick={() => selectedPlayerId && runAction(() => addFoulTechnical(game.id, selectedTeamId, selectedPlayerId))}
               disabled={disabled}
-              style={{ flex:0.7, height:"100%", background: disabled ? "#1a2e40" : "#2d0808", color: disabled ? "#4a7fa5" : "#f47a7a", fontSize:11, fontWeight:700, border:"none", borderRadius:3, cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.5 : 1 }}
+              style={{ flex:0.7, height:"100%", background: disabled ? "#1a2e40" : "#2d0808", color: disabled ? "#4a7fa5" : "#f47a7a", fontSize:14, fontWeight:700, border:"none", borderRadius:3, cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.5 : 1 }}
             >Технічний</button>
             <button
               onClick={() => {
@@ -549,7 +549,7 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
                 }
               }}
               disabled={disabled}
-              style={{ flex:0.7, height:"100%", background: disabled ? "#1a2e40" : "#2d0808", color: disabled ? "#4a7fa5" : "#f47a7a", fontSize:11, fontWeight:700, border:"none", borderRadius:3, cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.5 : 1 }}
+              style={{ flex:0.7, height:"100%", background: disabled ? "#1a2e40" : "#2d0808", color: disabled ? "#4a7fa5" : "#f47a7a", fontSize:14, fontWeight:700, border:"none", borderRadius:3, cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.5 : 1 }}
             >Командний</button>
           </div>
 
@@ -557,20 +557,20 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
           <div style={{ flex: "0 0 36px", display: "flex", gap: 3 }}>
             <button
               onClick={() => setEventType("normal")}
-              style={{ flex:1, height:"100%", background: eventType === "normal" ? "#163a5c" : "#1a2e40", color: eventType === "normal" ? "#5ab3f4" : "#8ab8d0", fontSize:11, fontWeight:600, border: eventType === "normal" ? "1px solid #2a5a8a" : "none", borderRadius:3, cursor:"pointer" }}
+              style={{ flex:1, height:"100%", background: eventType === "normal" ? "#163a5c" : "#1a2e40", color: eventType === "normal" ? "#5ab3f4" : "#8ab8d0", fontSize:13, fontWeight:600, border: eventType === "normal" ? "1px solid #2a5a8a" : "none", borderRadius:3, cursor:"pointer" }}
             >Звичайний ✓</button>
             <button
               onClick={() => setEventType("second_chance")}
-              style={{ flex:1, height:"100%", background: eventType === "second_chance" ? "#163a5c" : "#1a2e40", color: eventType === "second_chance" ? "#5ab3f4" : "#8ab8d0", fontSize:11, fontWeight:600, border: eventType === "second_chance" ? "1px solid #2a5a8a" : "none", borderRadius:3, cursor:"pointer" }}
+              style={{ flex:1, height:"100%", background: eventType === "second_chance" ? "#163a5c" : "#1a2e40", color: eventType === "second_chance" ? "#5ab3f4" : "#8ab8d0", fontSize:13, fontWeight:600, border: eventType === "second_chance" ? "1px solid #2a5a8a" : "none", borderRadius:3, cursor:"pointer" }}
             >2й шанс</button>
             <button
               onClick={() => setEventType("fastbreak")}
-              style={{ flex:1, height:"100%", background: eventType === "fastbreak" ? "#163a5c" : "#1a2e40", color: eventType === "fastbreak" ? "#5ab3f4" : "#8ab8d0", fontSize:11, fontWeight:600, border: eventType === "fastbreak" ? "1px solid #2a5a8a" : "none", borderRadius:3, cursor:"pointer" }}
+              style={{ flex:1, height:"100%", background: eventType === "fastbreak" ? "#163a5c" : "#1a2e40", color: eventType === "fastbreak" ? "#5ab3f4" : "#8ab8d0", fontSize:13, fontWeight:600, border: eventType === "fastbreak" ? "1px solid #2a5a8a" : "none", borderRadius:3, cursor:"pointer" }}
             >Швидкий відрив</button>
             <button
               onClick={() => setShowSubModal(true)}
               disabled={!isLive}
-              style={{ flex:1, height:"100%", background: !isLive ? "#1a2e40" : "#1a2e40", color: !isLive ? "#4a7fa5" : "#8ab8d0", fontSize:11, fontWeight:600, border:"none", borderRadius:3, cursor: !isLive ? "not-allowed" : "pointer", opacity: !isLive ? 0.5 : 1 }}
+              style={{ flex:1, height:"100%", background: !isLive ? "#1a2e40" : "#1a2e40", color: !isLive ? "#4a7fa5" : "#8ab8d0", fontSize:13, fontWeight:600, border:"none", borderRadius:3, cursor: !isLive ? "not-allowed" : "pointer", opacity: !isLive ? 0.5 : 1 }}
             >Заміна гравця</button>
           </div>
         </div>
