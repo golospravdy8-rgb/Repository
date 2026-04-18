@@ -22,17 +22,8 @@ export default async function SchedulePage({ searchParams }: { searchParams: { a
         })
       : [];
 
-    // Sort games: Completed first, then by scheduledAt ascending
+    // Sort games strictly by scheduledAt ascending (oldest to newest)
     const sortedGames = games.sort((a, b) => {
-      const aIsFinished = a.status === "FINAL";
-      const bIsFinished = b.status === "FINAL";
-
-      // Completed games first
-      if (aIsFinished !== bIsFinished) {
-        return aIsFinished ? -1 : 1;
-      }
-
-      // Then by scheduled date
       return new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime();
     });
 

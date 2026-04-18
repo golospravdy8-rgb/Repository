@@ -31,17 +31,8 @@ export async function getBackupGames(ageGroup: 'younger' | 'older', limit?: numb
 
   const filtered = games.filter((g: any) => seasonIds.includes(g.seasonId));
 
-  // Sort: Completed first (status === "FINAL"), then by scheduledAt ascending
+  // Sort strictly by scheduledAt ascending (oldest to newest)
   const sorted = filtered.sort((a: any, b: any) => {
-    const aIsFinished = a.status === 'FINAL';
-    const bIsFinished = b.status === 'FINAL';
-
-    // Completed games first
-    if (aIsFinished !== bIsFinished) {
-      return aIsFinished ? -1 : 1;
-    }
-
-    // Then by scheduled date ascending
     return new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime();
   });
 
