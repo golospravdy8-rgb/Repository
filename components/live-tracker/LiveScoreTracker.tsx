@@ -468,13 +468,13 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
               style={{
                 flex: 1,
                 border: "none",
-                borderRadius: 4,
+                borderRadius: 3,
                 padding: "0 3px",
-                fontSize: 13,
-                fontWeight: "700",
+                fontSize: 11,
+                fontWeight: "600",
                 cursor: !isLive ? "not-allowed" : "pointer",
-                background: !isLive ? "#1a2e40" : "#1a3560",
-                color: !isLive ? "#4a7fa5" : "#5ae8f4",
+                background: !isLive ? "#1a2e40" : "#1a2e40",
+                color: !isLive ? "#4a7fa5" : "#8ab8d0",
                 opacity: !isLive ? 0.5 : 1,
                 whiteSpace: "nowrap",
                 overflow: "hidden",
@@ -498,12 +498,12 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
               style={{
                 flex: 1,
                 border: "none",
-                borderRadius: 4,
+                borderRadius: 3,
                 padding: "0 3px",
-                fontSize: 13,
-                fontWeight: "700",
+                fontSize: 11,
+                fontWeight: "600",
                 cursor: (!selectedPlayerId || !isLive || homeTimeouts === 0) ? "not-allowed" : "pointer",
-                background: (!selectedPlayerId || !isLive || homeTimeouts === 0) ? "#1a2e40" : "#6b4e10",
+                background: (!selectedPlayerId || !isLive || homeTimeouts === 0) ? "#1a2e40" : "#3a2500",
                 color: (!selectedPlayerId || !isLive || homeTimeouts === 0) ? "#4a7fa5" : "#f4cc5a",
                 opacity: (!selectedPlayerId || !isLive || homeTimeouts === 0) ? 0.5 : 1,
                 whiteSpace: "nowrap",
@@ -524,13 +524,13 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
               style={{
                 flex: 1,
                 border: "none",
-                borderRadius: 4,
+                borderRadius: 3,
                 padding: "0 3px",
-                fontSize: 13,
-                fontWeight: "700",
+                fontSize: 11,
+                fontWeight: "600",
                 cursor: (!isLive || game.events.length === 0) ? "not-allowed" : "pointer",
-                background: (!isLive || game.events.length === 0) ? "#1a2e40" : "#6b4e10",
-                color: (!isLive || game.events.length === 0) ? "#4a7fa5" : "#f4cc5a",
+                background: (!isLive || game.events.length === 0) ? "#1a2e40" : "#1a2e40",
+                color: (!isLive || game.events.length === 0) ? "#4a7fa5" : "#8ab8d0",
                 opacity: (!isLive || game.events.length === 0) ? 0.5 : 1,
                 whiteSpace: "nowrap",
                 overflow: "hidden",
@@ -541,7 +541,7 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
                 justifyContent: "center"
               }}
             >
-              Скасувати
+              ↩ Відкат
             </button>
             <div style={{ width: "1px", background: "#1a2e40", margin: "0 4px" }} />
             <button
@@ -554,13 +554,13 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
               style={{
                 flex: 1,
                 border: "none",
-                borderRadius: 4,
+                borderRadius: 3,
                 padding: "0 3px",
-                fontSize: 13,
-                fontWeight: "700",
+                fontSize: 11,
+                fontWeight: "600",
                 cursor: "pointer",
-                background: "#5e1515",
-                color: "#f47a7a",
+                background: "#0f2a10",
+                color: "#4ef472",
                 whiteSpace: "nowrap",
                 overflow: "hidden",
                 textOverflow: "ellipsis",
@@ -581,13 +581,13 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
                 disabled={disabled}
                 style={{
                   flex: 1,
-                  border: "none",
-                  borderRadius: 4,
+                  border: disabled ? "none" : "1px solid #1a5028",
+                  borderRadius: 3,
                   padding: "0 2px",
-                  fontSize: 13,
+                  fontSize: 22,
                   fontWeight: "700",
                   cursor: disabled ? "not-allowed" : "pointer",
-                  background: disabled ? "#1a2e40" : "#1e5c35",
+                  background: disabled ? "#1a2e40" : "#0f3a1a",
                   color: disabled ? "#4a7fa5" : "#4ef472",
                   opacity: disabled ? 0.5 : 1,
                   whiteSpace: "nowrap",
@@ -599,29 +599,33 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
                   justifyContent: "center"
                 }}
               >
-                +2 Двох
+                +2
               </button>
               <button
                 onClick={() => selectedPlayerId && runAction(() => addScoreWithType(game.id, selectedTeamId, selectedPlayerId, 3, eventType))}
                 disabled={disabled}
                 style={{
                   flex: 1,
-                  border: "none",
-                  borderRadius: 4,
+                  border: disabled ? "none" : "1px solid #1a5028",
+                  borderRadius: 3,
                   padding: "0 2px",
-                  fontSize: 13,
+                  fontSize: 22,
                   fontWeight: "700",
                   marginLeft: 2,
                   cursor: disabled ? "not-allowed" : "pointer",
-                  background: disabled ? "#1a2e40" : "#1e5c35",
+                  background: disabled ? "#1a2e40" : "#0f3a1a",
                   color: disabled ? "#4a7fa5" : "#4ef472",
                   opacity: disabled ? 0.5 : 1,
                   whiteSpace: "nowrap",
                   overflow: "hidden",
-                  textOverflow: "ellipsis"
+                  textOverflow: "ellipsis",
+                  height: "100%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center"
                 }}
               >
-                +3 Трьох
+                +3
               </button>
               <div style={{ width: "1px", background: "#1a2e40", margin: "0 4px" }} />
               <button
@@ -629,18 +633,22 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
                 disabled={disabled}
                 style={{
                   flex: 1,
-                  border: "none",
-                  borderRadius: 4,
+                  border: disabled ? "none" : "1px solid #2a1a5a",
+                  borderRadius: 3,
                   padding: "0 2px",
-                  fontSize: 13,
+                  fontSize: 14,
                   fontWeight: "700",
                   cursor: disabled ? "not-allowed" : "pointer",
-                  background: disabled ? "#1a2e40" : "#3d1f6b",
+                  background: disabled ? "#1a2e40" : "#1a0f3a",
                   color: disabled ? "#4a7fa5" : "#b07af4",
                   opacity: disabled ? 0.5 : 1,
                   whiteSpace: "nowrap",
                   overflow: "hidden",
-                  textOverflow: "ellipsis"
+                  textOverflow: "ellipsis",
+                  height: "100%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center"
                 }}
               >
                 Подб Захист
@@ -650,19 +658,23 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
                 disabled={disabled}
                 style={{
                   flex: 1,
-                  border: "none",
-                  borderRadius: 4,
+                  border: disabled ? "none" : "1px solid #2a1a5a",
+                  borderRadius: 3,
                   padding: "0 2px",
-                  fontSize: 13,
+                  fontSize: 14,
                   fontWeight: "700",
                   marginLeft: 2,
                   cursor: disabled ? "not-allowed" : "pointer",
-                  background: disabled ? "#1a2e40" : "#3d1f6b",
+                  background: disabled ? "#1a2e40" : "#1a0f3a",
                   color: disabled ? "#4a7fa5" : "#b07af4",
                   opacity: disabled ? 0.5 : 1,
                   whiteSpace: "nowrap",
                   overflow: "hidden",
-                  textOverflow: "ellipsis"
+                  textOverflow: "ellipsis",
+                  height: "100%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center"
                 }}
               >
                 Подб Напад
@@ -711,20 +723,24 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
                 style={{
                   flex: 1,
                   border: "none",
-                  borderRadius: 4,
+                  borderRadius: 3,
                   padding: "0 2px",
-                  fontSize: 13,
+                  fontSize: 12,
                   fontWeight: "700",
                   cursor: disabled ? "not-allowed" : "pointer",
-                  background: disabled ? "#1a2e40" : "#5e1515",
+                  background: disabled ? "#1a2e40" : "#2d0a0a",
                   color: disabled ? "#4a7fa5" : "#f47a7a",
                   opacity: disabled ? 0.5 : 1,
                   whiteSpace: "nowrap",
                   overflow: "hidden",
-                  textOverflow: "ellipsis"
+                  textOverflow: "ellipsis",
+                  height: "100%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center"
                 }}
               >
-                ×2 Двох
+                1 Невлучно
               </button>
               <button
                 onClick={() => selectedPlayerId && runAction(() => addMissFg3(game.id, selectedTeamId, selectedPlayerId))}
@@ -732,65 +748,77 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
                 style={{
                   flex: 1,
                   border: "none",
-                  borderRadius: 4,
+                  borderRadius: 3,
                   padding: "0 2px",
-                  fontSize: 13,
+                  fontSize: 12,
                   fontWeight: "700",
                   marginLeft: 2,
                   cursor: disabled ? "not-allowed" : "pointer",
-                  background: disabled ? "#1a2e40" : "#5e1515",
+                  background: disabled ? "#1a2e40" : "#2d0a0a",
                   color: disabled ? "#4a7fa5" : "#f47a7a",
                   opacity: disabled ? 0.5 : 1,
                   whiteSpace: "nowrap",
                   overflow: "hidden",
-                  textOverflow: "ellipsis"
+                  textOverflow: "ellipsis",
+                  height: "100%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center"
                 }}
               >
-                ×3 Трьох
+                3 Невлучно
               </button>
               <div style={{ width: "1px", background: "#1a2e40", margin: "0 4px" }} />
               <button
-                onClick={() => selectedPlayerId && runAction(() => addAssist(game.id, selectedTeamId, selectedPlayerId))}
+                onClick={() => selectedPlayerId && runAction(() => addTurnover(game.id, selectedTeamId, selectedPlayerId))}
                 disabled={disabled}
                 style={{
                   flex: 1,
                   border: "none",
-                  borderRadius: 4,
+                  borderRadius: 3,
                   padding: "0 2px",
-                  fontSize: 13,
+                  fontSize: 12,
                   fontWeight: "700",
                   cursor: disabled ? "not-allowed" : "pointer",
-                  background: disabled ? "#1a2e40" : "#1a3560",
-                  color: disabled ? "#4a7fa5" : "#5ae8f4",
+                  background: disabled ? "#1a2e40" : "#2d1a00",
+                  color: disabled ? "#4a7fa5" : "#f4cc5a",
                   opacity: disabled ? 0.5 : 1,
                   whiteSpace: "nowrap",
                   overflow: "hidden",
-                  textOverflow: "ellipsis"
+                  textOverflow: "ellipsis",
+                  height: "100%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center"
                 }}
               >
-                Передача
+                Втрата
               </button>
               <button
-                onClick={() => selectedPlayerId && runAction(() => addSteal(game.id, selectedTeamId, selectedPlayerId))}
+                onClick={() => selectedPlayerId && runAction(() => addFoul(game.id, selectedTeamId, selectedPlayerId))}
                 disabled={disabled}
                 style={{
                   flex: 1,
                   border: "none",
-                  borderRadius: 4,
+                  borderRadius: 3,
                   padding: "0 2px",
-                  fontSize: 13,
+                  fontSize: 12,
                   fontWeight: "700",
                   marginLeft: 2,
                   cursor: disabled ? "not-allowed" : "pointer",
-                  background: disabled ? "#1a2e40" : "#1a3560",
-                  color: disabled ? "#4a7fa5" : "#5ae8f4",
+                  background: disabled ? "#1a2e40" : "#2d0808",
+                  color: disabled ? "#4a7fa5" : "#f47a7a",
                   opacity: disabled ? 0.5 : 1,
                   whiteSpace: "nowrap",
                   overflow: "hidden",
-                  textOverflow: "ellipsis"
+                  textOverflow: "ellipsis",
+                  height: "100%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center"
                 }}
               >
-                Перехват
+                Фол персональний
               </button>
               <div style={{ width: "1px", background: "#1a2e40", margin: "0 4px" }} />
               <button
@@ -799,20 +827,24 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
                 style={{
                   flex: 1,
                   border: "none",
-                  borderRadius: 4,
+                  borderRadius: 3,
                   padding: "0 2px",
-                  fontSize: 13,
+                  fontSize: 12,
                   fontWeight: "700",
                   cursor: disabled ? "not-allowed" : "pointer",
-                  background: disabled ? "#1a2e40" : "#5e1515",
+                  background: disabled ? "#1a2e40" : "#2d0a0a",
                   color: disabled ? "#4a7fa5" : "#f47a7a",
                   opacity: disabled ? 0.5 : 1,
                   whiteSpace: "nowrap",
                   overflow: "hidden",
-                  textOverflow: "ellipsis"
+                  textOverflow: "ellipsis",
+                  height: "100%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center"
                 }}
               >
-                Шт Промах
+                2 Невлучно
               </button>
             </div>
           </div>
@@ -829,74 +861,81 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
             padding: "0 2px"
           }}>
             <button
-              onClick={() => selectedPlayerId && runAction(() => addBlock(game.id, selectedTeamId, selectedPlayerId))}
+              onClick={() => selectedPlayerId && runAction(() => addAssist(game.id, selectedTeamId, selectedPlayerId))}
               disabled={disabled}
               style={{
                 flex: 1,
-                border: "none",
-                borderRadius: 4,
+                border: disabled ? "none" : "1px solid #1a4020",
+                borderRadius: 3,
                 padding: "0 2px",
-                fontSize: 13,
+                fontSize: 14,
                 fontWeight: "700",
                 cursor: disabled ? "not-allowed" : "pointer",
-                background: disabled ? "#1a2e40" : "#1a3560",
+                background: disabled ? "#1a2e40" : "#0a2a10",
+                color: disabled ? "#4a7fa5" : "#4ef472",
+                opacity: disabled ? 0.5 : 1,
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                height: "100%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center"
+              }}
+            >
+              Передача
+            </button>
+            <button
+              onClick={() => selectedPlayerId && runAction(() => addSteal(game.id, selectedTeamId, selectedPlayerId))}
+              disabled={disabled}
+              style={{
+                flex: 1,
+                border: disabled ? "none" : "1px solid #1a2a5a",
+                borderRadius: 3,
+                padding: "0 2px",
+                fontSize: 14,
+                fontWeight: "700",
+                marginLeft: 2,
+                cursor: disabled ? "not-allowed" : "pointer",
+                background: disabled ? "#1a2e40" : "#0a1a3a",
                 color: disabled ? "#4a7fa5" : "#5ae8f4",
                 opacity: disabled ? 0.5 : 1,
                 whiteSpace: "nowrap",
                 overflow: "hidden",
-                textOverflow: "ellipsis"
+                textOverflow: "ellipsis",
+                height: "100%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center"
               }}
             >
-              Блокшот
-            </button>
-            <button
-              onClick={() => selectedPlayerId && runAction(() => addTurnover(game.id, selectedTeamId, selectedPlayerId))}
-              disabled={disabled}
-              style={{
-                flex: 1,
-                border: "none",
-                borderRadius: 4,
-                padding: "0 2px",
-                fontSize: 13,
-                fontWeight: "700",
-                marginLeft: 2,
-                cursor: disabled ? "not-allowed" : "pointer",
-                background: disabled ? "#1a2e40" : "#5e1515",
-                color: disabled ? "#4a7fa5" : "#f47a7a",
-                opacity: disabled ? 0.5 : 1,
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis"
-              }}
-            >
-              Втрата
+              Перехват
             </button>
             <div style={{ width: "1px", background: "#1a2e40", margin: "0 4px" }} />
             <button
-              onClick={() => {
-                if (selectedPlayerId) {
-                  runAction(() => addFoul(game.id, selectedTeamId, selectedPlayerId));
-                  if (isHomeTeam) setHomeFouls(p => Math.min(4, p + 1));
-                }
-              }}
+              onClick={() => selectedPlayerId && runAction(() => addBlock(game.id, selectedTeamId, selectedPlayerId))}
               disabled={disabled}
               style={{
                 flex: 1,
-                border: "none",
-                borderRadius: 4,
+                border: disabled ? "none" : "1px solid #5a3800",
+                borderRadius: 3,
                 padding: "0 2px",
-                fontSize: 13,
+                fontSize: 14,
                 fontWeight: "700",
                 cursor: disabled ? "not-allowed" : "pointer",
-                background: disabled ? "#1a2e40" : "#6b4e10",
-                color: disabled ? "#4a7fa5" : "#f4cc5a",
+                background: disabled ? "#1a2e40" : "#2a1800",
+                color: disabled ? "#4a7fa5" : "#f4a050",
                 opacity: disabled ? 0.5 : 1,
                 whiteSpace: "nowrap",
                 overflow: "hidden",
-                textOverflow: "ellipsis"
+                textOverflow: "ellipsis",
+                height: "100%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center"
               }}
             >
-              Особист
+              Блокшот
             </button>
             <button
               onClick={() => selectedPlayerId && runAction(() => addFoulTechnical(game.id, selectedTeamId, selectedPlayerId))}
@@ -904,18 +943,22 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
               style={{
                 flex: 1,
                 border: "none",
-                borderRadius: 4,
+                borderRadius: 3,
                 padding: "0 2px",
-                fontSize: 13,
+                fontSize: 12,
                 fontWeight: "700",
                 marginLeft: 2,
                 cursor: disabled ? "not-allowed" : "pointer",
-                background: disabled ? "#1a2e40" : "#5e1515",
+                background: disabled ? "#1a2e40" : "#2d0808",
                 color: disabled ? "#4a7fa5" : "#f47a7a",
                 opacity: disabled ? 0.5 : 1,
                 whiteSpace: "nowrap",
                 overflow: "hidden",
-                textOverflow: "ellipsis"
+                textOverflow: "ellipsis",
+                height: "100%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center"
               }}
             >
               Технічний
@@ -930,18 +973,22 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
               style={{
                 flex: 1,
                 border: "none",
-                borderRadius: 4,
+                borderRadius: 3,
                 padding: "0 2px",
-                fontSize: 13,
+                fontSize: 12,
                 fontWeight: "700",
                 marginLeft: 2,
                 cursor: disabled ? "not-allowed" : "pointer",
-                background: disabled ? "#1a2e40" : "#5e1515",
+                background: disabled ? "#1a2e40" : "#2d0808",
                 color: disabled ? "#4a7fa5" : "#f47a7a",
                 opacity: disabled ? 0.5 : 1,
                 whiteSpace: "nowrap",
                 overflow: "hidden",
-                textOverflow: "ellipsis"
+                textOverflow: "ellipsis",
+                height: "100%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center"
               }}
               title="Бросковий фол"
             >
@@ -961,7 +1008,7 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
             padding: "0 2px"
           }}>
             {[
-              { val: "normal", label: "Звичайний" },
+              { val: "normal", label: "Звичайний ✓" },
               { val: "second_chance", label: "2й шанс" },
               { val: "fastbreak", label: "Швидкий" }
             ].map(({ val, label }) => (
@@ -970,18 +1017,22 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
                 onClick={() => setEventType(val as any)}
                 style={{
                   flex: 1,
-                  border: eventType === val ? "1px solid #e8a030" : "1px solid #1a2e40",
+                  border: eventType === val ? "1px solid #2a5a8a" : "none",
                   borderRadius: 3,
                   padding: "0 2px",
-                  fontSize: 13,
-                  fontWeight: "700",
+                  fontSize: 11,
+                  fontWeight: "600",
                   cursor: "pointer",
-                  background: eventType === val ? "#2d2200" : "#12202e",
-                  color: eventType === val ? "#e8a030" : "#5a7a9a",
+                  background: eventType === val ? "#163a5c" : "#1a2e40",
+                  color: eventType === val ? "#5ab3f4" : "#8ab8d0",
                   marginRight: val === "fastbreak" ? 4 : 2,
                   whiteSpace: "nowrap",
                   overflow: "hidden",
-                  textOverflow: "ellipsis"
+                  textOverflow: "ellipsis",
+                  height: "100%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center"
                 }}
               >
                 {label}
@@ -994,17 +1045,21 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
               style={{
                 flex: 1,
                 border: "none",
-                borderRadius: 4,
+                borderRadius: 3,
                 padding: "0 2px",
-                fontSize: 13,
-                fontWeight: "700",
+                fontSize: 11,
+                fontWeight: "600",
                 cursor: !isLive ? "not-allowed" : "pointer",
-                background: !isLive ? "#1a2e40" : "#0d1520",
-                color: !isLive ? "#3a6fa5" : "#5ab3f4",
+                background: !isLive ? "#1a2e40" : "#1a2e40",
+                color: !isLive ? "#4a7fa5" : "#8ab8d0",
                 opacity: !isLive ? 0.5 : 1,
                 whiteSpace: "nowrap",
                 overflow: "hidden",
-                textOverflow: "ellipsis"
+                textOverflow: "ellipsis",
+                height: "100%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center"
               }}
             >
               Заміна гравця
