@@ -172,6 +172,7 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
   const [pending, startTransition] = useTransition();
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const quarterRef = useRef(game.quarter);
+  const logContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (game.status === "SCHEDULED" && onCourtHome.size === 0) {
@@ -217,6 +218,12 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
   }, []);
+
+  useEffect(() => {
+    if (logContainerRef.current) {
+      logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
+    }
+  }, [game.events]);
 
   const isLive = game.status === "LIVE";
   const isScheduled = game.status === "SCHEDULED";
@@ -1017,53 +1024,65 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
         />
       </div>
 
-      {/* ACTION LOG — horizontal strip */}
-      <div style={{
-        background: "#0a0f15",
-        borderTop: "1px solid #1a2e40",
-        padding: "3px 10px",
-        display: "flex",
-        gap: 12,
-        alignItems: "center",
-        overflow: "auto",
-        flexShrink: 0,
-        fontSize: "9px",
-        whiteSpace: "nowrap",
-        scrollBehavior: "smooth"
-      }}>
-        <span style={{ color: "#3a6fa5", textTransform: "uppercase", fontWeight: "700", flexShrink: 0 }}>LOG:</span>
-        {recentEvents.slice(0, 10).map((e, i) => {
+      {/* ACTION LOG — vertical list */}
+      <div
+        ref={logContainerRef}
+        style={{
+          background: "#080f18",
+          borderTop: "1px solid #1a2e40",
+          padding: "4px 8px",
+          height: "120px",
+          overflowY: "auto",
+          display: "flex",
+          flexDirection: "column",
+          gap: "0px",
+          flexShrink: 0
+        }}
+      >
+        {game.events.map((e, i) => {
           let eventColor = "#5a7a9a";
           let eventLabel = e.type;
           if (e.type === "POINTS") {
             eventColor = "#4ef472";
             eventLabel = `+${e.points}`;
-            if (e.eventSubtype === "fastbreak") eventLabel += " ⚡ відрив";
-            else if (e.eventSubtype === "second_chance") eventLabel += " ↩ 2й";
-            else if (e.eventSubtype === "off_turnover") eventLabel += " 🔥 втрата";
+            if (e.eventSubtype === "fastbreak") eventLabel += " ⚡";
+            else if (e.eventSubtype === "second_chance") eventLabel += " ↩";
+            else if (e.eventSubtype === "off_turnover") eventLabel += " 🔥";
           } else if (e.type.includes("FOUL")) {
             eventColor = "#f4cc5a";
-            eventLabel = "ФОЛ";
+            eventLabel = "фол";
           } else if (e.type === "ASSIST") {
             eventColor = "#5ae8f4";
-            eventLabel = "ПЕР";
+            eventLabel = "пер";
           } else if (e.type === "STEAL") {
             eventColor = "#5ae8f4";
-            eventLabel = "ПРИ";
+            eventLabel = "при";
           } else if (e.type === "REBOUND" || e.type === "REBOUND_OFF" || e.type === "REBOUND_DEF") {
-            eventColor = "#b07af4";
-            eventLabel = "РЕБ";
+            eventColor = "#5ae8f4";
+            eventLabel = "подб";
           } else if (e.type === "BLOCK") {
             eventColor = "#f4cc5a";
-            eventLabel = "БЛК";
+            eventLabel = "блк";
           } else if (e.type === "TURNOVER") {
             eventColor = "#f47a7a";
-            eventLabel = "ВТР";
+            eventLabel = "втр";
           }
           return (
-            <span key={i} style={{ color: eventColor, whiteSpace: "nowrap", display: "flex", gap: 4, alignItems: "center" }}>
-              Q{e.quarter} {formatTime(timeLeft)} · <strong style={{ color: "#c8d8e8" }}>#{e.player?.number}</strong> {eventLabel}
-            </span>
+            <div
+              key={i}
+              style={{
+                display: "flex",
+                gap: "8px",
+                padding: "2px 0",
+                borderBottom: "0.5px solid #0d1a28",
+                fontSize: "11px",
+                whiteSpace: "nowrap"
+              }}
+            >
+              <span style={{ color: "#4a7fa5" }}>Q{e.quarter} {formatTime(timeLeft)}</span>
+              <span style={{ color: "#c8d8e8" }}>#{e.player?.number} {e.player?.lastName[0]}.</span>
+              <span style={{ color: eventColor, fontWeight: "700" }}>{eventLabel}</span>
+            </div>
           );
         })}
       </div>
