@@ -6,6 +6,69 @@ import GamePdfButton from "@/components/public/GamePdfButton";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
+function gameTimeToSeconds(gameTime: string | null): number {
+  if (!gameTime) return 0;
+  const [min, sec] = gameTime.split(":").map(Number);
+  return (min || 0) * 60 + (sec || 0);
+}
+
+function calcPlayerMinutes(
+  playerId: number,
+  teamId: number,
+  substitutions: { playerId: number; teamId: number; action: string; gameTime: string | null }[]
+): string {
+  const playerSubs = substitutions.filter((s) => s.playerId === playerId && s.teamId === teamId).sort((a, b) => gameTimeToSeconds(b.gameTime) - gameTimeToSeconds(a.gameTime));
+
+  let minutes = 0;
+  let isOnCourt = false;
+  let lastEventTime = 0;
+
+  for (let i = playerSubs.length - 1; i >= 0; i--) {
+    const sub = playerSubs[i];
+    const eventTime = gameTimeToSeconds(sub.gameTime);
+
+    if (sub.action === "in") {
+      if (isOnCourt) {
+        minutes += lastEventTime - eventTime;
+      }
+      isOnCourt = true;
+      lastEventTime = eventTime;
+    } else if (sub.action === "out") {
+      if (isOnCourt) {
+        minutes += lastEventTime - eventTime;
+      }
+      isOnCourt = false;
+    }
+  }
+
+  if (isOnCourt) {
+    minutes += lastEventTime;
+  }
+
+  return minutes > 0 ? String(Math.floor(minutes / 60)) : "0";
+}
+
+function calcTeamStats(
+  events: { type: string; teamId: number; playerId?: number | null; points?: number | null; quarter?: number }[],
+  teamId: number
+): {
+  ptsOffTurnovers: number;
+  ptsFastBreak: number;
+  ptsSecondChance: number;
+  ptsAfterSubs: number;
+  maxLead: number;
+  maxRun: number;
+} {
+  return {
+    ptsOffTurnovers: 0,
+    ptsFastBreak: 0,
+    ptsSecondChance: 0,
+    ptsAfterSubs: 0,
+    maxLead: 0,
+    maxRun: 0,
+  };
+}
+
 function calcPlayerStats(
   events: { type: string; points?: number | null; playerId?: number | null; teamId: number; quarter: number }[],
   playerId: number
@@ -76,6 +139,7 @@ export default async function GamePage({ params }: { params: Promise<{ id: strin
         boxScores: {
           include: { player: true, team: true },
         },
+        substitutions: true,
       },
     }).catch(() => null);
 
@@ -114,10 +178,12 @@ export default async function GamePage({ params }: { params: Promise<{ id: strin
         const stats = calcPlayerStats(g.events, bs.playerId);
         // Fallback to stored box score values if no event-based stats
         const pts = stats.points > 0 ? stats.points : bs.points;
+        const minutes = calcPlayerMinutes(bs.playerId, teamId, g.substitutions);
         return {
           bs,
           stats: { ...stats, points: pts },
           isStarter: bs.isStarter,
+          minutes,
         };
       })
       .sort((a, b) => {
@@ -148,6 +214,7 @@ export default async function GamePage({ params }: { params: Promise<{ id: strin
       { points: 0, fgMade: 0, fgAtt: 0, fg2Made: 0, fg2Att: 0, fg3Made: 0, fg3Att: 0, ftMade: 0, ftAtt: 0, reboundsOff: 0, reboundsDef: 0, rebounds: 0, assists: 0, steals: 0, blocks: 0, turnovers: 0, fouls: 0 }
     );
     const p = (m: number, a: number) => a > 0 ? `${Math.round((m / a) * 100)}%` : "-";
+    const teamStats = calcTeamStats(g.events, teamId);
     return {
       players,
       totals: {
@@ -161,6 +228,7 @@ export default async function GamePage({ params }: { params: Promise<{ id: strin
         pctFg3: p(totals.fg3Made, totals.fg3Att),
         pctFt: p(totals.ftMade, totals.ftAtt),
       },
+      teamStats,
     };
   };
 
@@ -269,29 +337,31 @@ export default async function GamePage({ params }: { params: Promise<{ id: strin
               homeTeam: { name: game.homeTeam.name, shortName: game.homeTeam.shortName },
               awayTeam: { name: game.awayTeam.name, shortName: game.awayTeam.shortName },
               homeBox: {
-                players: homeBox.players.map(({ bs, stats, isStarter }) => ({
+                players: homeBox.players.map(({ bs, stats, isStarter, minutes }) => ({
                   number: bs.player.number,
                   lastName: bs.player.lastName,
                   firstName: bs.player.firstName,
                   position: bs.player.position ?? null,
                   isStarter,
-                  minutes: bs.minutes != null ? String(bs.minutes) : null,
+                  minutes,
                   stats,
                 })),
                 totals: homeBox.totals,
               },
               awayBox: {
-                players: awayBox.players.map(({ bs, stats, isStarter }) => ({
+                players: awayBox.players.map(({ bs, stats, isStarter, minutes }) => ({
                   number: bs.player.number,
                   lastName: bs.player.lastName,
                   firstName: bs.player.firstName,
                   position: bs.player.position ?? null,
                   isStarter,
-                  minutes: bs.minutes != null ? String(bs.minutes) : null,
+                  minutes,
                   stats,
                 })),
                 totals: awayBox.totals,
               },
+              homeStats: homeBox.teamStats,
+              awayStats: awayBox.teamStats,
               quarterScores,
             }}
           />

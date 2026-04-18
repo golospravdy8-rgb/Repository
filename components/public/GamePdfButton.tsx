@@ -44,6 +44,22 @@ export interface GamePdfData {
   homeBox: TeamBox;
   awayBox: TeamBox;
   quarterScores: { quarter: number; home: number; away: number }[];
+  homeStats?: {
+    ptsOffTurnovers: number;
+    ptsFastBreak: number;
+    ptsSecondChance: number;
+    ptsAfterSubs: number;
+    maxLead: number;
+    maxRun: number;
+  };
+  awayStats?: {
+    ptsOffTurnovers: number;
+    ptsFastBreak: number;
+    ptsSecondChance: number;
+    ptsAfterSubs: number;
+    maxLead: number;
+    maxRun: number;
+  };
 }
 
 // ── HTML генерація протоколу ───────────────────────────────────────────────
@@ -56,7 +72,15 @@ function fmt(v: number | string | null | undefined, fallback = "-"): string {
 function teamTableHTML(
   teamName: string,
   box: TeamBox,
-  isWinner: boolean
+  isWinner: boolean,
+  teamStats?: {
+    ptsOffTurnovers: number;
+    ptsFastBreak: number;
+    ptsSecondChance: number;
+    ptsAfterSubs: number;
+    maxLead: number;
+    maxRun: number;
+  }
 ): string {
   const headerBg = isWinner ? "#f97316" : "#0f172a";
 
@@ -102,7 +126,7 @@ function teamTableHTML(
       <table style="width:100%; border-collapse:collapse; font-size:11px;">
         <thead>
           <tr style="background:#1a2c56; color:#fff;">
-            ${["№","ГРАВЕЦЬ","ПОЗ","ХВ","ОЧ","КП","%","2О","%","3О","%","ШТ","%","НПД","ЗПД","ПДБ","ПЕР","ВТ","БЛК","ФОЛ"]
+            ${["№","ГРАВЕЦЬ","ПОЗ","ХВ","ОЧ","КД","%","2О","%","3О","%","ШТ","%","НПД","ЗПД","ПДБ","ПЕР","ВТ","БЛК","ФОЛ"]
               .map((h, i) => `<th style="${thS}${i === 1 ? "text-align:left;" : ""}">${h}</th>`).join("")}
           </tr>
         </thead>
@@ -137,6 +161,35 @@ function teamTableHTML(
           </tr>
         </tbody>
       </table>
+      ${teamStats ? `
+      <div style="background:#f8fafc; padding:12px 16px; border-top:1px solid #e2e8f0;
+                  display:grid; grid-template-columns:repeat(6, 1fr); gap:12px; font-size:10px;">
+        <div style="text-align:center;">
+          <div style="color:#6b7280; font-size:9px; text-transform:uppercase; font-weight:600; margin-bottom:2px;">Очки після втрат</div>
+          <div style="font-weight:700; color:#0f172a; font-size:13px;">${teamStats.ptsOffTurnovers}</div>
+        </div>
+        <div style="text-align:center;">
+          <div style="color:#6b7280; font-size:9px; text-transform:uppercase; font-weight:600; margin-bottom:2px;">Очки з відриву</div>
+          <div style="font-weight:700; color:#0f172a; font-size:13px;">${teamStats.ptsFastBreak}</div>
+        </div>
+        <div style="text-align:center;">
+          <div style="color:#6b7280; font-size:9px; text-transform:uppercase; font-weight:600; margin-bottom:2px;">Другий шанс</div>
+          <div style="font-weight:700; color:#0f172a; font-size:13px;">${teamStats.ptsSecondChance}</div>
+        </div>
+        <div style="text-align:center;">
+          <div style="color:#6b7280; font-size:9px; text-transform:uppercase; font-weight:600; margin-bottom:2px;">Після замін</div>
+          <div style="font-weight:700; color:#0f172a; font-size:13px;">${teamStats.ptsAfterSubs}</div>
+        </div>
+        <div style="text-align:center;">
+          <div style="color:#6b7280; font-size:9px; text-transform:uppercase; font-weight:600; margin-bottom:2px;">Найбільш. відрив</div>
+          <div style="font-weight:700; color:#0f172a; font-size:13px;">+${teamStats.maxLead}</div>
+        </div>
+        <div style="text-align:center;">
+          <div style="color:#6b7280; font-size:9px; text-transform:uppercase; font-weight:600; margin-bottom:2px;">Найдовший забіг</div>
+          <div style="font-weight:700; color:#0f172a; font-size:13px;">${teamStats.maxRun}</div>
+        </div>
+      </div>
+      ` : ""}
     </div>`;
 }
 
@@ -220,12 +273,12 @@ function buildProtocolHTML(data: GamePdfData): string {
 
       <!-- ТАБЛИЦІ -->
       <div style="padding:24px 32px;">
-        ${teamTableHTML(data.homeTeam.name, data.homeBox, homeWins)}
-        ${teamTableHTML(data.awayTeam.name, data.awayBox, awayWins)}
+        ${teamTableHTML(data.homeTeam.name, data.homeBox, homeWins, data.homeStats)}
+        ${teamTableHTML(data.awayTeam.name, data.awayBox, awayWins, data.awayStats)}
 
         <!-- ЛЕГЕНДА -->
         <div style="font-size:10px; color:#94a3b8; margin-top:4px; line-height:1.8;">
-          КП — кидки з поля &nbsp;|&nbsp; 2О — двоочкові &nbsp;|&nbsp; 3О — триочкові &nbsp;|&nbsp;
+          КД — кидки динамічні (усі) &nbsp;|&nbsp; 2О — двоочкові &nbsp;|&nbsp; 3О — триочкові &nbsp;|&nbsp;
           ШТ — штрафні &nbsp;|&nbsp; НПД — підбір напад &nbsp;|&nbsp; ЗПД — підбір захист &nbsp;|&nbsp;
           ПДБ — підбори &nbsp;|&nbsp; ПЕР — передачі &nbsp;|&nbsp; ВТ — втрати &nbsp;|&nbsp;
           БЛК — блоки &nbsp;|&nbsp; ФОЛ — фоли &nbsp;|&nbsp; ★ — стартовий
