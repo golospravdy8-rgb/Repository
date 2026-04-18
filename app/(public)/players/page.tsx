@@ -74,7 +74,7 @@ export default async function PlayersPage({
   const topRated = playersWithRating[0];
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2" style={{ zoom: 0.66 }}>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2">
       <div className="flex items-center justify-between mb-0.5">
         <h1 className="text-4xl font-black" style={{ color: "#1e2a4a" }}>Гравці ліги</h1>
         <div className="text-lg text-gray-500">{filtered.length} гравців</div>
@@ -151,7 +151,7 @@ export default async function PlayersPage({
         <summary className="px-4 py-3 cursor-pointer font-semibold text-sm text-gray-600 select-none hover:bg-gray-100 transition-colors flex items-center gap-2">
           <span>ℹ️</span> Як розраховується рейтинг і досягнення?
         </summary>
-        <div className="px-4 pb-4 pt-2 space-y-4" style={{ zoom: "1.45" }}>
+        <div className="px-4 pb-4 pt-2 space-y-4">
 
           {/* Rating formula */}
           <div>

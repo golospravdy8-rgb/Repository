@@ -50,7 +50,6 @@ export default async function PublicLayout({ children }: { children: React.React
   ));
 
   const bgColor = settings["colors.pageBg"] || settings["colors.bg"] || "#f1f5f9";
-  const siteZoom = settings["site.zoom"] ? Number(settings["site.zoom"]) / 100 : 1;
 
   // CSS variables — fallback to navy/orange if page-specific text colors not set
   const navy = settings["colors.navy"] || "#1a2744";
@@ -80,7 +79,7 @@ export default async function PublicLayout({ children }: { children: React.React
   };
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ backgroundColor: bgColor, ...cssVars, zoom: siteZoom }}>
+    <div className="min-h-screen flex flex-col" style={{ backgroundColor: bgColor, ...cssVars }}>
       <HeaderWrapper />
 
       <AdBanner slot="top" />

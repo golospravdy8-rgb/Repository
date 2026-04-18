@@ -65,29 +65,25 @@
     --brand-bg: #f1f5f9;
   }
 
-  * {
+  html, body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    font-size: 14px;
     box-sizing: border-box;
   }
 
-  html {
-    height: 100%;
-    overflow: hidden;
-    margin: 0;
-    padding: 0;
+  *, *::before, *::after {
+    box-sizing: border-box;
   }
 
   body {
-    height: 100%;
-    overflow: hidden;
-    margin: 0;
-    padding: 0;
     background-color: #f1f5f9;
     font-family: var(--font-body, 'Exo 2', system-ui, -apple-system, sans-serif);
   }
 
   #__next {
-    height: 100%;
-    overflow: hidden;
+    min-height: 100vh;
     margin: 0;
     padding: 0;
   }

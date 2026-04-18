@@ -3,10 +3,10 @@ import AdminLogoutButton from "./AdminLogoutButton";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen" style={{ backgroundColor: "#f1f5f9", height: "133.33vh", overflow: "hidden", display: "flex", flexDirection: "column" }}>
+    <div style={{ backgroundColor: "#f1f5f9", minHeight: "100vh", display: "flex", flexDirection: "column", maxWidth: "100%", width: "100%", overflowX: "hidden" }}>
       {/* Admin header */}
       <header style={{ backgroundColor: "#1a2744" }} className="text-white shadow-lg">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div style={{ maxWidth: "100%", width: "100%", paddingLeft: 16, paddingRight: 16, boxSizing: "border-box", margin: "0 auto" }}>
           <div className="flex items-center justify-between h-14">
             <div className="flex items-center gap-6">
               <Link href="/admin/dashboard" className="font-bold text-sm tracking-wide">
@@ -40,7 +40,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </div>
       </header>
 
-      <main className="w-full flex-1" style={{ padding: 0, margin: 0, height: "100%", overflow: "hidden" }}>
+      <main style={{ padding: 0, margin: 0, flex: 1, maxWidth: "100%", width: "100%", overflowX: "hidden", overflowY: "auto" }}>
         {children}
       </main>
     </div>

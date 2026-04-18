@@ -42,7 +42,7 @@ export default async function MediaPage() {
   ]);
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4" style={{ zoom: 0.75 }}>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
       <h1 className="text-lg font-black mb-0.5" style={{ color: "#1e2a4a" }}>Медіа</h1>
       <p className="text-gray-500 mb-5 text-sm">Відео матчів, хайлайти та фотогалерея ЛДБЛ</p>
 
