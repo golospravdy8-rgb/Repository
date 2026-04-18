@@ -279,11 +279,14 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
 
         {/* Score Center */}
         <div style={{ textAlign: "center" }}>
-          <div style={{ fontSize: 20, fontWeight: "600", color: "#fff", lineHeight: 1 }}>
+          <div style={{ fontSize: 32, fontWeight: "700", color: "#fff", lineHeight: 1 }}>
             {game.homeScore} : {game.awayScore}
           </div>
-          <div style={{ fontSize: 10, color: "#6b8caa", marginTop: 2 }}>
-            Q{game.quarter} · {formatTime(timeLeft)}
+          <div style={{ fontSize: 28, fontWeight: "700", color: "#fff", marginTop: 4, lineHeight: 1 }}>
+            {formatTime(timeLeft)}
+          </div>
+          <div style={{ fontSize: 14, fontWeight: "600", color: "#5ab3f4", marginTop: 2 }}>
+            {game.quarter} чверть
           </div>
         </div>
 
@@ -449,16 +452,19 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
                 flex: 1,
                 border: "none",
                 borderRadius: 4,
-                padding: "6px 4px",
-                fontSize: 10,
+                padding: "6px 3px",
+                fontSize: 9,
                 fontWeight: "600",
                 cursor: !isLive ? "not-allowed" : "pointer",
                 background: !isLive ? "#1a2e40" : "#1a3560",
                 color: !isLive ? "#4a7fa5" : "#5ae8f4",
-                opacity: !isLive ? 0.5 : 1
+                opacity: !isLive ? 0.5 : 1,
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis"
               }}
             >
-              Період
+              Наст чверть
             </button>
             <div style={{ width: "1px", height: 28, background: "#1a2e40", margin: "0 4px" }} />
             <button
@@ -472,16 +478,19 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
                 flex: 1,
                 border: "none",
                 borderRadius: 4,
-                padding: "6px 4px",
-                fontSize: 10,
+                padding: "6px 3px",
+                fontSize: 9,
                 fontWeight: "600",
                 cursor: (!selectedPlayerId || !isLive || homeTimeouts === 0) ? "not-allowed" : "pointer",
                 background: (!selectedPlayerId || !isLive || homeTimeouts === 0) ? "#1a2e40" : "#6b4e10",
                 color: (!selectedPlayerId || !isLive || homeTimeouts === 0) ? "#4a7fa5" : "#f4cc5a",
-                opacity: (!selectedPlayerId || !isLive || homeTimeouts === 0) ? 0.5 : 1
+                opacity: (!selectedPlayerId || !isLive || homeTimeouts === 0) ? 0.5 : 1,
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis"
               }}
             >
-              ТО
+              Тайм-аут
             </button>
             <div style={{ width: "1px", height: 28, background: "#1a2e40", margin: "0 4px" }} />
             <button
@@ -491,16 +500,19 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
                 flex: 1,
                 border: "none",
                 borderRadius: 4,
-                padding: "6px 4px",
-                fontSize: 10,
+                padding: "6px 3px",
+                fontSize: 9,
                 fontWeight: "600",
                 cursor: (!isLive || game.events.length === 0) ? "not-allowed" : "pointer",
                 background: (!isLive || game.events.length === 0) ? "#1a2e40" : "#6b4e10",
                 color: (!isLive || game.events.length === 0) ? "#4a7fa5" : "#f4cc5a",
-                opacity: (!isLive || game.events.length === 0) ? 0.5 : 1
+                opacity: (!isLive || game.events.length === 0) ? 0.5 : 1,
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis"
               }}
             >
-              Скас
+              Скасувати
             </button>
             <div style={{ width: "1px", height: 28, background: "#1a2e40", margin: "0 4px" }} />
             <button
@@ -514,15 +526,18 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
                 flex: 1,
                 border: "none",
                 borderRadius: 4,
-                padding: "6px 4px",
-                fontSize: 10,
+                padding: "6px 3px",
+                fontSize: 9,
                 fontWeight: "600",
                 cursor: "pointer",
                 background: "#5e1515",
-                color: "#f47a7a"
+                color: "#f47a7a",
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis"
               }}
             >
-              Завер
+              Завершити
             </button>
           </div>
 
@@ -540,16 +555,19 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
                   flex: 1,
                   border: "none",
                   borderRadius: 4,
-                  padding: "6px 4px",
-                  fontSize: 10,
+                  padding: "6px 2px",
+                  fontSize: 8,
                   fontWeight: "600",
                   cursor: disabled ? "not-allowed" : "pointer",
                   background: disabled ? "#1a2e40" : "#1e5c35",
                   color: disabled ? "#4a7fa5" : "#4ef472",
-                  opacity: disabled ? 0.5 : 1
+                  opacity: disabled ? 0.5 : 1,
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis"
                 }}
               >
-                +2
+                +2 Двох
               </button>
               <button
                 onClick={() => selectedPlayerId && runAction(() => addScoreWithType(game.id, selectedTeamId, selectedPlayerId, 3, eventType))}
@@ -558,17 +576,20 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
                   flex: 1,
                   border: "none",
                   borderRadius: 4,
-                  padding: "6px 4px",
-                  fontSize: 10,
+                  padding: "6px 2px",
+                  fontSize: 8,
                   fontWeight: "600",
                   marginLeft: 2,
                   cursor: disabled ? "not-allowed" : "pointer",
                   background: disabled ? "#1a2e40" : "#1e5c35",
                   color: disabled ? "#4a7fa5" : "#4ef472",
-                  opacity: disabled ? 0.5 : 1
+                  opacity: disabled ? 0.5 : 1,
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis"
                 }}
               >
-                +3
+                +3 Трьох
               </button>
               <div style={{ width: "1px", height: 28, background: "#1a2e40", margin: "0 4px" }} />
               <button
@@ -578,16 +599,19 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
                   flex: 1,
                   border: "none",
                   borderRadius: 4,
-                  padding: "6px 4px",
-                  fontSize: 10,
+                  padding: "6px 2px",
+                  fontSize: 8,
                   fontWeight: "600",
                   cursor: disabled ? "not-allowed" : "pointer",
                   background: disabled ? "#1a2e40" : "#3d1f6b",
                   color: disabled ? "#4a7fa5" : "#b07af4",
-                  opacity: disabled ? 0.5 : 1
+                  opacity: disabled ? 0.5 : 1,
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis"
                 }}
               >
-                Подб З
+                Подб Захист
               </button>
               <button
                 onClick={() => selectedPlayerId && runAction(() => addReboundOff(game.id, selectedTeamId, selectedPlayerId))}
@@ -596,17 +620,20 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
                   flex: 1,
                   border: "none",
                   borderRadius: 4,
-                  padding: "6px 4px",
-                  fontSize: 10,
+                  padding: "6px 2px",
+                  fontSize: 8,
                   fontWeight: "600",
                   marginLeft: 2,
                   cursor: disabled ? "not-allowed" : "pointer",
                   background: disabled ? "#1a2e40" : "#3d1f6b",
                   color: disabled ? "#4a7fa5" : "#b07af4",
-                  opacity: disabled ? 0.5 : 1
+                  opacity: disabled ? 0.5 : 1,
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis"
                 }}
               >
-                Подб Н
+                Подб Напад
               </button>
               <div style={{ width: "1px", height: 28, background: "#1a2e40", margin: "0 4px" }} />
               <button
@@ -620,17 +647,20 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
                   flex: 1,
                   border: "none",
                   borderRadius: 4,
-                  padding: "6px 4px",
-                  fontSize: 10,
+                  padding: "6px 2px",
+                  fontSize: 8,
                   fontWeight: "600",
                   cursor: disabled ? "not-allowed" : "pointer",
                   background: disabled ? "#1a2e40" : "#1e5c35",
                   color: disabled ? "#4a7fa5" : "#4ef472",
-                  opacity: disabled ? 0.5 : 1
+                  opacity: disabled ? 0.5 : 1,
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis"
                 }}
                 title="Штрафний бросок - влучив"
               >
-                Шт✓
+                Шт Влучно
               </button>
             </div>
 
@@ -646,16 +676,19 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
                   flex: 1,
                   border: "none",
                   borderRadius: 4,
-                  padding: "6px 4px",
-                  fontSize: 10,
+                  padding: "6px 2px",
+                  fontSize: 8,
                   fontWeight: "600",
                   cursor: disabled ? "not-allowed" : "pointer",
                   background: disabled ? "#1a2e40" : "#5e1515",
                   color: disabled ? "#4a7fa5" : "#f47a7a",
-                  opacity: disabled ? 0.5 : 1
+                  opacity: disabled ? 0.5 : 1,
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis"
                 }}
               >
-                ×2
+                ×2 Двох
               </button>
               <button
                 onClick={() => selectedPlayerId && runAction(() => addMissFg3(game.id, selectedTeamId, selectedPlayerId))}
@@ -664,17 +697,20 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
                   flex: 1,
                   border: "none",
                   borderRadius: 4,
-                  padding: "6px 4px",
-                  fontSize: 10,
+                  padding: "6px 2px",
+                  fontSize: 8,
                   fontWeight: "600",
                   marginLeft: 2,
                   cursor: disabled ? "not-allowed" : "pointer",
                   background: disabled ? "#1a2e40" : "#5e1515",
                   color: disabled ? "#4a7fa5" : "#f47a7a",
-                  opacity: disabled ? 0.5 : 1
+                  opacity: disabled ? 0.5 : 1,
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis"
                 }}
               >
-                ×3
+                ×3 Трьох
               </button>
               <div style={{ width: "1px", height: 28, background: "#1a2e40", margin: "0 4px" }} />
               <button
@@ -684,16 +720,19 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
                   flex: 1,
                   border: "none",
                   borderRadius: 4,
-                  padding: "6px 4px",
-                  fontSize: 10,
+                  padding: "6px 2px",
+                  fontSize: 8,
                   fontWeight: "600",
                   cursor: disabled ? "not-allowed" : "pointer",
                   background: disabled ? "#1a2e40" : "#1a3560",
                   color: disabled ? "#4a7fa5" : "#5ae8f4",
-                  opacity: disabled ? 0.5 : 1
+                  opacity: disabled ? 0.5 : 1,
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis"
                 }}
               >
-                Пер
+                Передача
               </button>
               <button
                 onClick={() => selectedPlayerId && runAction(() => addSteal(game.id, selectedTeamId, selectedPlayerId))}
@@ -702,17 +741,20 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
                   flex: 1,
                   border: "none",
                   borderRadius: 4,
-                  padding: "6px 4px",
-                  fontSize: 10,
+                  padding: "6px 2px",
+                  fontSize: 8,
                   fontWeight: "600",
                   marginLeft: 2,
                   cursor: disabled ? "not-allowed" : "pointer",
                   background: disabled ? "#1a2e40" : "#1a3560",
                   color: disabled ? "#4a7fa5" : "#5ae8f4",
-                  opacity: disabled ? 0.5 : 1
+                  opacity: disabled ? 0.5 : 1,
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis"
                 }}
               >
-                При
+                Перехват
               </button>
               <div style={{ width: "1px", height: 28, background: "#1a2e40", margin: "0 4px" }} />
               <button
@@ -722,16 +764,19 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
                   flex: 1,
                   border: "none",
                   borderRadius: 4,
-                  padding: "6px 4px",
-                  fontSize: 10,
+                  padding: "6px 2px",
+                  fontSize: 8,
                   fontWeight: "600",
                   cursor: disabled ? "not-allowed" : "pointer",
                   background: disabled ? "#1a2e40" : "#5e1515",
                   color: disabled ? "#4a7fa5" : "#f47a7a",
-                  opacity: disabled ? 0.5 : 1
+                  opacity: disabled ? 0.5 : 1,
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis"
                 }}
               >
-                Шт✗
+                Шт Промах
               </button>
             </div>
           </div>
@@ -754,16 +799,19 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
                 flex: 1,
                 border: "none",
                 borderRadius: 4,
-                padding: "6px 4px",
-                fontSize: 10,
+                padding: "6px 2px",
+                fontSize: 8,
                 fontWeight: "600",
                 cursor: disabled ? "not-allowed" : "pointer",
                 background: disabled ? "#1a2e40" : "#1a3560",
                 color: disabled ? "#4a7fa5" : "#5ae8f4",
-                opacity: disabled ? 0.5 : 1
+                opacity: disabled ? 0.5 : 1,
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis"
               }}
             >
-              Блок
+              Блокшот
             </button>
             <button
               onClick={() => selectedPlayerId && runAction(() => addTurnover(game.id, selectedTeamId, selectedPlayerId))}
@@ -772,17 +820,20 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
                 flex: 1,
                 border: "none",
                 borderRadius: 4,
-                padding: "6px 4px",
-                fontSize: 10,
+                padding: "6px 2px",
+                fontSize: 8,
                 fontWeight: "600",
                 marginLeft: 2,
                 cursor: disabled ? "not-allowed" : "pointer",
                 background: disabled ? "#1a2e40" : "#5e1515",
                 color: disabled ? "#4a7fa5" : "#f47a7a",
-                opacity: disabled ? 0.5 : 1
+                opacity: disabled ? 0.5 : 1,
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis"
               }}
             >
-              Втр
+              Втрата
             </button>
             <div style={{ width: "1px", height: 28, background: "#1a2e40", margin: "0 4px" }} />
             <button
@@ -797,16 +848,19 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
                 flex: 1,
                 border: "none",
                 borderRadius: 4,
-                padding: "6px 4px",
-                fontSize: 10,
+                padding: "6px 2px",
+                fontSize: 8,
                 fontWeight: "600",
                 cursor: disabled ? "not-allowed" : "pointer",
                 background: disabled ? "#1a2e40" : "#6b4e10",
                 color: disabled ? "#4a7fa5" : "#f4cc5a",
-                opacity: disabled ? 0.5 : 1
+                opacity: disabled ? 0.5 : 1,
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis"
               }}
             >
-              Фол П
+              Особист
             </button>
             <button
               onClick={() => selectedPlayerId && runAction(() => addFoulTechnical(game.id, selectedTeamId, selectedPlayerId))}
@@ -815,17 +869,20 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
                 flex: 1,
                 border: "none",
                 borderRadius: 4,
-                padding: "6px 4px",
-                fontSize: 10,
+                padding: "6px 2px",
+                fontSize: 8,
                 fontWeight: "600",
                 marginLeft: 2,
                 cursor: disabled ? "not-allowed" : "pointer",
                 background: disabled ? "#1a2e40" : "#5e1515",
                 color: disabled ? "#4a7fa5" : "#f47a7a",
-                opacity: disabled ? 0.5 : 1
+                opacity: disabled ? 0.5 : 1,
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis"
               }}
             >
-              Фол Т
+              Технічний
             </button>
             <button
               onClick={() => {
@@ -838,18 +895,21 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
                 flex: 1,
                 border: "none",
                 borderRadius: 4,
-                padding: "6px 4px",
-                fontSize: 10,
+                padding: "6px 2px",
+                fontSize: 8,
                 fontWeight: "600",
                 marginLeft: 2,
                 cursor: disabled ? "not-allowed" : "pointer",
                 background: disabled ? "#1a2e40" : "#5e1515",
                 color: disabled ? "#4a7fa5" : "#f47a7a",
-                opacity: disabled ? 0.5 : 1
+                opacity: disabled ? 0.5 : 1,
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis"
               }}
               title="Бросковий фол"
             >
-              Фол Б
+              Командний
             </button>
           </div>
 
@@ -865,9 +925,9 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
             padding: "0 2px"
           }}>
             {[
-              { val: "normal", label: "Звич" },
+              { val: "normal", label: "Звичайний" },
               { val: "second_chance", label: "2й шанс" },
-              { val: "fastbreak", label: "Швидк" }
+              { val: "fastbreak", label: "Швидкий" }
             ].map(({ val, label }) => (
               <button
                 key={val}
@@ -876,13 +936,16 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
                   flex: 1,
                   border: eventType === val ? "1px solid #e8a030" : "1px solid #1a2e40",
                   borderRadius: 3,
-                  padding: "4px 4px",
-                  fontSize: 9,
+                  padding: "3px 2px",
+                  fontSize: 8,
                   fontWeight: "600",
                   cursor: "pointer",
                   background: eventType === val ? "#2d2200" : "#12202e",
                   color: eventType === val ? "#e8a030" : "#5a7a9a",
-                  marginRight: val === "fastbreak" ? 4 : 2
+                  marginRight: val === "fastbreak" ? 4 : 2,
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis"
                 }}
               >
                 {label}
@@ -896,16 +959,19 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
                 flex: 1,
                 border: "none",
                 borderRadius: 4,
-                padding: "4px 4px",
-                fontSize: 9,
+                padding: "3px 2px",
+                fontSize: 8,
                 fontWeight: "600",
                 cursor: !isLive ? "not-allowed" : "pointer",
                 background: !isLive ? "#1a2e40" : "#0d1520",
                 color: !isLive ? "#3a6fa5" : "#5ab3f4",
-                opacity: !isLive ? 0.5 : 1
+                opacity: !isLive ? 0.5 : 1,
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis"
               }}
             >
-              Заміна
+              Заміна гравця
             </button>
           </div>
         </div>
