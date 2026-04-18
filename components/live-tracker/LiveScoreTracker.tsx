@@ -172,6 +172,7 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
   const [pending, startTransition] = useTransition();
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const quarterRef = useRef(game.quarter);
+  const logEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (game.status === "SCHEDULED" && onCourtHome.size === 0) {
@@ -217,6 +218,12 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
   }, []);
+
+  useEffect(() => {
+    if (logEndRef.current) {
+      logEndRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [game.events]);
 
   const isLive = game.status === "LIVE";
   const isScheduled = game.status === "SCHEDULED";
@@ -538,6 +545,32 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
             </button>
             <div style={{ width: "1px", background: "#1a2e40", margin: "0 4px" }} />
             <button
+              onClick={() => startTransition(() => undoLastEvent(game.id))}
+              disabled={!isLive || game.events.length === 0}
+              style={{
+                flex: 1,
+                border: "none",
+                borderRadius: 4,
+                padding: "0 3px",
+                fontSize: 13,
+                fontWeight: "700",
+                cursor: (!isLive || game.events.length === 0) ? "not-allowed" : "pointer",
+                background: (!isLive || game.events.length === 0) ? "#1a2e40" : "#3a2500",
+                color: (!isLive || game.events.length === 0) ? "#4a7fa5" : "#f4cc5a",
+                opacity: (!isLive || game.events.length === 0) ? 0.5 : 1,
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                height: "100%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center"
+              }}
+            >
+              ↩ Відкат
+            </button>
+            <div style={{ width: "1px", background: "#1a2e40", margin: "0 4px" }} />
+            <button
               onClick={() => {
                 if (confirm("Завершити матч?")) {
                   stopTimer();
@@ -611,7 +644,11 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
                   opacity: disabled ? 0.5 : 1,
                   whiteSpace: "nowrap",
                   overflow: "hidden",
-                  textOverflow: "ellipsis"
+                  textOverflow: "ellipsis",
+                  height: "100%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center"
                 }}
               >
                 +3 Трьох
@@ -1017,55 +1054,64 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
         />
       </div>
 
-      {/* ACTION LOG — horizontal strip */}
+      {/* ACTION LOG — vertical events */}
       <div style={{
         background: "#0a0f15",
         borderTop: "1px solid #1a2e40",
-        padding: "3px 10px",
         display: "flex",
-        gap: 12,
-        alignItems: "center",
-        overflow: "auto",
+        flexDirection: "column-reverse",
+        overflowY: "auto",
+        height: "80px",
+        padding: "4px 8px",
         flexShrink: 0,
-        fontSize: "9px",
-        whiteSpace: "nowrap",
+        gap: "1px",
         scrollBehavior: "smooth"
       }}>
-        <span style={{ color: "#3a6fa5", textTransform: "uppercase", fontWeight: "700", flexShrink: 0 }}>LOG:</span>
-        {recentEvents.slice(0, 10).map((e, i) => {
+        {recentEvents.map((e, i) => {
           let eventColor = "#5a7a9a";
           let eventLabel = e.type;
           if (e.type === "POINTS") {
             eventColor = "#4ef472";
-            eventLabel = `+${e.points}`;
-            if (e.eventSubtype === "fastbreak") eventLabel += " ⚡ відрив";
+            eventLabel = `+${e.points} попав`;
+            if (e.eventSubtype === "fastbreak") eventLabel += " ⚡ відр";
             else if (e.eventSubtype === "second_chance") eventLabel += " ↩ 2й";
-            else if (e.eventSubtype === "off_turnover") eventLabel += " 🔥 втрата";
+            else if (e.eventSubtype === "off_turnover") eventLabel += " 🔥 втр";
           } else if (e.type.includes("FOUL")) {
             eventColor = "#f4cc5a";
-            eventLabel = "ФОЛ";
+            eventLabel = "фол";
           } else if (e.type === "ASSIST") {
             eventColor = "#5ae8f4";
-            eventLabel = "ПЕР";
+            eventLabel = "пер";
           } else if (e.type === "STEAL") {
             eventColor = "#5ae8f4";
-            eventLabel = "ПРИ";
+            eventLabel = "при";
           } else if (e.type === "REBOUND" || e.type === "REBOUND_OFF" || e.type === "REBOUND_DEF") {
             eventColor = "#b07af4";
-            eventLabel = "РЕБ";
+            eventLabel = "подб";
           } else if (e.type === "BLOCK") {
             eventColor = "#f4cc5a";
-            eventLabel = "БЛК";
+            eventLabel = "блк";
           } else if (e.type === "TURNOVER") {
             eventColor = "#f47a7a";
-            eventLabel = "ВТР";
+            eventLabel = "втр";
           }
           return (
-            <span key={i} style={{ color: eventColor, whiteSpace: "nowrap", display: "flex", gap: 4, alignItems: "center" }}>
-              Q{e.quarter} {formatTime(timeLeft)} · <strong style={{ color: "#c8d8e8" }}>#{e.player?.number}</strong> {eventLabel}
-            </span>
+            <div
+              key={i}
+              style={{
+                fontSize: "10px",
+                color: eventColor,
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                fontFamily: "monospace"
+              }}
+            >
+              Q{e.quarter} {formatTime(timeLeft)} · <strong style={{ color: "#c8d8e8" }}>#{e.player?.number} {e.player?.lastName[0]}.</strong> {eventLabel}
+            </div>
           );
         })}
+        <div ref={logEndRef} />
       </div>
 
       {/* SHOOTING FOUL MODAL */}
