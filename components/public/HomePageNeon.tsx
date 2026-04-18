@@ -895,9 +895,9 @@ export default function HomePageNeon({ season, standings = [], players = [], ag 
   return (
     <div className="bg-black min-h-screen text-white overflow-hidden">
       <HeroSection />
-      <LiveSection />
       <RecentResultsSection />
       <StandingsSection />
+      <LiveSection />
       <HonorBoardSection />
       <NewsSection />
 
