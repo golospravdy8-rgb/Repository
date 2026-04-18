@@ -2,8 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { getSettings } from "@/lib/site-settings";
 import { notFound } from "next/navigation";
 import LiveScoreTracker from "@/components/live-tracker/LiveScoreTracker";
-import GameInfoForm from "@/components/admin/GameInfoForm";
-import TeamInfoForm from "@/components/admin/TeamInfoForm";
+import FibaPanelWrapper from "@/components/admin/FibaPanelWrapper";
 
 export const dynamic = "force-dynamic";
 
@@ -43,40 +42,7 @@ export default async function AdminGamePage({ params }: { params: { id: string }
         <div style={{ flex: 1, minWidth: 0 }}>
           <LiveScoreTracker game={game} btnBlue={btnBlue} btnOrange={btnOrange} btnNavy={btnNavy} btnRed={btnRed} />
         </div>
-        <div style={{ width: "400px", overflow: "auto", borderLeft: "1px solid #e5e7eb", padding: "16px", backgroundColor: "#f9fafb" }}>
-          <div className="space-y-6">
-            <GameInfoForm
-              gameId={game.id}
-              initialData={{
-                commissioner: game.commissioner,
-                referee1: game.referee1,
-                referee2: game.referee2,
-                referee3: game.referee3,
-                venue: game.venue,
-                round: game.round,
-              }}
-            />
-            <div className="border-t pt-4">
-              <h2 className="text-sm font-bold mb-4">Тренери команд</h2>
-              <TeamInfoForm
-                teamId={game.homeTeam.id}
-                teamName={game.homeTeam.name}
-                initialData={{
-                  coachName: game.homeTeam.coachName,
-                  assistantCoach: game.homeTeam.assistantCoach,
-                }}
-              />
-              <TeamInfoForm
-                teamId={game.awayTeam.id}
-                teamName={game.awayTeam.name}
-                initialData={{
-                  coachName: game.awayTeam.coachName,
-                  assistantCoach: game.awayTeam.assistantCoach,
-                }}
-              />
-            </div>
-          </div>
-        </div>
+        <FibaPanelWrapper game={game} />
       </div>
     </div>
   );

@@ -13,9 +13,10 @@ interface GameInfoFormProps {
     venue?: string | null;
     round?: string | null;
   };
+  hideCloseButton?: boolean;
 }
 
-export default function GameInfoForm({ gameId, initialData }: GameInfoFormProps) {
+export default function GameInfoForm({ gameId, initialData, hideCloseButton }: GameInfoFormProps) {
   const [showPanel, setShowPanel] = useState(true);
   const [formData, setFormData] = useState({
     commissioner: initialData.commissioner || "",
@@ -48,7 +49,7 @@ export default function GameInfoForm({ gameId, initialData }: GameInfoFormProps)
     }
   };
 
-  if (!showPanel) {
+  if (!showPanel && !hideCloseButton) {
     return (
       <button
         onClick={() => setShowPanel(true)}
@@ -59,30 +60,36 @@ export default function GameInfoForm({ gameId, initialData }: GameInfoFormProps)
     );
   }
 
+  if (hideCloseButton && !showPanel) {
+    return null;
+  }
+
   return (
     <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow p-6 mb-6" style={{ position: "relative" }}>
-      <button
-        type="button"
-        onClick={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          setShowPanel(false);
-        }}
-        style={{
-          position: "absolute",
-          top: 8,
-          right: 8,
-          background: "none",
-          border: "none",
-          fontSize: 20,
-          cursor: "pointer",
-          color: "#666",
-          lineHeight: 1,
-          padding: "2px 6px"
-        }}
-      >
-        ×
-      </button>
+      {!hideCloseButton && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setShowPanel(false);
+          }}
+          style={{
+            position: "absolute",
+            top: 8,
+            right: 8,
+            background: "none",
+            border: "none",
+            fontSize: 20,
+            cursor: "pointer",
+            color: "#666",
+            lineHeight: 1,
+            padding: "2px 6px"
+          }}
+        >
+          ×
+        </button>
+      )}
       <h2 className="text-lg font-bold mb-4">Налаштування гри (FIBA протокол)</h2>
 
       {message && (

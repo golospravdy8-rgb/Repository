@@ -10,9 +10,10 @@ interface TeamInfoFormProps {
     coachName?: string | null;
     assistantCoach?: string | null;
   };
+  hideCloseButton?: boolean;
 }
 
-export default function TeamInfoForm({ teamId, teamName, initialData }: TeamInfoFormProps) {
+export default function TeamInfoForm({ teamId, teamName, initialData, hideCloseButton }: TeamInfoFormProps) {
   const [showPanel, setShowPanel] = useState(true);
   const [formData, setFormData] = useState({
     coachName: initialData.coachName || "",
@@ -41,7 +42,7 @@ export default function TeamInfoForm({ teamId, teamName, initialData }: TeamInfo
     }
   };
 
-  if (!showPanel) {
+  if (!showPanel && !hideCloseButton) {
     return (
       <button
         onClick={() => setShowPanel(true)}
@@ -52,30 +53,36 @@ export default function TeamInfoForm({ teamId, teamName, initialData }: TeamInfo
     );
   }
 
+  if (hideCloseButton && !showPanel) {
+    return null;
+  }
+
   return (
     <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow p-6 mb-6" style={{ position: "relative" }}>
-      <button
-        type="button"
-        onClick={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          setShowPanel(false);
-        }}
-        style={{
-          position: "absolute",
-          top: 8,
-          right: 8,
-          background: "none",
-          border: "none",
-          fontSize: 20,
-          cursor: "pointer",
-          color: "#666",
-          lineHeight: 1,
-          padding: "2px 6px"
-        }}
-      >
-        ×
-      </button>
+      {!hideCloseButton && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setShowPanel(false);
+          }}
+          style={{
+            position: "absolute",
+            top: 8,
+            right: 8,
+            background: "none",
+            border: "none",
+            fontSize: 20,
+            cursor: "pointer",
+            color: "#666",
+            lineHeight: 1,
+            padding: "2px 6px"
+          }}
+        >
+          ×
+        </button>
+      )}
       <h3 className="text-base font-bold mb-4">{teamName}</h3>
 
       {message && (
