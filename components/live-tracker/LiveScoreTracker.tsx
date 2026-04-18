@@ -77,7 +77,7 @@ function RosterPanel({ players, teamId, team, onCourtIds, selectedId, onSelect, 
               display: "flex",
               alignItems: "center",
               gap: "3px",
-              padding: "2px 4px",
+              padding: "4px 8px",
               borderRadius: "1px",
               cursor: "pointer",
               background: selectedId === p.id ? (isHome ? "#163a5c" : "#fed7aa") : "transparent",
@@ -87,15 +87,14 @@ function RosterPanel({ players, teamId, team, onCourtIds, selectedId, onSelect, 
               fontSize: "10px",
               textAlign: "left",
               color: isHome ? (selectedId === p.id ? "#5ab3f4" : "#c8d8e8") : (selectedId === p.id ? "#92400e" : "#374151"),
-              height: "24px",
-              lineHeight: "20px",
+              minHeight: "32px",
               margin: 0,
               overflow: "hidden"
             }}
           >
             <span style={{ width: "4px", height: "4px", borderRadius: "50%", background: isHome ? "#2ecc71" : "#059669", flexShrink: 0 }} />
-            <span style={{ minWidth: "18px", fontWeight: "bold", fontSize: "26px" }}>#{p.number}</span>
-            <span style={{ fontSize: "13px" }}>
+            <span style={{ minWidth: "18px", fontWeight: 700, fontSize: "16px" }}>#{p.number}</span>
+            <span style={{ fontSize: "15px" }}>
               {p.lastName} {p.firstName[0]}.
             </span>
           </button>
@@ -122,7 +121,7 @@ function RosterPanel({ players, teamId, team, onCourtIds, selectedId, onSelect, 
               display: "flex",
               alignItems: "center",
               gap: "3px",
-              padding: "2px 4px",
+              padding: "4px 8px",
               borderRadius: "1px",
               cursor: "pointer",
               background: selectedId === p.id ? (isHome ? "#163a5c" : "#fed7aa") : "transparent",
@@ -131,15 +130,14 @@ function RosterPanel({ players, teamId, team, onCourtIds, selectedId, onSelect, 
               fontSize: "10px",
               textAlign: "left",
               color: isHome ? (selectedId === p.id ? "#5ab3f4" : "#c8d8e8") : (selectedId === p.id ? "#92400e" : "#6b7280"),
-              height: "24px",
-              lineHeight: "20px",
+              minHeight: "32px",
               margin: 0,
               overflow: "hidden"
             }}
           >
             <span style={{ width: "4px", height: "4px", borderRadius: "50%", background: isHome ? "#2a4060" : "#d1d5db", flexShrink: 0 }} />
-            <span style={{ minWidth: "18px", fontWeight: "bold", fontSize: "26px" }}>#{p.number}</span>
-            <span style={{ fontSize: "13px" }}>
+            <span style={{ minWidth: "18px", fontWeight: 700, fontSize: "16px" }}>#{p.number}</span>
+            <span style={{ fontSize: "15px" }}>
               {p.lastName} {p.firstName[0]}.
             </span>
           </button>
@@ -274,7 +272,7 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
       }}>
         {/* Home Team */}
         <div>
-          <div style={{ fontSize: 12, fontWeight: "500", color: "#fff" }}>{game.homeTeam.name}</div>
+          <div style={{ fontSize: 18, fontWeight: 700, color: "#ffffff" }}>{game.homeTeam.name}</div>
           <div style={{ display: "flex", gap: 8, marginTop: 2 }}>
             <span style={{ fontSize: 13, color: "#6b8caa" }}>
               ФОЛ: <b style={{ color: "#e8a030" }}>{homeFouls}</b>/4
@@ -300,7 +298,7 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
 
         {/* Away Team */}
         <div style={{ textAlign: "right" }}>
-          <div style={{ fontSize: 12, fontWeight: "500", color: "#fff" }}>{game.awayTeam.name}</div>
+          <div style={{ fontSize: 18, fontWeight: 700, color: "#ffffff" }}>{game.awayTeam.name}</div>
           <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 2 }}>
             <span style={{ fontSize: 13, color: "#6b8caa" }}>ФОЛ: 0/4</span>
             <span style={{ fontSize: 13, color: "#6b8caa" }}>ТО: 2/2</span>
@@ -642,7 +640,7 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
               }}
             >
               <span style={{ color: "#4a7fa5" }}>Q{e.quarter} {formatTime(timeLeft)}</span>
-              <span style={{ color: "#c8d8e8" }}>#{e.player?.number} {e.player?.lastName[0]}.</span>
+              <span style={{ color: "#c8d8e8" }}>#{e.player?.number} {e.player?.lastName} {e.player?.firstName?.[0] ?? ""}.</span>
               <span style={{ color: eventColor, fontWeight: "700" }}>{eventLabel}</span>
             </div>
           );
