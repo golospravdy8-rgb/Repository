@@ -17,8 +17,8 @@ export default async function HomePage({ searchParams }: { searchParams: { ag?: 
   const ag = searchParams.ag === "older" ? "older" : "younger";
   const season = await prisma.season.findFirst({ where: { isActive: true, ageGroup: ag } }).catch(() => null);
 
-  // Load games from backup (up to 12 for carousel)
-  const backupGames = await getBackupGames(ag, 12);
+  // Load games from backup (up to 16 for carousel)
+  const backupGames = await getBackupGames(ag, 16);
   const enrichedBackupGames = await enrichGamesWithTeams(backupGames);
 
   const [settings, games, news] = await Promise.all([
