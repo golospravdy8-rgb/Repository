@@ -399,3 +399,169 @@ export async function recalcStandingsForSeason(seasonId: number) {
     });
   }
 }
+
+// ════════════════════════════════════════════════════════════════════════════════
+// NEW ACTIONS FOR PROTOCOL ENHANCEMENT
+// ════════════════════════════════════════════════════════════════════════════════
+
+/** Add substitution event and update on-court players */
+export async function addSubstitution(
+  gameId: number,
+  teamId: number,
+  playerOutId: number,
+  playerInId: number,
+  quarter: number,
+  gameTime: string
+) {
+  await requireAuth();
+
+  const game = await prisma.game.findUnique({ where: { id: gameId } });
+  if (!game || game.status !== "LIVE") throw new Error("Game not live");
+
+  await prisma.$transaction([
+    // Log substitution events
+    prisma.gameSubstitution.create({
+      data: { gameId, teamId, playerId: playerOutId, action: "out", quarter, gameTime },
+    }),
+    prisma.gameSubstitution.create({
+      data: { gameId, teamId, playerId: playerInId, action: "in", quarter, gameTime },
+    }),
+    // Update on-court status
+    prisma.gameOnCourt.update({
+      where: { gameId_playerId: { gameId, playerId: playerOutId } },
+      data: { onCourt: false },
+    }),
+    prisma.gameOnCourt.upsert({
+      where: { gameId_playerId: { gameId, playerId: playerInId } },
+      update: { onCourt: true },
+      create: { gameId, playerId: playerInId, teamId, onCourt: true },
+    }),
+  ]);
+
+  revalidatePath(`/admin/games/${gameId}`);
+}
+
+/** Update on-court player tracking */
+export async function updateOnCourt(gameId: number, playerId: number, teamId: number, onCourt: boolean) {
+  await requireAuth();
+
+  await prisma.gameOnCourt.upsert({
+    where: { gameId_playerId: { gameId, playerId } },
+    update: { onCourt },
+    create: { gameId, playerId, teamId, onCourt },
+  });
+
+  revalidatePath(`/admin/games/${gameId}`);
+}
+
+/** Enhanced scoring with support for special event types (fast break, second chance, off turnover) */
+export async function addScoreWithType(
+  gameId: number,
+  teamId: number,
+  playerId: number,
+  points: 1 | 2 | 3,
+  eventSubtype: "normal" | "fastbreak" | "second_chance" | "off_turnover" = "normal"
+): Promise<{ newAchievements: string[] }> {
+  await requireAuth();
+
+  const game = await prisma.game.findUnique({ where: { id: gameId } });
+  if (!game || game.status !== "LIVE") throw new Error("Game not live");
+
+  const isHome = game.homeTeamId === teamId;
+
+  // Prepare game update data with team stat tracking
+  const gameUpdateData: any = {
+    [isHome ? "homeScore" : "awayScore"]: { increment: points },
+  };
+
+  // Track advanced stats based on subtype
+  if (eventSubtype === "fastbreak") {
+    gameUpdateData[isHome ? "ptsFastBreak" : "awayPtsFastBreak"] = { increment: points };
+  } else if (eventSubtype === "second_chance") {
+    gameUpdateData[isHome ? "ptsSecondChance" : "awayPtsSecondChance"] = { increment: points };
+  } else if (eventSubtype === "off_turnover") {
+    gameUpdateData[isHome ? "ptsOffTurnovers" : "awayPtsOffTurnovers"] = { increment: points };
+  }
+
+  // Get all relevant box scores in one query to reduce async operations
+  const allBoxScores = await prisma.boxScore.findMany({
+    where: { gameId },
+  });
+
+  const boxScoreMap = new Map(allBoxScores.map((bs) => [`${bs.playerId}`, bs.id]));
+
+  // Update +/- for all on-court players
+  const onCourtPlayers = await prisma.gameOnCourt.findMany({
+    where: { gameId, teamId, onCourt: true },
+  });
+
+  const updateOnCourtOps = onCourtPlayers.map((ocp) =>
+    prisma.boxScore.upsert({
+      where: { id: boxScoreMap.get(`${ocp.playerId}`) ?? 0 },
+      update: { plusMinus: { increment: points } },
+      create: { gameId, playerId: ocp.playerId, teamId, plusMinus: points },
+    })
+  );
+
+  // Update opponent's on-court players with negative +/-
+  const opponentTeamId = isHome ? game.awayTeamId : game.homeTeamId;
+  const opponentOnCourt = await prisma.gameOnCourt.findMany({
+    where: { gameId, teamId: opponentTeamId, onCourt: true },
+  });
+
+  const updateOpponentOps = opponentOnCourt.map((ocp) =>
+    prisma.boxScore.upsert({
+      where: { id: boxScoreMap.get(`${ocp.playerId}`) ?? 0 },
+      update: { plusMinus: { decrement: points } },
+      create: { gameId, playerId: ocp.playerId, teamId: opponentTeamId, plusMinus: -points },
+    })
+  );
+
+  const scoringPlayerBoxScoreId = boxScoreMap.get(`${playerId}`) ?? 0;
+
+  await prisma.$transaction([
+    prisma.game.update({ where: { id: gameId }, data: gameUpdateData }),
+    prisma.gameEvent.create({
+      data: { gameId, teamId, playerId, type: "POINTS", points, quarter: game.quarter, eventSubtype },
+    }),
+    prisma.boxScore.upsert({
+      where: { id: scoringPlayerBoxScoreId },
+      update: { points: { increment: points } },
+      create: { gameId, playerId, teamId, points },
+    }),
+    ...updateOnCourtOps,
+    ...updateOpponentOps,
+  ]);
+
+  revalidatePath(`/game/${gameId}`);
+  revalidatePath(`/admin/games/${gameId}`);
+
+  return { newAchievements: [] };
+}
+
+/** Calculate efficiency score for a player (non-exported utility) */
+function calculateEfficiency(boxScore: any): number {
+  const positive = (boxScore.points || 0) + (boxScore.rebounds || 0) + (boxScore.assists || 0) +
+    (boxScore.steals || 0) + (boxScore.blocks || 0);
+  const negative = (boxScore.missedFg2 || 0) + (boxScore.missedFg3 || 0) + (boxScore.missedFt || 0) +
+    (boxScore.turnovers || 0);
+  return positive - negative;
+}
+
+/** Recalculate efficiency for all players in a game and update their box scores */
+export async function recalcGameEfficiency(gameId: number) {
+  await requireAuth();
+
+  const boxScores = await prisma.boxScore.findMany({ where: { gameId } });
+
+  for (const bs of boxScores) {
+    const efficiency = calculateEfficiency(bs);
+    await prisma.boxScore.update({
+      where: { id: bs.id },
+      data: { efficiency },
+    });
+  }
+
+  revalidatePath(`/admin/games/${gameId}`);
+  revalidatePath(`/game/${gameId}`);
+}

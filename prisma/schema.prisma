@@ -19,86 +19,147 @@ model Season {
 }
 
 model Team {
-  id        Int        @id @default(autoincrement())
-  name      String
-  shortName String
-  logoUrl   String?
-  seasonId  Int
-  ageGroup  String     @default("younger")
-  boxScores BoxScore[]
-  awayGames Game[]     @relation("AwayTeam")
-  homeGames Game[]     @relation("HomeTeam")
-  players   Player[]
-  standing  Standing?
-  season    Season     @relation(fields: [seasonId], references: [id])
+  id             Int                   @id @default(autoincrement())
+  name           String
+  shortName      String
+  logoUrl        String?
+  seasonId       Int
+  ageGroup       String                @default("younger")
+  boxScores      BoxScore[]
+  awayGames      Game[]                @relation("AwayTeam")
+  homeGames      Game[]                @relation("HomeTeam")
+  players        Player[]
+  substitutions  GameSubstitution[]
+  onCourt        GameOnCourt[]
+  standing       Standing?
+  season         Season                @relation(fields: [seasonId], references: [id])
 }
 
 model Player {
-  id              Int                 @id @default(autoincrement())
-  number          Int
-  firstName       String
-  lastName        String
-  position        String?
-  teamId          Int
-  photoUrl        String?
-  boxScores       BoxScore[]
-  gameEvents      GameEvent[]
-  team            Team                @relation(fields: [teamId], references: [id])
-  achievements    PlayerAchievement[]
+  id               Int                   @id @default(autoincrement())
+  number           Int
+  firstName        String
+  lastName         String
+  position         String?
+  teamId           Int
+  photoUrl         String?
+  boxScores        BoxScore[]
+  gameEvents       GameEvent[]
+  substitutions    GameSubstitution[]
+  onCourt          GameOnCourt[]
+  team             Team                  @relation(fields: [teamId], references: [id])
+  achievements     PlayerAchievement[]
 }
 
 model Game {
-  id          Int         @id @default(autoincrement())
-  seasonId    Int
-  homeTeamId  Int
-  awayTeamId  Int
-  scheduledAt DateTime
-  status      String      @default("SCHEDULED")
-  quarter     Int         @default(1)
-  homeScore   Int         @default(0)
-  awayScore   Int         @default(0)
-  boxScores   BoxScore[]
-  awayTeam    Team        @relation("AwayTeam", fields: [awayTeamId], references: [id])
-  homeTeam    Team        @relation("HomeTeam", fields: [homeTeamId], references: [id])
-  season      Season      @relation(fields: [seasonId], references: [id])
-  events      GameEvent[]
+  id                    Int                   @id @default(autoincrement())
+  seasonId              Int
+  homeTeamId            Int
+  awayTeamId            Int
+  scheduledAt           DateTime
+  status                String                @default("SCHEDULED")
+  quarter               Int                   @default(1)
+  homeScore             Int                   @default(0)
+  awayScore             Int                   @default(0)
+
+  // Home team advanced stats
+  ptsOffTurnovers       Int                   @default(0)
+  ptsFastBreak          Int                   @default(0)
+  ptsSecondChance       Int                   @default(0)
+  ptsAfterSubstitutions Int                   @default(0)
+  biggestLead           Int                   @default(0)
+  biggestRun            Int                   @default(0)
+
+  // Away team advanced stats
+  awayPtsOffTurnovers   Int                   @default(0)
+  awayPtsFastBreak      Int                   @default(0)
+  awayPtsSecondChance   Int                   @default(0)
+  awayPtsAfterSubstitutions Int                @default(0)
+  awayBiggestLead       Int                   @default(0)
+  awayBiggestRun        Int                   @default(0)
+
+  boxScores             BoxScore[]
+  awayTeam              Team                  @relation("AwayTeam", fields: [awayTeamId], references: [id])
+  homeTeam              Team                  @relation("HomeTeam", fields: [homeTeamId], references: [id])
+  season                Season                @relation(fields: [seasonId], references: [id])
+  events                GameEvent[]
+  substitutions         GameSubstitution[]
+  onCourt               GameOnCourt[]
 }
 
 model GameEvent {
-  id        Int      @id @default(autoincrement())
-  gameId    Int
-  playerId  Int?
-  teamId    Int
-  type      String
-  points    Int?
-  quarter   Int
-  createdAt DateTime @default(now())
-  game      Game     @relation(fields: [gameId], references: [id])
-  player    Player?  @relation(fields: [playerId], references: [id])
+  id            Int      @id @default(autoincrement())
+  gameId        Int
+  playerId      Int?
+  teamId        Int
+  type          String
+  points        Int?
+  quarter       Int
+  eventSubtype  String?  // 'normal', 'fastbreak', 'second_chance', 'off_turnover'
+  createdAt     DateTime @default(now())
+  game          Game     @relation(fields: [gameId], references: [id])
+  player        Player?  @relation(fields: [playerId], references: [id])
+}
+
+model GameSubstitution {
+  id         Int      @id @default(autoincrement())
+  gameId     Int
+  playerId   Int
+  teamId     Int
+  action     String   // 'in' or 'out'
+  quarter    Int?
+  gameTime   String?  // e.g., "5:23"
+  createdAt  DateTime @default(now())
+  game       Game     @relation(fields: [gameId], references: [id])
+  player     Player   @relation(fields: [playerId], references: [id])
+  team       Team     @relation(fields: [teamId], references: [id])
+}
+
+model GameOnCourt {
+  gameId   Int
+  playerId Int
+  teamId   Int
+  onCourt  Boolean  @default(false)
+  game     Game     @relation(fields: [gameId], references: [id])
+  player   Player   @relation(fields: [playerId], references: [id])
+  team     Team     @relation(fields: [teamId], references: [id])
+
+  @@id([gameId, playerId])
 }
 
 model BoxScore {
-  id          Int     @id @default(autoincrement())
-  gameId      Int
-  playerId    Int
-  teamId      Int
-  points      Int     @default(0)
-  rebounds    Int     @default(0)
-  assists     Int     @default(0)
-  steals      Int     @default(0)
-  blocks      Int     @default(0)
-  fouls       Int     @default(0)
-  minutes     Int     @default(0)
-  isStarter   Boolean @default(false)
-  missedFg2   Int     @default(0)
-  missedFg3   Int     @default(0)
-  missedFt    Int     @default(0)
-  reboundsDef Int     @default(0)
-  reboundsOff Int     @default(0)
-  turnovers   Int     @default(0)
-  game        Game    @relation(fields: [gameId], references: [id])
-  player      Player  @relation(fields: [playerId], references: [id])
-  team        Team    @relation(fields: [teamId], references: [id])
+  id               Int     @id @default(autoincrement())
+  gameId           Int
+  playerId         Int
+  teamId           Int
+  points           Int     @default(0)
+  rebounds         Int     @default(0)
+  assists          Int     @default(0)
+  steals           Int     @default(0)
+  blocks           Int     @default(0)
+  fouls            Int     @default(0)
+  minutes          Int     @default(0)
+  minutesPlayed    String? // Format: "MM:SS"
+  isStarter        Boolean @default(false)
+  fgMade           Int     @default(0)
+  fgAttempted      Int     @default(0)
+  fg2Made          Int     @default(0)
+  fg2Attempted     Int     @default(0)
+  fg3Made          Int     @default(0)
+  fg3Attempted     Int     @default(0)
+  ftMade           Int     @default(0)
+  ftAttempted      Int     @default(0)
+  missedFg2        Int     @default(0)
+  missedFg3        Int     @default(0)
+  missedFt         Int     @default(0)
+  reboundsDef      Int     @default(0)
+  reboundsOff      Int     @default(0)
+  turnovers        Int     @default(0)
+  plusMinus        Int     @default(0)
+  efficiency       Float   @default(0.0)
+  game             Game    @relation(fields: [gameId], references: [id])
+  player           Player  @relation(fields: [playerId], references: [id])
+  team             Team    @relation(fields: [teamId], references: [id])
 }
 
 model Standing {
