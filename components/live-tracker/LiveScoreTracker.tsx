@@ -1,8 +1,7 @@
 "use client";
 
 import { useState, useTransition, useEffect, useRef, useCallback } from "react";
-import { nextQuarter, endGame, startGame, undoLastEvent, addAssist, addSteal, addReboundOff, addReboundDef, addBlock, addTurnover, addScore, addMissFt, addMissFg2, addMissFg3, addFoul, addFoulTechnical, addFoulUnsportsmanlike, addScoreWithType, updateOnCourt, addSubstitution } from "@/actions/game";
-import ActionLog from "./ActionLog";
+import { nextQuarter, endGame, startGame, undoLastEvent, addAssist, addSteal, addReboundOff, addReboundDef, addBlock, addTurnover, addMissFt, addFoul, addFoulTechnical, addFoulUnsportsmanlike, addScoreWithType, addSubstitution } from "@/actions/game";
 import type { Game, Team, Player, GameEvent } from "@prisma/client";
 
 type GameWithAll = Game & {
@@ -13,7 +12,7 @@ type GameWithAll = Game & {
   })[];
 };
 
-const QUARTER_DURATION = 10 * 60; // 600 seconds
+const QUARTER_DURATION = 10 * 60;
 
 function formatTime(seconds: number) {
   const m = Math.floor(seconds / 60);
@@ -21,10 +20,127 @@ function formatTime(seconds: number) {
   return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
-function truncateName(firstName: string, lastName: string): string {
-  const first = firstName.length > 10 ? firstName.substring(0, 10) : firstName;
-  const last = lastName.length > 10 ? lastName.substring(0, 10) : lastName;
-  return `${first} ${last}`;
+function RosterPanel({ players, teamId, team, onCourtIds, selectedId, onSelect, isHome }: {
+  players: Player[];
+  teamId: number;
+  team: Team;
+  onCourtIds: Set<number>;
+  selectedId: number | null;
+  onSelect: (id: number) => void;
+  isHome: boolean;
+}) {
+  const onCourt = players.filter(p => onCourtIds.has(p.id));
+  const bench = players.filter(p => !onCourtIds.has(p.id));
+
+  return (
+    <div style={{
+      padding: "6px",
+      background: isHome ? "#0d1520" : "#f3f4f6",
+      fontSize: "11px",
+      overflow: "hidden",
+      display: "flex",
+      flexDirection: "column",
+      minHeight: 0
+    }}>
+      <div style={{
+        fontSize: "9px",
+        color: isHome ? "#3a6fa5" : "#4a7fa5",
+        textTransform: "uppercase",
+        letterSpacing: ".4px",
+        paddingBottom: "3px",
+        borderBottom: `1px solid ${isHome ? "#1a2e40" : "#e5e7eb"}`,
+        marginBottom: "3px",
+        whiteSpace: "nowrap"
+      }}>
+        {team.name}
+      </div>
+
+      <div style={{ overflow: "hidden", flex: 1, display: "flex", flexDirection: "column", gap: "2px" }}>
+        {/* На паркеті */}
+        <div style={{
+          fontSize: "8px",
+          color: isHome ? "#2ecc71" : "#059669",
+          background: isHome ? "#0d2a15" : "#d1fae5",
+          borderRadius: "3px",
+          padding: "1px 3px",
+          fontWeight: "bold"
+        }}>
+          ● На паркеті ({onCourt.length})
+        </div>
+        <div style={{ overflow: "hidden", flex: onCourt.length > 0 ? 1 : "auto" }}>
+          {onCourt.map(p => (
+            <button
+              key={p.id}
+              onClick={() => onSelect(p.id)}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "4px",
+                padding: "2px 3px",
+                borderRadius: "3px",
+                cursor: "pointer",
+                background: selectedId === p.id ? (isHome ? "#163a5c" : "#fed7aa") : "transparent",
+                transition: "background .1s",
+                width: "100%",
+                border: "none",
+                fontSize: "10px",
+                textAlign: "left",
+                color: isHome ? (selectedId === p.id ? "#5ab3f4" : "#c8d8e8") : (selectedId === p.id ? "#92400e" : "#374151"),
+                minHeight: "18px"
+              }}
+            >
+              <span style={{ width: "5px", height: "5px", borderRadius: "50%", background: isHome ? "#2ecc71" : "#059669", flexShrink: 0 }} />
+              <span style={{ minWidth: "18px", fontWeight: "bold" }}>#{p.number}</span>
+              <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "60px" }}>
+                {p.lastName} {p.firstName[0]}.
+              </span>
+            </button>
+          ))}
+        </div>
+
+        {/* Лавка */}
+        <div style={{
+          fontSize: "8px",
+          color: isHome ? "#4a7fa5" : "#6b7280",
+          borderRadius: "3px",
+          padding: "1px 3px",
+          fontWeight: "bold",
+          marginTop: "2px"
+        }}>
+          ○ Лавка ({bench.length})
+        </div>
+        <div style={{ overflow: "hidden", flex: 1 }}>
+          {bench.slice(0, 8).map(p => (
+            <button
+              key={p.id}
+              onClick={() => onSelect(p.id)}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "4px",
+                padding: "2px 3px",
+                borderRadius: "3px",
+                cursor: "pointer",
+                background: selectedId === p.id ? (isHome ? "#163a5c" : "#fed7aa") : "transparent",
+                width: "100%",
+                border: "none",
+                fontSize: "10px",
+                textAlign: "left",
+                color: isHome ? (selectedId === p.id ? "#5ab3f4" : "#c8d8e8") : (selectedId === p.id ? "#92400e" : "#6b7280"),
+                minHeight: "18px"
+              }}
+            >
+              <span style={{ width: "5px", height: "5px", borderRadius: "50%", background: isHome ? "#2a4060" : "#d1d5db", flexShrink: 0 }} />
+              <span style={{ minWidth: "18px", fontWeight: "bold" }}>#{p.number}</span>
+              <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "60px" }}>
+                {p.lastName} {p.firstName[0]}.
+              </span>
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, btnRed }: {
@@ -34,56 +150,31 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
   btnNavy?: string;
   btnRed?: string;
 }) {
-  // Timer state
   const [timeLeft, setTimeLeft] = useState(QUARTER_DURATION);
   const [timerRunning, setTimerRunning] = useState(false);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const quarterRef = useRef(game.quarter);
-
-  // Player selection
   const [selectedPlayerId, setSelectedPlayerId] = useState<number | null>(null);
-
-  // Event type selector
   const [eventType, setEventType] = useState<"normal" | "fastbreak" | "second_chance" | "off_turnover">("normal");
-
-  // Substitution modal state
   const [showSubModal, setShowSubModal] = useState(false);
   const [subPlayerOut, setSubPlayerOut] = useState<number | null>(null);
   const [subPlayerIn, setSubPlayerIn] = useState<number | null>(null);
-
-  // Fouls and timeouts tracking
-  const [homeFouls, setHomeFouls] = useState<number>(0);
-  const [awayFouls, setAwayFouls] = useState<number>(0);
-  const [homeTimeouts, setHomeTimeouts] = useState<number>(2);
-  const [awayTimeouts, setAwayTimeouts] = useState<number>(2);
-
-  // On-court players tracking
+  const [homeFouls, setHomeFouls] = useState(0);
+  const [homeTimeouts, setHomeTimeouts] = useState(2);
   const [onCourtHome, setOnCourtHome] = useState<Set<number>>(new Set());
   const [onCourtAway, setOnCourtAway] = useState<Set<number>>(new Set());
-
-  // Pending для server actions
   const [actionPending, setActionPending] = useState(false);
   const [pending, startTransition] = useTransition();
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const quarterRef = useRef(game.quarter);
 
-  // Initialize on-court players from GameOnCourt data on load
   useEffect(() => {
-    // This would come from the database, but for now we'll set default starters
     if (game.status === "SCHEDULED" && onCourtHome.size === 0) {
-      const homeStarters = game.homeTeam.players.slice(0, 5).map(p => p.id);
-      const awayStarters = game.awayTeam.players.slice(0, 5).map(p => p.id);
-      setOnCourtHome(new Set(homeStarters));
-      setOnCourtAway(new Set(awayStarters));
-      // Initialize on-court status in DB
-      homeStarters.forEach(playerId => {
-        startTransition(() => updateOnCourt(game.id, playerId, game.homeTeamId, true));
-      });
-      awayStarters.forEach(playerId => {
-        startTransition(() => updateOnCourt(game.id, playerId, game.awayTeamId, true));
-      });
+      const homeStarters = new Set(game.homeTeam.players.slice(0, 5).map(p => p.id));
+      const awayStarters = new Set(game.awayTeam.players.slice(0, 5).map(p => p.id));
+      setOnCourtHome(homeStarters);
+      setOnCourtAway(awayStarters);
     }
-  }, [game.id, game.status, game.homeTeamId, game.awayTeamId, game.homeTeam.players, game.awayTeam.players, onCourtHome.size, startTransition]);
+  }, [game.id, game.status, game.homeTeam.players, game.awayTeam.players, onCourtHome.size]);
 
-  // Reset timer when quarter changes
   useEffect(() => {
     if (quarterRef.current !== game.quarter) {
       quarterRef.current = game.quarter;
@@ -123,562 +214,717 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
   const isLive = game.status === "LIVE";
   const isScheduled = game.status === "SCHEDULED";
 
-  const handleNextQuarter = () => {
-    stopTimer();
-    setTimeLeft(QUARTER_DURATION);
-    startTransition(() => nextQuarter(game.id));
-  };
-
-  // Helper функція для запуску дій
   const runAction = async (action: () => Promise<any>) => {
     setActionPending(true);
     try {
       await action();
-      setSelectedPlayerId(null); // Скидаємо гравця після дії
+      setSelectedPlayerId(null);
+      setEventType("normal");
     } finally {
       setActionPending(false);
     }
   };
 
-  const disabled = !selectedPlayerId || actionPending || pending;
-
-  // Colors
-  const homeColor = btnNavy || "#1a2744";
-  const accentColor = btnOrange || "#f97316";
-  const blueBtn = btnBlue || "#3b82f6";
-  const redBtn = btnRed || "#ef4444";
-
-  // Players sorted by number
   const homePlayers = [...game.homeTeam.players].sort((a, b) => a.number - b.number);
   const awayPlayers = [...game.awayTeam.players].sort((a, b) => a.number - b.number);
 
-  // Get selected player details
-  const selectedPlayer = selectedPlayerId
-    ? [...homePlayers, ...awayPlayers].find((p) => p.id === selectedPlayerId)
-    : null;
-  const selectedTeamId = selectedPlayer
-    ? selectedPlayer.teamId
-    : game.homeTeamId;
+  const selectedPlayer = selectedPlayerId ? [...homePlayers, ...awayPlayers].find((p) => p.id === selectedPlayerId) : null;
+  const selectedTeamId = selectedPlayer ? selectedPlayer.teamId : game.homeTeamId;
+  const isHomeTeam = selectedTeamId === game.homeTeamId;
+
+  const disabled = !selectedPlayerId || actionPending || pending;
+
+  const recentEvents = game.events.slice(0, 10);
 
   return (
-    <div className="flex flex-col bg-white overflow-hidden" style={{ height: "100vh", marginTop: 0, paddingTop: 0 }}>
-      {/* ══════════════════════════════════════════════════════════════════════
-          HEADER (LIVE - Q1, teams, score, timer, controls) — FIXED HEIGHT, 0 MARGIN
-          ══════════════════════════════════════════════════════════════════════ */}
-      <div
-        className="flex-shrink-0 px-3 py-1 text-white flex flex-col gap-0.5"
-        style={{ backgroundColor: homeColor, margin: 0, padding: "0.25rem 0.75rem" }}
-      >
-        {/* Top row: Status, Teams, Score, Timer */}
-        <div className="flex items-center justify-between gap-2 text-xs">
-          {/* Status badge */}
-          <div className="font-bold text-xs whitespace-nowrap">
-            {isLive ? `🔴 LIVE — Q${game.quarter}` : isScheduled ? "⏱ ЗАПЛАНОВАНО" : "✓ ФІНАЛ"}
-          </div>
-
-          {/* Teams and Score */}
-          <div className="flex-1 flex items-center justify-center gap-2">
-            <div className="text-xs font-bold text-center flex-1 line-clamp-1">
-              {game.homeTeam.name}
-            </div>
-            <div className="text-lg font-black tabular-nums whitespace-nowrap">
-              {game.homeScore}:{game.awayScore}
-            </div>
-            <div className="text-xs font-bold text-center flex-1 line-clamp-1">
-              {game.awayTeam.name}
-            </div>
-          </div>
-
-          {/* Timer */}
-          <div className="font-mono text-base font-black text-center w-12 whitespace-nowrap">
-            {formatTime(timeLeft)}
+    <div style={{
+      display: "flex",
+      flexDirection: "column",
+      height: "100vh",
+      background: "#f9fafb",
+      overflow: "hidden",
+      margin: 0,
+      padding: 0
+    }}>
+      {/* HEADER */}
+      <header style={{
+        display: "grid",
+        gridTemplateColumns: "1fr auto 1fr",
+        alignItems: "center",
+        padding: "6px 12px",
+        background: "#1a2737",
+        gap: 8,
+        borderBottom: "1px solid #2a3e52",
+        flexShrink: 0
+      }}>
+        {/* Home Team */}
+        <div>
+          <div style={{ fontSize: 12, fontWeight: "500", color: "#fff" }}>{game.homeTeam.name}</div>
+          <div style={{ display: "flex", gap: 8, marginTop: 2 }}>
+            <span style={{ fontSize: 10, color: "#6b8caa" }}>
+              ФОЛ: <b style={{ color: "#e8a030" }}>{homeFouls}</b>/4
+            </span>
+            <span style={{ fontSize: 10, color: "#6b8caa" }}>
+              ТО: <b style={{ color: "#e8a030" }}>{homeTimeouts}</b>/2
+            </span>
           </div>
         </div>
 
-        {/* Bottom row: Buttons and Counters */}
-        <div className="flex items-center justify-between gap-1 flex-wrap">
-          <div className="flex items-center justify-center gap-1 flex-wrap flex-1">
-            {isScheduled ? (
+        {/* Score Center */}
+        <div style={{ textAlign: "center" }}>
+          <div style={{ fontSize: 20, fontWeight: "600", color: "#fff", lineHeight: 1 }}>
+            {game.homeScore} : {game.awayScore}
+          </div>
+          <div style={{ fontSize: 10, color: "#6b8caa", marginTop: 2 }}>
+            Q{game.quarter} · {formatTime(timeLeft)}
+          </div>
+        </div>
+
+        {/* Away Team */}
+        <div style={{ textAlign: "right" }}>
+          <div style={{ fontSize: 12, fontWeight: "500", color: "#fff" }}>{game.awayTeam.name}</div>
+          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 2 }}>
+            <span style={{ fontSize: 10, color: "#6b8caa" }}>ФОЛ: 0/4</span>
+            <span style={{ fontSize: 10, color: "#6b8caa" }}>ТО: 2/2</span>
+          </div>
+        </div>
+      </header>
+
+      {/* CONTROLS ROW */}
+      <div style={{
+        display: "flex",
+        gap: 8,
+        padding: "4px 12px",
+        background: "#0d1520",
+        borderBottom: "1px solid #1a2e40",
+        flexShrink: 0
+      }}>
+        {isScheduled ? (
+          <button
+            onClick={() => startTransition(() => startGame(game.id))}
+            style={{
+              border: "none",
+              borderRadius: 5,
+              padding: "4px 12px",
+              fontSize: 11,
+              fontWeight: "600",
+              cursor: "pointer",
+              background: "#10b981",
+              color: "#fff"
+            }}
+          >
+            ▶ Почати
+          </button>
+        ) : isLive ? (
+          <>
+            <button
+              onClick={timerRunning ? stopTimer : startTimer}
+              style={{
+                border: "none",
+                borderRadius: 5,
+                padding: "4px 12px",
+                fontSize: 11,
+                fontWeight: "600",
+                cursor: "pointer",
+                background: "#3a6fa5",
+                color: "#fff"
+              }}
+            >
+              {timerRunning ? "⏸ Пауза" : "▶ Старт"}
+            </button>
+            {game.quarter < 4 && (
               <button
-                onClick={() => startTransition(() => startGame(game.id))}
-                disabled={pending}
-                className="bg-green-500 hover:bg-green-600 text-white text-xs px-2 py-0.5 rounded-full font-bold transition-colors disabled:opacity-50"
+                onClick={() => {
+                  stopTimer();
+                  setTimeLeft(QUARTER_DURATION);
+                  startTransition(() => nextQuarter(game.id));
+                }}
+                style={{
+                  border: "none",
+                  borderRadius: 5,
+                  padding: "4px 12px",
+                  fontSize: 11,
+                  fontWeight: "600",
+                  cursor: "pointer",
+                  background: "#3a6fa5",
+                  color: "#fff"
+                }}
               >
-                ▶ Почати
+                → Наступна
               </button>
-            ) : isLive ? (
-              <>
-                <button
-                  onClick={timerRunning ? stopTimer : startTimer}
-                  className="bg-white/20 hover:bg-white/30 text-white text-xs px-2 py-0.5 rounded-full font-bold transition-colors"
-                >
-                  {timerRunning ? "⏸ Пауза" : "▶ Старт"}
-                </button>
-                {game.quarter < 4 && (
-                  <button
-                    onClick={handleNextQuarter}
-                    disabled={pending}
-                    className="bg-white/20 hover:bg-white/30 text-white text-xs px-2 py-0.5 rounded-full font-bold transition-colors disabled:opacity-50"
-                  >
-                    → Наст.
-                  </button>
-                )}
-                <button
-                  onClick={() => {
-                    if (confirm("Завершити матч?")) {
-                      stopTimer();
-                      startTransition(() => endGame(game.id));
-                    }
-                  }}
-                  disabled={pending}
-                  className="bg-red-500 hover:bg-red-600 text-white text-xs px-2 py-0.5 rounded-full font-bold transition-colors disabled:opacity-50"
-                >
-                  Завершити
-                </button>
-              </>
-            ) : null}
-          </div>
-
-          {/* Fouls and Timeouts Counters */}
-          {isLive && (
-            <div className="flex items-center gap-1.5 text-white text-xs font-bold">
-              <div className="flex items-center gap-0.5 bg-white/10 px-1.5 py-0.5 rounded-full">
-                <span>ФОЛ:</span>
-                <span>{homeFouls}</span>
-              </div>
-              <div className="flex items-center gap-0.5 bg-white/10 px-1.5 py-0.5 rounded-full">
-                <span>⏱:</span>
-                <span>{homeTimeouts}</span>
-              </div>
-            </div>
-          )}
-        </div>
+            )}
+            <button
+              onClick={() => {
+                if (confirm("Завершити матч?")) {
+                  stopTimer();
+                  startTransition(() => endGame(game.id));
+                }
+              }}
+              style={{
+                border: "none",
+                borderRadius: 5,
+                padding: "4px 12px",
+                fontSize: 11,
+                fontWeight: "600",
+                cursor: "pointer",
+                background: "#dc2626",
+                color: "#fff"
+              }}
+            >
+              Завершити
+            </button>
+          </>
+        ) : null}
       </div>
 
-      {/* ══════════════════════════════════════════════════════════════════════
-          MAIN CONTENT (Players | Buttons | Players) — FLEX-1
-          ══════════════════════════════════════════════════════════════════════ */}
-      <div className="flex-1 flex gap-1 min-h-0 overflow-hidden bg-white p-1">
-        {/* LEFT PANEL — HOME TEAM PLAYERS */}
-        <div
-          className="rounded p-1 flex flex-col overflow-hidden basis-1/3 text-white"
-          style={{ backgroundColor: homeColor }}
-        >
-          <div className="text-white font-bold text-xs leading-tight mb-0.5 flex items-center justify-between">
-            <span>{game.homeTeam.name}</span>
-            <span className="text-green-300 text-xs">⚫ {onCourtHome.size}</span>
-          </div>
-          <div className="flex-1 flex flex-col overflow-hidden">
-            {homePlayers.length > 0 ? (
-              homePlayers.map((player) => {
-                const isSelected = selectedPlayerId === player.id;
-                const isOnCourt = onCourtHome.has(player.id);
-                return (
-                  <button
-                    key={player.id}
-                    onClick={() => setSelectedPlayerId(player.id)}
-                    className={`w-full text-left px-1 py-0.5 rounded text-xs leading-tight font-medium transition-all flex-shrink-0 text-white flex items-center gap-1 ${
-                      isSelected
-                        ? "ring-1 font-bold"
-                        : "hover:bg-white/10"
-                    }`}
-                    style={{
-                      backgroundColor: isSelected ? "rgba(249, 115, 22, 0.6)" : isOnCourt ? "rgba(34, 197, 94, 0.2)" : "transparent",
-                      color: isSelected ? "#ffffff" : "#ffffff",
-                    }}
-                  >
-                    {isOnCourt && <span className="text-green-300 text-xs">●</span>}
-                    <span className="font-bold">#{player.number}</span> {truncateName(player.firstName, player.lastName)}
-                  </button>
-                );
-              })
-            ) : (
-              <div className="text-xs text-white/70">Гравців немає</div>
-            )}
-          </div>
-        </div>
+      {/* MAIN LAYOUT — 3 колонки */}
+      <div style={{
+        display: "grid",
+        gridTemplateColumns: "155px 1fr 155px",
+        flex: 1,
+        overflow: "hidden",
+        gap: 6,
+        padding: 6,
+        minHeight: 0
+      }}>
+        {/* LEFT — Home Players */}
+        <RosterPanel
+          players={homePlayers}
+          teamId={game.homeTeamId}
+          team={game.homeTeam}
+          onCourtIds={onCourtHome}
+          selectedId={selectedPlayerId}
+          onSelect={setSelectedPlayerId}
+          isHome={true}
+        />
 
-        {/* CENTER PANEL — ACTION BUTTONS (4 rows) */}
-        <div className="rounded bg-gray-50 p-1 flex flex-col gap-0.5 basis-1/3 overflow-hidden justify-center">
-          {/* Row 1: Stats (Assist, Steal, Rebound Off, Rebound Def) */}
-          <div className="flex gap-0.5 justify-center">
-            <button
-              onClick={() => selectedPlayerId && runAction(() => addAssist(game.id, selectedTeamId, selectedPlayerId))}
-              disabled={disabled}
-              className="w-14 h-14 rounded-full flex flex-col items-center justify-center font-bold transition-all shadow-sm hover:shadow-md hover:scale-110 disabled:opacity-40 disabled:cursor-not-allowed text-white"
-              style={{ backgroundColor: "#10b981" }}
-              title="Передача"
-            >
-              <div className="text-xs font-bold">Передача</div>
-            </button>
-
-            <button
-              onClick={() => selectedPlayerId && runAction(() => addSteal(game.id, selectedTeamId, selectedPlayerId))}
-              disabled={disabled}
-              className="w-14 h-14 rounded-full flex flex-col items-center justify-center font-bold transition-all shadow-sm hover:shadow-md hover:scale-110 disabled:opacity-40 disabled:cursor-not-allowed text-white"
-              style={{ backgroundColor: "#8b5cf6" }}
-              title="Перехват"
-            >
-              <div className="text-xs font-bold">Перехват</div>
-            </button>
-
-            <button
-              onClick={() => selectedPlayerId && runAction(() => addReboundOff(game.id, selectedTeamId, selectedPlayerId))}
-              disabled={disabled}
-              className="w-14 h-14 rounded-full flex flex-col items-center justify-center font-bold transition-all shadow-sm hover:shadow-md hover:scale-110 disabled:opacity-40 disabled:cursor-not-allowed text-white"
-              style={{ backgroundColor: "#f59e0b" }}
-              title="Підбір (напад)"
-            >
-              <div className="text-xs font-bold leading-tight">Підбір</div>
-              <div className="text-xs font-bold leading-tight">(н)</div>
-            </button>
-
-            <button
-              onClick={() => selectedPlayerId && runAction(() => addReboundDef(game.id, selectedTeamId, selectedPlayerId))}
-              disabled={disabled}
-              className="w-14 h-14 rounded-full flex flex-col items-center justify-center font-bold transition-all shadow-sm hover:shadow-md hover:scale-110 disabled:opacity-40 disabled:cursor-not-allowed text-white"
-              style={{ backgroundColor: blueBtn }}
-              title="Підбір (захист)"
-            >
-              <div className="text-xs font-bold leading-tight">Підбір</div>
-              <div className="text-xs font-bold leading-tight">(з)</div>
-            </button>
+        {/* CENTER — Controls */}
+        <div style={{
+          padding: "6px 8px",
+          display: "flex",
+          flexDirection: "column",
+          gap: 4,
+          background: "#12202e",
+          borderRadius: 8,
+          overflow: "hidden",
+          minHeight: 0
+        }}>
+          {/* Selected Player */}
+          <div style={{
+            background: "#163a5c",
+            borderRadius: 5,
+            padding: "3px 8px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between"
+          }}>
+            <span style={{ color: "#5ab3f4", fontSize: 11, fontWeight: "500" }}>
+              {selectedPlayer ? `#${selectedPlayer.number} ${selectedPlayer.lastName} ${selectedPlayer.firstName[0]}.` : "— виберіть гравця —"}
+            </span>
+            <span style={{ color: "#3a6fa5", fontSize: 9 }}>вибран</span>
           </div>
 
-          {/* Row 2: More stats (Block, Turnover) */}
-          <div className="flex gap-0.5 justify-center">
-            <button
-              onClick={() => selectedPlayerId && runAction(() => addBlock(game.id, selectedTeamId, selectedPlayerId))}
-              disabled={disabled}
-              className="w-14 h-14 rounded-full flex flex-col items-center justify-center font-bold transition-all shadow-sm hover:shadow-md hover:scale-110 disabled:opacity-40 disabled:cursor-not-allowed text-white"
-              style={{ backgroundColor: "#f97316" }}
-              title="Блок"
-            >
-              <div className="text-xs font-bold">Блок</div>
-            </button>
-
-            <button
-              onClick={() => selectedPlayerId && runAction(() => addTurnover(game.id, selectedTeamId, selectedPlayerId))}
-              disabled={disabled}
-              className="w-14 h-14 rounded-full flex flex-col items-center justify-center font-bold transition-all shadow-sm hover:shadow-md hover:scale-110 disabled:opacity-40 disabled:cursor-not-allowed text-white"
-              style={{ backgroundColor: "#ec4899" }}
-              title="Втрата"
-            >
-              <div className="text-xs font-bold">Втрата</div>
-            </button>
+          {/* Score Type */}
+          <div style={{ background: "#1a2e40", borderRadius: 6, padding: "5px 7px" }}>
+            <div style={{
+              fontSize: 9,
+              color: "#3a6fa5",
+              textTransform: "uppercase",
+              letterSpacing: ".4px",
+              marginBottom: 3
+            }}>
+              Тип кидка
+            </div>
+            <div style={{ display: "flex", gap: 3 }}>
+              {[
+                { val: "normal", label: "Звич" },
+                { val: "fastbreak", label: "⚡ Відр" },
+                { val: "second_chance", label: "↩ 2й" },
+                { val: "off_turnover", label: "💥 Втр" }
+              ].map(({ val, label }) => (
+                <button
+                  key={val}
+                  onClick={() => setEventType(val as any)}
+                  style={{
+                    flex: 1,
+                    border: eventType === val ? "1.5px solid #e8a030" : "1.5px solid #1e3a50",
+                    borderRadius: 4,
+                    padding: "3px 2px",
+                    fontSize: 9,
+                    cursor: "pointer",
+                    background: eventType === val ? "#1e1400" : "#12202e",
+                    color: eventType === val ? "#e8a030" : "#5a7a9a",
+                    fontWeight: "500",
+                    lineHeight: "1.2"
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
           </div>
 
-          {/* Row 3a: Event Type Selector */}
-          <div className="flex gap-0.5 justify-center">
-            {["normal", "fastbreak", "second_chance", "off_turnover"].map((type) => (
+          {/* Scoring */}
+          <div style={{ background: "#1a2e40", borderRadius: 6, padding: "5px 7px" }}>
+            <div style={{
+              fontSize: 9,
+              color: "#3a6fa5",
+              textTransform: "uppercase",
+              letterSpacing: ".4px",
+              marginBottom: 3
+            }}>
+              Очки
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 3 }}>
+              {[
+                { pts: 1, bg: "#1a4a22", col: "#4ef472" },
+                { pts: 2, bg: "#1a3a5c", col: "#5ab3f4" },
+                { pts: 3, bg: "#3d2000", col: "#e8a030" }
+              ].map(({ pts, bg, col }) => (
+                <button
+                  key={pts}
+                  onClick={() => selectedPlayerId && runAction(() => addScoreWithType(game.id, selectedTeamId, selectedPlayerId, pts as any, eventType))}
+                  disabled={disabled}
+                  style={{
+                    border: "none",
+                    borderRadius: 5,
+                    padding: "5px 3px",
+                    fontSize: 12,
+                    fontWeight: "600",
+                    cursor: disabled ? "not-allowed" : "pointer",
+                    background: disabled ? "#1a2e40" : bg,
+                    color: disabled ? "#4a7fa5" : col,
+                    opacity: disabled ? 0.5 : 1
+                  }}
+                >
+                  +{pts}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Free Throws */}
+          <div style={{ background: "#1a2e40", borderRadius: 6, padding: "5px 7px" }}>
+            <div style={{
+              fontSize: 9,
+              color: "#3a6fa5",
+              textTransform: "uppercase",
+              letterSpacing: ".4px",
+              marginBottom: 3
+            }}>
+              Штрафні
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 3, marginBottom: 3 }}>
               <button
-                key={type}
-                onClick={() => setEventType(type as any)}
-                className={`flex-1 px-1 py-1 rounded text-xs font-bold transition-all text-white ${
-                  eventType === type ? "ring-1 ring-white" : "hover:opacity-80"
-                }`}
+                onClick={() => selectedPlayerId && runAction(() => addScoreWithType(game.id, selectedTeamId, selectedPlayerId, 1, eventType))}
+                disabled={disabled}
                 style={{
-                  backgroundColor:
-                    type === "normal" ? blueBtn :
-                    type === "fastbreak" ? "#10b981" :
-                    type === "second_chance" ? "#f59e0b" :
-                    "#ec4899",
+                  border: "none",
+                  borderRadius: 5,
+                  padding: "4px",
+                  fontSize: 10,
+                  fontWeight: "600",
+                  cursor: disabled ? "not-allowed" : "pointer",
+                  background: disabled ? "#1a2e40" : "#1a4a22",
+                  color: disabled ? "#4a7fa5" : "#4ef472"
                 }}
-                title={type === "normal" ? "Звичайний" : type === "fastbreak" ? "Відрив" : type === "second_chance" ? "Другий шанс" : "Після втрат"}
               >
-                {type === "normal" && "Звич"}
-                {type === "fastbreak" && "⚡Відр"}
-                {type === "second_chance" && "🔄Шанс"}
-                {type === "off_turnover" && "💥Втр"}
+                ✓ влучив
               </button>
-            ))}
+              <button
+                onClick={() => selectedPlayerId && runAction(() => addMissFt(game.id, selectedTeamId, selectedPlayerId))}
+                disabled={disabled}
+                style={{
+                  border: "none",
+                  borderRadius: 5,
+                  padding: "4px",
+                  fontSize: 10,
+                  fontWeight: "600",
+                  cursor: disabled ? "not-allowed" : "pointer",
+                  background: disabled ? "#1a2e40" : "#3d1010",
+                  color: disabled ? "#4a7fa5" : "#f47a7a"
+                }}
+              >
+                ✗ промах
+              </button>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 3, opacity: 0.6 }}>
+              {["×1", "×2", "×3"].map(x => (
+                <button
+                  key={x}
+                  disabled
+                  style={{
+                    border: "none",
+                    borderRadius: 5,
+                    padding: "4px",
+                    fontSize: 10,
+                    background: "#1a2e40",
+                    color: "#7aaccc"
+                  }}
+                >
+                  {x}
+                </button>
+              ))}
+            </div>
           </div>
 
-          {/* Row 3b: Scoring (1pt, 2pt, 3pt) + Misses (×1, ×2, ×3) */}
-          <div className="flex gap-0.5 justify-center">
-            <button
-              onClick={() => selectedPlayerId && runAction(() => addScoreWithType(game.id, selectedTeamId, selectedPlayerId, 1, eventType))}
-              disabled={disabled}
-              className="w-14 h-14 rounded-full flex items-center justify-center font-bold text-base transition-all shadow-sm hover:shadow-md hover:scale-110 disabled:opacity-40 disabled:cursor-not-allowed text-white"
-              style={{ backgroundColor: blueBtn }}
-              title="Вільний кидок"
-            >
-              +1
-            </button>
-
-            <button
-              onClick={() => selectedPlayerId && runAction(() => addScoreWithType(game.id, selectedTeamId, selectedPlayerId, 2, eventType))}
-              disabled={disabled}
-              className="w-14 h-14 rounded-full flex items-center justify-center font-bold text-base transition-all shadow-sm hover:shadow-md hover:scale-110 disabled:opacity-40 disabled:cursor-not-allowed text-white"
-              style={{ backgroundColor: blueBtn }}
-              title="2-очковий"
-            >
-              +2
-            </button>
-
-            <button
-              onClick={() => selectedPlayerId && runAction(() => addScoreWithType(game.id, selectedTeamId, selectedPlayerId, 3, eventType))}
-              disabled={disabled}
-              className="w-14 h-14 rounded-full flex items-center justify-center font-bold text-base transition-all shadow-sm hover:shadow-md hover:scale-110 disabled:opacity-40 disabled:cursor-not-allowed text-white"
-              style={{ backgroundColor: accentColor }}
-              title="3-очковий"
-            >
-              +3
-            </button>
-
-            <button
-              onClick={() => selectedPlayerId && runAction(() => addMissFt(game.id, selectedTeamId, selectedPlayerId))}
-              disabled={disabled}
-              className="w-14 h-14 rounded-full flex flex-col items-center justify-center font-bold transition-all shadow-sm hover:shadow-md hover:scale-110 disabled:opacity-40 disabled:cursor-not-allowed text-white"
-              style={{ backgroundColor: "#9ca3af" }}
-              title="Промах вільного"
-            >
-              <div className="text-xs font-bold leading-tight">✕</div>
-              <div className="text-xs font-bold leading-tight">1</div>
-            </button>
-
-            <button
-              onClick={() => selectedPlayerId && runAction(() => addMissFg2(game.id, selectedTeamId, selectedPlayerId))}
-              disabled={disabled}
-              className="w-14 h-14 rounded-full flex flex-col items-center justify-center font-bold transition-all shadow-sm hover:shadow-md hover:scale-110 disabled:opacity-40 disabled:cursor-not-allowed text-white"
-              style={{ backgroundColor: "#9ca3af" }}
-              title="Промах 2п"
-            >
-              <div className="text-xs font-bold leading-tight">✕</div>
-              <div className="text-xs font-bold leading-tight">2</div>
-            </button>
-
-            <button
-              onClick={() => selectedPlayerId && runAction(() => addMissFg3(game.id, selectedTeamId, selectedPlayerId))}
-              disabled={disabled}
-              className="w-14 h-14 rounded-full flex flex-col items-center justify-center font-bold transition-all shadow-sm hover:shadow-md hover:scale-110 disabled:opacity-40 disabled:cursor-not-allowed text-white"
-              style={{ backgroundColor: "#9ca3af" }}
-              title="Промах 3п"
-            >
-              <div className="text-xs font-bold leading-tight">✕</div>
-              <div className="text-xs font-bold leading-tight">3</div>
-            </button>
+          {/* Stats */}
+          <div style={{ background: "#1a2e40", borderRadius: 6, padding: "5px 7px" }}>
+            <div style={{
+              fontSize: 9,
+              color: "#3a6fa5",
+              textTransform: "uppercase",
+              letterSpacing: ".4px",
+              marginBottom: 3
+            }}>
+              Статистика
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 3, marginBottom: 3 }}>
+              <button
+                onClick={() => selectedPlayerId && runAction(() => addAssist(game.id, selectedTeamId, selectedPlayerId))}
+                disabled={disabled}
+                style={{
+                  border: "none",
+                  borderRadius: 5,
+                  padding: "4px 2px",
+                  fontSize: 10,
+                  cursor: disabled ? "not-allowed" : "pointer",
+                  background: disabled ? "#1a2e40" : "#0a2d22",
+                  color: disabled ? "#4a7fa5" : "#5af4c0",
+                  fontWeight: "600",
+                  opacity: disabled ? 0.5 : 1
+                }}
+              >
+                Передача
+              </button>
+              <button
+                onClick={() => selectedPlayerId && runAction(() => addSteal(game.id, selectedTeamId, selectedPlayerId))}
+                disabled={disabled}
+                style={{
+                  border: "none",
+                  borderRadius: 5,
+                  padding: "4px 2px",
+                  fontSize: 10,
+                  cursor: disabled ? "not-allowed" : "pointer",
+                  background: disabled ? "#1a2e40" : "#0a2d3a",
+                  color: disabled ? "#4a7fa5" : "#5ae8f4",
+                  fontWeight: "600",
+                  opacity: disabled ? 0.5 : 1
+                }}
+              >
+                Перехват
+              </button>
+              <button
+                onClick={() => selectedPlayerId && runAction(() => addReboundOff(game.id, selectedTeamId, selectedPlayerId))}
+                disabled={disabled}
+                style={{
+                  border: "none",
+                  borderRadius: 5,
+                  padding: "4px 2px",
+                  fontSize: 10,
+                  cursor: disabled ? "not-allowed" : "pointer",
+                  background: disabled ? "#1a2e40" : "#251545",
+                  color: disabled ? "#4a7fa5" : "#b07af4",
+                  fontWeight: "600",
+                  opacity: disabled ? 0.5 : 1
+                }}
+              >
+                Подбір(н)
+              </button>
+              <button
+                onClick={() => selectedPlayerId && runAction(() => addReboundDef(game.id, selectedTeamId, selectedPlayerId))}
+                disabled={disabled}
+                style={{
+                  border: "none",
+                  borderRadius: 5,
+                  padding: "4px 2px",
+                  fontSize: 10,
+                  cursor: disabled ? "not-allowed" : "pointer",
+                  background: disabled ? "#1a2e40" : "#1a3a5c",
+                  color: disabled ? "#4a7fa5" : "#5ab3f4",
+                  fontWeight: "600",
+                  opacity: disabled ? 0.5 : 1
+                }}
+              >
+                Подбір(з)
+              </button>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 3 }}>
+              <button
+                onClick={() => selectedPlayerId && runAction(() => addBlock(game.id, selectedTeamId, selectedPlayerId))}
+                disabled={disabled}
+                style={{
+                  border: "none",
+                  borderRadius: 5,
+                  padding: "4px",
+                  fontSize: 10,
+                  cursor: disabled ? "not-allowed" : "pointer",
+                  background: disabled ? "#1a2e40" : "#2d2200",
+                  color: disabled ? "#4a7fa5" : "#f4cc5a",
+                  fontWeight: "600"
+                }}
+              >
+                Блок
+              </button>
+              <button
+                onClick={() => selectedPlayerId && runAction(() => addTurnover(game.id, selectedTeamId, selectedPlayerId))}
+                disabled={disabled}
+                style={{
+                  border: "none",
+                  borderRadius: 5,
+                  padding: "4px",
+                  fontSize: 10,
+                  cursor: disabled ? "not-allowed" : "pointer",
+                  background: disabled ? "#1a2e40" : "#3d1010",
+                  color: disabled ? "#4a7fa5" : "#f47a7a",
+                  fontWeight: "600"
+                }}
+              >
+                Втрата
+              </button>
+            </div>
           </div>
 
-          {/* Row 4: Fouls (Personal, Technical, Unsportsmanlike) + Substitution/Timeout + Undo */}
-          <div className="flex gap-0.5 justify-center">
-            <button
-              onClick={() => selectedPlayerId && runAction(() => addFoul(game.id, selectedTeamId, selectedPlayerId))}
-              disabled={disabled}
-              className="w-14 h-14 rounded-full flex flex-col items-center justify-center font-bold transition-all shadow-sm hover:shadow-md hover:scale-110 disabled:opacity-40 disabled:cursor-not-allowed text-white"
-              style={{ backgroundColor: redBtn }}
-              title="Персональний фол"
-            >
-              <div className="text-xs font-bold">Перс</div>
-            </button>
+          {/* Fouls */}
+          <div style={{ background: "#1a2e40", borderRadius: 6, padding: "5px 7px" }}>
+            <div style={{
+              fontSize: 9,
+              color: "#3a6fa5",
+              textTransform: "uppercase",
+              letterSpacing: ".4px",
+              marginBottom: 3
+            }}>
+              Фоли
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 3 }}>
+              <button
+                onClick={() => {
+                  if (selectedPlayerId) {
+                    runAction(() => addFoul(game.id, selectedTeamId, selectedPlayerId));
+                    if (isHomeTeam) setHomeFouls(p => Math.min(4, p + 1));
+                  }
+                }}
+                disabled={disabled}
+                style={{
+                  border: "none",
+                  borderRadius: 5,
+                  padding: "4px",
+                  fontSize: 10,
+                  cursor: disabled ? "not-allowed" : "pointer",
+                  background: disabled ? "#1a2e40" : "#3d2000",
+                  color: disabled ? "#4a7fa5" : "#e8a030",
+                  fontWeight: "600"
+                }}
+              >
+                Перс
+              </button>
+              <button
+                onClick={() => selectedPlayerId && runAction(() => addFoulTechnical(game.id, selectedTeamId, selectedPlayerId))}
+                disabled={disabled}
+                style={{
+                  border: "none",
+                  borderRadius: 5,
+                  padding: "4px",
+                  fontSize: 10,
+                  cursor: disabled ? "not-allowed" : "pointer",
+                  background: disabled ? "#1a2e40" : "#3d1010",
+                  color: disabled ? "#4a7fa5" : "#f47a7a",
+                  fontWeight: "600"
+                }}
+              >
+                Тех
+              </button>
+              <button
+                onClick={() => selectedPlayerId && runAction(() => addFoulUnsportsmanlike(game.id, selectedTeamId, selectedPlayerId))}
+                disabled={disabled}
+                style={{
+                  border: "none",
+                  borderRadius: 5,
+                  padding: "4px",
+                  fontSize: 10,
+                  cursor: disabled ? "not-allowed" : "pointer",
+                  background: disabled ? "#1a2e40" : "#3d1010",
+                  color: disabled ? "#4a7fa5" : "#f47a7a",
+                  fontWeight: "600"
+                }}
+              >
+                Неспорт
+              </button>
+            </div>
+          </div>
 
+          {/* Substitution & Undo */}
+          <div style={{ display: "flex", gap: 3 }}>
             <button
-              onClick={() => selectedPlayerId && runAction(() => addFoulTechnical(game.id, selectedTeamId, selectedPlayerId))}
-              disabled={disabled}
-              className="w-14 h-14 rounded-full flex flex-col items-center justify-center font-bold transition-all shadow-sm hover:shadow-md hover:scale-110 disabled:opacity-40 disabled:cursor-not-allowed text-white"
-              style={{ backgroundColor: "#b91c1c" }}
-              title="Технічний фол"
+              onClick={() => setShowSubModal(true)}
+              disabled={!isLive}
+              style={{
+                flex: 1,
+                border: "1px dashed #2a5a8c",
+                borderRadius: 5,
+                padding: "4px 6px",
+                fontSize: 10,
+                cursor: !isLive ? "not-allowed" : "pointer",
+                background: "#1a2e40",
+                color: !isLive ? "#3a6fa5" : "#5ab3f4",
+                fontWeight: "600",
+                opacity: !isLive ? 0.5 : 1
+              }}
             >
-              <div className="text-xs font-bold">Тех</div>
+              ↕ Заміна
             </button>
-
-            <button
-              onClick={() => selectedPlayerId && runAction(() => addFoulUnsportsmanlike(game.id, selectedTeamId, selectedPlayerId))}
-              disabled={disabled}
-              className="w-14 h-14 rounded-full flex flex-col items-center justify-center font-bold transition-all shadow-sm hover:shadow-md hover:scale-110 disabled:opacity-40 disabled:cursor-not-allowed text-white"
-              style={{ backgroundColor: "#7f1d1d" }}
-              title="Неспортивний фол"
-            >
-              <div className="text-xs font-bold leading-tight">Неспор</div>
-              <div className="text-xs font-bold leading-tight">т</div>
-            </button>
-
-            <button
-              onClick={() => setShowSubModal(!showSubModal)}
-              disabled={!isLive || actionPending || pending}
-              className="w-14 h-14 rounded-full flex flex-col items-center justify-center font-bold transition-all shadow-sm hover:shadow-md hover:scale-110 disabled:opacity-40 disabled:cursor-not-allowed text-white"
-              style={{ backgroundColor: "#06b6d4" }}
-              title="Заміна гравця"
-            >
-              <div className="text-lg">↕</div>
-              <div className="text-xs font-bold">Замін</div>
-            </button>
-
-            <button
-              onClick={() => homeTimeouts > 0 && setHomeTimeouts(homeTimeouts - 1)}
-              disabled={!isLive || actionPending || pending || homeTimeouts === 0}
-              className="w-14 h-14 rounded-full flex flex-col items-center justify-center font-bold transition-all shadow-sm hover:shadow-md hover:scale-110 disabled:opacity-40 disabled:cursor-not-allowed text-white"
-              style={{ backgroundColor: "#f59e0b" }}
-              title="Тайм-аут"
-            >
-              <div className="text-xs font-bold">⏱</div>
-              <div className="text-xs font-bold">{homeTimeouts}</div>
-            </button>
-
             <button
               onClick={() => startTransition(() => undoLastEvent(game.id))}
               disabled={actionPending || pending || game.events.length === 0}
-              className="w-14 h-14 rounded-full flex items-center justify-center font-bold transition-all shadow-sm hover:shadow-md hover:scale-110 disabled:opacity-40 disabled:cursor-not-allowed text-white"
-              style={{ backgroundColor: "#6b7280" }}
-              title="Відмінити останню дію"
+              style={{
+                flex: 1,
+                border: "none",
+                borderRadius: 5,
+                padding: "4px 6px",
+                fontSize: 10,
+                cursor: "pointer",
+                background: "#2a1010",
+                color: "#f47a7a",
+                fontWeight: "600"
+              }}
             >
-              <div className="text-lg">↩</div>
+              ↩ Скасувати
             </button>
           </div>
         </div>
 
-        {/* RIGHT PANEL — AWAY TEAM PLAYERS */}
-        <div className="rounded p-1 flex flex-col overflow-hidden basis-1/3 bg-gray-100 text-gray-800">
-          <div className="text-gray-800 font-bold text-xs leading-tight mb-0.5 flex items-center justify-between">
-            <span>{game.awayTeam.name}</span>
-            <span className="text-green-600 text-xs">⚫ {onCourtAway.size}</span>
-          </div>
-          <div className="flex-1 flex flex-col overflow-hidden">
-            {awayPlayers.length > 0 ? (
-              awayPlayers.map((player) => {
-                const isSelected = selectedPlayerId === player.id;
-                const isOnCourt = onCourtAway.has(player.id);
-                return (
-                  <button
-                    key={player.id}
-                    onClick={() => setSelectedPlayerId(player.id)}
-                    className={`w-full text-left px-1 py-0.5 rounded text-xs leading-tight font-medium transition-all flex-shrink-0 text-gray-800 flex items-center gap-1 ${
-                      isSelected
-                        ? "ring-1 font-bold"
-                        : "hover:bg-gray-200"
-                    }`}
-                    style={{
-                      backgroundColor: isSelected ? "rgba(249, 115, 22, 0.25)" : isOnCourt ? "rgba(34, 197, 94, 0.15)" : "transparent",
-                      color: "#1f2937",
-                    }}
-                  >
-                    {isOnCourt && <span className="text-green-600 text-xs">●</span>}
-                    <span className="font-bold">#{player.number}</span> {truncateName(player.firstName, player.lastName)}
-                  </button>
-                );
-              })
-            ) : (
-              <div className="text-xs text-gray-500">Гравців немає</div>
-            )}
-          </div>
-        </div>
+        {/* RIGHT — Away Players */}
+        <RosterPanel
+          players={awayPlayers}
+          teamId={game.awayTeamId}
+          team={game.awayTeam}
+          onCourtIds={onCourtAway}
+          selectedId={selectedPlayerId}
+          onSelect={setSelectedPlayerId}
+          isHome={false}
+        />
       </div>
 
-      {/* ══════════════════════════════════════════════════════════════════════
-          ACTION LOG (bottom, compact) — FLEX-SHRINK-0
-          ══════════════════════════════════════════════════════════════════════ */}
-      <div className="flex-shrink-0 border-t border-gray-300 flex flex-col bg-white overflow-hidden" style={{ height: "160px" }}>
-        <div className="flex-1 overflow-y-auto p-1 bg-white text-xs">
-          <ActionLog
-            events={game.events}
-            homeTeam={game.homeTeam}
-            awayTeam={game.awayTeam}
-            homeScore={game.homeScore}
-            awayScore={game.awayScore}
-          />
-        </div>
+      {/* ACTION LOG — horizontal strip */}
+      <div style={{
+        background: "#0d1520",
+        borderTop: "1px solid #1a2e40",
+        padding: "3px 10px",
+        display: "flex",
+        gap: 12,
+        alignItems: "center",
+        overflow: "hidden",
+        flexShrink: 0,
+        fontSize: "10px",
+        whiteSpace: "nowrap"
+      }}>
+        <span style={{ color: "#3a6fa5", textTransform: "uppercase", fontWeight: "600" }}>Log:</span>
+        {recentEvents.slice(0, 6).map((e, i) => (
+          <span key={i} style={{ color: "#5a7a9a", whiteSpace: "nowrap" }}>
+            Q{e.quarter} · <strong style={{ color: "#c8d8e8" }}>{e.player?.lastName || "—"}</strong> · {e.type}
+          </span>
+        ))}
       </div>
 
-      {/* ══════════════════════════════════════════════════════════════════════
-          SUBSTITUTION MODAL — OVERLAY
-          ══════════════════════════════════════════════════════════════════════ */}
-      {showSubModal && isLive && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2">
-          <div className="bg-white rounded-lg shadow-lg max-w-md w-full p-4">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-base font-bold text-gray-800">Заміна гравця</h2>
-              <button
-                onClick={() => setShowSubModal(false)}
-                className="text-gray-400 hover:text-gray-600 text-xl font-bold"
-              >
-                ✕
-              </button>
+      {/* SUBSTITUTION MODAL */}
+      {showSubModal && (
+        <div style={{
+          position: "fixed",
+          inset: 0,
+          background: "rgba(0,0,0,0.75)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          zIndex: 50
+        }}>
+          <div style={{
+            background: "#1a2737",
+            borderRadius: 10,
+            padding: 16,
+            width: 280,
+            border: "1px solid #2a5a8c"
+          }}>
+            <div style={{ fontSize: 13, fontWeight: "600", color: "#fff", marginBottom: 10 }}>
+              ↕ Заміна гравця
             </div>
 
-            <div className="space-y-3">
-              {/* Select player OUT (from on-court) */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {/* Out */}
               <div>
-                <label className="text-xs font-bold text-gray-600 block mb-1">Гравець НА ВИХОДІ (з поля)</label>
-                <div className="max-h-32 overflow-y-auto border border-gray-200 rounded">
-                  {selectedTeamId === game.homeTeamId
-                    ? homePlayers.filter(p => onCourtHome.has(p.id)).map(player => (
-                        <button
-                          key={player.id}
-                          onClick={() => setSubPlayerOut(player.id)}
-                          className={`w-full text-left px-2 py-1.5 text-xs font-medium transition-all ${
-                            subPlayerOut === player.id
-                              ? "bg-orange-100 text-orange-700 font-bold"
-                              : "hover:bg-gray-50"
-                          }`}
-                        >
-                          #{player.number} {player.firstName} {player.lastName}
-                        </button>
-                      ))
-                    : awayPlayers.filter(p => onCourtAway.has(p.id)).map(player => (
-                        <button
-                          key={player.id}
-                          onClick={() => setSubPlayerOut(player.id)}
-                          className={`w-full text-left px-2 py-1.5 text-xs font-medium transition-all ${
-                            subPlayerOut === player.id
-                              ? "bg-orange-100 text-orange-700 font-bold"
-                              : "hover:bg-gray-50"
-                          }`}
-                        >
-                          #{player.number} {player.firstName} {player.lastName}
-                        </button>
-                      ))
-                  }
+                <label style={{ fontSize: 10, color: "#4a7fa5", marginBottom: 4, display: "block" }}>
+                  Хто ВИХОДИТЬ (на паркеті):
+                </label>
+                <div style={{
+                  display: "flex",
+                  flexWrap: "wrap",
+                  gap: 3,
+                  maxHeight: 80,
+                  overflow: "auto"
+                }}>
+                  {(isHomeTeam ? homePlayers : awayPlayers)
+                    .filter(p => (isHomeTeam ? onCourtHome : onCourtAway).has(p.id))
+                    .map(p => (
+                      <button
+                        key={p.id}
+                        onClick={() => setSubPlayerOut(p.id)}
+                        style={{
+                          border: "1px solid",
+                          borderRadius: 4,
+                          padding: "3px 7px",
+                          fontSize: 10,
+                          cursor: "pointer",
+                          background: subPlayerOut === p.id ? "#1e4a22" : "#12202e",
+                          borderColor: subPlayerOut === p.id ? "#2ecc71" : "#2a4060",
+                          color: subPlayerOut === p.id ? "#4ef472" : "#7aaccc",
+                          fontWeight: "600"
+                        }}
+                      >
+                        #{p.number} {p.lastName}
+                      </button>
+                    ))}
                 </div>
               </div>
 
-              {/* Select player IN (from bench) */}
+              {/* In */}
               <div>
-                <label className="text-xs font-bold text-gray-600 block mb-1">Гравець НА ВХОДІ (з лавки)</label>
-                <div className="max-h-32 overflow-y-auto border border-gray-200 rounded">
-                  {selectedTeamId === game.homeTeamId
-                    ? homePlayers.filter(p => !onCourtHome.has(p.id)).map(player => (
-                        <button
-                          key={player.id}
-                          onClick={() => setSubPlayerIn(player.id)}
-                          className={`w-full text-left px-2 py-1.5 text-xs font-medium transition-all ${
-                            subPlayerIn === player.id
-                              ? "bg-green-100 text-green-700 font-bold"
-                              : "hover:bg-gray-50"
-                          }`}
-                        >
-                          #{player.number} {player.firstName} {player.lastName}
-                        </button>
-                      ))
-                    : awayPlayers.filter(p => !onCourtAway.has(p.id)).map(player => (
-                        <button
-                          key={player.id}
-                          onClick={() => setSubPlayerIn(player.id)}
-                          className={`w-full text-left px-2 py-1.5 text-xs font-medium transition-all ${
-                            subPlayerIn === player.id
-                              ? "bg-green-100 text-green-700 font-bold"
-                              : "hover:bg-gray-50"
-                          }`}
-                        >
-                          #{player.number} {player.firstName} {player.lastName}
-                        </button>
-                      ))
-                  }
+                <label style={{ fontSize: 10, color: "#4a7fa5", marginBottom: 4, display: "block" }}>
+                  Хто ЗАХОДИТЬ (лавка):
+                </label>
+                <div style={{
+                  display: "flex",
+                  flexWrap: "wrap",
+                  gap: 3,
+                  maxHeight: 80,
+                  overflow: "auto"
+                }}>
+                  {(isHomeTeam ? homePlayers : awayPlayers)
+                    .filter(p => !(isHomeTeam ? onCourtHome : onCourtAway).has(p.id))
+                    .map(p => (
+                      <button
+                        key={p.id}
+                        onClick={() => setSubPlayerIn(p.id)}
+                        style={{
+                          border: "1px solid",
+                          borderRadius: 4,
+                          padding: "3px 7px",
+                          fontSize: 10,
+                          cursor: "pointer",
+                          background: subPlayerIn === p.id ? "#1a3a5c" : "#12202e",
+                          borderColor: subPlayerIn === p.id ? "#5ab3f4" : "#2a4060",
+                          color: subPlayerIn === p.id ? "#5ab3f4" : "#7aaccc",
+                          fontWeight: "600"
+                        }}
+                      >
+                        #{p.number} {p.lastName}
+                      </button>
+                    ))}
                 </div>
               </div>
 
               {/* Buttons */}
-              <div className="flex gap-2 pt-2">
+              <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
                 <button
-                  onClick={() => {
-                    setShowSubModal(false);
-                    setSubPlayerOut(null);
-                    setSubPlayerIn(null);
-                  }}
-                  className="flex-1 px-3 py-1.5 rounded bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold text-xs transition-colors"
-                >
-                  Скасувати
-                </button>
-                <button
+                  disabled={!subPlayerOut || !subPlayerIn}
                   onClick={() => {
                     if (subPlayerOut && subPlayerIn) {
                       runAction(() =>
@@ -691,17 +937,16 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
                           formatTime(timeLeft)
                         )
                       ).then(() => {
-                        // Update on-court state
-                        if (selectedTeamId === game.homeTeamId) {
-                          const newOnCourt = new Set(onCourtHome);
-                          newOnCourt.delete(subPlayerOut);
-                          newOnCourt.add(subPlayerIn);
-                          setOnCourtHome(newOnCourt);
+                        if (isHomeTeam) {
+                          const newSet = new Set(onCourtHome);
+                          newSet.delete(subPlayerOut);
+                          newSet.add(subPlayerIn);
+                          setOnCourtHome(newSet);
                         } else {
-                          const newOnCourt = new Set(onCourtAway);
-                          newOnCourt.delete(subPlayerOut);
-                          newOnCourt.add(subPlayerIn);
-                          setOnCourtAway(newOnCourt);
+                          const newSet = new Set(onCourtAway);
+                          newSet.delete(subPlayerOut);
+                          newSet.add(subPlayerIn);
+                          setOnCourtAway(newSet);
                         }
                         setShowSubModal(false);
                         setSubPlayerOut(null);
@@ -709,10 +954,39 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
                       });
                     }
                   }}
-                  disabled={!subPlayerOut || !subPlayerIn || actionPending}
-                  className="flex-1 px-3 py-1.5 rounded bg-green-500 hover:bg-green-600 text-white font-bold text-xs transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  style={{
+                    flex: 1,
+                    border: "none",
+                    borderRadius: 5,
+                    padding: "6px",
+                    fontSize: 11,
+                    cursor: (!subPlayerOut || !subPlayerIn) ? "not-allowed" : "pointer",
+                    background: (!subPlayerOut || !subPlayerIn) ? "#1a2e40" : "#1a4a22",
+                    color: (!subPlayerOut || !subPlayerIn) ? "#4a7fa5" : "#4ef472",
+                    fontWeight: "600",
+                    opacity: (!subPlayerOut || !subPlayerIn) ? 0.5 : 1
+                  }}
                 >
-                  Замінити
+                  ✓ Замінити
+                </button>
+                <button
+                  onClick={() => {
+                    setShowSubModal(false);
+                    setSubPlayerOut(null);
+                    setSubPlayerIn(null);
+                  }}
+                  style={{
+                    border: "none",
+                    borderRadius: 5,
+                    padding: "6px 10px",
+                    fontSize: 11,
+                    cursor: "pointer",
+                    background: "#3d1010",
+                    color: "#f47a7a",
+                    fontWeight: "600"
+                  }}
+                >
+                  Скасувати
                 </button>
               </div>
             </div>
