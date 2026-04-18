@@ -402,7 +402,8 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
         overflow: "hidden",
         gap: 6,
         padding: 6,
-        minHeight: 0
+        minHeight: 0,
+        height: "100%"
       }}>
         {/* LEFT — Home Players */}
         <RosterPanel
@@ -592,12 +593,11 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
           background: "#080f18",
           borderTop: "1px solid #1a2e40",
           padding: "4px 8px",
-          height: "120px",
+          flex: "0 0 80px",
           overflowY: "auto",
           display: "flex",
           flexDirection: "column",
-          gap: "0px",
-          flexShrink: 0
+          gap: "0px"
         }}
       >
         {game.events.map((e, i) => {
