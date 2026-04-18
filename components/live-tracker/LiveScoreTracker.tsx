@@ -431,9 +431,22 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
               color: "#3a6fa5",
               textTransform: "uppercase",
               letterSpacing: ".4px",
-              marginBottom: 3
+              marginBottom: 3,
+              display: "flex",
+              alignItems: "center",
+              gap: 6
             }}>
-              Тип кидка
+              ТИП КИДКА
+              <span style={{
+                background: "#8B6914",
+                color: "#fff",
+                fontSize: 7,
+                padding: "1px 4px",
+                borderRadius: 2,
+                fontWeight: "bold"
+              }}>
+                НОВЕ
+              </span>
             </div>
             <div style={{ display: "flex", gap: 3 }}>
               {[
@@ -471,9 +484,22 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
               color: "#3a6fa5",
               textTransform: "uppercase",
               letterSpacing: ".4px",
-              marginBottom: 3
+              marginBottom: 3,
+              display: "flex",
+              alignItems: "center",
+              gap: 6
             }}>
-              Очки
+              ОЧКИ
+              <span style={{
+                background: "#1a6b3a",
+                color: "#fff",
+                fontSize: 7,
+                padding: "1px 4px",
+                borderRadius: 2,
+                fontWeight: "bold"
+              }}>
+                Є
+              </span>
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 3 }}>
               {[
@@ -510,9 +536,22 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
               color: "#3a6fa5",
               textTransform: "uppercase",
               letterSpacing: ".4px",
-              marginBottom: 3
+              marginBottom: 3,
+              display: "flex",
+              alignItems: "center",
+              gap: 6
             }}>
-              Штрафні
+              ШТРАФНІ
+              <span style={{
+                background: "#8B6914",
+                color: "#fff",
+                fontSize: 7,
+                padding: "1px 4px",
+                borderRadius: 2,
+                fontWeight: "bold"
+              }}>
+                НОВЕ
+              </span>
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 3, marginBottom: 3 }}>
               <button
@@ -575,9 +614,22 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
               color: "#3a6fa5",
               textTransform: "uppercase",
               letterSpacing: ".4px",
-              marginBottom: 3
+              marginBottom: 3,
+              display: "flex",
+              alignItems: "center",
+              gap: 6
             }}>
-              Статистика
+              СТАТИСТИКА
+              <span style={{
+                background: "#1a6b3a",
+                color: "#fff",
+                fontSize: 7,
+                padding: "1px 4px",
+                borderRadius: 2,
+                fontWeight: "bold"
+              }}>
+                Є
+              </span>
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 3, marginBottom: 3 }}>
               <button
@@ -692,9 +744,22 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
               color: "#3a6fa5",
               textTransform: "uppercase",
               letterSpacing: ".4px",
-              marginBottom: 3
+              marginBottom: 3,
+              display: "flex",
+              alignItems: "center",
+              gap: 6
             }}>
-              Фоли
+              ФОЛИ
+              <span style={{
+                background: "#1a6b3a",
+                color: "#fff",
+                fontSize: 7,
+                padding: "1px 4px",
+                borderRadius: 2,
+                fontWeight: "bold"
+              }}>
+                Є
+              </span>
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 3 }}>
               <button
@@ -754,43 +819,107 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
           </div>
 
           {/* Substitution & Undo */}
-          <div style={{ display: "flex", gap: 3 }}>
+          <div style={{ background: "#1a2e40", borderRadius: 6, padding: "5px 7px" }}>
+            <div style={{
+              fontSize: 9,
+              color: "#3a6fa5",
+              textTransform: "uppercase",
+              letterSpacing: ".4px",
+              marginBottom: 3,
+              display: "flex",
+              alignItems: "center",
+              gap: 6
+            }}>
+              ЗАМІНА / ТАЙМ-АУТ
+              <span style={{
+                background: "#8B6914",
+                color: "#fff",
+                fontSize: 7,
+                padding: "1px 4px",
+                borderRadius: 2,
+                fontWeight: "bold"
+              }}>
+                НОВЕ
+              </span>
+            </div>
             <button
               onClick={() => setShowSubModal(true)}
               disabled={!isLive}
               style={{
-                flex: 1,
+                width: "100%",
                 border: "1px dashed #2a5a8c",
                 borderRadius: 5,
-                padding: "4px 6px",
+                padding: "5px 6px",
                 fontSize: 10,
                 cursor: !isLive ? "not-allowed" : "pointer",
-                background: "#1a2e40",
+                background: "#0d1520",
                 color: !isLive ? "#3a6fa5" : "#5ab3f4",
                 fontWeight: "600",
-                opacity: !isLive ? 0.5 : 1
+                opacity: !isLive ? 0.5 : 1,
+                marginBottom: 3
               }}
             >
-              ↕ Заміна
+              ↕ Заміна гравця
             </button>
-            <button
-              onClick={() => startTransition(() => undoLastEvent(game.id))}
-              disabled={actionPending || pending || game.events.length === 0}
-              style={{
-                flex: 1,
-                border: "none",
-                borderRadius: 5,
-                padding: "4px 6px",
-                fontSize: 10,
-                cursor: "pointer",
-                background: "#2a1010",
-                color: "#f47a7a",
-                fontWeight: "600"
-              }}
-            >
-              ↩ Скасувати
-            </button>
+            <div style={{ display: "flex", gap: 3, alignItems: "center", marginBottom: 3 }}>
+              <span style={{ fontSize: 9, color: "#3a6fa5", fontWeight: "600" }}>ТО:</span>
+              <div style={{ display: "flex", gap: 2 }}>
+                {[1, 2].map(i => (
+                  <div
+                    key={i}
+                    style={{
+                      width: 12,
+                      height: 12,
+                      borderRadius: "50%",
+                      background: i <= homeTimeouts ? "#f4cc5a" : "#3a4a6a",
+                      border: "1px solid #5a7a9a"
+                    }}
+                  />
+                ))}
+              </div>
+              <button
+                onClick={() => {
+                  if (selectedPlayerId && isLive && homeTimeouts > 0) {
+                    setHomeTimeouts(p => Math.max(0, p - 1));
+                  }
+                }}
+                disabled={!selectedPlayerId || !isLive || homeTimeouts === 0}
+                style={{
+                  flex: 1,
+                  border: "none",
+                  borderRadius: 5,
+                  padding: "4px 6px",
+                  fontSize: 9,
+                  cursor: (!selectedPlayerId || !isLive || homeTimeouts === 0) ? "not-allowed" : "pointer",
+                  background: (!selectedPlayerId || !isLive || homeTimeouts === 0) ? "#1a2e40" : "#2d2200",
+                  color: (!selectedPlayerId || !isLive || homeTimeouts === 0) ? "#3a6fa5" : "#f4cc5a",
+                  fontWeight: "600",
+                  opacity: (!selectedPlayerId || !isLive || homeTimeouts === 0) ? 0.5 : 1
+                }}
+              >
+                ⏸ Взяти ТО
+              </button>
+            </div>
           </div>
+
+          <button
+            onClick={() => startTransition(() => undoLastEvent(game.id))}
+            disabled={actionPending || pending || game.events.length === 0}
+            style={{
+              width: "100%",
+              border: "none",
+              borderRadius: 5,
+              padding: "6px 6px",
+              fontSize: 10,
+              cursor: (actionPending || pending || game.events.length === 0) ? "not-allowed" : "pointer",
+              background: (actionPending || pending || game.events.length === 0) ? "#1a0a0a" : "#2a1010",
+              color: (actionPending || pending || game.events.length === 0) ? "#7a4a4a" : "#f47a7a",
+              fontWeight: "600",
+              opacity: (actionPending || pending || game.events.length === 0) ? 0.5 : 1
+            }}
+          >
+            ↩ Скасувати останню дію
+          </button>
         </div>
 
         {/* RIGHT — Away Players */}
@@ -807,23 +936,53 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
 
       {/* ACTION LOG — horizontal strip */}
       <div style={{
-        background: "#0d1520",
+        background: "#0a0f15",
         borderTop: "1px solid #1a2e40",
         padding: "3px 10px",
         display: "flex",
         gap: 12,
         alignItems: "center",
-        overflow: "hidden",
+        overflow: "auto",
         flexShrink: 0,
-        fontSize: "10px",
-        whiteSpace: "nowrap"
+        fontSize: "9px",
+        whiteSpace: "nowrap",
+        scrollBehavior: "smooth"
       }}>
-        <span style={{ color: "#3a6fa5", textTransform: "uppercase", fontWeight: "600" }}>Log:</span>
-        {recentEvents.slice(0, 6).map((e, i) => (
-          <span key={i} style={{ color: "#5a7a9a", whiteSpace: "nowrap" }}>
-            Q{e.quarter} · <strong style={{ color: "#c8d8e8" }}>{e.player?.lastName || "—"}</strong> · {e.type}
-          </span>
-        ))}
+        <span style={{ color: "#3a6fa5", textTransform: "uppercase", fontWeight: "600", flexShrink: 0 }}>LOG:</span>
+        {recentEvents.slice(0, 10).map((e, i) => {
+          let eventColor = "#5a7a9a";
+          let eventLabel = e.type;
+          if (e.type === "POINTS") {
+            eventColor = "#4ef472";
+            eventLabel = `+${e.points}`;
+            if (e.eventSubtype === "fastbreak") eventLabel += " ⚡ відрив";
+            else if (e.eventSubtype === "second_chance") eventLabel += " ↩ 2й";
+            else if (e.eventSubtype === "off_turnover") eventLabel += " 🔥 втрата";
+          } else if (e.type.includes("FOUL")) {
+            eventColor = "#f4cc5a";
+            eventLabel = "ФОЛ";
+          } else if (e.type === "ASSIST") {
+            eventColor = "#5ae8f4";
+            eventLabel = "ПЕР";
+          } else if (e.type === "STEAL") {
+            eventColor = "#5ae8f4";
+            eventLabel = "ПРИ";
+          } else if (e.type === "REBOUND" || e.type === "REBOUND_OFF" || e.type === "REBOUND_DEF") {
+            eventColor = "#b07af4";
+            eventLabel = "РЕБ";
+          } else if (e.type === "BLOCK") {
+            eventColor = "#f4cc5a";
+            eventLabel = "БЛК";
+          } else if (e.type === "TURNOVER") {
+            eventColor = "#f47a7a";
+            eventLabel = "ВТР";
+          }
+          return (
+            <span key={i} style={{ color: eventColor, whiteSpace: "nowrap", display: "flex", gap: 4, alignItems: "center" }}>
+              Q{e.quarter} {formatTime(timeLeft)} · <strong style={{ color: "#c8d8e8" }}>#{e.player?.number}</strong> {eventLabel}
+            </span>
+          );
+        })}
       </div>
 
       {/* SUBSTITUTION MODAL */}
