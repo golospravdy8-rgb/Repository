@@ -70,15 +70,11 @@
   }
 
   html {
-    height: 100%;
-    overflow: hidden;
     margin: 0;
     padding: 0;
   }
 
   body {
-    height: 100%;
-    overflow: hidden;
     margin: 0;
     padding: 0;
     background-color: #f1f5f9;
@@ -86,8 +82,6 @@
   }
 
   #__next {
-    height: 100%;
-    overflow: hidden;
     margin: 0;
     padding: 0;
   }
