@@ -415,79 +415,18 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
           isHome={true}
         />
 
-        {/* CENTER — 4-зона структура */}
+        {/* CENTER — 5 рядів кнопок з правильними пропорціями */}
         <div style={{
-          padding: "4px 6px",
-          display: "flex",
-          flexDirection: "column",
-          gap: 4,
-          background: "#0d1520",
-          borderRadius: 6,
-          overflow: "hidden",
-          minHeight: 0,
-          flex: 1,
-          height: "100%"
+          flex: 1, display: "flex", flexDirection: "column",
+          gap: 3, padding: 3, minHeight: 0
         }}>
-          {/* Selected Player (28px) */}
-          <div style={{
-            background: "#163a5c",
-            borderRadius: 4,
-            padding: "4px 6px",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            height: 28,
-            marginBottom: 0,
-            flexShrink: 0
-          }}>
-            <span style={{ color: "#5ab3f4", fontSize: 11, fontWeight: "600" }}>
-              {selectedPlayer ? `#${selectedPlayer.number} ${selectedPlayer.lastName} ${selectedPlayer.firstName[0]}.` : "— виберіть гравця —"}
-            </span>
-            <span style={{ color: "#3a6fa5", fontSize: 9 }}>вибран</span>
-          </div>
-
-          {/* Контейнер для 5 рядків кнопок */}
-          <div style={{
-            display: "flex",
-            flexDirection: "column",
-            gap: 4,
-            flex: 1,
-            minHeight: 0
-          }}>
-            {/* ЗОНА 1: Управління грою */}
-            <div style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 0,
-              flex: 1,
-              padding: "0 2px"
-            }}>
+          {/* РЯД 1 — вузький 36px */}
+          <div style={{ flex: "0 0 36px", display: "flex", gap: 3 }}>
             <button
               onClick={() => startTransition(() => nextQuarter(game.id))}
               disabled={!isLive}
-              style={{
-                flex: 1,
-                border: "none",
-                borderRadius: 3,
-                padding: "0 3px",
-                fontSize: 11,
-                fontWeight: "600",
-                cursor: !isLive ? "not-allowed" : "pointer",
-                background: !isLive ? "#1a2e40" : "#1a2e40",
-                color: !isLive ? "#4a7fa5" : "#8ab8d0",
-                opacity: !isLive ? 0.5 : 1,
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                height: "100%",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center"
-              }}
-            >
-              Наст чверть
-            </button>
-            <div style={{ width: "1px", background: "#1a2e40", margin: "0 4px" }} />
+              style={{ flex:1, height:"100%", background: !isLive ? "#1a2e40" : "#1a2e40", color: !isLive ? "#4a7fa5" : "#8ab8d0", fontSize:11, fontWeight:600, border:"none", borderRadius:3, cursor: !isLive ? "not-allowed" : "pointer", opacity: !isLive ? 0.5 : 1 }}
+            >Наст чверть</button>
             <button
               onClick={() => {
                 if (selectedPlayerId && isLive && homeTimeouts > 0) {
@@ -495,55 +434,18 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
                 }
               }}
               disabled={!selectedPlayerId || !isLive || homeTimeouts === 0}
-              style={{
-                flex: 1,
-                border: "none",
-                borderRadius: 3,
-                padding: "0 3px",
-                fontSize: 11,
-                fontWeight: "600",
-                cursor: (!selectedPlayerId || !isLive || homeTimeouts === 0) ? "not-allowed" : "pointer",
-                background: (!selectedPlayerId || !isLive || homeTimeouts === 0) ? "#1a2e40" : "#3a2500",
-                color: (!selectedPlayerId || !isLive || homeTimeouts === 0) ? "#4a7fa5" : "#f4cc5a",
-                opacity: (!selectedPlayerId || !isLive || homeTimeouts === 0) ? 0.5 : 1,
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                height: "100%",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center"
-              }}
-            >
-              Тайм-аут
-            </button>
-            <div style={{ width: "1px", background: "#1a2e40", margin: "0 4px" }} />
+              style={{ flex:1, height:"100%", background: (!selectedPlayerId || !isLive || homeTimeouts === 0) ? "#1a2e40" : "#3a2500", color: (!selectedPlayerId || !isLive || homeTimeouts === 0) ? "#4a7fa5" : "#f4cc5a", fontSize:11, fontWeight:600, border:"none", borderRadius:3, cursor: (!selectedPlayerId || !isLive || homeTimeouts === 0) ? "not-allowed" : "pointer", opacity: (!selectedPlayerId || !isLive || homeTimeouts === 0) ? 0.5 : 1 }}
+            >Тайм-аут</button>
             <button
               onClick={() => startTransition(() => undoLastEvent(game.id))}
               disabled={!isLive || game.events.length === 0}
-              style={{
-                flex: 1,
-                border: "none",
-                borderRadius: 3,
-                padding: "0 3px",
-                fontSize: 11,
-                fontWeight: "600",
-                cursor: (!isLive || game.events.length === 0) ? "not-allowed" : "pointer",
-                background: (!isLive || game.events.length === 0) ? "#1a2e40" : "#1a2e40",
-                color: (!isLive || game.events.length === 0) ? "#4a7fa5" : "#8ab8d0",
-                opacity: (!isLive || game.events.length === 0) ? 0.5 : 1,
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                height: "100%",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center"
-              }}
-            >
-              ↩ Відкат
-            </button>
-            <div style={{ width: "1px", background: "#1a2e40", margin: "0 4px" }} />
+              style={{ flex:1, height:"100%", background: (!isLive || game.events.length === 0) ? "#1a2e40" : "#3a2500", color: (!isLive || game.events.length === 0) ? "#4a7fa5" : "#f4cc5a", fontSize:11, fontWeight:600, border:"none", borderRadius:3, cursor: (!isLive || game.events.length === 0) ? "not-allowed" : "pointer", opacity: (!isLive || game.events.length === 0) ? 0.5 : 1 }}
+            >↩ Відкат</button>
+            <button
+              onClick={() => startTransition(() => undoLastEvent(game.id))}
+              disabled={!isLive || game.events.length === 0}
+              style={{ flex:1, height:"100%", background: (!isLive || game.events.length === 0) ? "#1a2e40" : "#1a2e40", color: (!isLive || game.events.length === 0) ? "#4a7fa5" : "#8ab8d0", fontSize:11, fontWeight:600, border:"none", borderRadius:3, cursor: (!isLive || game.events.length === 0) ? "not-allowed" : "pointer", opacity: (!isLive || game.events.length === 0) ? 0.5 : 1 }}
+            >Скасувати</button>
             <button
               onClick={() => {
                 if (confirm("Завершити матч?")) {
@@ -551,418 +453,93 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
                   startTransition(() => endGame(game.id));
                 }
               }}
-              style={{
-                flex: 1,
-                border: "none",
-                borderRadius: 3,
-                padding: "0 3px",
-                fontSize: 11,
-                fontWeight: "600",
-                cursor: "pointer",
-                background: "#0f2a10",
-                color: "#4ef472",
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                height: "100%",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center"
-              }}
-            >
-              Завершити
-            </button>
-            </div>
-
-            {/* ЗОНА 2 верхний ряд: попадання */}
-            <div style={{ display: "flex", alignItems: "center", gap: 0, flex: 1, padding: "0 2px" }}>
-              <button
-                onClick={() => selectedPlayerId && runAction(() => addScoreWithType(game.id, selectedTeamId, selectedPlayerId, 2, eventType))}
-                disabled={disabled}
-                style={{
-                  flex: 1,
-                  border: disabled ? "none" : "1px solid #1a5028",
-                  borderRadius: 3,
-                  padding: "0 2px",
-                  fontSize: 22,
-                  fontWeight: "700",
-                  cursor: disabled ? "not-allowed" : "pointer",
-                  background: disabled ? "#1a2e40" : "#0f3a1a",
-                  color: disabled ? "#4a7fa5" : "#4ef472",
-                  opacity: disabled ? 0.5 : 1,
-                  whiteSpace: "nowrap",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  height: "100%",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center"
-                }}
-              >
-                +2
-              </button>
-              <button
-                onClick={() => selectedPlayerId && runAction(() => addScoreWithType(game.id, selectedTeamId, selectedPlayerId, 3, eventType))}
-                disabled={disabled}
-                style={{
-                  flex: 1,
-                  border: disabled ? "none" : "1px solid #1a5028",
-                  borderRadius: 3,
-                  padding: "0 2px",
-                  fontSize: 22,
-                  fontWeight: "700",
-                  marginLeft: 2,
-                  cursor: disabled ? "not-allowed" : "pointer",
-                  background: disabled ? "#1a2e40" : "#0f3a1a",
-                  color: disabled ? "#4a7fa5" : "#4ef472",
-                  opacity: disabled ? 0.5 : 1,
-                  whiteSpace: "nowrap",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  height: "100%",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center"
-                }}
-              >
-                +3
-              </button>
-              <div style={{ width: "1px", background: "#1a2e40", margin: "0 4px" }} />
-              <button
-                onClick={() => selectedPlayerId && runAction(() => addReboundDef(game.id, selectedTeamId, selectedPlayerId))}
-                disabled={disabled}
-                style={{
-                  flex: 1,
-                  border: disabled ? "none" : "1px solid #2a1a5a",
-                  borderRadius: 3,
-                  padding: "0 2px",
-                  fontSize: 14,
-                  fontWeight: "700",
-                  cursor: disabled ? "not-allowed" : "pointer",
-                  background: disabled ? "#1a2e40" : "#1a0f3a",
-                  color: disabled ? "#4a7fa5" : "#b07af4",
-                  opacity: disabled ? 0.5 : 1,
-                  whiteSpace: "nowrap",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  height: "100%",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center"
-                }}
-              >
-                Подб Захист
-              </button>
-              <button
-                onClick={() => selectedPlayerId && runAction(() => addReboundOff(game.id, selectedTeamId, selectedPlayerId))}
-                disabled={disabled}
-                style={{
-                  flex: 1,
-                  border: disabled ? "none" : "1px solid #2a1a5a",
-                  borderRadius: 3,
-                  padding: "0 2px",
-                  fontSize: 14,
-                  fontWeight: "700",
-                  marginLeft: 2,
-                  cursor: disabled ? "not-allowed" : "pointer",
-                  background: disabled ? "#1a2e40" : "#1a0f3a",
-                  color: disabled ? "#4a7fa5" : "#b07af4",
-                  opacity: disabled ? 0.5 : 1,
-                  whiteSpace: "nowrap",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  height: "100%",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center"
-                }}
-              >
-                Подб Напад
-              </button>
-              <div style={{ width: "1px", background: "#1a2e40", margin: "0 4px" }} />
-              <button
-                onClick={() => {
-                  if (selectedPlayerId) {
-                    runAction(() => addScoreWithType(game.id, selectedTeamId, selectedPlayerId, 1, "off_turnover"));
-                  }
-                }}
-                disabled={disabled}
-                style={{
-                  flex: 1,
-                  border: "none",
-                  borderRadius: 4,
-                  padding: "0 2px",
-                  fontSize: 13,
-                  fontWeight: "700",
-                  cursor: disabled ? "not-allowed" : "pointer",
-                  background: disabled ? "#1a2e40" : "#1e5c35",
-                  color: disabled ? "#4a7fa5" : "#4ef472",
-                  opacity: disabled ? 0.5 : 1,
-                  whiteSpace: "nowrap",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  height: "100%",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center"
-                }}
-                title="Штрафний бросок - влучив"
-              >
-                Шт Влучно
-              </button>
-            </div>
-
-            {/* Divider */}
-            <div style={{ height: "1px", background: "#1a2e40" }} />
-
-            {/* Нижний ряд: промахи */}
-            <div style={{ display: "flex", alignItems: "center", gap: 0, height: 36 }}>
-              <button
-                onClick={() => selectedPlayerId && runAction(() => addMissFg2(game.id, selectedTeamId, selectedPlayerId))}
-                disabled={disabled}
-                style={{
-                  flex: 1,
-                  border: "none",
-                  borderRadius: 3,
-                  padding: "0 2px",
-                  fontSize: 12,
-                  fontWeight: "700",
-                  cursor: disabled ? "not-allowed" : "pointer",
-                  background: disabled ? "#1a2e40" : "#2d0a0a",
-                  color: disabled ? "#4a7fa5" : "#f47a7a",
-                  opacity: disabled ? 0.5 : 1,
-                  whiteSpace: "nowrap",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  height: "100%",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center"
-                }}
-              >
-                1 Невлучно
-              </button>
-              <button
-                onClick={() => selectedPlayerId && runAction(() => addMissFg3(game.id, selectedTeamId, selectedPlayerId))}
-                disabled={disabled}
-                style={{
-                  flex: 1,
-                  border: "none",
-                  borderRadius: 3,
-                  padding: "0 2px",
-                  fontSize: 12,
-                  fontWeight: "700",
-                  marginLeft: 2,
-                  cursor: disabled ? "not-allowed" : "pointer",
-                  background: disabled ? "#1a2e40" : "#2d0a0a",
-                  color: disabled ? "#4a7fa5" : "#f47a7a",
-                  opacity: disabled ? 0.5 : 1,
-                  whiteSpace: "nowrap",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  height: "100%",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center"
-                }}
-              >
-                3 Невлучно
-              </button>
-              <div style={{ width: "1px", background: "#1a2e40", margin: "0 4px" }} />
-              <button
-                onClick={() => selectedPlayerId && runAction(() => addTurnover(game.id, selectedTeamId, selectedPlayerId))}
-                disabled={disabled}
-                style={{
-                  flex: 1,
-                  border: "none",
-                  borderRadius: 3,
-                  padding: "0 2px",
-                  fontSize: 12,
-                  fontWeight: "700",
-                  cursor: disabled ? "not-allowed" : "pointer",
-                  background: disabled ? "#1a2e40" : "#2d1a00",
-                  color: disabled ? "#4a7fa5" : "#f4cc5a",
-                  opacity: disabled ? 0.5 : 1,
-                  whiteSpace: "nowrap",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  height: "100%",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center"
-                }}
-              >
-                Втрата
-              </button>
-              <button
-                onClick={() => selectedPlayerId && runAction(() => addFoul(game.id, selectedTeamId, selectedPlayerId))}
-                disabled={disabled}
-                style={{
-                  flex: 1,
-                  border: "none",
-                  borderRadius: 3,
-                  padding: "0 2px",
-                  fontSize: 12,
-                  fontWeight: "700",
-                  marginLeft: 2,
-                  cursor: disabled ? "not-allowed" : "pointer",
-                  background: disabled ? "#1a2e40" : "#2d0808",
-                  color: disabled ? "#4a7fa5" : "#f47a7a",
-                  opacity: disabled ? 0.5 : 1,
-                  whiteSpace: "nowrap",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  height: "100%",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center"
-                }}
-              >
-                Фол персональний
-              </button>
-              <div style={{ width: "1px", background: "#1a2e40", margin: "0 4px" }} />
-              <button
-                onClick={() => selectedPlayerId && runAction(() => addMissFt(game.id, selectedTeamId, selectedPlayerId))}
-                disabled={disabled}
-                style={{
-                  flex: 1,
-                  border: "none",
-                  borderRadius: 3,
-                  padding: "0 2px",
-                  fontSize: 12,
-                  fontWeight: "700",
-                  cursor: disabled ? "not-allowed" : "pointer",
-                  background: disabled ? "#1a2e40" : "#2d0a0a",
-                  color: disabled ? "#4a7fa5" : "#f47a7a",
-                  opacity: disabled ? 0.5 : 1,
-                  whiteSpace: "nowrap",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  height: "100%",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center"
-                }}
-              >
-                2 Невлучно
-              </button>
-            </div>
+              style={{ flex:1, height:"100%", background:"#0f2a10", color:"#4ef472", fontSize:11, fontWeight:600, border:"none", borderRadius:3, cursor:"pointer" }}
+            >Завершити</button>
           </div>
 
-          {/* Horizontal divider */}
-          <div style={{ height: "1px", background: "#1a2e40", margin: "2px 0" }} />
+          {/* РЯД 2 — великий flex:2.2 */}
+          <div style={{ flex: 2.2, display: "flex", gap: 3 }}>
+            <button
+              onClick={() => selectedPlayerId && runAction(() => addScoreWithType(game.id, selectedTeamId, selectedPlayerId, 1, eventType))}
+              disabled={disabled}
+              style={{ flex:1, height:"100%", background: disabled ? "#1a2e40" : "#0f3a1a", color: disabled ? "#4a7fa5" : "#4ef472", fontSize:22, fontWeight:700, border: disabled ? "none" : "1px solid #1a5028", borderRadius:3, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.5 : 1 }}
+            ><span>+1</span><span style={{fontSize:9}}>Очко</span></button>
+            <button
+              onClick={() => selectedPlayerId && runAction(() => addScoreWithType(game.id, selectedTeamId, selectedPlayerId, 2, eventType))}
+              disabled={disabled}
+              style={{ flex:1, height:"100%", background: disabled ? "#1a2e40" : "#0f3a1a", color: disabled ? "#4a7fa5" : "#4ef472", fontSize:22, fontWeight:700, border: disabled ? "none" : "1px solid #1a5028", borderRadius:3, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.5 : 1 }}
+            ><span>+2</span><span style={{fontSize:9}}>Двоочковий</span></button>
+            <button
+              onClick={() => selectedPlayerId && runAction(() => addScoreWithType(game.id, selectedTeamId, selectedPlayerId, 3, eventType))}
+              disabled={disabled}
+              style={{ flex:1, height:"100%", background: disabled ? "#1a2e40" : "#0f3a1a", color: disabled ? "#4a7fa5" : "#4ef472", fontSize:22, fontWeight:700, border: disabled ? "none" : "1px solid #1a5028", borderRadius:3, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.5 : 1 }}
+            ><span>+3</span><span style={{fontSize:9}}>Триочковий</span></button>
+            <div style={{ width:1, background:"#1a2e40" }} />
+            <button
+              onClick={() => selectedPlayerId && runAction(() => addReboundDef(game.id, selectedTeamId, selectedPlayerId))}
+              disabled={disabled}
+              style={{ flex:1, height:"100%", background: disabled ? "#1a2e40" : "#1a0f3a", color: disabled ? "#4a7fa5" : "#b07af4", fontSize:14, fontWeight:700, border: disabled ? "none" : "1px solid #2a1a5a", borderRadius:3, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.5 : 1 }}
+            ><span>Підбір</span><span style={{fontSize:9}}>захист</span></button>
+            <button
+              onClick={() => selectedPlayerId && runAction(() => addReboundOff(game.id, selectedTeamId, selectedPlayerId))}
+              disabled={disabled}
+              style={{ flex:1, height:"100%", background: disabled ? "#1a2e40" : "#1a0f3a", color: disabled ? "#4a7fa5" : "#b07af4", fontSize:14, fontWeight:700, border: disabled ? "none" : "1px solid #2a1a5a", borderRadius:3, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.5 : 1 }}
+            ><span>Підбір</span><span style={{fontSize:9}}>напад</span></button>
+          </div>
 
-          {/* ЗОНА 3: Блок / Втрата / Фолы (36px) */}
-          <div style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 0,
-            height: 36,
-            padding: "0 2px"
-          }}>
+          {/* РЯД 3 — середній flex:1.3 */}
+          <div style={{ flex: 1.3, display: "flex", gap: 3 }}>
+            <button
+              onClick={() => selectedPlayerId && runAction(() => addMissFg2(game.id, selectedTeamId, selectedPlayerId))}
+              disabled={disabled}
+              style={{ flex:1, height:"100%", background: disabled ? "#1a2e40" : "#2d0a0a", color: disabled ? "#4a7fa5" : "#f47a7a", fontSize:12, fontWeight:700, border:"none", borderRadius:3, cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.5 : 1 }}
+            >1 Невлучно</button>
+            <button
+              onClick={() => selectedPlayerId && runAction(() => addMissFg2(game.id, selectedTeamId, selectedPlayerId))}
+              disabled={disabled}
+              style={{ flex:1, height:"100%", background: disabled ? "#1a2e40" : "#2d0a0a", color: disabled ? "#4a7fa5" : "#f47a7a", fontSize:12, fontWeight:700, border:"none", borderRadius:3, cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.5 : 1 }}
+            >2 Невлучно</button>
+            <button
+              onClick={() => selectedPlayerId && runAction(() => addMissFg3(game.id, selectedTeamId, selectedPlayerId))}
+              disabled={disabled}
+              style={{ flex:1, height:"100%", background: disabled ? "#1a2e40" : "#2d0a0a", color: disabled ? "#4a7fa5" : "#f47a7a", fontSize:12, fontWeight:700, border:"none", borderRadius:3, cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.5 : 1 }}
+            >3 Невлучно</button>
+            <div style={{ width:1, background:"#1a2e40" }} />
+            <button
+              onClick={() => selectedPlayerId && runAction(() => addTurnover(game.id, selectedTeamId, selectedPlayerId))}
+              disabled={disabled}
+              style={{ flex:1, height:"100%", background: disabled ? "#1a2e40" : "#2d1a00", color: disabled ? "#4a7fa5" : "#f4cc5a", fontSize:12, fontWeight:700, border:"none", borderRadius:3, cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.5 : 1 }}
+            >Втрата</button>
+            <button
+              onClick={() => selectedPlayerId && runAction(() => addFoul(game.id, selectedTeamId, selectedPlayerId))}
+              disabled={disabled}
+              style={{ flex:1.5, height:"100%", background: disabled ? "#1a2e40" : "#2d0808", color: disabled ? "#4a7fa5" : "#f47a7a", fontSize:12, fontWeight:700, border:"none", borderRadius:3, cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.5 : 1 }}
+            >Фол персональний</button>
+          </div>
+
+          {/* РЯД 4 — великий flex:2 */}
+          <div style={{ flex: 2, display: "flex", gap: 3 }}>
             <button
               onClick={() => selectedPlayerId && runAction(() => addAssist(game.id, selectedTeamId, selectedPlayerId))}
               disabled={disabled}
-              style={{
-                flex: 1,
-                border: disabled ? "none" : "1px solid #1a4020",
-                borderRadius: 3,
-                padding: "0 2px",
-                fontSize: 14,
-                fontWeight: "700",
-                cursor: disabled ? "not-allowed" : "pointer",
-                background: disabled ? "#1a2e40" : "#0a2a10",
-                color: disabled ? "#4a7fa5" : "#4ef472",
-                opacity: disabled ? 0.5 : 1,
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                height: "100%",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center"
-              }}
-            >
-              Передача
-            </button>
+              style={{ flex:1, height:"100%", background: disabled ? "#1a2e40" : "#0a2a10", color: disabled ? "#4a7fa5" : "#4ef472", fontSize:14, fontWeight:700, border: disabled ? "none" : "1px solid #1a4020", borderRadius:3, cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.5 : 1 }}
+            >Передача</button>
             <button
               onClick={() => selectedPlayerId && runAction(() => addSteal(game.id, selectedTeamId, selectedPlayerId))}
               disabled={disabled}
-              style={{
-                flex: 1,
-                border: disabled ? "none" : "1px solid #1a2a5a",
-                borderRadius: 3,
-                padding: "0 2px",
-                fontSize: 14,
-                fontWeight: "700",
-                marginLeft: 2,
-                cursor: disabled ? "not-allowed" : "pointer",
-                background: disabled ? "#1a2e40" : "#0a1a3a",
-                color: disabled ? "#4a7fa5" : "#5ae8f4",
-                opacity: disabled ? 0.5 : 1,
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                height: "100%",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center"
-              }}
-            >
-              Перехват
-            </button>
-            <div style={{ width: "1px", background: "#1a2e40", margin: "0 4px" }} />
+              style={{ flex:1, height:"100%", background: disabled ? "#1a2e40" : "#0a1a3a", color: disabled ? "#4a7fa5" : "#5ae8f4", fontSize:14, fontWeight:700, border: disabled ? "none" : "1px solid #1a2a5a", borderRadius:3, cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.5 : 1 }}
+            >Перехват</button>
             <button
               onClick={() => selectedPlayerId && runAction(() => addBlock(game.id, selectedTeamId, selectedPlayerId))}
               disabled={disabled}
-              style={{
-                flex: 1,
-                border: disabled ? "none" : "1px solid #5a3800",
-                borderRadius: 3,
-                padding: "0 2px",
-                fontSize: 14,
-                fontWeight: "700",
-                cursor: disabled ? "not-allowed" : "pointer",
-                background: disabled ? "#1a2e40" : "#2a1800",
-                color: disabled ? "#4a7fa5" : "#f4a050",
-                opacity: disabled ? 0.5 : 1,
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                height: "100%",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center"
-              }}
-            >
-              Блокшот
-            </button>
+              style={{ flex:1, height:"100%", background: disabled ? "#1a2e40" : "#2a1800", color: disabled ? "#4a7fa5" : "#f4a050", fontSize:14, fontWeight:700, border: disabled ? "none" : "1px solid #5a3800", borderRadius:3, cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.5 : 1 }}
+            >Блокшот</button>
+            <div style={{ width:1, background:"#1a2e40" }} />
             <button
               onClick={() => selectedPlayerId && runAction(() => addFoulTechnical(game.id, selectedTeamId, selectedPlayerId))}
               disabled={disabled}
-              style={{
-                flex: 1,
-                border: "none",
-                borderRadius: 3,
-                padding: "0 2px",
-                fontSize: 12,
-                fontWeight: "700",
-                marginLeft: 2,
-                cursor: disabled ? "not-allowed" : "pointer",
-                background: disabled ? "#1a2e40" : "#2d0808",
-                color: disabled ? "#4a7fa5" : "#f47a7a",
-                opacity: disabled ? 0.5 : 1,
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                height: "100%",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center"
-              }}
-            >
-              Технічний
-            </button>
+              style={{ flex:0.7, height:"100%", background: disabled ? "#1a2e40" : "#2d0808", color: disabled ? "#4a7fa5" : "#f47a7a", fontSize:11, fontWeight:700, border:"none", borderRadius:3, cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.5 : 1 }}
+            >Технічний</button>
             <button
               onClick={() => {
                 if (selectedPlayerId) {
@@ -970,100 +547,29 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
                 }
               }}
               disabled={disabled}
-              style={{
-                flex: 1,
-                border: "none",
-                borderRadius: 3,
-                padding: "0 2px",
-                fontSize: 12,
-                fontWeight: "700",
-                marginLeft: 2,
-                cursor: disabled ? "not-allowed" : "pointer",
-                background: disabled ? "#1a2e40" : "#2d0808",
-                color: disabled ? "#4a7fa5" : "#f47a7a",
-                opacity: disabled ? 0.5 : 1,
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                height: "100%",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center"
-              }}
-              title="Бросковий фол"
-            >
-              Командний
-            </button>
+              style={{ flex:0.7, height:"100%", background: disabled ? "#1a2e40" : "#2d0808", color: disabled ? "#4a7fa5" : "#f47a7a", fontSize:11, fontWeight:700, border:"none", borderRadius:3, cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.5 : 1 }}
+            >Командний</button>
           </div>
 
-          {/* Horizontal divider */}
-          <div style={{ height: "1px", background: "#1a2e40", margin: "2px 0" }} />
-
-          {/* ЗОНА 4: Контекст броска (30px) */}
-          <div style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 0,
-            height: 30,
-            padding: "0 2px"
-          }}>
-            {[
-              { val: "normal", label: "Звичайний ✓" },
-              { val: "second_chance", label: "2й шанс" },
-              { val: "fastbreak", label: "Швидкий" }
-            ].map(({ val, label }) => (
-              <button
-                key={val}
-                onClick={() => setEventType(val as any)}
-                style={{
-                  flex: 1,
-                  border: eventType === val ? "1px solid #2a5a8a" : "none",
-                  borderRadius: 3,
-                  padding: "0 2px",
-                  fontSize: 11,
-                  fontWeight: "600",
-                  cursor: "pointer",
-                  background: eventType === val ? "#163a5c" : "#1a2e40",
-                  color: eventType === val ? "#5ab3f4" : "#8ab8d0",
-                  marginRight: val === "fastbreak" ? 4 : 2,
-                  whiteSpace: "nowrap",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  height: "100%",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center"
-                }}
-              >
-                {label}
-              </button>
-            ))}
-            <div style={{ width: "1px", height: 24, background: "#1a2e40", margin: "0 4px" }} />
+          {/* РЯД 5 — вузький 36px */}
+          <div style={{ flex: "0 0 36px", display: "flex", gap: 3 }}>
+            <button
+              onClick={() => setEventType("normal")}
+              style={{ flex:1, height:"100%", background: eventType === "normal" ? "#163a5c" : "#1a2e40", color: eventType === "normal" ? "#5ab3f4" : "#8ab8d0", fontSize:11, fontWeight:600, border: eventType === "normal" ? "1px solid #2a5a8a" : "none", borderRadius:3, cursor:"pointer" }}
+            >Звичайний ✓</button>
+            <button
+              onClick={() => setEventType("second_chance")}
+              style={{ flex:1, height:"100%", background: eventType === "second_chance" ? "#163a5c" : "#1a2e40", color: eventType === "second_chance" ? "#5ab3f4" : "#8ab8d0", fontSize:11, fontWeight:600, border: eventType === "second_chance" ? "1px solid #2a5a8a" : "none", borderRadius:3, cursor:"pointer" }}
+            >2й шанс</button>
+            <button
+              onClick={() => setEventType("fastbreak")}
+              style={{ flex:1, height:"100%", background: eventType === "fastbreak" ? "#163a5c" : "#1a2e40", color: eventType === "fastbreak" ? "#5ab3f4" : "#8ab8d0", fontSize:11, fontWeight:600, border: eventType === "fastbreak" ? "1px solid #2a5a8a" : "none", borderRadius:3, cursor:"pointer" }}
+            >Швидкий відрив</button>
             <button
               onClick={() => setShowSubModal(true)}
               disabled={!isLive}
-              style={{
-                flex: 1,
-                border: "none",
-                borderRadius: 3,
-                padding: "0 2px",
-                fontSize: 11,
-                fontWeight: "600",
-                cursor: !isLive ? "not-allowed" : "pointer",
-                background: !isLive ? "#1a2e40" : "#1a2e40",
-                color: !isLive ? "#4a7fa5" : "#8ab8d0",
-                opacity: !isLive ? 0.5 : 1,
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                height: "100%",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center"
-              }}
-            >
-              Заміна гравця
-            </button>
+              style={{ flex:1, height:"100%", background: !isLive ? "#1a2e40" : "#1a2e40", color: !isLive ? "#4a7fa5" : "#8ab8d0", fontSize:11, fontWeight:600, border:"none", borderRadius:3, cursor: !isLive ? "not-allowed" : "pointer", opacity: !isLive ? 0.5 : 1 }}
+            >Заміна гравця</button>
           </div>
         </div>
 
