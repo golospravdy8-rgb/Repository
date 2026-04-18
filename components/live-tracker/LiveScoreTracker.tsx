@@ -406,7 +406,7 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
           gap: 4,
           background: "#12202e",
           borderRadius: 8,
-          overflow: "hidden",
+          overflowY: "auto",
           minHeight: 0
         }}>
           {/* Selected Player */}
@@ -503,9 +503,9 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 3 }}>
               {[
-                { pts: 1, bg: "#1a4a22", col: "#4ef472" },
-                { pts: 2, bg: "#1a3a5c", col: "#5ab3f4" },
-                { pts: 3, bg: "#3d2000", col: "#e8a030" }
+                { pts: 1, bg: "#1e5c35", col: "#4ef472" },
+                { pts: 2, bg: "#1a3560", col: "#5ab3f4" },
+                { pts: 3, bg: "#2d1b5e", col: "#e8a030" }
               ].map(({ pts, bg, col }) => (
                 <button
                   key={pts}
@@ -564,7 +564,7 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
                   fontSize: 10,
                   fontWeight: "600",
                   cursor: disabled ? "not-allowed" : "pointer",
-                  background: disabled ? "#1a2e40" : "#1a4a22",
+                  background: disabled ? "#1a2e40" : "#1e5c35",
                   color: disabled ? "#4a7fa5" : "#4ef472"
                 }}
               >
@@ -580,7 +580,7 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
                   fontSize: 10,
                   fontWeight: "600",
                   cursor: disabled ? "not-allowed" : "pointer",
-                  background: disabled ? "#1a2e40" : "#3d1010",
+                  background: disabled ? "#1a2e40" : "#5e1515",
                   color: disabled ? "#4a7fa5" : "#f47a7a"
                 }}
               >
@@ -641,7 +641,7 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
                   padding: "4px 2px",
                   fontSize: 10,
                   cursor: disabled ? "not-allowed" : "pointer",
-                  background: disabled ? "#1a2e40" : "#0a2d22",
+                  background: disabled ? "#1a2e40" : "#1a3560",
                   color: disabled ? "#4a7fa5" : "#5af4c0",
                   fontWeight: "600",
                   opacity: disabled ? 0.5 : 1
@@ -658,7 +658,7 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
                   padding: "4px 2px",
                   fontSize: 10,
                   cursor: disabled ? "not-allowed" : "pointer",
-                  background: disabled ? "#1a2e40" : "#0a2d3a",
+                  background: disabled ? "#1a2e40" : "#1a3560",
                   color: disabled ? "#4a7fa5" : "#5ae8f4",
                   fontWeight: "600",
                   opacity: disabled ? 0.5 : 1
@@ -675,7 +675,7 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
                   padding: "4px 2px",
                   fontSize: 10,
                   cursor: disabled ? "not-allowed" : "pointer",
-                  background: disabled ? "#1a2e40" : "#251545",
+                  background: disabled ? "#1a2e40" : "#3d1f6b",
                   color: disabled ? "#4a7fa5" : "#b07af4",
                   fontWeight: "600",
                   opacity: disabled ? 0.5 : 1
@@ -692,7 +692,7 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
                   padding: "4px 2px",
                   fontSize: 10,
                   cursor: disabled ? "not-allowed" : "pointer",
-                  background: disabled ? "#1a2e40" : "#1a3a5c",
+                  background: disabled ? "#1a2e40" : "#2a1550",
                   color: disabled ? "#4a7fa5" : "#5ab3f4",
                   fontWeight: "600",
                   opacity: disabled ? 0.5 : 1
@@ -711,7 +711,7 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
                   padding: "4px",
                   fontSize: 10,
                   cursor: disabled ? "not-allowed" : "pointer",
-                  background: disabled ? "#1a2e40" : "#2d2200",
+                  background: disabled ? "#1a2e40" : "#0f2540",
                   color: disabled ? "#4a7fa5" : "#f4cc5a",
                   fontWeight: "600"
                 }}
@@ -727,7 +727,7 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
                   padding: "4px",
                   fontSize: 10,
                   cursor: disabled ? "not-allowed" : "pointer",
-                  background: disabled ? "#1a2e40" : "#3d1010",
+                  background: disabled ? "#1a2e40" : "#4a1010",
                   color: disabled ? "#4a7fa5" : "#f47a7a",
                   fontWeight: "600"
                 }}
@@ -776,7 +776,7 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
                   padding: "4px",
                   fontSize: 10,
                   cursor: disabled ? "not-allowed" : "pointer",
-                  background: disabled ? "#1a2e40" : "#3d2000",
+                  background: disabled ? "#1a2e40" : "#6b4e10",
                   color: disabled ? "#4a7fa5" : "#e8a030",
                   fontWeight: "600"
                 }}
@@ -792,7 +792,7 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
                   padding: "4px",
                   fontSize: 10,
                   cursor: disabled ? "not-allowed" : "pointer",
-                  background: disabled ? "#1a2e40" : "#3d1010",
+                  background: disabled ? "#1a2e40" : "#5e1515",
                   color: disabled ? "#4a7fa5" : "#f47a7a",
                   fontWeight: "600"
                 }}
@@ -808,7 +808,7 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
                   padding: "4px",
                   fontSize: 10,
                   cursor: disabled ? "not-allowed" : "pointer",
-                  background: disabled ? "#1a2e40" : "#3d1010",
+                  background: disabled ? "#1a2e40" : "#5e1515",
                   color: disabled ? "#4a7fa5" : "#f47a7a",
                   fontWeight: "600"
                 }}
@@ -852,7 +852,7 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
                 padding: "5px 6px",
                 fontSize: 10,
                 cursor: !isLive ? "not-allowed" : "pointer",
-                background: "#0d1520",
+                background: !isLive ? "#1a2e40" : "#0d1520",
                 color: !isLive ? "#3a6fa5" : "#5ab3f4",
                 fontWeight: "600",
                 opacity: !isLive ? 0.5 : 1,
@@ -912,8 +912,8 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
               padding: "6px 6px",
               fontSize: 10,
               cursor: (actionPending || pending || game.events.length === 0) ? "not-allowed" : "pointer",
-              background: (actionPending || pending || game.events.length === 0) ? "#1a0a0a" : "#2a1010",
-              color: (actionPending || pending || game.events.length === 0) ? "#7a4a4a" : "#f47a7a",
+              background: (actionPending || pending || game.events.length === 0) ? "#1a2e40" : "#3d0f0f",
+              color: (actionPending || pending || game.events.length === 0) ? "#3a6fa5" : "#f47a7a",
               fontWeight: "600",
               opacity: (actionPending || pending || game.events.length === 0) ? 0.5 : 1
             }}

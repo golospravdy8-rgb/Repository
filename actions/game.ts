@@ -130,6 +130,17 @@ export async function endGame(gameId: number) {
 
   await recalcStandingsForSeason(game.seasonId);
 
+  // Check achievements for all players in the game
+  const boxScores = await prisma.boxScore.findMany({
+    where: { gameId },
+    distinct: ["playerId"],
+    select: { playerId: true },
+  });
+
+  for (const { playerId } of boxScores) {
+    await syncAchievements(playerId);
+  }
+
   revalidatePath(`/game/${gameId}`);
   revalidatePath(`/admin/games/${gameId}`);
   revalidatePath("/розклад");
@@ -185,8 +196,7 @@ async function addStatEvent(
     await prisma.boxScore.create({ data: createData });
   }
 
-  // TODO: playerAchievement model not in schema yet
-  // const newAchievements = await syncAchievements(playerId);
+  const newAchievements = await syncAchievements(playerId);
 
   revalidatePath(`/admin/games/${gameId}`);
   revalidatePath(`/game/${gameId}`);
@@ -277,32 +287,30 @@ export async function addFoulUnsportsmanlike(gameId: number, teamId: number, pla
   revalidatePath(`/admin/games/${gameId}`);
 }
 
-/** After updating boxScore, check if player has new achievements and persist them. Returns new badge IDs. */
-// TODO: playerAchievement model not in schema — function disabled
-// async function syncAchievements(playerId: number): Promise<string[]> {
-//   const [allBoxScores, existingAchievements] = await Promise.all([
-//     prisma.boxScore.findMany({
-//       where: { playerId },
-//       select: { points: true, rebounds: true, assists: true, steals: true, blocks: true },
-//     }),
-//     prisma.playerAchievement.findMany({
-//       where: { playerId },
-//       select: { badgeId: true },
-//     }),
-//   ]);
-//
-//   const alreadyUnlocked = new Set(existingAchievements.map((a) => a.badgeId));
-//   const newBadgeIds = checkNewAchievements(allBoxScores, Array.from(alreadyUnlocked));
-//
-//   if (newBadgeIds.length > 0) {
-//     await prisma.playerAchievement.createMany({
-//       data: newBadgeIds.map((badgeId) => ({ playerId, badgeId })),
-//       skipDuplicates: true,
-//     });
-//   }
-//
-//   return newBadgeIds;
-// }
+async function syncAchievements(playerId: number): Promise<string[]> {
+  const [allBoxScores, existingAchievements] = await Promise.all([
+    prisma.boxScore.findMany({
+      where: { playerId },
+      select: { points: true, rebounds: true, assists: true, steals: true, blocks: true },
+    }),
+    prisma.playerAchievement.findMany({
+      where: { playerId },
+      select: { badgeId: true },
+    }),
+  ]);
+
+  const alreadyUnlocked = new Set(existingAchievements.map((a) => a.badgeId));
+  const newBadgeIds = checkNewAchievements(allBoxScores, Array.from(alreadyUnlocked));
+
+  if (newBadgeIds.length > 0) {
+    await prisma.playerAchievement.createMany({
+      data: newBadgeIds.map((badgeId) => ({ playerId, badgeId })),
+      skipDuplicates: true,
+    });
+  }
+
+  return newBadgeIds;
+}
 
 export async function undoLastEvent(gameId: number) {
   await requireAuth();
