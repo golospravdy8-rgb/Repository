@@ -254,7 +254,8 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
     <div style={{
       display: "flex",
       flexDirection: "column",
-      height: "100vh",
+      height: "100%",
+      flex: 1,
       background: "#f9fafb",
       overflow: "hidden",
       margin: 0,

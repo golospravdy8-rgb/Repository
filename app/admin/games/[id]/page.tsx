@@ -36,6 +36,8 @@ export default async function AdminGamePage({ params }: { params: { id: string }
   const btnRed    = settings["colors.btnRed"]    || settings["colors.red"]    || "#ef4444";
 
   return (
-    <LiveScoreTracker game={game} btnBlue={btnBlue} btnOrange={btnOrange} btnNavy={btnNavy} btnRed={btnRed} />
+    <div style={{ height: "100vh", overflow: "hidden", padding: 0, margin: 0, display: "flex", flexDirection: "column" }}>
+      <LiveScoreTracker game={game} btnBlue={btnBlue} btnOrange={btnOrange} btnNavy={btnNavy} btnRed={btnRed} />
+    </div>
   );
 }
