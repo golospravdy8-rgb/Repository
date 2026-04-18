@@ -39,11 +39,17 @@ export interface GamePdfData {
   homeScore: number;
   awayScore: number;
   status: string;
-  homeTeam: { name: string; shortName: string };
-  awayTeam: { name: string; shortName: string };
+  homeTeam: { name: string; shortName: string; coachName?: string; assistantCoach?: string };
+  awayTeam: { name: string; shortName: string; coachName?: string; assistantCoach?: string };
   homeBox: TeamBox;
   awayBox: TeamBox;
   quarterScores: { quarter: number; home: number; away: number }[];
+  commissioner?: string;
+  referee1?: string;
+  referee2?: string;
+  referee3?: string;
+  venue?: string;
+  round?: string;
   homeStats?: {
     ptsOffTurnovers: number;
     ptsFastBreak: number;
@@ -80,7 +86,9 @@ function teamTableHTML(
     ptsAfterSubs: number;
     maxLead: number;
     maxRun: number;
-  }
+  },
+  coachName?: string,
+  assistantCoach?: string
 ): string {
   const headerBg = isWinner ? "#f97316" : "#0f172a";
 
@@ -89,7 +97,7 @@ function teamTableHTML(
 
   const playerRow = (p: PlayerRow, shade: string) => `
     <tr style="background:${shade};">
-      <td style="${tdS}">${p.isStarter ? "★ " : ""}${p.number}</td>
+      <td style="${tdS}">${p.number}</td>
       <td style="${tdS} text-align:left; font-weight:600;">${p.lastName} ${p.firstName[0]}.</td>
       <td style="${tdS}">${p.position ?? "-"}</td>
       <td style="${tdS}">${p.minutes ?? "-"}</td>
@@ -120,8 +128,15 @@ function teamTableHTML(
       <div style="background:${headerBg}; color:#fff; padding:10px 16px;
                   font-size:14px; font-weight:700; border-radius:6px 6px 0 0;
                   display:flex; justify-content:space-between; align-items:center;">
-        <span>${teamName}</span>
-        ${isWinner ? '<span style="background:rgba(255,255,255,0.2);padding:3px 10px;border-radius:20px;font-size:11px;">🏆 ПЕРЕМОЖЕЦЬ</span>' : ""}
+        <div>
+          <span>${teamName}</span>
+          ${coachName || assistantCoach ? `<div style="font-size:10px; font-weight:400; color:#e2e8f0; margin-top:2px;">
+            ${coachName ? `Тренер: ${coachName}` : ""}${coachName && assistantCoach ? " | " : ""}${assistantCoach ? `Помічник: ${assistantCoach}` : ""}
+          </div>` : ""}
+        </div>
+        <div style="text-align:right;">
+          ${isWinner ? '<span style="background:rgba(255,255,255,0.2);padding:3px 10px;border-radius:20px;font-size:11px;">🏆 ПЕРЕМОЖЕЦЬ</span>' : ""}
+        </div>
       </div>
       <table style="width:100%; border-collapse:collapse; font-size:11px;">
         <thead>
@@ -131,11 +146,16 @@ function teamTableHTML(
           </tr>
         </thead>
         <tbody>
-          ${starterRows}
+          ${starters.length > 0 ? `
+          <tr style="background:#e2e8f0;">
+            <td colspan="20" style="padding:4px 10px; font-size:10px; color:#64748b;
+                font-weight:600; letter-spacing:.05em;">СТАРТОВА П'ЯТІРКА</td>
+          </tr>
+          ${starterRows}` : ""}
           ${bench.length > 0 ? `
           <tr style="background:#e2e8f0;">
             <td colspan="20" style="padding:4px 10px; font-size:10px; color:#64748b;
-                font-weight:600; letter-spacing:.05em;">ЛАВКА</td>
+                font-weight:600; letter-spacing:.05em;">ЗАПАСНІ</td>
           </tr>
           ${benchRows}` : ""}
           <tr style="background:#1a2c56; color:#fff; font-weight:700;">
@@ -273,15 +293,42 @@ function buildProtocolHTML(data: GamePdfData): string {
 
       <!-- ТАБЛИЦІ -->
       <div style="padding:24px 32px;">
-        ${teamTableHTML(data.homeTeam.name, data.homeBox, homeWins, data.homeStats)}
-        ${teamTableHTML(data.awayTeam.name, data.awayBox, awayWins, data.awayStats)}
+        ${teamTableHTML(data.homeTeam.name, data.homeBox, homeWins, data.homeStats, data.homeTeam.coachName, data.homeTeam.assistantCoach)}
+        ${teamTableHTML(data.awayTeam.name, data.awayBox, awayWins, data.awayStats, data.awayTeam.coachName, data.awayTeam.assistantCoach)}
+
+        <!-- СУДДІ ТА КОМІСАР -->
+        <div style="background:#f8fafc; padding:16px; border-top:2px solid #e2e8f0; margin-top:16px; font-size:11px;">
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:24px; margin-bottom:16px;">
+            <div>
+              <div style="color:#6b7280; font-weight:600; margin-bottom:4px;">Комісар:</div>
+              <div style="border-bottom:1px solid #cbd5e1; height:20px; color:#1f2937;">${data.commissioner || "_______________"}</div>
+            </div>
+            <div>
+              <div style="color:#6b7280; font-weight:600; margin-bottom:4px;">Місце проведення:</div>
+              <div style="border-bottom:1px solid #cbd5e1; height:20px; color:#1f2937;">${data.venue || "_______________"}</div>
+            </div>
+          </div>
+          <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:16px;">
+            <div>
+              <div style="color:#6b7280; font-weight:600; margin-bottom:4px;">Суддя 1:</div>
+              <div style="border-bottom:1px solid #cbd5e1; height:20px; color:#1f2937;">${data.referee1 || "_______________"}</div>
+            </div>
+            <div>
+              <div style="color:#6b7280; font-weight:600; margin-bottom:4px;">Суддя 2:</div>
+              <div style="border-bottom:1px solid #cbd5e1; height:20px; color:#1f2937;">${data.referee2 || "_______________"}</div>
+            </div>
+            <div>
+              <div style="color:#6b7280; font-weight:600; margin-bottom:4px;">Суддя 3:</div>
+              <div style="border-bottom:1px solid #cbd5e1; height:20px; color:#1f2937;">${data.referee3 || "_______________"}</div>
+            </div>
+          </div>
+        </div>
 
         <!-- ЛЕГЕНДА -->
-        <div style="font-size:10px; color:#94a3b8; margin-top:4px; line-height:1.8;">
-          КД — кидки динамічні (усі) &nbsp;|&nbsp; 2О — двоочкові &nbsp;|&nbsp; 3О — триочкові &nbsp;|&nbsp;
-          ШТ — штрафні &nbsp;|&nbsp; НПД — підбір напад &nbsp;|&nbsp; ЗПД — підбір захист &nbsp;|&nbsp;
-          ПДБ — підбори &nbsp;|&nbsp; ПЕР — передачі &nbsp;|&nbsp; ВТ — втрати &nbsp;|&nbsp;
-          БЛК — блоки &nbsp;|&nbsp; ФОЛ — фоли &nbsp;|&nbsp; ★ — стартовий
+        <div style="font-size:10px; color:#94a3b8; margin-top:16px; line-height:1.8;">
+          <strong>Скорочення:</strong> ХВ — хвилини &nbsp;|&nbsp; ОЧ — очки &nbsp;|&nbsp; КД — кидки динамічні (усі) &nbsp;|&nbsp; % — відсоток влучань &nbsp;|&nbsp;
+          2О — двоочкові &nbsp;|&nbsp; 3О — триочкові &nbsp;|&nbsp; ШТ — штрафні &nbsp;|&nbsp; НПД — підбір у нападі &nbsp;|&nbsp; ЗПД — підбір у захисті &nbsp;|&nbsp;
+          ПДБ — підбори &nbsp;|&nbsp; ПЕР — передачі &nbsp;|&nbsp; ВТ — втрати &nbsp;|&nbsp; БЛК — блоки &nbsp;|&nbsp; ФОЛ — особисті фоли
         </div>
       </div>
 

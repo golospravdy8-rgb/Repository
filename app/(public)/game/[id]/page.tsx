@@ -15,37 +15,35 @@ function gameTimeToSeconds(gameTime: string | null): number {
 function calcPlayerMinutes(
   playerId: number,
   teamId: number,
-  substitutions: { playerId: number; teamId: number; action: string; gameTime: string | null }[]
+  substitutions: { playerId: number; teamId: number; action: string; gameTime: string | null; quarter?: number | null }[],
+  isStarter: boolean
 ): string {
-  const playerSubs = substitutions.filter((s) => s.playerId === playerId && s.teamId === teamId).sort((a, b) => gameTimeToSeconds(b.gameTime) - gameTimeToSeconds(a.gameTime));
+  const playerSubs = substitutions
+    .filter((s) => s.playerId === playerId && s.teamId === teamId)
+    .sort((a, b) => gameTimeToSeconds(a.gameTime) - gameTimeToSeconds(b.gameTime));
 
-  let minutes = 0;
-  let isOnCourt = false;
-  let lastEventTime = 0;
+  let totalSeconds = 0;
+  let entryTime: number | null = isStarter ? 0 : null;
 
-  for (let i = playerSubs.length - 1; i >= 0; i--) {
-    const sub = playerSubs[i];
+  for (const sub of playerSubs) {
     const eventTime = gameTimeToSeconds(sub.gameTime);
 
     if (sub.action === "in") {
-      if (isOnCourt) {
-        minutes += lastEventTime - eventTime;
-      }
-      isOnCourt = true;
-      lastEventTime = eventTime;
-    } else if (sub.action === "out") {
-      if (isOnCourt) {
-        minutes += lastEventTime - eventTime;
-      }
-      isOnCourt = false;
+      entryTime = eventTime;
+    } else if (sub.action === "out" && entryTime !== null) {
+      totalSeconds += eventTime - entryTime;
+      entryTime = null;
     }
   }
 
-  if (isOnCourt) {
-    minutes += lastEventTime;
+  // Якщо гравець залишився на майданчику (не замінений) — рахуй до кінця гри
+  if (entryTime !== null) {
+    totalSeconds += 600 - entryTime; // 600 = 10 хвилин на чверть (середній чемпіонат)
   }
 
-  return minutes > 0 ? String(Math.floor(minutes / 60)) : "0";
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${seconds.toString().padStart(2, "0")}`;
 }
 
 function calcTeamStats(
@@ -178,7 +176,7 @@ export default async function GamePage({ params }: { params: Promise<{ id: strin
         const stats = calcPlayerStats(g.events, bs.playerId);
         // Fallback to stored box score values if no event-based stats
         const pts = stats.points > 0 ? stats.points : bs.points;
-        const minutes = calcPlayerMinutes(bs.playerId, teamId, g.substitutions);
+        const minutes = calcPlayerMinutes(bs.playerId, teamId, g.substitutions, bs.isStarter);
         return {
           bs,
           stats: { ...stats, points: pts },
@@ -334,8 +332,8 @@ export default async function GamePage({ params }: { params: Promise<{ id: strin
               homeScore: game.homeScore,
               awayScore: game.awayScore,
               status: game.status,
-              homeTeam: { name: game.homeTeam.name, shortName: game.homeTeam.shortName },
-              awayTeam: { name: game.awayTeam.name, shortName: game.awayTeam.shortName },
+              homeTeam: { name: game.homeTeam.name, shortName: game.homeTeam.shortName, coachName: game.homeTeam.coachName ?? undefined, assistantCoach: game.homeTeam.assistantCoach ?? undefined },
+              awayTeam: { name: game.awayTeam.name, shortName: game.awayTeam.shortName, coachName: game.awayTeam.coachName ?? undefined, assistantCoach: game.awayTeam.assistantCoach ?? undefined },
               homeBox: {
                 players: homeBox.players.map(({ bs, stats, isStarter, minutes }) => ({
                   number: bs.player.number,
@@ -362,6 +360,12 @@ export default async function GamePage({ params }: { params: Promise<{ id: strin
               },
               homeStats: homeBox.teamStats,
               awayStats: awayBox.teamStats,
+              commissioner: game.commissioner ?? undefined,
+              referee1: game.referee1 ?? undefined,
+              referee2: game.referee2 ?? undefined,
+              referee3: game.referee3 ?? undefined,
+              venue: game.venue ?? undefined,
+              round: game.round ?? undefined,
               quarterScores,
             }}
           />

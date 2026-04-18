@@ -25,6 +25,8 @@ model Team {
   logoUrl        String?
   seasonId       Int
   ageGroup       String                @default("younger")
+  coachName      String?
+  assistantCoach String?
   boxScores      BoxScore[]
   awayGames      Game[]                @relation("AwayTeam")
   homeGames      Game[]                @relation("HomeTeam")
@@ -77,6 +79,14 @@ model Game {
   awayPtsAfterSubstitutions Int                @default(0)
   awayBiggestLead       Int                   @default(0)
   awayBiggestRun        Int                   @default(0)
+
+  // FIBA protocol fields
+  commissioner          String?
+  referee1              String?
+  referee2              String?
+  referee3              String?
+  venue                 String?
+  round                 String?
 
   boxScores             BoxScore[]
   awayTeam              Team                  @relation("AwayTeam", fields: [awayTeamId], references: [id])
