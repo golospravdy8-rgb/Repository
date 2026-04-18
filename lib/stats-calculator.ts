@@ -154,5 +154,20 @@ export function calculateStandings(
     }
   }
 
-  return Array.from(map.values()).sort((a, b) => b.wins - a.wins || b.pointsFor - a.pointsFor);
+  const standings = Array.from(map.values());
+
+  return standings.sort((a, b) => {
+    // 1. Спочатку за % перемог
+    const winPctA = a.gamesPlayed > 0 ? a.wins / a.gamesPlayed : 0;
+    const winPctB = b.gamesPlayed > 0 ? b.wins / b.gamesPlayed : 0;
+    if (Math.abs(winPctB - winPctA) > 0.0001) return winPctB - winPctA;
+
+    // 2. Якщо однакові % — за кількістю перемог
+    if (b.wins !== a.wins) return b.wins - a.wins;
+
+    // 3. Якщо однакові перемоги — за різницею очок
+    const diffA = a.pointsFor - a.pointsAgainst;
+    const diffB = b.pointsFor - b.pointsAgainst;
+    return diffB - diffA;
+  });
 }

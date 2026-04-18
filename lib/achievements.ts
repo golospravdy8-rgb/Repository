@@ -18,17 +18,26 @@ export function calculateRating(
   boxScores: { points: number; rebounds: number; assists: number; steals: number; blocks: number }[]
 ): number {
   if (!boxScores || boxScores.length === 0) return 0;
-  const total = boxScores.reduce(
-    (acc, bs) => acc + bs.points * 1 + bs.rebounds * 1.2 + bs.assists * 1.5 + bs.steals * 2 + bs.blocks * 2,
-    0
-  );
-  return Math.round(total / boxScores.length);
+  const g = boxScores.length;
+  const avgPoints = boxScores.reduce((s, bs) => s + bs.points, 0) / g;
+  const avgRebounds = boxScores.reduce((s, bs) => s + bs.rebounds, 0) / g;
+  const avgAssists = boxScores.reduce((s, bs) => s + bs.assists, 0) / g;
+  const avgSteals = boxScores.reduce((s, bs) => s + bs.steals, 0) / g;
+  const avgBlocks = boxScores.reduce((s, bs) => s + bs.blocks, 0) / g;
+
+  const rating = 50 +
+    avgPoints * 1.8 +
+    avgRebounds * 1.2 +
+    avgAssists * 1.5 +
+    avgSteals * 2.0 +
+    avgBlocks * 1.8;
+
+  return Math.round(Math.min(99, rating));
 }
 
 export function getRatingTier(rating: number): "gold" | "silver" | "bronze" {
-  if (rating >= 25) return "gold";
-  if (rating >= 15) return "silver";
-  if (rating >= 8)  return "bronze";
+  if (rating >= 85) return "gold";
+  if (rating >= 75) return "silver";
   return "bronze";
 }
 

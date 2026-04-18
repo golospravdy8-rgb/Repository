@@ -165,15 +165,24 @@ async function addStatEvent(
   });
 
   const existing = await prisma.boxScore.findFirst({ where: { gameId, playerId } });
+
+  // For rebounds (offensive/defensive), also increment the total rebounds field
+  const updateData: any = { [boxScoreField]: { increment: 1 } };
+  if (boxScoreField === "reboundsOff" || boxScoreField === "reboundsDef") {
+    updateData.rebounds = { increment: 1 };
+  }
+
   if (existing) {
     await prisma.boxScore.update({
       where: { id: existing.id },
-      data: { [boxScoreField]: { increment: 1 } },
+      data: updateData,
     });
   } else {
-    await prisma.boxScore.create({
-      data: { gameId, playerId, teamId, [boxScoreField]: 1 },
-    });
+    const createData: any = { gameId, playerId, teamId, [boxScoreField]: 1 };
+    if (boxScoreField === "reboundsOff" || boxScoreField === "reboundsDef") {
+      createData.rebounds = 1;
+    }
+    await prisma.boxScore.create({ data: createData });
   }
 
   // TODO: playerAchievement model not in schema yet

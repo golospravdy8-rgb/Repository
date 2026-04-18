@@ -17,7 +17,15 @@ const tabs: { key: StatKey; label: string; unit: string }[] = [
 export default function LeadersSection({ leaders }: { leaders: LeaderStats[] }) {
   const [activeTab, setActiveTab] = useState<StatKey>("ppg");
 
-  const sorted = [...leaders].sort((a, b) => b[activeTab] - a[activeTab]).slice(0, 10);
+  // Filter players with at least some value in the selected stat, then sort descending
+  const sorted = [...leaders]
+    .filter(p => {
+      // For each stat, require at least some value to appear in leaders
+      const value = p[activeTab];
+      return value > 0.1; // Allow small decimals like 0.5 assists per game
+    })
+    .sort((a, b) => b[activeTab] - a[activeTab])
+    .slice(0, 10);
   const top = sorted[0];
 
   return (
