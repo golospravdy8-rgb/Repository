@@ -278,58 +278,77 @@ export default function HomePageNeon({ season, standings = [], players = [], ag 
   };
 
   // ═══════════════════════════════════════════════════════════════
-  // STANDINGS TABLE (компактна, сучасна)
+  // STANDINGS TABLE (реальні дані з БД)
   // ═══════════════════════════════════════════════════════════════
-  const StandingsSection = () => (
-    <section className="bg-black py-8 px-4">
-      <div className="max-w-6xl mx-auto">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl md:text-3xl font-black text-white">Таблиця сезону</h2>
-          <a href="#" className="text-orange-400 hover:text-orange-300 font-bold text-sm transition-colors">
-            Повна таблиця →
-          </a>
-        </div>
+  const StandingsSection = () => {
+    if (!season) {
+      return (
+        <section className="bg-black py-8 px-4">
+          <div className="max-w-6xl mx-auto">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl md:text-3xl font-black text-white">Таблиця сезону</h2>
+            </div>
+            <div className="text-center text-gray-400 py-8">Даних ще немає для цієї вікової групи</div>
+          </div>
+        </section>
+      );
+    }
 
-        <div className="overflow-hidden rounded-2xl border border-purple-500/30 shadow-lg shadow-purple-500/20 backdrop-blur-sm">
-          <table className="w-full">
-            <thead>
-              <tr className="bg-gradient-to-r from-purple-950 via-purple-900 to-purple-950 border-b border-purple-500/40">
-                <th className="px-4 py-3 text-left text-xs font-bold text-purple-200 tracking-wider">#</th>
-                <th className="px-4 py-3 text-left text-xs font-bold text-purple-200 tracking-wider">КОМАНДА</th>
-                <th className="px-4 py-3 text-center text-xs font-bold text-purple-200 tracking-wider">І</th>
-                <th className="px-4 py-3 text-center text-xs font-bold text-purple-200 tracking-wider">П</th>
-                <th className="px-4 py-3 text-center text-xs font-bold text-purple-200 tracking-wider">ПР</th>
-                <th className="px-4 py-3 text-center text-xs font-bold text-purple-200 tracking-wider">+/-</th>
-              </tr>
-            </thead>
-            <tbody>
-              {[
-                { rank: 1, team: 'Mighty Ducks Ліцей № 81', w: 1, l: 1, p: 0, diff: '+10' },
-                { rank: 2, team: 'Коали Школа № 7', w: 1, l: 0, p: 1, diff: '-10' },
-                { rank: 3, team: 'Бізони Школа № 17', w: 0, l: 0, p: 0, diff: '0' },
-                { rank: 4, team: 'Димчасті Леопарди Школа № 91', w: 0, l: 0, p: 0, diff: '0' },
-                { rank: 5, team: 'Індійські Леопарди Ліцей № 81', w: 0, l: 0, p: 0, diff: '0' },
-              ].map((row, i) => (
-                <tr
-                  key={i}
-                  className={`border-b border-purple-500/20 transition-all duration-200 hover:bg-purple-500/10 ${
-                    i % 2 === 0 ? 'bg-slate-950/60' : 'bg-slate-900/40'
-                  }`}
-                >
-                  <td className="px-4 py-3 text-xs font-bold text-orange-400">{row.rank}</td>
-                  <td className="px-4 py-3 text-xs text-gray-100 font-medium">{row.team}</td>
-                  <td className="px-4 py-3 text-center text-xs font-bold text-white">{row.w}</td>
-                  <td className="px-4 py-3 text-center text-xs font-bold text-white">{row.l}</td>
-                  <td className="px-4 py-3 text-center text-xs font-bold text-white">{row.p}</td>
-                  <td className="px-4 py-3 text-center text-xs font-bold text-cyan-300">{row.diff}</td>
+    return (
+      <section className="bg-black py-8 px-4">
+        <div className="max-w-6xl mx-auto">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-2xl md:text-3xl font-black text-white">Таблиця сезону</h2>
+            <Link href={`/standings?ag=${currentAg}`} className="text-orange-400 hover:text-orange-300 font-bold text-sm transition-colors">
+              Повна таблиця →
+            </Link>
+          </div>
+
+          <div className="overflow-hidden rounded-2xl border border-purple-500/30 shadow-lg shadow-purple-500/20 backdrop-blur-sm">
+            <table className="w-full">
+              <thead>
+                <tr className="bg-gradient-to-r from-purple-950 via-purple-900 to-purple-950 border-b border-purple-500/40">
+                  <th className="px-4 py-3 text-left text-xs font-bold text-purple-200 tracking-wider">#</th>
+                  <th className="px-4 py-3 text-left text-xs font-bold text-purple-200 tracking-wider">КОМАНДА</th>
+                  <th className="px-4 py-3 text-center text-xs font-bold text-purple-200 tracking-wider">І</th>
+                  <th className="px-4 py-3 text-center text-xs font-bold text-purple-200 tracking-wider">П</th>
+                  <th className="px-4 py-3 text-center text-xs font-bold text-purple-200 tracking-wider">ПР</th>
+                  <th className="px-4 py-3 text-center text-xs font-bold text-purple-200 tracking-wider">+/-</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {standings && standings.length > 0 ? (
+                  standings.slice(0, 5).map((s: any, i: number) => (
+                    <tr
+                      key={s.id}
+                      className={`border-b border-purple-500/20 transition-all duration-200 hover:bg-purple-500/10 ${
+                        i % 2 === 0 ? 'bg-slate-950/60' : 'bg-slate-900/40'
+                      }`}
+                    >
+                      <td className="px-4 py-3 text-xs font-bold text-orange-400">{i + 1}</td>
+                      <td className="px-4 py-3 text-xs text-gray-100 font-medium">{s.team.name}</td>
+                      <td className="px-4 py-3 text-center text-xs font-bold text-white">{s.gamesPlayed}</td>
+                      <td className="px-4 py-3 text-center text-xs font-bold text-white">{s.wins}</td>
+                      <td className="px-4 py-3 text-center text-xs font-bold text-white">{s.losses}</td>
+                      <td className="px-4 py-3 text-center text-xs font-bold text-cyan-300">
+                        {s.pointsFor - s.pointsAgainst > 0 ? '+' : ''}{s.pointsFor - s.pointsAgainst}
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={6} className="px-4 py-6 text-center text-gray-400">
+                      Дані відсутні
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
-    </section>
-  );
+      </section>
+    );
+  };
 
   // ═══════════════════════════════════════════════════════════════
   // HONOR BOARD - PLAYERS OF THE MONTH

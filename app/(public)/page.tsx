@@ -16,7 +16,7 @@ export default async function HomePage({ searchParams }: { searchParams: { ag?: 
   const ag = searchParams.ag === "older" ? "older" : "younger";
   const season = await prisma.season.findFirst({ where: { isActive: true, ageGroup: ag } }).catch(() => null);
 
-  const [settings, games, news] = await Promise.all([
+  const [settings, games, news, standings] = await Promise.all([
     getSettings([
       "hero.badge",
       "hero.title",
@@ -77,6 +77,13 @@ export default async function HomePage({ searchParams }: { searchParams: { ag?: 
       orderBy: { publishedAt: "desc" },
       take: 6,
     }).catch(() => []),
+    season
+      ? prisma.standing.findMany({
+          where: { seasonId: season.id },
+          include: { team: true },
+          orderBy: [{ wins: "desc" }, { pointsFor: "desc" }],
+        }).catch(() => [])
+      : Promise.resolve([]),
   ]);
 
   // ── Дошка пошани: top-3 by avg points this month ─────────────────────────
@@ -110,7 +117,7 @@ export default async function HomePage({ searchParams }: { searchParams: { ag?: 
   // Render neon homepage instead of traditional layout
   return (
     <div className="scale-125">
-      <HomePageNeon season={season} standings={[]} players={honorTop3} ag={ag} games={games} news={news} settings={settings} />
+      <HomePageNeon season={season} standings={standings} players={honorTop3} ag={ag} games={games} news={news} settings={settings} />
     </div>
   );
 }
