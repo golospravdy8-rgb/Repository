@@ -38,6 +38,9 @@ export default function StatsTab() {
   const [editValues, setEditValues] = useState<EditState | null>(null);
   const [saving, setSaving] = useState(false);
   const [resetting, setResetting] = useState<number | null>(null);
+  const [showResetModal, setShowResetModal] = useState(false);
+  const [resetLoading, setResetLoading] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
 
   const load = () => {
     setLoading(true);
@@ -95,11 +98,45 @@ export default function StatsTab() {
     load();
   };
 
+  const resetEntireSeason = async () => {
+    if (resetLoading) return;
+    setResetLoading(true);
+    try {
+      const res = await fetch("/api/admin/stats/reset-season", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ag }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setSuccessMessage(data.message);
+        setTimeout(() => setSuccessMessage(""), 3000);
+        setShowResetModal(false);
+        load();
+      }
+    } catch (err) {
+      console.error("Reset season error:", err);
+    } finally {
+      setResetLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-4">
+      {successMessage && (
+        <div className="p-3 rounded-lg bg-green-100 text-green-700 text-sm font-bold">
+          ✅ {successMessage}
+        </div>
+      )}
+
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-black" style={{ color: "#1a2744" }}>📊 Статистика гравців</h2>
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center">
+          <button
+            onClick={() => setShowResetModal(true)}
+            className="px-3 py-1 rounded-lg text-sm font-bold bg-red-600 text-white hover:bg-red-700 transition-all">
+            ⚠️ Обнулити сезон
+          </button>
           {(["younger", "older"] as AgeGroup[]).map(g => (
             <button key={g} onClick={() => setAg(g)}
               className="px-3 py-1 rounded-full text-sm font-bold transition-all"
@@ -181,6 +218,41 @@ export default function StatsTab() {
           </tbody>
         </table>
       </div>
+
+      {showResetModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 max-w-sm shadow-xl">
+            <h3 className="text-lg font-black mb-3" style={{ color: "#1a2744" }}>
+              Обнулити статистику всього сезону?
+            </h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Для {ag === "younger" ? "U-14" : "U-16"} групи будуть скинуті:
+            </p>
+            <ul className="text-xs text-gray-600 mb-4 space-y-1 ml-4">
+              <li>• Статистика гравців (очки, підбори, передачі, блоки, перехоплення)</li>
+              <li>• Таблиця переважність команд</li>
+              <li>• Досягнення гравців</li>
+            </ul>
+            <div className="bg-red-100 border-l-4 border-red-600 p-3 mb-6 rounded">
+              <p className="text-xs font-bold text-red-700">⚠️ Дія незворотна!</p>
+              <p className="text-xs text-red-600 mt-1">Переконайтесь, що маєте резервну копію БД перед цією операцією.</p>
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowResetModal(false)}
+                className="flex-1 px-3 py-2 rounded-lg bg-gray-200 text-gray-700 text-sm font-bold hover:bg-gray-300 transition-all">
+                Скасувати
+              </button>
+              <button
+                onClick={resetEntireSeason}
+                disabled={resetLoading}
+                className="flex-1 px-3 py-2 rounded-lg bg-red-600 text-white text-sm font-bold hover:bg-red-700 disabled:opacity-50 transition-all">
+                {resetLoading ? "Скидаю..." : "✓ Так, обнулити все"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
