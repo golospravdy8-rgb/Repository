@@ -9,14 +9,16 @@ export default function CompetitionsPage({ searchParams }: { searchParams: { ag?
   const ag = searchParams.ag === "older" ? "older" : "younger";
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
-      <h1 className="text-xl font-black mb-1" style={{ color: "var(--color-heading)" }}>
-        Таблиця змагань
-      </h1>
-      <Suspense>
-        <AgeGroupTabs />
-      </Suspense>
-      <StandingsTable ageGroup={ag} />
+    <div className="scale-125">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+        <h1 className="text-xl font-black mb-1" style={{ color: "var(--color-heading)" }}>
+          Таблиця змагань
+        </h1>
+        <Suspense>
+          <AgeGroupTabs />
+        </Suspense>
+        <StandingsTable ageGroup={ag} />
+      </div>
     </div>
   );
 }

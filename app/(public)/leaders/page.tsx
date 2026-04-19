@@ -27,7 +27,8 @@ export default async function LeadersPage({ searchParams }: { searchParams: { ag
   const leaders = calculateLeaderStats(boxScores);
 
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-2">
+    <div className="scale-125">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-2">
       <h1 className="text-sm font-black mb-0.5" style={{ color: "var(--color-heading)" }}>
         Лідери сезону
       </h1>
@@ -68,6 +69,7 @@ export default async function LeadersPage({ searchParams }: { searchParams: { ag
       ) : (
         <LeadersSection leaders={leaders} />
       )}
+      </div>
     </div>
   );
 }
