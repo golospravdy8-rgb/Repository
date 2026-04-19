@@ -2,7 +2,6 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { prisma } from "@/lib/prisma";
 import { getSettings } from "@/lib/site-settings";
-import { getBackupGames, enrichGamesWithTeams } from "@/lib/backup-loader";
 import StandingsTable from "@/components/public/StandingsTable";
 import NewsCard from "@/components/public/NewsCard";
 import HeroButtons from "@/components/public/HeroButtons";
@@ -16,10 +15,6 @@ export const dynamic = "force-dynamic";
 export default async function HomePage({ searchParams }: { searchParams: { ag?: string } }) {
   const ag = searchParams.ag === "older" ? "older" : "younger";
   const season = await prisma.season.findFirst({ where: { isActive: true, ageGroup: ag } }).catch(() => null);
-
-  // Load games from backup (up to 16 for carousel)
-  const backupGames = await getBackupGames(ag, 16);
-  const enrichedBackupGames = await enrichGamesWithTeams(backupGames);
 
   const [settings, games, news] = await Promise.all([
     getSettings([
@@ -69,7 +64,14 @@ export default async function HomePage({ searchParams }: { searchParams: { ag?: 
       "stream.countdownThresholdMinutes",
       "stream.youtubeChannelId",
     ]),
-    Promise.resolve(enrichedBackupGames),
+    season
+      ? prisma.game.findMany({
+          where: { seasonId: season.id },
+          orderBy: { scheduledAt: "asc" },
+          include: { homeTeam: true, awayTeam: true, season: true },
+          take: 16,
+        }).catch(() => [])
+      : Promise.resolve([]),
     prisma.news.findMany({
       where: { isPublished: true },
       orderBy: { publishedAt: "desc" },
