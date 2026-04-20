@@ -258,19 +258,33 @@ export async function createNews(data: {
   imageUrl?: string;
 }) {
   await requireAuth();
-  await prisma.news.create({
-    data: {
-      title: data.title,
-      slug: data.slug,
-      content: data.content,
-      category: data.category,
-      isPublished: data.isPublished,
-      imageUrl: data.imageUrl || null,
-    },
-  });
-  revalidatePath("/admin/site-editor");
-  revalidatePath("/news");
-  revalidatePath("/");
+  try {
+    console.log("[createNews] Creating new news");
+    console.log("[createNews] Data:", { ...data, content: data.content.substring(0, 100) + "..." });
+
+    const result = await prisma.news.create({
+      data: {
+        title: data.title,
+        slug: data.slug,
+        content: data.content,
+        category: data.category,
+        isPublished: data.isPublished,
+        imageUrl: data.imageUrl || null,
+      },
+    });
+
+    console.log("[createNews] ✅ News created successfully:", result.id);
+    revalidatePath("/admin/site-editor");
+    revalidatePath("/news");
+    revalidatePath("/");
+  } catch (error: any) {
+    console.error("[createNews] ❌ ERROR:");
+    console.error("  Message:", error.message);
+    console.error("  Code:", error.code);
+    console.error("  Meta:", error.meta);
+    console.error("  Full error:", error);
+    throw error;
+  }
 }
 
 export async function updateNews(
@@ -278,20 +292,34 @@ export async function updateNews(
   data: { title: string; slug: string; content: string; category: string; isPublished: boolean; imageUrl?: string }
 ) {
   await requireAuth();
-  await prisma.news.update({
-    where: { id },
-    data: {
-      title: data.title,
-      slug: data.slug,
-      content: data.content,
-      category: data.category,
-      isPublished: data.isPublished,
-      imageUrl: data.imageUrl ?? null,
-    },
-  });
-  revalidatePath("/admin/site-editor");
-  revalidatePath("/news");
-  revalidatePath("/");
+  try {
+    console.log("[updateNews] Updating news ID:", id);
+    console.log("[updateNews] Data:", { ...data, content: data.content.substring(0, 100) + "..." });
+
+    const result = await prisma.news.update({
+      where: { id },
+      data: {
+        title: data.title,
+        slug: data.slug,
+        content: data.content,
+        category: data.category,
+        isPublished: data.isPublished,
+        imageUrl: data.imageUrl ?? null,
+      },
+    });
+
+    console.log("[updateNews] ✅ News saved successfully:", result.id);
+    revalidatePath("/admin/site-editor");
+    revalidatePath("/news");
+    revalidatePath("/");
+  } catch (error: any) {
+    console.error("[updateNews] ❌ ERROR:");
+    console.error("  Message:", error.message);
+    console.error("  Code:", error.code);
+    console.error("  Meta:", error.meta);
+    console.error("  Full error:", error);
+    throw error;
+  }
 }
 
 export async function deleteNews(id: number) {
