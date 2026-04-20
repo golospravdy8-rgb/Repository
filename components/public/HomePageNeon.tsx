@@ -675,8 +675,8 @@ export default function HomePageNeon({ season, standings = [], players = [], ag 
                           style={{
                             width: '100%',
                             height: '100%',
-                            objectFit: 'cover',
-                            objectPosition: 'center top',
+                            objectFit: 'contain',
+                            objectPosition: 'center',
                             position: 'absolute'
                           }}
                           className="group-hover:scale-105 transition-transform duration-300"
