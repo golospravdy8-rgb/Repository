@@ -21,19 +21,8 @@ export default function HomePageNeon({ season, standings = [], players = [], ag 
   const router = useRouter();
   const currentAg = ag || 'younger';
 
-  // Fallback для новин, якщо БД порожня
-  const newsWithFallback = news && news.length > 0 ? news : [
-    {
-      id: 999,
-      title: 'Юні баскетболісти БК «Львів» отримали незабутній досвід',
-      slug: 'yu-ni-basketbolisity-bk-lviv-dosvid',
-      content: '<p>Юні баскетболісти БК «Львів» отримали незабутній досвід під час тренувального збору в цьому місяці. Гравці змогли поліпшити свої навички та навчитися новим тактичним схемам разом з найкращими тренерами.</p>',
-      imageUrl: '/images/heroBg.jpg',
-      publishedAt: new Date('2026-04-10').toISOString(),
-      isPublished: true,
-      category: 'новини'
-    }
-  ];
+  // Fallback для новин, якщо БД порожня (але це рідко трапляється)
+  const newsWithFallback = news && news.length > 0 ? news : [];
 
   // Mobile bottom sheets state
   const [showMenuSheet, setShowMenuSheet] = useState(false);
