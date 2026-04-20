@@ -678,7 +678,7 @@ export default function HomePageNeon({ season, standings = [], players = [], ag 
                 >
                   <div className="rounded-2xl overflow-hidden bg-slate-900 border border-purple-500/30 hover:border-purple-500/60 transition-all duration-300 hover:shadow-[0_0_30px_rgba(168,85,247,0.3)] h-full flex flex-col">
                     {/* Image */}
-                    <div className="relative w-full aspect-video overflow-hidden bg-gradient-to-br from-purple-900 to-slate-900 flex items-center justify-center flex-shrink-0">
+                    <div className="relative w-full aspect-video overflow-hidden bg-black flex items-center justify-center flex-shrink-0">
                       {item.imageUrl ? (
                         <Image
                           src={item.imageUrl}
@@ -918,8 +918,8 @@ export default function HomePageNeon({ season, standings = [], players = [], ag 
       <RecentResultsSection />
       <StandingsSection />
       <LiveSection />
-      <HonorBoardSection />
       <NewsSection />
+      <HonorBoardSection />
 
       {/* Mobile Menu & Services Bottom Sheets */}
       <MobileMenuSheet />
