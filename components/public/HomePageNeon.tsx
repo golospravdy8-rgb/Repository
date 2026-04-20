@@ -673,6 +673,7 @@ export default function HomePageNeon({ season, standings = [], players = [], ag 
                           src={item.imageUrl}
                           alt={item.title}
                           fill
+                          unoptimized={true}
                           className="group-hover:scale-105 transition-transform duration-300"
                           style={{ objectFit: 'cover', objectPosition: 'center top' }}
                         />
