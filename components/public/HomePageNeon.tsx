@@ -389,14 +389,14 @@ export default function HomePageNeon({ season, standings = [], players = [], ag 
                     className="flex flex-col rounded-2xl overflow-hidden hover:shadow-xl transition-all duration-300 hover:-translate-y-1"
                     style={{
                       border: `2px solid ${borderHexColors[i]}`,
-                      height: '780px',
+                      height: '550px',
                     }}
                   >
-                    {/* Upper zone - Photo/Gradient (600px) */}
+                    {/* Upper zone - Photo/Gradient (420px) */}
                     <div
                       className={player?.photoUrl ? 'relative overflow-hidden flex items-center justify-center flex-shrink-0' : `relative bg-gradient-to-br ${placeholderGradients[i]} overflow-hidden flex items-center justify-center flex-shrink-0`}
                       style={{
-                        height: '600px',
+                        height: '420px',
                       }}
                     >
                       {player?.photoUrl ? (
@@ -678,7 +678,7 @@ export default function HomePageNeon({ season, standings = [], players = [], ag 
                 >
                   <div className="rounded-2xl overflow-hidden bg-slate-900 border border-purple-500/30 hover:border-purple-500/60 transition-all duration-300 hover:shadow-[0_0_30px_rgba(168,85,247,0.3)] h-full flex flex-col">
                     {/* Image */}
-                    <div className="relative h-40 md:h-48 overflow-hidden bg-gradient-to-br from-purple-900 to-slate-900 flex items-center justify-center flex-shrink-0">
+                    <div className="relative min-h-48 overflow-hidden bg-gradient-to-br from-purple-900 to-slate-900 flex items-center justify-center flex-shrink-0">
                       {item.imageUrl ? (
                         <Image
                           src={item.imageUrl}
