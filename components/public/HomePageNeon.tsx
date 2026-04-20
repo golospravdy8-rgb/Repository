@@ -678,13 +678,14 @@ export default function HomePageNeon({ season, standings = [], players = [], ag 
                 >
                   <div className="rounded-2xl overflow-hidden bg-slate-900 border border-purple-500/30 hover:border-purple-500/60 transition-all duration-300 hover:shadow-[0_0_30px_rgba(168,85,247,0.3)] h-full flex flex-col">
                     {/* Image */}
-                    <div className="relative min-h-48 overflow-hidden bg-gradient-to-br from-purple-900 to-slate-900 flex items-center justify-center flex-shrink-0">
+                    <div className="relative w-full aspect-video overflow-hidden bg-gradient-to-br from-purple-900 to-slate-900 flex items-center justify-center flex-shrink-0">
                       {item.imageUrl ? (
                         <Image
                           src={item.imageUrl}
                           alt={item.title}
                           fill
-                          className="object-cover group-hover:scale-105 transition-transform duration-300"
+                          className="group-hover:scale-105 transition-transform duration-300"
+                          style={{ objectFit: 'cover', objectPosition: 'center top' }}
                         />
                       ) : (
                         <div className="text-5xl md:text-6xl text-orange-400">📰</div>
