@@ -11,6 +11,18 @@ import LiveStreamWidget from "@/components/public/LiveStreamWidget";
 import HomePageNeon from "@/components/public/HomePageNeon";
 
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
+async function getLatestNews() {
+  // Ensure we always get fresh data from DB
+  const result = await prisma.news.findMany({
+    where: { isPublished: true },
+    orderBy: { publishedAt: "desc" },
+    take: 6,
+  }).catch(() => []);
+
+  return result;
+}
 
 export default async function HomePage({ searchParams }: { searchParams: { ag?: string } }) {
   const ag = searchParams.ag === "older" ? "older" : "younger";
@@ -72,11 +84,7 @@ export default async function HomePage({ searchParams }: { searchParams: { ag?: 
           take: 16,
         }).catch(() => [])
       : Promise.resolve([]),
-    prisma.news.findMany({
-      where: { isPublished: true },
-      orderBy: { publishedAt: "desc" },
-      take: 6,
-    }).catch(() => []),
+    getLatestNews(),
     season
       ? prisma.standing.findMany({
           where: { seasonId: season.id },
