@@ -913,7 +913,7 @@ export default function HomePageNeon({ season, standings = [], players = [], ag 
   // MAIN RENDER
   // ═══════════════════════════════════════════════════════════════
   return (
-    <div className="bg-black min-h-screen text-white overflow-hidden">
+    <div className="bg-black text-white">
       <HeroSection />
       <RecentResultsSection />
       <StandingsSection />

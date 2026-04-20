@@ -116,9 +116,7 @@ export default async function HomePage({ searchParams }: { searchParams: { ag?: 
 
   // Render neon homepage instead of traditional layout
   return (
-    <div className="scale-125">
-      <HomePageNeon season={season} standings={standings} players={honorTop3} ag={ag} games={games} news={news} settings={settings} />
-    </div>
+    <HomePageNeon season={season} standings={standings} players={honorTop3} ag={ag} games={games} news={news} settings={settings} />
   );
 }
 
