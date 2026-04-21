@@ -46,8 +46,19 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       return;
     }
 
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+    // Get chat container dimensions
+    const chatContainer = document.querySelector('[style*="flex: 1"][style*="overflowY"]') ||
+                         document.querySelector('[style*="flex: 1, overflowY"]');
+    if (!chatContainer) return;
+
+    const rect = (chatContainer as HTMLElement).getBoundingClientRect();
+    canvas.style.position = "absolute";
+    canvas.style.left = rect.left + "px";
+    canvas.style.top = rect.top + "px";
+    canvas.width = rect.width;
+    canvas.height = rect.height;
+    canvas.style.width = rect.width + "px";
+    canvas.style.height = rect.height + "px";
 
     const W_ORIG = 860, H_ORIG = 624, GY_ORIG = 584;
     const scaleX = canvas.width / W_ORIG;
@@ -187,10 +198,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
     }
 
     function draw() {
-      ctx.fillStyle = "rgba(20,25,40,0.95)";
-      ctx.fillRect(0, 0, W, H);
-      ctx.fillStyle = "rgba(100,150,200,0.1)";
-      ctx.fillRect(0, GY, W, H - GY);
+      ctx.clearRect(0, 0, W, H);
 
       ctx.strokeStyle = "#e05545";
       ctx.lineWidth = 3*scaleX;
@@ -458,8 +466,28 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
     <>
       <canvas
         ref={canvasRef}
-        style={{ position:"fixed", top:0, left:0, width:"100vw", height:"100vh",
-          zIndex:9999, pointerEvents:"auto", background:"transparent", cursor:"crosshair" }}
+        style={{ position:"absolute", top:0, left:0,
+          zIndex:9999, pointerEvents:"none", background:"transparent", cursor:"crosshair" }}
+      />
+      <div
+        style={{ position:"absolute", top:0, left:0, width:"100%", height:"100%",
+          zIndex:10000, pointerEvents:"auto", cursor:"crosshair" }}
+        onMouseDown={(e) => {
+          const canvas = canvasRef.current;
+          if (!canvas) return;
+          const rect = canvas.getBoundingClientRect();
+          const sc = canvas.width / rect.width;
+          const mx = (e.clientX - rect.left) * sc;
+          const my = (e.clientY - rect.top) * sc;
+          const evt = new MouseEvent(e.button === 2 ? "contextmenu" : "click", {
+            bubbles: true,
+            cancelable: true,
+            clientX: e.clientX,
+            clientY: e.clientY,
+          });
+          canvas.dispatchEvent(evt);
+        }}
+        onContextMenu={(e) => e.preventDefault()}
       />
       <div style={{ position:"fixed", bottom:8, left:"50%", transform:"translateX(-50%)",
         zIndex:10001, display:"flex", gap:7, alignItems:"center",
