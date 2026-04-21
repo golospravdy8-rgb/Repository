@@ -80,6 +80,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         // ignore parse errors
       }
     });
+    forceUpdate(n => n + 1);
   }, [gameMessages]);
 
   useEffect(() => {
@@ -1285,17 +1286,6 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         zIndex:10001, display:"flex", gap:7, alignItems:"center",
         background:"rgba(0,0,0,0.6)", padding:"6px 12px", borderRadius:8,
         boxShadow:"0 2px 12px rgba(0,0,0,0.5)" }}>
-        <input
-          ref={pnameRef}
-          value={pname}
-          onChange={e => setPname(e.target.value)}
-          onKeyDown={e => e.key==="Enter" && handleAddPlayer()}
-          placeholder="Ім'я гравця"
-          maxLength={12}
-          style={{ padding:"6px 11px", borderRadius:6, border:"1px solid #333",
-            background:"#1a1f35", color:"#fff", fontSize:13, width:120 }}
-        />
-        <button onClick={handleAddPlayer} style={btnStyle("#e06030", gs.players.length>=6)}>+ Додати</button>
         <button onClick={(e) => { e.preventDefault(); handleAddPlayer(e); }} style={btnStyle("#4fc3f7", gs.players.length>=6)} data-auto="true">🏀 Гравець</button>
         <button onClick={handleLeaveGame} style={btnStyle("#ff6644")}>🚪 Вийти</button>
         <button ref={btnStartRef} onClick={handleStart} style={btnStyle("#27ae60", gs.players.length<2)} disabled={gs.players.length<2}>▶ Старт</button>

@@ -715,8 +715,10 @@ export default function ChatPage() {
 
   // ── Auto-scroll ────────────────────────────────────────────────────────
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+    if (!showRucheekGame) {
+      bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [messages, showRucheekGame]);
 
   // ── Close menus on outside click ────────────────────────────────────────
   useEffect(() => {
