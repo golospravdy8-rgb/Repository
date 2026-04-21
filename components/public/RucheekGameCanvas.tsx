@@ -29,6 +29,7 @@ export default function RucheekGameCanvas({
   userPhone,
   onQueueUpdate,
 }: RucheekGameCanvasProps) {
+  console.log('[RucheekGameCanvas] render, isVisible=', isVisible);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [gameState, setGameState] = useState<"waiting" | "playing" | "finished">("waiting");
   const [queue, setQueue] = useState<{ name: string; playerId: string; timestamp: number }[]>([]);
@@ -275,10 +276,16 @@ export default function RucheekGameCanvas({
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    console.log('[RucheekGameCanvas] mounting...');
     setMounted(true);
   }, []);
 
-  if (!mounted) return null;
+  if (!mounted) {
+    console.log('[RucheekGameCanvas] not mounted yet');
+    return null;
+  }
+
+  console.log('[RucheekGameCanvas] mounted, about to render portal');
 
   const canvasContent = (
     <>
@@ -377,7 +384,11 @@ export default function RucheekGameCanvas({
     </>
   );
 
-  if (!isVisible) return null;
+  if (!isVisible) {
+    console.log('[RucheekGameCanvas] isVisible=false, returning null');
+    return null;
+  }
 
+  console.log('[RucheekGameCanvas] creating portal to document.body');
   return createPortal(canvasContent, document.body);
 }

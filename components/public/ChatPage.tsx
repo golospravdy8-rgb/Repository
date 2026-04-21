@@ -1504,7 +1504,11 @@ export default function ChatPage() {
                 🎰 {spinDone ? "Спін ✓" : "Спін"}
               </button>
               <button
-                onClick={() => setShowRucheekGame(true)}
+                onClick={() => {
+                  console.log('[ChatPage] Струмок button clicked');
+                  setShowRucheekGame(true);
+                  console.log('[ChatPage] showRucheekGame set to true');
+                }}
                 style={{ background: "linear-gradient(135deg,#ea580c,#f46f10)", color: "white", border: "none", borderRadius: "8px", padding: "4px 12px", fontSize: "13px", cursor: "pointer", fontWeight: 700, fontFamily: "Exo 2, sans-serif", whiteSpace: "nowrap" }}
               >
                 🏀 Струмок
