@@ -974,27 +974,6 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         ctx.font = `${11*scaleX}px sans-serif`;
         ctx.textAlign = 'right';
         ctx.fillText('Гравців: ' + alive + '/6', W - 8*scaleX, 17*scaleY);
-
-        // Event log in bottom-right
-        if (gs.eventLog.length > 0) {
-          const logX = W - 8*scaleX, logY = H - 120*scaleY;
-          const logW = 140*scaleX, logH = 100*scaleY;
-          ctx.fillStyle = 'rgba(0,0,0,0.5)';
-          ctx.fillRect(logX - logW, logY, logW, logH);
-          ctx.strokeStyle = 'rgba(255,255,255,0.1)';
-          ctx.lineWidth = 1;
-          ctx.strokeRect(logX - logW, logY, logW, logH);
-          ctx.fillStyle = 'rgba(255,255,255,0.25)';
-          ctx.font = `bold ${8*scaleX}px sans-serif`;
-          ctx.textAlign = 'right';
-          ctx.fillText('Події', logX - 4*scaleX, logY + 10*scaleY);
-          gs.eventLog.forEach((evt: any, ei: number) => {
-            ctx.fillStyle = 'rgba(255,255,255,0.7)';
-            ctx.font = `${7*scaleX}px sans-serif`;
-            ctx.textAlign = 'right';
-            ctx.fillText(evt.text, logX - 4*scaleX, logY + 22*scaleY + ei * 14*scaleY);
-          });
-        }
       }
 
       if (gs.state === 'waiting') {
@@ -1036,6 +1015,18 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       const sc = W / rect.width;
       const mx = (e.clientX - rect.left) * sc;
       const my = (e.clientY - rect.top) * sc;
+
+      // Boost throw: if ball is flying, +20% speed
+      for (let i = 0; i < gs.shootStates.length; i++) {
+        const ss = gs.shootStates[i];
+        if (ss.phase === 'flying' && ss.ball) {
+          ss.ball.vx *= 1.2;
+          ss.ball.vy *= 1.2;
+          addFlash('💨 +20%!', ss.ball.x, ss.ball.y - 30*scaleY, '#ffdd00');
+          return;
+        }
+      }
+
       let hitIdx = -1;
       for (let i = 0; i < gs.players.length; i++) {
         if (gs.players[i].status === "eliminated") continue;
