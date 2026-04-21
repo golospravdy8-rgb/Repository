@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { createPortal } from "react-dom";
 
 interface RucheekGameCanvasProps {
   isVisible: boolean;
@@ -271,9 +272,15 @@ export default function RucheekGameCanvas({
     ctx.restore();
   };
 
-  if (!isVisible) return null;
+  const [mounted, setMounted] = useState(false);
 
-  return (
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) return null;
+
+  const canvasContent = (
     <>
       {/* Прозрачный canvas overlay поверх всей страницы */}
       <canvas
@@ -284,7 +291,7 @@ export default function RucheekGameCanvas({
           left: 0,
           width: "100vw",
           height: "100vh",
-          zIndex: 9000,
+          zIndex: 9999,
           pointerEvents: gameState === "playing" ? "auto" : "none",
           background: "transparent",
         }}
@@ -369,4 +376,8 @@ export default function RucheekGameCanvas({
       )}
     </>
   );
+
+  if (!isVisible) return null;
+
+  return createPortal(canvasContent, document.body);
 }
