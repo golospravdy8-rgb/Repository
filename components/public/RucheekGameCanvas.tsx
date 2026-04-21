@@ -1082,18 +1082,19 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
   const gs = gsRef.current;
 
   const handleAddPlayer = () => {
-    if (gs.players.length + gs.queue.length >= MAX_PLAYERS * 2) { alert("Максимум гравців!"); return; }
-    const name = pname.trim() || (gs.players.length === 0 && userName ? userName : `Гр.${gs.players.length+1}`);
+    if (gs.players.length + gs.queue.length >= MAX_PLAYERS * 2) return;
+    const myPlayers = gs.players.filter((p: any) => p.owner === userPhone);
+    if (myPlayers.length >= 3) return;
+    const suffix = myPlayers.length === 0 ? "" : ` ${myPlayers.length + 1}`;
+    const name = pname.trim() || (userName + suffix);
 
     if (gs.players.length >= MAX_PLAYERS) {
-      if (gs.queue.find((q: any) => q.owner === userPhone)) { alert("Ти вже в черзі!"); return; }
+      if (gs.queue.find((q: any) => q.owner === userPhone)) return;
       gs.queue.push({ name, owner: userPhone });
       setPname("");
       forceUpdate(n => n + 1);
       return;
     }
-
-    if (gs.players.find((p: any) => p.owner === userPhone)) { alert("Ти вже грієш!"); return; }
 
     const idx = gs.players.length;
     const W_ORIG = 860, H_ORIG = 624, GY_ORIG = 584;
@@ -1157,7 +1158,14 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           });
           canvas.dispatchEvent(evt);
         }}
-        onContextMenu={(e) => e.preventDefault()}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          const evt = new MouseEvent("contextmenu", {
+            bubbles: true, cancelable: true,
+            clientX: e.clientX, clientY: e.clientY
+          });
+          canvasRef.current?.dispatchEvent(evt);
+        }}
       />
       <div style={{ position:"fixed", bottom:8, left:"50%", transform:"translateX(-50%)",
         zIndex:10001, display:"flex", gap:7, alignItems:"center",
