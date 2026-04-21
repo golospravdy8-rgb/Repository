@@ -1038,12 +1038,18 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
 
   const handleAddPlayer = () => {
     if (gs.players.length >= MAX_PLAYERS) { alert("Максимум 6 гравців!"); return; }
-    const name = pname.trim() || `Гр.${gs.players.length+1}`;
+    const name = pname.trim() || (gs.players.length === 0 && userName ? userName : `Гр.${gs.players.length+1}`);
     const idx = gs.players.length;
-    gs.players.push({ name, x: 680*(window.innerWidth/860)+idx*58*(window.innerWidth/860), y: 584*(window.innerHeight/624), score:0, kills:0, status:"idle", rf:0, color: PLAYER_COLORS[idx%6] });
-    gs.shootStates.push({ phase:null,aimAngle:-Math.PI*0.72,aimDir:1,power:0,powerDir:1,ball:null,lockedAngle:null,idealTraj:null,idealSpeed:10,runTarget:null,inDanger:false });
+    const W_ORIG = 860, H_ORIG = 624, GY_ORIG = 584;
+    const scaleX = window.innerWidth / W_ORIG;
+    const scaleY = window.innerHeight / H_ORIG;
+    const P_START = window.innerWidth * 0.65;
+    const P_STEP = window.innerWidth * 0.07;
+    const GY = GY_ORIG * scaleY;
+    gs.players.push({ name, x: P_START + idx * P_STEP, y: GY, score: 0, kills: 0, status: "idle", rf: 0, color: PLAYER_COLORS[idx % 6] });
+    gs.shootStates.push({ phase: null, aimAngle: -Math.PI * 0.72, aimDir: 1, power: 0, powerDir: 1, ball: null, lockedAngle: null, idealTraj: null, idealSpeed: 10, runTarget: null, inDanger: false });
     setPname("");
-    forceUpdate(n => n+1);
+    forceUpdate(n => n + 1);
   };
 
   const handleStart = () => {
