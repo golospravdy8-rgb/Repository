@@ -6,6 +6,7 @@ export function joinGameChannel(roomId: string, onEvent: (ev: any) => void) {
   });
   channel.on('broadcast', { event: 'game' }, ({ payload }) => onEvent(payload));
   channel.subscribe();
+  channel.track({ online: true });
   return channel;
 }
 

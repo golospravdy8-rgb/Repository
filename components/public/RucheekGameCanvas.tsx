@@ -50,6 +50,27 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
     const handleGameEvent = (ev: any) => {
       const gs = gsRef.current;
 
+      if (ev.action === 'requestState' && ev.from !== userPhone) {
+        // I'm already in game — send state snapshot to new player
+        sendGameEvent(channelRef.current, {
+          action: 'fullState',
+          players: gs.players,
+          shootStates: gs.shootStates,
+          state: gs.state,
+          to: ev.from
+        });
+      }
+
+      if (ev.action === 'fullState' && (!ev.to || ev.to === userPhone)) {
+        // Apply only if I have no players yet
+        if (gs.players.length === 0 && ev.players?.length > 0) {
+          gs.players = ev.players;
+          gs.shootStates = ev.shootStates || ev.players.map(() => ({ phase: null, runTarget: null, power: 0, powerDir: 1, ball: null }));
+          gs.state = ev.state;
+          forceUpdate(n => n + 1);
+        }
+      }
+
       if (ev.action === 'addPlayer' && ev.player) {
         if (!gs.players.find((p: any) => p.owner === ev.player.owner && p.name === ev.player.name)) {
           const idx = gs.players.length;
@@ -116,6 +137,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
 
     const channel = joinGameChannel(gameRoomId, handleGameEvent);
     channelRef.current = channel;
+    sendGameEvent(channel, { action: 'requestState', from: userPhone });
 
     return () => {
       if (channelRef.current) {
@@ -1139,17 +1161,6 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       const sc = W / rect.width;
       const mx = (e.clientX - rect.left) * sc;
       const my = (e.clientY - rect.top) * sc;
-
-      // Boost throw: if ball is flying, +20% speed
-      for (let i = 0; i < gs.shootStates.length; i++) {
-        const ss = gs.shootStates[i];
-        if (ss.phase === 'flying' && ss.ball) {
-          ss.ball.vx *= 1.2;
-          ss.ball.vy *= 1.2;
-          addFlash('💨 +20%!', ss.ball.x, ss.ball.y - 30*scaleY, '#ffdd00');
-          return;
-        }
-      }
 
       let hitIdx = -1;
       for (let i = 0; i < gs.players.length; i++) {
