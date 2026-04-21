@@ -6,12 +6,13 @@ interface RucheekGameCanvasProps {
   isVisible: boolean;
   userName?: string;
   userPhone?: string;
+  gameRoomId?: string;
 }
 
 const PLAYER_COLORS = ["#4fc3f7","#81c784","#ffb74d","#f06292","#ce93d8","#80cbc4"];
 const MAX_PLAYERS = 6;
 
-export default function RucheekGameCanvas({ isVisible, userName = "", userPhone = "" }: RucheekGameCanvasProps) {
+export default function RucheekGameCanvas({ isVisible, userName = "", userPhone = "", gameRoomId = "general" }: RucheekGameCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rafRef = useRef<number>(0);
   const pnameRef = useRef<HTMLInputElement>(null);
