@@ -81,6 +81,37 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           gs.shootStates[ev.idx].runTarget = { x: ev.targetX, y: ev.targetY };
         }
       }
+      if (ev.action === 'syncPositions' && ev.players) {
+        for (const pos of ev.players) {
+          const p = gs.players[pos.idx];
+          if (p && p.owner !== userPhone) {
+            p.x = pos.x;
+            p.y = pos.y;
+            p.status = pos.status;
+          }
+        }
+      }
+      if (ev.action === 'shoot' && ev.idx !== undefined && ev.ball) {
+        const p = gs.players[ev.idx];
+        if (p && p.owner !== userPhone) {
+          const ss = gs.shootStates[ev.idx];
+          ss.ball = {
+            x: ev.ball.x,
+            y: ev.ball.y,
+            vx: ev.ball.vx,
+            vy: ev.ball.vy,
+            rot: 0,
+            state: 'flying',
+            outcome: 'miss',
+            boardHandled: false,
+            rimHandled: false,
+            owner: ev.idx,
+            perfectShot: false
+          };
+          ss.phase = 'flying';
+          p.status = 'shooting';
+        }
+      }
     };
 
     const channel = joinGameChannel(gameRoomId, handleGameEvent);
@@ -93,6 +124,32 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       }
     };
   }, [mounted, isVisible, gameRoomId, userPhone]);
+
+  // ── Broadcast player positions every 500ms ────────────────────────────────
+  useEffect(() => {
+    if (!mounted || !isVisible || gsRef.current.state !== 'playing') return;
+
+    const syncInterval = setInterval(() => {
+      const gs = gsRef.current;
+      if (gs.state !== 'playing' || !channelRef.current) return;
+
+      const positions = gs.players
+        .map((p: any, idx: number) => ({
+          idx,
+          x: p.x,
+          y: p.y,
+          status: p.status,
+          owner: p.owner,
+        }))
+        .filter((pos: any) => pos.owner === userPhone);
+
+      if (positions.length > 0) {
+        sendGameEvent(channelRef.current, { action: 'syncPositions', players: positions });
+      }
+    }, 500);
+
+    return () => clearInterval(syncInterval);
+  }, [mounted, isVisible, userPhone]);
 
   useEffect(() => {
     if (!mounted || !canvasRef.current) return;
@@ -318,6 +375,13 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         ss.idealTraj = null;
         p.status = 'shooting';
         if (idx === gs.disputeP1 && gs.disputeP2 === -1 && gs.players.length > 1) gs.disputeP2 = 1;
+        if (channelRef.current) {
+          sendGameEvent(channelRef.current, {
+            action: 'shoot',
+            idx,
+            ball: { x: ss.ball.x, y: ss.ball.y, vx: ss.ball.vx, vy: ss.ball.vy }
+          });
+        }
         return;
       }
 
@@ -346,6 +410,13 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       ss.idealTraj = null;
       p.status = 'shooting';
       if (idx === gs.disputeP1 && gs.disputeP2 === -1 && gs.players.length > 1) gs.disputeP2 = 1;
+      if (channelRef.current) {
+        sendGameEvent(channelRef.current, {
+          action: 'shoot',
+          idx,
+          ball: { x: ss.ball.x, y: ss.ball.y, vx: ss.ball.vx, vy: ss.ball.vy }
+        });
+      }
     }
 
     function update() {

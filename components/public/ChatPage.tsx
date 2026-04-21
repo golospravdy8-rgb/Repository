@@ -2766,7 +2766,7 @@ export default function ChatPage() {
         isVisible={showRucheekGame}
         userName={user ? `${user.firstName} ${user.lastName}` : "Гравець"}
         userPhone={user?.phone || ""}
-        gameRoomId="general"
+        gameRoomId={activeRoom}
       />
 
     </div>
