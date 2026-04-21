@@ -32,6 +32,9 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
     netShake: false,
     netShakeEnd: 0,
     netShakeT: 0,
+    turnStartTime: 0,
+    turnTimeoutId: null as any,
+    eventLog: [] as Array<{text: string, time: number}>,
   });
 
   useEffect(() => { setMounted(true); }, []);
@@ -292,6 +295,23 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
 
     function update() {
       if (gs.state !== 'playing') return;
+
+      // Turn timer: auto-miss if player doesn't act within 20 seconds
+      if (gs.selectedMoveIdx >= 0 && gs.selectedMoveIdx < gs.players.length) {
+        const ss = gs.shootStates[gs.selectedMoveIdx];
+        if (ss.phase === 'charging' || ss.phase === 'aiming') {
+          if (!gs.turnStartTime) gs.turnStartTime = Date.now();
+          const elapsed = (Date.now() - gs.turnStartTime) / 1000;
+          if (elapsed > 20) {
+            handleMissed(gs.selectedMoveIdx);
+            gs.turnStartTime = 0;
+            gs.selectedMoveIdx = -1;
+          }
+        }
+      } else {
+        gs.turnStartTime = 0;
+      }
+
       for (let i = 0; i < gs.players.length; i++) {
         const p = gs.players[i], ss = gs.shootStates[i];
         if (p.status === 'eliminated') continue;
@@ -344,6 +364,8 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       p.score++;
       gs.shootStates[idx].inDanger = false;
       addFlash('✅ ПОПАВ! +1', HOOP_X + 55*scaleX, HOOP_Y - 45*scaleY, '#44cc44');
+      gs.eventLog.push({ text: `✅ ${p.name} забив!`, time: Date.now() });
+      if (gs.eventLog.length > 4) gs.eventLog.shift();
       gs.netShake = true;
       gs.netShakeEnd = Date.now() + 700;
       const ss = gs.shootStates[idx];
@@ -357,6 +379,8 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         const dangerPhases = ['auto_run', 'pickup_wait', 'flying', 'aiming', 'charging'];
         if (dangerPhases.includes(p1ph) || gs.shootStates[gs.disputeP1]?.inDanger) {
           addFlash('💀 ВИБИТО!', gs.players[gs.disputeP1]?.x || 300, GY - 130*scaleY, '#ff4444');
+          gs.eventLog.push({ text: `💀 ${gs.players[gs.disputeP1]?.name} вибув!`, time: Date.now() });
+          if (gs.eventLog.length > 4) gs.eventLog.shift();
           if (gs.players[gs.disputeP1]) gs.players[gs.disputeP1].status = 'eliminated';
           if (gs.players[idx]) gs.players[idx].kills = (gs.players[idx].kills || 0) + 1;
           setTimeout(() => {
@@ -390,6 +414,8 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         if (gs.players.length === 1) {
           gs.players[0].hp = (gs.players[0].hp || 3) + 10;
           addFlash(`🏆 ПЕРЕМОЖЕЦЬ! +10❤`, gs.players[0].x, gs.players[0].y - 150*scaleY, '#ffdd00');
+          gs.eventLog.push({ text: `🏆 ${gs.players[0].name} переміг!`, time: Date.now() });
+          if (gs.eventLog.length > 4) gs.eventLog.shift();
         }
       }
     }
@@ -400,10 +426,14 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       p.hp = (p.hp || 3) - 1;
       ss.inDanger = true;
       addFlash(`❌ МИМО! ❤${p.hp}`, p.x, p.y - 100*scaleY, '#e05545');
+      gs.eventLog.push({ text: `❌ ${p.name} промахнувся!`, time: Date.now() });
+      if (gs.eventLog.length > 4) gs.eventLog.shift();
 
       if (p.hp <= 0) {
         p.status = 'eliminated';
         addFlash('💀 ВИБИТО!', p.x, p.y - 130*scaleY, '#ff4444');
+        gs.eventLog.push({ text: `💀 ${p.name} вибув!`, time: Date.now() });
+        if (gs.eventLog.length > 4) gs.eventLog.shift();
         if (gs.queue.length > 0) {
           const next = gs.queue.shift();
           const newIdx = gs.players.length;
@@ -411,6 +441,8 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           gs.players.push({ name: next.name, x: P_START + newIdx * P_STEP, y: GY, score: 0, kills: 0, status: 'idle', rf: 0, color: PLAYER_COLORS[newIdx % 6], owner: next.owner, hp: 3 });
           gs.shootStates.push({ phase: null, aimAngle: -Math.PI * 0.72, aimDir: 1, power: 0, powerDir: 1, ball: null, lockedAngle: null, idealTraj: null, idealSpeed: 10, runTarget: null, inDanger: false });
           addFlash(`✅ ${next.name} грає!`, W / 2, 50*scaleY, '#44cc44');
+          gs.eventLog.push({ text: `✅ ${next.name} заходить!`, time: Date.now() });
+          if (gs.eventLog.length > 4) gs.eventLog.shift();
         }
         return;
       }
@@ -850,6 +882,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
             const danger2 = ss2?.inDanger || false;
             const eliminated2 = p2.status === 'eliminated';
             const isMine2 = i2 === 0;
+            const isMyPlayer = p2.owner === userPhone;
             const blink = danger2 ? (Math.sin(Date.now() / 180) > 0) : true;
 
             if (eliminated2) {
@@ -872,7 +905,8 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
               ctx.fillStyle = 'rgba(255,80,80,0.95)';
               ctx.font = `bold ${10*scaleX}px sans-serif`;
               ctx.textAlign = 'left';
-              ctx.fillText('🎯 ' + p2.name, listX + padX, ry + 1);
+              const ownerMark = isMyPlayer ? '★ ' : '';
+              ctx.fillText('🎯 ' + ownerMark + p2.name, listX + padX, ry + 1);
               ctx.fillStyle = 'rgba(255,150,150,0.8)';
               ctx.font = `${8*scaleX}px sans-serif`;
               ctx.textAlign = 'right';
@@ -889,7 +923,8 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
               ctx.fillStyle = isMine2 ? (p2.color || '#fff') : 'rgba(220,220,220,0.65)';
               ctx.font = (isMine2 ? 'bold ' : '') + `${10*scaleX}px sans-serif`;
               ctx.textAlign = 'left';
-              ctx.fillText(p2.name, listX + padX + 10, ry + 1);
+              const ownerMark = isMyPlayer ? '★ ' : '';
+              ctx.fillText(ownerMark + p2.name, listX + padX + 10, ry + 1);
               ctx.fillStyle = 'rgba(255,100,100,0.8)';
               ctx.font = `${8*scaleX}px sans-serif`;
               ctx.textAlign = 'right';
@@ -939,6 +974,27 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         ctx.font = `${11*scaleX}px sans-serif`;
         ctx.textAlign = 'right';
         ctx.fillText('Гравців: ' + alive + '/6', W - 8*scaleX, 17*scaleY);
+
+        // Event log in bottom-right
+        if (gs.eventLog.length > 0) {
+          const logX = W - 8*scaleX, logY = H - 120*scaleY;
+          const logW = 140*scaleX, logH = 100*scaleY;
+          ctx.fillStyle = 'rgba(0,0,0,0.5)';
+          ctx.fillRect(logX - logW, logY, logW, logH);
+          ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+          ctx.lineWidth = 1;
+          ctx.strokeRect(logX - logW, logY, logW, logH);
+          ctx.fillStyle = 'rgba(255,255,255,0.25)';
+          ctx.font = `bold ${8*scaleX}px sans-serif`;
+          ctx.textAlign = 'right';
+          ctx.fillText('Події', logX - 4*scaleX, logY + 10*scaleY);
+          gs.eventLog.forEach((evt: any, ei: number) => {
+            ctx.fillStyle = 'rgba(255,255,255,0.7)';
+            ctx.font = `${7*scaleX}px sans-serif`;
+            ctx.textAlign = 'right';
+            ctx.fillText(evt.text, logX - 4*scaleX, logY + 22*scaleY + ei * 14*scaleY);
+          });
+        }
       }
 
       if (gs.state === 'waiting') {
@@ -1081,12 +1137,13 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
 
   const gs = gsRef.current;
 
-  const handleAddPlayer = () => {
+  const handleAddPlayer = (e?: any) => {
+    const autoName = e?.currentTarget?.dataset?.auto === 'true';
     if (gs.players.length + gs.queue.length >= MAX_PLAYERS * 2) return;
     const myPlayers = gs.players.filter((p: any) => p.owner === userPhone);
     if (myPlayers.length >= 3) return;
     const suffix = myPlayers.length === 0 ? "" : ` ${myPlayers.length + 1}`;
-    const name = pname.trim() || (userName + suffix);
+    const name = autoName ? (userName + suffix) : (pname.trim() || (userName + suffix));
 
     if (gs.players.length >= MAX_PLAYERS) {
       if (gs.queue.find((q: any) => q.owner === userPhone)) return;
@@ -1106,6 +1163,18 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
     gs.players.push({ name, x: P_START + idx * P_STEP, y: GY, score: 0, kills: 0, status: "idle", rf: 0, color: PLAYER_COLORS[idx % 6], owner: userPhone, hp: 3 });
     gs.shootStates.push({ phase: null, aimAngle: -Math.PI * 0.72, aimDir: 1, power: 0, powerDir: 1, ball: null, lockedAngle: null, idealTraj: null, idealSpeed: 10, runTarget: null, inDanger: false });
     setPname("");
+    forceUpdate(n => n + 1);
+  };
+
+  const handleLeaveGame = () => {
+    const myPlayers = gs.players.filter((p: any) => p.owner === userPhone);
+    myPlayers.forEach((p: any) => {
+      p.status = "eliminated";
+    });
+    const myQueueIdx = gs.queue.findIndex((q: any) => q.owner === userPhone);
+    if (myQueueIdx >= 0) {
+      gs.queue.splice(myQueueIdx, 1);
+    }
     forceUpdate(n => n + 1);
   };
 
@@ -1182,6 +1251,8 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
             background:"#1a1f35", color:"#fff", fontSize:13, width:120 }}
         />
         <button onClick={handleAddPlayer} style={btnStyle("#e06030", gs.players.length>=6)}>+ Додати</button>
+        <button onClick={(e) => { e.preventDefault(); handleAddPlayer(e); }} style={btnStyle("#4fc3f7", gs.players.length>=6)} data-auto="true">🏀 Гравець</button>
+        <button onClick={handleLeaveGame} style={btnStyle("#ff6644")}>🚪 Вийти</button>
         <button ref={btnStartRef} onClick={handleStart} style={btnStyle("#27ae60", gs.players.length<2)} disabled={gs.players.length<2}>▶ Старт</button>
         <button onClick={handleRestart} style={btnStyle("#444")}>↺ Рестарт</button>
         <button onClick={() => setShowModal(true)} style={btnStyle("#1a4a8a")}>📖 Інструкція</button>
