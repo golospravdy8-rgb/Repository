@@ -2761,19 +2761,12 @@ export default function ChatPage() {
         </div>
       </div>
 
-      {/* ── РУЧЕЁК Game Canvas (прозрачный overlay поверх всей страницы) ────── */}
+      {/* ── РУЧЕЁК Game Canvas (прозрачный overlay поверх всієї сторінки) ────── */}
       <RucheekGameCanvas
         isVisible={showRucheekGame}
         userName={user ? `${user.firstName} ${user.lastName}` : "Гравець"}
         userPhone={user?.phone || ""}
-        onSendGameEvent={(data) => {
-          fetch("/api/chat", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ action: "game-event", phone: user?.phone, name: user ? `${user.firstName} ${user.lastName}` : "Гравець", data, roomId: "general" })
-          }).catch(e => console.error("Game event send failed:", e));
-        }}
-        gameMessages={messages.filter((m: any) => m.text?.startsWith("__GAME__:")).map((m: any) => m.text)}
+        gameRoomId="general"
       />
 
     </div>

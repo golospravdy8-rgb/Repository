@@ -1,27 +1,29 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { joinGameChannel, sendGameEvent } from "@/lib/gameChannel";
 
 interface RucheekGameCanvasProps {
   isVisible: boolean;
   userName?: string;
   userPhone?: string;
-  onSendGameEvent?: (data: any) => void;
-  gameMessages?: string[];
+  gameRoomId?: string;
 }
 
 const PLAYER_COLORS = ["#4fc3f7","#81c784","#ffb74d","#f06292","#ce93d8","#80cbc4"];
 const MAX_PLAYERS = 6;
 
-export default function RucheekGameCanvas({ isVisible, userName = "", userPhone = "", onSendGameEvent, gameMessages = [] }: RucheekGameCanvasProps) {
+export default function RucheekGameCanvas({ isVisible, userName = "", userPhone = "", gameRoomId = "default" }: RucheekGameCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rafRef = useRef<number>(0);
   const pnameRef = useRef<HTMLInputElement>(null);
   const btnStartRef = useRef<HTMLButtonElement>(null);
+  const channelRef = useRef<any>(null);
   const [mounted, setMounted] = useState(false);
   const [pname, setPname] = useState(userName);
   const [showModal, setShowModal] = useState(false);
   const [, forceUpdate] = useState(0);
+  const [playerCount, setPlayerCount] = useState(0);
   const gsRef = useRef<any>({
     state: "waiting",
     players: [] as any[],
@@ -41,47 +43,56 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
 
   useEffect(() => { setMounted(true); }, []);
 
+  // ── Supabase Realtime channel for game events ──────────────────────────
   useEffect(() => {
-    if (!gameMessages || gameMessages.length === 0) return;
-    gameMessages.forEach((msg: string) => {
-      if (!msg.startsWith('__GAME__:')) return;
-      try {
-        const ev = JSON.parse(msg.replace('__GAME__:', ''));
-        if (ev.action === 'addPlayer' && ev.player) {
-          if (!gs.players.find((p: any) => p.owner === ev.player.owner && p.name === ev.player.name)) {
-            const idx = gs.players.length;
-            const W_ORIG = 860, H_ORIG = 624, GY_ORIG = 584;
-            const scaleX = window.innerWidth / W_ORIG;
-            const scaleY = window.innerHeight / H_ORIG;
-            const P_START = window.innerWidth * 0.65;
-            const P_STEP = window.innerWidth * 0.07;
-            const GY = GY_ORIG * scaleY;
-            gs.players.push({ name: ev.player.name, x: P_START + idx * P_STEP, y: GY, score: 0, kills: 0, status: 'idle', rf: 0, color: PLAYER_COLORS[idx % 6], owner: ev.player.owner, hp: ev.player.hp || 3 });
-            gs.shootStates.push({ phase: null, aimAngle: -Math.PI * 0.72, aimDir: 1, power: 0, powerDir: 1, ball: null, lockedAngle: null, idealTraj: null, idealSpeed: 10, runTarget: null, inDanger: false });
-            forceUpdate(n => n + 1);
-          }
-        }
-        if (ev.action === 'start' && gs.state === 'waiting') {
-          gs.state = 'playing';
+    if (!mounted || !isVisible) return;
+
+    const handleGameEvent = (ev: any) => {
+      const gs = gsRef.current;
+
+      if (ev.action === 'addPlayer' && ev.player) {
+        if (!gs.players.find((p: any) => p.owner === ev.player.owner && p.name === ev.player.name)) {
+          const idx = gs.players.length;
+          const W_ORIG = 860, H_ORIG = 624, GY_ORIG = 584;
+          const scaleX = window.innerWidth / W_ORIG;
+          const scaleY = window.innerHeight / H_ORIG;
+          const P_START = window.innerWidth * 0.65;
+          const P_STEP = window.innerWidth * 0.07;
+          const GY = GY_ORIG * scaleY;
+          gs.players.push({ name: ev.player.name, x: P_START + idx * P_STEP, y: GY, score: 0, kills: 0, status: 'idle', rf: 0, color: PLAYER_COLORS[idx % 6], owner: ev.player.owner, hp: ev.player.hp || 3 });
+          gs.shootStates.push({ phase: null, aimAngle: -Math.PI * 0.72, aimDir: 1, power: 0, powerDir: 1, ball: null, lockedAngle: null, idealTraj: null, idealSpeed: 10, runTarget: null, inDanger: false });
+          setPlayerCount(gs.players.length);
           forceUpdate(n => n + 1);
         }
-        if (ev.action === 'leave') {
-          gs.players = gs.players.filter((p: any) => p.owner !== ev.owner);
-          gs.shootStates = gs.shootStates.slice(0, gs.players.length);
-          forceUpdate(n => n + 1);
-        }
-        if (ev.action === 'movePlayer') {
-          const p = gs.players[ev.idx];
-          if (p && p.owner !== userPhone) {
-            gs.shootStates[ev.idx].runTarget = { x: ev.targetX, y: ev.targetY };
-          }
-        }
-      } catch (e) {
-        // ignore parse errors
       }
-    });
-    forceUpdate(n => n + 1);
-  }, [gameMessages]);
+      if (ev.action === 'start' && gs.state === 'waiting') {
+        gs.state = 'playing';
+        forceUpdate(n => n + 1);
+      }
+      if (ev.action === 'leave') {
+        gs.players = gs.players.filter((p: any) => p.owner !== ev.owner);
+        gs.shootStates = gs.shootStates.slice(0, gs.players.length);
+        setPlayerCount(gs.players.length);
+        forceUpdate(n => n + 1);
+      }
+      if (ev.action === 'movePlayer') {
+        const p = gs.players[ev.idx];
+        if (p && p.owner !== userPhone) {
+          gs.shootStates[ev.idx].runTarget = { x: ev.targetX, y: ev.targetY };
+        }
+      }
+    };
+
+    const channel = joinGameChannel(gameRoomId, handleGameEvent);
+    channelRef.current = channel;
+
+    return () => {
+      if (channelRef.current) {
+        channelRef.current.unsubscribe();
+        channelRef.current = null;
+      }
+    };
+  }, [mounted, isVisible, gameRoomId, userPhone]);
 
   useEffect(() => {
     if (!mounted || !canvasRef.current) return;
@@ -411,7 +422,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       addFlash('✅ ПОПАВ! +1', HOOP_X + 55*scaleX, HOOP_Y - 45*scaleY, '#44cc44');
       gs.eventLog.push({ text: `✅ ${p.name} забив!`, time: Date.now() });
       if (gs.eventLog.length > 4) gs.eventLog.shift();
-      onSendGameEvent?.({ action: "scored", idx, playerName: p.name, score: p.score });
+      if (channelRef.current) sendGameEvent(channelRef.current, { action: "scored", idx, playerName: p.name, score: p.score });
       gs.netShake = true;
       gs.netShakeEnd = Date.now() + 700;
       const ss = gs.shootStates[idx];
@@ -474,14 +485,14 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       addFlash(`❌ МИМО! ❤${p.hp}`, p.x, p.y - 100*scaleY, '#e05545');
       gs.eventLog.push({ text: `❌ ${p.name} промахнувся!`, time: Date.now() });
       if (gs.eventLog.length > 4) gs.eventLog.shift();
-      onSendGameEvent?.({ action: "missed", idx, playerName: p.name, hp: p.hp });
+      if (channelRef.current) sendGameEvent(channelRef.current, { action: "missed", idx, playerName: p.name, hp: p.hp });
 
       if (p.hp <= 0) {
         p.status = 'eliminated';
         addFlash('💀 ВИБИТО!', p.x, p.y - 130*scaleY, '#ff4444');
         gs.eventLog.push({ text: `💀 ${p.name} вибув!`, time: Date.now() });
         if (gs.eventLog.length > 4) gs.eventLog.shift();
-        onSendGameEvent?.({ action: "eliminated", playerName: p.name });
+        if (channelRef.current) sendGameEvent(channelRef.current, { action: "eliminated", playerName: p.name });
         if (gs.queue.length > 0) {
           const next = gs.queue.shift();
           const newIdx = gs.players.length;
@@ -491,7 +502,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           addFlash(`✅ ${next.name} грає!`, W / 2, 50*scaleY, '#44cc44');
           gs.eventLog.push({ text: `✅ ${next.name} заходить!`, time: Date.now() });
           if (gs.eventLog.length > 4) gs.eventLog.shift();
-          onSendGameEvent?.({ action: "playerJoined", playerName: next.name });
+          if (channelRef.current) sendGameEvent(channelRef.current, { action: "playerJoined", playerName: next.name });
         }
         return;
       }
@@ -797,10 +808,6 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           ctx.arc(p.x, p.y - 37*scaleY, 46*scaleX, 0, Math.PI * 2);
           ctx.stroke();
           ctx.setLineDash([]);
-          ctx.fillStyle = `rgba(255,220,50,${al * 0.85})`;
-          ctx.font = `bold ${10*scaleX}px sans-serif`;
-          ctx.textAlign = 'center';
-          ctx.fillText('ПКМ на підлогу → бігти', p.x, p.y - 92*scaleY);
         }
 
         if (ss.phase === 'aiming') {
@@ -1115,7 +1122,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
             ss.runTarget = { x: Math.max(50*scaleX, Math.min(W - 30*scaleX, mx)), y: GY };
             ss.phase = "manual_run";
             p.status = "running";
-            onSendGameEvent?.({ action: "movePlayer", idx: gs.selectedMoveIdx, targetX: ss.runTarget.x, targetY: ss.runTarget.y, owner: userPhone });
+            if (channelRef.current) sendGameEvent(channelRef.current, { action: "movePlayer", idx: gs.selectedMoveIdx, targetX: ss.runTarget.x, targetY: ss.runTarget.y, owner: userPhone });
           }
         }
       }
@@ -1189,7 +1196,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
     if (gs.players.length >= MAX_PLAYERS) {
       if (gs.queue.find((q: any) => q.owner === userPhone)) return;
       gs.queue.push({ name, owner: userPhone });
-      onSendGameEvent?.({ action: "addPlayer", player: { name, owner: userPhone, hp: 3 } });
+      if (channelRef.current) sendGameEvent(channelRef.current, { action: "addPlayer", player: { name, owner: userPhone, hp: 3 } });
       setPname("");
       forceUpdate(n => n + 1);
       return;
@@ -1204,7 +1211,8 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
     const GY = GY_ORIG * scaleY;
     gs.players.push({ name, x: P_START + idx * P_STEP, y: GY, score: 0, kills: 0, status: "idle", rf: 0, color: PLAYER_COLORS[idx % 6], owner: userPhone, hp: 3 });
     gs.shootStates.push({ phase: null, aimAngle: -Math.PI * 0.72, aimDir: 1, power: 0, powerDir: 1, ball: null, lockedAngle: null, idealTraj: null, idealSpeed: 10, runTarget: null, inDanger: false });
-    onSendGameEvent?.({ action: "addPlayer", player: { name, owner: userPhone, hp: 3 } });
+    if (channelRef.current) sendGameEvent(channelRef.current, { action: "addPlayer", player: { name, owner: userPhone, hp: 3 } });
+    setPlayerCount(gs.players.length);
     setPname("");
     forceUpdate(n => n + 1);
   };
@@ -1218,18 +1226,18 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
     if (myQueueIdx >= 0) {
       gs.queue.splice(myQueueIdx, 1);
     }
-    onSendGameEvent?.({ action: "leave", owner: userPhone });
+    if (channelRef.current) sendGameEvent(channelRef.current, { action: "leave", owner: userPhone });
     forceUpdate(n => n + 1);
   };
 
   const handleStart = () => {
-    if (gs.players.length < 2) return;
+    if (playerCount < 2) return;
     gs.state = "playing";
     gs.flashes = [];
     gs.players.forEach((p:any) => { p.score=0; p.kills=0; p.status="idle"; p.rf=0; });
     gs.shootStates = gs.players.map(() => ({ phase:null,aimAngle:-Math.PI*0.72,aimDir:1,power:0,powerDir:1,ball:null,lockedAngle:null,idealTraj:null,idealSpeed:10,runTarget:null,inDanger:false }));
     gs.disputeP1=0; gs.disputeP2=-1; gs.selectedMoveIdx=-1;
-    onSendGameEvent?.({ action: "start" });
+    if (channelRef.current) sendGameEvent(channelRef.current, { action: "start" });
     forceUpdate(n => n+1);
   };
 
@@ -1288,7 +1296,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         boxShadow:"0 2px 12px rgba(0,0,0,0.5)" }}>
         <button onClick={(e) => { e.preventDefault(); handleAddPlayer(e); }} style={btnStyle("#4fc3f7", gs.players.length>=6)} data-auto="true">🏀 Гравець</button>
         <button onClick={handleLeaveGame} style={btnStyle("#ff6644")}>🚪 Вийти</button>
-        <button ref={btnStartRef} onClick={handleStart} style={btnStyle("#27ae60", gs.players.length<2)} disabled={gs.players.length<2}>▶ Старт</button>
+        <button ref={btnStartRef} onClick={handleStart} style={btnStyle("#27ae60", playerCount<2)} disabled={playerCount<2}>▶ Старт</button>
         <button onClick={handleRestart} style={btnStyle("#444")}>↺ Рестарт</button>
         <button onClick={() => setShowModal(true)} style={btnStyle("#1a4a8a")}>📖 Інструкція</button>
       </div>
