@@ -157,19 +157,12 @@ export async function POST(req: NextRequest) {
 
   // ── game event (multiplayer sync) ─────────────────────────────────────────
   if (action === "game-event") {
-    const { data, roomId: msgRoomId } = body;
+    const { data } = body;
     if (!phone || !name || !data)
       return Response.json({ error: "phone, name, data required" }, { status: 400 });
 
-    const roomId = msgRoomId === "parents" ? "parents" : "general";
-    const gameText = `__GAME__:${JSON.stringify(data)}`;
-
-    const msg = await prisma.chatMessage.create({
-      data: { phone, name, text: gameText, roomId },
-      include: { replyTo: true, reactions: true },
-    });
-
-    return Response.json({ ok: true, messageId: msg.id });
+    // Game events are handled entirely through Supabase Realtime, not saved to chat DB
+    return Response.json({ success: true });
   }
 
   // ── reaction ─────────────────────────────────────────────────────────────

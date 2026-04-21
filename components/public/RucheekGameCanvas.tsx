@@ -1021,10 +1021,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         if (activeIdx >= 0 && gs.players[activeIdx]) {
           hintText = '[' + gs.players[activeIdx].name + '] ' + (hints[ph] ?? '');
         }
-        ctx.fillStyle = 'rgba(255,255,255,0.72)';
-        ctx.font = `${13*scaleX}px sans-serif`;
-        ctx.textAlign = 'center';
-        ctx.fillText(hintText, W / 2, H - 11*scaleY);
+        // Hint text removed - handled via Supabase Realtime
         const alive = gs.players.filter((p: any) => p.status !== 'eliminated').length;
         ctx.fillStyle = 'rgba(255,255,255,0.28)';
         ctx.font = `${11*scaleX}px sans-serif`;
@@ -1260,7 +1257,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       <canvas
         ref={canvasRef}
         style={{ position:"absolute", top:0, left:0,
-          zIndex:9999, pointerEvents:"none", background:"transparent", cursor:"crosshair" }}
+          zIndex:9999, pointerEvents:"auto", background:"transparent", cursor:"crosshair" }}
       />
       <div
         style={{ position:"fixed", top: 0, left: 0, width: "100%", height: "100%",
