@@ -70,6 +70,12 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           gs.shootStates = gs.shootStates.slice(0, gs.players.length);
           forceUpdate(n => n + 1);
         }
+        if (ev.action === 'movePlayer') {
+          const p = gs.players[ev.idx];
+          if (p && p.owner !== userPhone) {
+            gs.shootStates[ev.idx].runTarget = { x: ev.targetX, y: ev.targetY };
+          }
+        }
       } catch (e) {
         // ignore parse errors
       }
@@ -384,6 +390,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
             if (ss.phase === 'auto_run') { ss.phase = 'pickup_wait'; ss.ball = null; }
             else ss.phase = null;
             p.status = 'idle';
+            ss.runTarget = null;
           }
         }
       }
@@ -1107,6 +1114,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
             ss.runTarget = { x: Math.max(50*scaleX, Math.min(W - 30*scaleX, mx)), y: GY };
             ss.phase = "manual_run";
             p.status = "running";
+            onSendGameEvent?.({ action: "movePlayer", idx: gs.selectedMoveIdx, targetX: ss.runTarget.x, targetY: ss.runTarget.y, owner: userPhone });
           }
         }
       }
@@ -1246,12 +1254,13 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           zIndex:9999, pointerEvents:"none", background:"transparent", cursor:"crosshair" }}
       />
       <div
-        style={{ position:"absolute", top:0, left:0, width:"100%", height:"100%",
-          zIndex:10000, pointerEvents:"auto", cursor:"crosshair" }}
+        style={{ position:"fixed", top: 0, left: 0, width: "100%", height: "100%",
+          zIndex:10000, pointerEvents:"none", cursor:"crosshair" }}
         onMouseDown={(e) => {
           const canvas = canvasRef.current;
           if (!canvas) return;
           const rect = canvas.getBoundingClientRect();
+          if (e.clientX < rect.left || e.clientX > rect.right || e.clientY < rect.top || e.clientY > rect.bottom) return;
           const sc = canvas.width / rect.width;
           const mx = (e.clientX - rect.left) * sc;
           const my = (e.clientY - rect.top) * sc;
