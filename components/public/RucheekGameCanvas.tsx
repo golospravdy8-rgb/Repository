@@ -1,155 +1,39 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { joinGameChannel, sendGameEvent } from "@/lib/gameChannel";
 
 interface RucheekGameCanvasProps {
   isVisible: boolean;
   userName?: string;
   userPhone?: string;
-  gameRoomId?: string;
 }
 
 const PLAYER_COLORS = ["#4fc3f7","#81c784","#ffb74d","#f06292","#ce93d8","#80cbc4"];
 const MAX_PLAYERS = 6;
 
-export default function RucheekGameCanvas({ isVisible, userName = "", userPhone = "", gameRoomId = "default" }: RucheekGameCanvasProps) {
+export default function RucheekGameCanvas({ isVisible, userName = "", userPhone = "" }: RucheekGameCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rafRef = useRef<number>(0);
   const pnameRef = useRef<HTMLInputElement>(null);
   const btnStartRef = useRef<HTMLButtonElement>(null);
-  const channelRef = useRef<any>(null);
   const [mounted, setMounted] = useState(false);
   const [pname, setPname] = useState(userName);
   const [showModal, setShowModal] = useState(false);
   const [, forceUpdate] = useState(0);
-  const [playerCount, setPlayerCount] = useState(0);
   const gsRef = useRef<any>({
     state: "waiting",
     players: [] as any[],
     shootStates: [] as any[],
     flashes: [] as any[],
-    queue: [] as Array<{name: string, owner: string}>,
     selectedMoveIdx: -1,
     disputeP1: 0,
     disputeP2: -1,
     netShake: false,
     netShakeEnd: 0,
     netShakeT: 0,
-    turnStartTime: 0,
-    turnTimeoutId: null as any,
-    eventLog: [] as Array<{text: string, time: number}>,
   });
 
   useEffect(() => { setMounted(true); }, []);
-
-  // ── Supabase Realtime channel for game events ──────────────────────────
-  useEffect(() => {
-    if (!mounted || !isVisible) return;
-
-    const handleGameEvent = (ev: any) => {
-      const gs = gsRef.current;
-
-      if (ev.action === 'addPlayer' && ev.player) {
-        if (!gs.players.find((p: any) => p.owner === ev.player.owner && p.name === ev.player.name)) {
-          const idx = gs.players.length;
-          const W_ORIG = 860, H_ORIG = 624, GY_ORIG = 584;
-          const scaleX = window.innerWidth / W_ORIG;
-          const scaleY = window.innerHeight / H_ORIG;
-          const P_START = window.innerWidth * 0.65;
-          const P_STEP = window.innerWidth * 0.07;
-          const GY = GY_ORIG * scaleY;
-          gs.players.push({ name: ev.player.name, x: P_START + idx * P_STEP, y: GY, score: 0, kills: 0, status: 'idle', rf: 0, color: PLAYER_COLORS[idx % 6], owner: ev.player.owner, hp: ev.player.hp || 3 });
-          gs.shootStates.push({ phase: null, aimAngle: -Math.PI * 0.72, aimDir: 1, power: 0, powerDir: 1, ball: null, lockedAngle: null, idealTraj: null, idealSpeed: 10, runTarget: null, inDanger: false });
-          setPlayerCount(gs.players.length);
-          forceUpdate(n => n + 1);
-        }
-      }
-      if (ev.action === 'start' && gs.state === 'waiting') {
-        gs.state = 'playing';
-        forceUpdate(n => n + 1);
-      }
-      if (ev.action === 'leave') {
-        gs.players = gs.players.filter((p: any) => p.owner !== ev.owner);
-        gs.shootStates = gs.shootStates.slice(0, gs.players.length);
-        setPlayerCount(gs.players.length);
-        forceUpdate(n => n + 1);
-      }
-      if (ev.action === 'movePlayer') {
-        const p = gs.players[ev.idx];
-        if (p && p.owner !== userPhone) {
-          gs.shootStates[ev.idx].runTarget = { x: ev.targetX, y: ev.targetY };
-        }
-      }
-      if (ev.action === 'syncPositions' && ev.players) {
-        for (const pos of ev.players) {
-          const p = gs.players[pos.idx];
-          if (p && p.owner !== userPhone) {
-            p.x = pos.x;
-            p.y = pos.y;
-            p.status = pos.status;
-          }
-        }
-      }
-      if (ev.action === 'shoot' && ev.idx !== undefined && ev.ball) {
-        const p = gs.players[ev.idx];
-        if (p && p.owner !== userPhone) {
-          const ss = gs.shootStates[ev.idx];
-          ss.ball = {
-            x: ev.ball.x,
-            y: ev.ball.y,
-            vx: ev.ball.vx,
-            vy: ev.ball.vy,
-            rot: 0,
-            state: 'flying',
-            outcome: 'miss',
-            boardHandled: false,
-            rimHandled: false,
-            owner: ev.idx,
-            perfectShot: false
-          };
-          ss.phase = 'flying';
-          p.status = 'shooting';
-        }
-      }
-    };
-
-    const channel = joinGameChannel(gameRoomId, handleGameEvent);
-    channelRef.current = channel;
-
-    return () => {
-      if (channelRef.current) {
-        channelRef.current.unsubscribe();
-        channelRef.current = null;
-      }
-    };
-  }, [mounted, isVisible, gameRoomId, userPhone]);
-
-  // ── Broadcast player positions every 500ms ────────────────────────────────
-  useEffect(() => {
-    if (!mounted || !isVisible || gsRef.current.state !== 'playing') return;
-
-    const syncInterval = setInterval(() => {
-      const gs = gsRef.current;
-      if (gs.state !== 'playing' || !channelRef.current) return;
-
-      const positions = gs.players
-        .map((p: any, idx: number) => ({
-          idx,
-          x: p.x,
-          y: p.y,
-          status: p.status,
-          owner: p.owner,
-        }))
-        .filter((pos: any) => pos.owner === userPhone);
-
-      if (positions.length > 0) {
-        sendGameEvent(channelRef.current, { action: 'syncPositions', players: positions });
-      }
-    }, 500);
-
-    return () => clearInterval(syncInterval);
-  }, [mounted, isVisible, userPhone]);
 
   useEffect(() => {
     if (!mounted || !canvasRef.current) return;
@@ -375,13 +259,6 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         ss.idealTraj = null;
         p.status = 'shooting';
         if (idx === gs.disputeP1 && gs.disputeP2 === -1 && gs.players.length > 1) gs.disputeP2 = 1;
-        if (channelRef.current) {
-          sendGameEvent(channelRef.current, {
-            action: 'shoot',
-            idx,
-            ball: { x: ss.ball.x, y: ss.ball.y, vx: ss.ball.vx, vy: ss.ball.vy }
-          });
-        }
         return;
       }
 
@@ -410,34 +287,10 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       ss.idealTraj = null;
       p.status = 'shooting';
       if (idx === gs.disputeP1 && gs.disputeP2 === -1 && gs.players.length > 1) gs.disputeP2 = 1;
-      if (channelRef.current) {
-        sendGameEvent(channelRef.current, {
-          action: 'shoot',
-          idx,
-          ball: { x: ss.ball.x, y: ss.ball.y, vx: ss.ball.vx, vy: ss.ball.vy }
-        });
-      }
     }
 
     function update() {
       if (gs.state !== 'playing') return;
-
-      // Turn timer: auto-miss if player doesn't act within 20 seconds
-      if (gs.selectedMoveIdx >= 0 && gs.selectedMoveIdx < gs.players.length) {
-        const ss = gs.shootStates[gs.selectedMoveIdx];
-        if (ss.phase === 'charging' || ss.phase === 'aiming') {
-          if (!gs.turnStartTime) gs.turnStartTime = Date.now();
-          const elapsed = (Date.now() - gs.turnStartTime) / 1000;
-          if (elapsed > 20) {
-            handleMissed(gs.selectedMoveIdx);
-            gs.turnStartTime = 0;
-            gs.selectedMoveIdx = -1;
-          }
-        }
-      } else {
-        gs.turnStartTime = 0;
-      }
-
       for (let i = 0; i < gs.players.length; i++) {
         const p = gs.players[i], ss = gs.shootStates[i];
         if (p.status === 'eliminated') continue;
@@ -473,7 +326,6 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
             if (ss.phase === 'auto_run') { ss.phase = 'pickup_wait'; ss.ball = null; }
             else ss.phase = null;
             p.status = 'idle';
-            ss.runTarget = null;
           }
         }
       }
@@ -491,9 +343,6 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       p.score++;
       gs.shootStates[idx].inDanger = false;
       addFlash('✅ ПОПАВ! +1', HOOP_X + 55*scaleX, HOOP_Y - 45*scaleY, '#44cc44');
-      gs.eventLog.push({ text: `✅ ${p.name} забив!`, time: Date.now() });
-      if (gs.eventLog.length > 4) gs.eventLog.shift();
-      if (channelRef.current) sendGameEvent(channelRef.current, { action: "scored", idx, playerName: p.name, score: p.score });
       gs.netShake = true;
       gs.netShakeEnd = Date.now() + 700;
       const ss = gs.shootStates[idx];
@@ -507,8 +356,6 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         const dangerPhases = ['auto_run', 'pickup_wait', 'flying', 'aiming', 'charging'];
         if (dangerPhases.includes(p1ph) || gs.shootStates[gs.disputeP1]?.inDanger) {
           addFlash('💀 ВИБИТО!', gs.players[gs.disputeP1]?.x || 300, GY - 130*scaleY, '#ff4444');
-          gs.eventLog.push({ text: `💀 ${gs.players[gs.disputeP1]?.name} вибув!`, time: Date.now() });
-          if (gs.eventLog.length > 4) gs.eventLog.shift();
           if (gs.players[gs.disputeP1]) gs.players[gs.disputeP1].status = 'eliminated';
           if (gs.players[idx]) gs.players[idx].kills = (gs.players[idx].kills || 0) + 1;
           setTimeout(() => {
@@ -537,47 +384,14 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           gs.players.forEach((p2: any, i: number) => { p2.x = P_START + i * P_STEP; });
         }
       }
-      if (gs.players.length <= 1) {
-        gs.state = 'finished';
-        if (gs.players.length === 1) {
-          gs.players[0].hp = (gs.players[0].hp || 3) + 10;
-          addFlash(`🏆 ПЕРЕМОЖЕЦЬ! +10❤`, gs.players[0].x, gs.players[0].y - 150*scaleY, '#ffdd00');
-          gs.eventLog.push({ text: `🏆 ${gs.players[0].name} переміг!`, time: Date.now() });
-          if (gs.eventLog.length > 4) gs.eventLog.shift();
-        }
-      }
+      if (gs.players.length <= 1) gs.state = 'finished';
     }
 
     function handleMissed(idx: number) {
       const ss = gs.shootStates[idx];
       const p = gs.players[idx];
-      p.hp = (p.hp || 3) - 1;
       ss.inDanger = true;
-      addFlash(`❌ МИМО! ❤${p.hp}`, p.x, p.y - 100*scaleY, '#e05545');
-      gs.eventLog.push({ text: `❌ ${p.name} промахнувся!`, time: Date.now() });
-      if (gs.eventLog.length > 4) gs.eventLog.shift();
-      if (channelRef.current) sendGameEvent(channelRef.current, { action: "missed", idx, playerName: p.name, hp: p.hp });
-
-      if (p.hp <= 0) {
-        p.status = 'eliminated';
-        addFlash('💀 ВИБИТО!', p.x, p.y - 130*scaleY, '#ff4444');
-        gs.eventLog.push({ text: `💀 ${p.name} вибув!`, time: Date.now() });
-        if (gs.eventLog.length > 4) gs.eventLog.shift();
-        if (channelRef.current) sendGameEvent(channelRef.current, { action: "eliminated", playerName: p.name });
-        if (gs.queue.length > 0) {
-          const next = gs.queue.shift();
-          const newIdx = gs.players.length;
-          const P_START = W * 0.65, P_STEP = W * 0.07;
-          gs.players.push({ name: next.name, x: P_START + newIdx * P_STEP, y: GY, score: 0, kills: 0, status: 'idle', rf: 0, color: PLAYER_COLORS[newIdx % 6], owner: next.owner, hp: 3 });
-          gs.shootStates.push({ phase: null, aimAngle: -Math.PI * 0.72, aimDir: 1, power: 0, powerDir: 1, ball: null, lockedAngle: null, idealTraj: null, idealSpeed: 10, runTarget: null, inDanger: false });
-          addFlash(`✅ ${next.name} грає!`, W / 2, 50*scaleY, '#44cc44');
-          gs.eventLog.push({ text: `✅ ${next.name} заходить!`, time: Date.now() });
-          if (gs.eventLog.length > 4) gs.eventLog.shift();
-          if (channelRef.current) sendGameEvent(channelRef.current, { action: "playerJoined", playerName: next.name });
-        }
-        return;
-      }
-
+      addFlash('❌ МИМО!', p.x, p.y - 100*scaleY, '#e05545');
       const bx = ss.ball ? ss.ball.x : p.x;
       ss.runTarget = { x: Math.max(50*scaleX, Math.min(W - 30*scaleX, bx)), y: GY };
       ss.phase = 'auto_run';
@@ -879,6 +693,10 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           ctx.arc(p.x, p.y - 37*scaleY, 46*scaleX, 0, Math.PI * 2);
           ctx.stroke();
           ctx.setLineDash([]);
+          ctx.fillStyle = `rgba(255,220,50,${al * 0.85})`;
+          ctx.font = `bold ${10*scaleX}px sans-serif`;
+          ctx.textAlign = 'center';
+          ctx.fillText('ПКМ на підлогу → бігти', p.x, p.y - 92*scaleY);
         }
 
         if (ss.phase === 'aiming') {
@@ -1009,7 +827,6 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
             const danger2 = ss2?.inDanger || false;
             const eliminated2 = p2.status === 'eliminated';
             const isMine2 = i2 === 0;
-            const isMyPlayer = p2.owner === userPhone;
             const blink = danger2 ? (Math.sin(Date.now() / 180) > 0) : true;
 
             if (eliminated2) {
@@ -1032,8 +849,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
               ctx.fillStyle = 'rgba(255,80,80,0.95)';
               ctx.font = `bold ${10*scaleX}px sans-serif`;
               ctx.textAlign = 'left';
-              const ownerMark = isMyPlayer ? '★ ' : '';
-              ctx.fillText('🎯 ' + ownerMark + p2.name, listX + padX, ry + 1);
+              ctx.fillText('🎯 ' + p2.name, listX + padX, ry + 1);
               ctx.fillStyle = 'rgba(255,150,150,0.8)';
               ctx.font = `${8*scaleX}px sans-serif`;
               ctx.textAlign = 'right';
@@ -1050,28 +866,13 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
               ctx.fillStyle = isMine2 ? (p2.color || '#fff') : 'rgba(220,220,220,0.65)';
               ctx.font = (isMine2 ? 'bold ' : '') + `${10*scaleX}px sans-serif`;
               ctx.textAlign = 'left';
-              const ownerMark = isMyPlayer ? '★ ' : '';
-              ctx.fillText(ownerMark + p2.name, listX + padX + 10, ry + 1);
-              ctx.fillStyle = 'rgba(255,100,100,0.8)';
+              ctx.fillText(p2.name, listX + padX + 10, ry + 1);
+              ctx.fillStyle = 'rgba(255,220,80,0.7)';
               ctx.font = `${8*scaleX}px sans-serif`;
               ctx.textAlign = 'right';
-              ctx.fillText('❤' + p2.hp, listX + panelW - padX, ry + 1);
+              ctx.fillText('🏀' + p2.score, listX + panelW - padX, ry + 1);
             }
           });
-
-          if (gs.queue.length > 0) {
-            const queueY = listY + padY + 15 + roster.length * rowH + 8;
-            ctx.fillStyle = 'rgba(255,255,255,0.2)';
-            ctx.font = `bold ${8*scaleX}px sans-serif`;
-            ctx.textAlign = 'left';
-            ctx.fillText('ЧЕРГА', listX + padX, queueY);
-            gs.queue.forEach((q: any, qi: number) => {
-              const qy = queueY + 12 + qi * rowH;
-              ctx.fillStyle = 'rgba(180,180,180,0.6)';
-              ctx.font = `${9*scaleX}px sans-serif`;
-              ctx.fillText(`${qi + 1}. ${q.name}`, listX + padX + 5, qy);
-            });
-          }
         }
       }
 
@@ -1092,7 +893,10 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         if (activeIdx >= 0 && gs.players[activeIdx]) {
           hintText = '[' + gs.players[activeIdx].name + '] ' + (hints[ph] ?? '');
         }
-        // Hint text removed - handled via Supabase Realtime
+        ctx.fillStyle = 'rgba(255,255,255,0.72)';
+        ctx.font = `${13*scaleX}px sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.fillText(hintText, W / 2, H - 11*scaleY);
         const alive = gs.players.filter((p: any) => p.status !== 'eliminated').length;
         ctx.fillStyle = 'rgba(255,255,255,0.28)';
         ctx.font = `${11*scaleX}px sans-serif`;
@@ -1139,18 +943,6 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       const sc = W / rect.width;
       const mx = (e.clientX - rect.left) * sc;
       const my = (e.clientY - rect.top) * sc;
-
-      // Boost throw: if ball is flying, +20% speed
-      for (let i = 0; i < gs.shootStates.length; i++) {
-        const ss = gs.shootStates[i];
-        if (ss.phase === 'flying' && ss.ball) {
-          ss.ball.vx *= 1.2;
-          ss.ball.vy *= 1.2;
-          addFlash('💨 +20%!', ss.ball.x, ss.ball.y - 30*scaleY, '#ffdd00');
-          return;
-        }
-      }
-
       let hitIdx = -1;
       for (let i = 0; i < gs.players.length; i++) {
         if (gs.players[i].status === "eliminated") continue;
@@ -1158,10 +950,6 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       }
       if (hitIdx >= 0) {
         const p = gs.players[hitIdx], ss = gs.shootStates[hitIdx];
-        if (p.owner !== userPhone) {
-          addFlash("🚫 чужий", p.x, p.y - 95*scaleY, "rgba(255,80,80,0.9)");
-          return;
-        }
         if (ss.phase === null || ss.phase === "pickup_wait") {
           ss.phase = "aiming";
           const behindBoard = (p.x - 15*scaleX) < BOARD_FACE;
@@ -1190,7 +978,6 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
             ss.runTarget = { x: Math.max(50*scaleX, Math.min(W - 30*scaleX, mx)), y: GY };
             ss.phase = "manual_run";
             p.status = "running";
-            if (channelRef.current) sendGameEvent(channelRef.current, { action: "movePlayer", idx: gs.selectedMoveIdx, targetX: ss.runTarget.x, targetY: ss.runTarget.y, owner: userPhone });
           }
         }
       }
@@ -1210,10 +997,6 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       }
       if (hitIdx >= 0) {
         const p = gs.players[hitIdx], ss = gs.shootStates[hitIdx];
-        if (p.owner !== userPhone) {
-          addFlash("🚫 чужий", p.x, p.y - 95*scaleY, "rgba(255,80,80,0.9)");
-          return;
-        }
         if (ss.phase === "charging") {
           ss.phase = "aiming";
           ss.aimAngle = ss.lockedAngle || ss.aimAngle;
@@ -1253,59 +1036,23 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
 
   const gs = gsRef.current;
 
-  const handleAddPlayer = (e?: any) => {
-    const autoName = e?.currentTarget?.dataset?.auto === 'true';
-    if (gs.players.length + gs.queue.length >= MAX_PLAYERS * 2) return;
-    const myPlayers = gs.players.filter((p: any) => p.owner === userPhone);
-    if (myPlayers.length >= 3) return;
-    const suffix = myPlayers.length === 0 ? "" : ` ${myPlayers.length + 1}`;
-    const name = autoName ? (userName + suffix) : (pname.trim() || (userName + suffix));
-
-    if (gs.players.length >= MAX_PLAYERS) {
-      if (gs.queue.find((q: any) => q.owner === userPhone)) return;
-      gs.queue.push({ name, owner: userPhone });
-      if (channelRef.current) sendGameEvent(channelRef.current, { action: "addPlayer", player: { name, owner: userPhone, hp: 3 } });
-      setPname("");
-      forceUpdate(n => n + 1);
-      return;
-    }
-
+  const handleAddPlayer = () => {
+    if (gs.players.length >= MAX_PLAYERS) { alert("Максимум 6 гравців!"); return; }
+    const name = pname.trim() || `Гр.${gs.players.length+1}`;
     const idx = gs.players.length;
-    const W_ORIG = 860, H_ORIG = 624, GY_ORIG = 584;
-    const scaleX = window.innerWidth / W_ORIG;
-    const scaleY = window.innerHeight / H_ORIG;
-    const P_START = window.innerWidth * 0.65;
-    const P_STEP = window.innerWidth * 0.07;
-    const GY = GY_ORIG * scaleY;
-    gs.players.push({ name, x: P_START + idx * P_STEP, y: GY, score: 0, kills: 0, status: "idle", rf: 0, color: PLAYER_COLORS[idx % 6], owner: userPhone, hp: 3 });
-    gs.shootStates.push({ phase: null, aimAngle: -Math.PI * 0.72, aimDir: 1, power: 0, powerDir: 1, ball: null, lockedAngle: null, idealTraj: null, idealSpeed: 10, runTarget: null, inDanger: false });
-    if (channelRef.current) sendGameEvent(channelRef.current, { action: "addPlayer", player: { name, owner: userPhone, hp: 3 } });
-    setPlayerCount(gs.players.length);
+    gs.players.push({ name, x: 680*(window.innerWidth/860)+idx*58*(window.innerWidth/860), y: 584*(window.innerHeight/624), score:0, kills:0, status:"idle", rf:0, color: PLAYER_COLORS[idx%6] });
+    gs.shootStates.push({ phase:null,aimAngle:-Math.PI*0.72,aimDir:1,power:0,powerDir:1,ball:null,lockedAngle:null,idealTraj:null,idealSpeed:10,runTarget:null,inDanger:false });
     setPname("");
-    forceUpdate(n => n + 1);
-  };
-
-  const handleLeaveGame = () => {
-    const myPlayers = gs.players.filter((p: any) => p.owner === userPhone);
-    myPlayers.forEach((p: any) => {
-      p.status = "eliminated";
-    });
-    const myQueueIdx = gs.queue.findIndex((q: any) => q.owner === userPhone);
-    if (myQueueIdx >= 0) {
-      gs.queue.splice(myQueueIdx, 1);
-    }
-    if (channelRef.current) sendGameEvent(channelRef.current, { action: "leave", owner: userPhone });
-    forceUpdate(n => n + 1);
+    forceUpdate(n => n+1);
   };
 
   const handleStart = () => {
-    if (playerCount < 2) return;
+    if (gs.players.length < 2) return;
     gs.state = "playing";
     gs.flashes = [];
     gs.players.forEach((p:any) => { p.score=0; p.kills=0; p.status="idle"; p.rf=0; });
     gs.shootStates = gs.players.map(() => ({ phase:null,aimAngle:-Math.PI*0.72,aimDir:1,power:0,powerDir:1,ball:null,lockedAngle:null,idealTraj:null,idealSpeed:10,runTarget:null,inDanger:false }));
     gs.disputeP1=0; gs.disputeP2=-1; gs.selectedMoveIdx=-1;
-    if (channelRef.current) sendGameEvent(channelRef.current, { action: "start" });
     forceUpdate(n => n+1);
   };
 
@@ -1328,16 +1075,15 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       <canvas
         ref={canvasRef}
         style={{ position:"absolute", top:0, left:0,
-          zIndex:9999, pointerEvents:"auto", background:"transparent", cursor:"crosshair" }}
+          zIndex:9999, pointerEvents:"none", background:"transparent", cursor:"crosshair" }}
       />
       <div
-        style={{ position:"fixed", top: 0, left: 0, width: "100%", height: "100%",
-          zIndex:10000, pointerEvents:"none", cursor:"crosshair" }}
+        style={{ position:"absolute", top:0, left:0, width:"100%", height:"100%",
+          zIndex:10000, pointerEvents:"auto", cursor:"crosshair" }}
         onMouseDown={(e) => {
           const canvas = canvasRef.current;
           if (!canvas) return;
           const rect = canvas.getBoundingClientRect();
-          if (e.clientX < rect.left || e.clientX > rect.right || e.clientY < rect.top || e.clientY > rect.bottom) return;
           const sc = canvas.width / rect.width;
           const mx = (e.clientX - rect.left) * sc;
           const my = (e.clientY - rect.top) * sc;
@@ -1349,22 +1095,24 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           });
           canvas.dispatchEvent(evt);
         }}
-        onContextMenu={(e) => {
-          e.preventDefault();
-          const evt = new MouseEvent("contextmenu", {
-            bubbles: true, cancelable: true,
-            clientX: e.clientX, clientY: e.clientY
-          });
-          canvasRef.current?.dispatchEvent(evt);
-        }}
+        onContextMenu={(e) => e.preventDefault()}
       />
       <div style={{ position:"fixed", bottom:8, left:"50%", transform:"translateX(-50%)",
         zIndex:10001, display:"flex", gap:7, alignItems:"center",
         background:"rgba(0,0,0,0.6)", padding:"6px 12px", borderRadius:8,
         boxShadow:"0 2px 12px rgba(0,0,0,0.5)" }}>
-        <button onClick={(e) => { e.preventDefault(); handleAddPlayer(e); }} style={btnStyle("#4fc3f7", gs.players.length>=6)} data-auto="true">🏀 Гравець</button>
-        <button onClick={handleLeaveGame} style={btnStyle("#ff6644")}>🚪 Вийти</button>
-        <button ref={btnStartRef} onClick={handleStart} style={btnStyle("#27ae60", playerCount<2)} disabled={playerCount<2}>▶ Старт</button>
+        <input
+          ref={pnameRef}
+          value={pname}
+          onChange={e => setPname(e.target.value)}
+          onKeyDown={e => e.key==="Enter" && handleAddPlayer()}
+          placeholder="Ім'я гравця"
+          maxLength={12}
+          style={{ padding:"6px 11px", borderRadius:6, border:"1px solid #333",
+            background:"#1a1f35", color:"#fff", fontSize:13, width:120 }}
+        />
+        <button onClick={handleAddPlayer} style={btnStyle("#e06030", gs.players.length>=6)}>+ Додати</button>
+        <button ref={btnStartRef} onClick={handleStart} style={btnStyle("#27ae60", gs.players.length<2)} disabled={gs.players.length<2}>▶ Старт</button>
         <button onClick={handleRestart} style={btnStyle("#444")}>↺ Рестарт</button>
         <button onClick={() => setShowModal(true)} style={btnStyle("#1a4a8a")}>📖 Інструкція</button>
       </div>
@@ -1385,8 +1133,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
               <li><b>Клік 2 по гравцю</b> — кут зафіксовано, жовта ідеальна траєкторія + шкала сили</li>
               <li><b>Клік 3 НЕ на гравця</b> — кидок! Зелена лінія = жовта (≥92%) → 🎯 100% влучення</li>
             </ul>
-            <p style={{marginBottom:12}}><b style={{color:"#e05545"}}>❤️ HP система:</b> Кожен гравець має 3 ❤️. Промах = -1 ❤️. Якщо ❤️ = 0 → вибуває. Переможець отримує +10 ❤️ бонусу.</p>
-            <p style={{marginBottom:12}}><b style={{color:"#e05545"}}>⏳ Черга:</b> Якщо 6 гравців грають — ти в Черзі. Коли гравець вибуває — ти автоматично заходиш на його місце.</p>
+            <p style={{marginBottom:8}}><b style={{color:"#e05545"}}>🎮 Управління:</b></p>
             <ul style={{paddingLeft:16,fontSize:13,lineHeight:1.8,marginBottom:12}}>
               <li><b>ЛКМ на гравця</b> — кидок</li>
               <li><b>ПКМ на гравця</b> — вибрати для переміщення</li>
