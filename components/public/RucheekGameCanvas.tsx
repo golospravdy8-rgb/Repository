@@ -46,13 +46,14 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       return;
     }
 
-    // Get chat container dimensions
+    // Get chat container dimensions with fallback
     const chatContainer = document.querySelector('[style*="flex: 1"][style*="overflowY"]') ||
                          document.querySelector('[style*="flex: 1, overflowY"]');
-    if (!chatContainer) return;
+    const rect = chatContainer
+      ? (chatContainer as HTMLElement).getBoundingClientRect()
+      : { left: 0, top: 0, width: window.innerWidth, height: window.innerHeight };
 
-    const rect = (chatContainer as HTMLElement).getBoundingClientRect();
-    canvas.style.position = "absolute";
+    canvas.style.position = "fixed";
     canvas.style.left = rect.left + "px";
     canvas.style.top = rect.top + "px";
     canvas.width = rect.width;
@@ -197,39 +198,123 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       gs.players[idx].status = "idle";
     }
 
-    function draw() {
-      ctx.clearRect(0, 0, W, H);
-
-      ctx.strokeStyle = "#e05545";
-      ctx.lineWidth = 3*scaleX;
+    function drawBasket() {
+      ctx.save();
+      ctx.strokeStyle = '#e05545';
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.lineWidth = 5*scaleX;
       ctx.beginPath();
       ctx.moveTo(POLE_X, GY);
       ctx.lineTo(POLE_X, BOARD_TOP);
       ctx.stroke();
-
+      ctx.lineWidth = 3*scaleX;
       ctx.beginPath();
       ctx.moveTo(POLE_X, BOARD_TOP - 40*scaleY);
       ctx.lineTo(ARM_X, BOARD_TOP - 40*scaleY);
       ctx.stroke();
-
-      ctx.strokeStyle = "#e05545";
-      ctx.lineWidth = 2*scaleX;
+      ctx.lineWidth = 3*scaleX;
       ctx.strokeRect(BOARD_X, BOARD_TOP, BOARD_W, BOARD_BOT - BOARD_TOP);
-
-      ctx.strokeStyle = "#ff9900";
-      ctx.lineWidth = 2.5*scaleX;
+      ctx.lineWidth = 1.5*scaleX;
+      ctx.strokeRect(BOARD_X + 1*scaleX, BOARD_TOP + 38*scaleY, BOARD_W - 2*scaleX, 30*scaleY);
+      ctx.lineWidth = 1.8*scaleX;
       ctx.beginPath();
-      ctx.ellipse(HOOP_X, HOOP_Y, HOOP_R, HOOP_R * 0.3, 0, 0, Math.PI * 2);
+      ctx.moveTo(BOARD_FACE, BOARD_TOP + 53*scaleY);
+      ctx.lineTo(HOOP_X - HOOP_R + 3*scaleX, HOOP_Y);
       ctx.stroke();
-
-      ctx.strokeStyle = "rgba(255,153,0,0.5)";
+      ctx.beginPath();
+      ctx.moveTo(BOARD_FACE, BOARD_TOP + 67*scaleY);
+      ctx.lineTo(HOOP_X - HOOP_R + 3*scaleX, HOOP_Y);
+      ctx.stroke();
+      ctx.lineWidth = 3*scaleX;
+      ctx.beginPath();
+      ctx.ellipse(HOOP_X, HOOP_Y, HOOP_R, 8*scaleY, 0, 0, Math.PI * 2);
+      ctx.stroke();
       ctx.lineWidth = 1*scaleX;
-      for (let i = 0; i < 4; i++) {
+      ctx.globalAlpha = 0.65;
+      for (let i = 0; i < 7; i++) {
+        const tx = HOOP_X - HOOP_R + 3*scaleX + i * (HOOP_R * 2 - 6*scaleX) / 6;
+        const bx2 = HOOP_X - 11*scaleX + i * 22*scaleX / 6;
         ctx.beginPath();
-        ctx.moveTo(HOOP_X - HOOP_R, HOOP_Y + HOOP_R * 0.3 + i * 4*scaleY);
-        ctx.lineTo(HOOP_X + HOOP_R, HOOP_Y + HOOP_R * 0.3 + i * 4*scaleY);
+        ctx.moveTo(tx, HOOP_Y + 8*scaleY);
+        ctx.lineTo(bx2, HOOP_Y + 46*scaleY);
         ctx.stroke();
       }
+      for (let j = 0; j < 3; j++) {
+        const t = (j + 1) / 4;
+        const yw = HOOP_Y + 8*scaleY + t * 38*scaleY;
+        const hw = HOOP_R * (1 - t * 0.4) - 2*scaleX;
+        ctx.beginPath();
+        ctx.moveTo(HOOP_X - hw, yw);
+        ctx.lineTo(HOOP_X + hw, yw);
+        ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+      ctx.restore();
+    }
+
+    function drawParticipantsPanel() {
+      if (gs.state !== 'playing' && gs.state !== 'waiting') return;
+      const listX = 4, listY = 8, rowH = 19, padX = 6, padY = 4;
+      const roster = gs.players;
+      if (roster.length === 0) return;
+
+      const panelW = 110, panelH = rowH * roster.length + padY * 2 + 14;
+      ctx.fillStyle = 'rgba(0,0,0,0.6)';
+      ctx.fillRect(listX, listY, panelW, panelH);
+      ctx.strokeStyle = 'rgba(255,255,255,0.07)';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(listX, listY, panelW, panelH);
+
+      ctx.fillStyle = 'rgba(255,255,255,0.3)';
+      ctx.font = 'bold 8px sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillText('УЧАСНИКИ', listX + padX, listY + padY + 7);
+
+      roster.forEach((p: any, i: number) => {
+        const ry = listY + padY + 15 + i * rowH;
+        const eliminated = p.status === 'eliminated';
+        const isMine = i === 0;
+
+        if (eliminated) {
+          ctx.fillStyle = 'rgba(120,120,120,0.2)';
+          ctx.fillRect(listX + 3, ry - 11, panelW - 6, rowH - 2);
+          ctx.fillStyle = 'rgba(150,150,150,0.4)';
+          ctx.font = '10px sans-serif';
+          ctx.textAlign = 'left';
+          ctx.fillText('✖ ' + p.name, listX + padX + 10, ry + 1);
+        } else {
+          if (isMine) {
+            ctx.fillStyle = 'rgba(255,255,255,0.06)';
+            ctx.fillRect(listX + 3, ry - 11, panelW - 6, rowH - 2);
+          }
+          ctx.fillStyle = p.color || '#fff';
+          ctx.beginPath();
+          ctx.arc(listX + padX + 3, ry - 2, 3, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = isMine ? (p.color || '#fff') : 'rgba(220,220,220,0.65)';
+          ctx.font = (isMine ? 'bold ' : '') + '10px sans-serif';
+          ctx.textAlign = 'left';
+          ctx.fillText(p.name, listX + padX + 10, ry + 1);
+          ctx.fillStyle = 'rgba(255,220,80,0.7)';
+          ctx.font = '8px sans-serif';
+          ctx.textAlign = 'right';
+          ctx.fillText('🏀' + p.score, listX + panelW - padX, ry + 1);
+        }
+      });
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, W, H);
+      ctx.globalAlpha = 0.3;
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.moveTo(0, GY);
+      ctx.lineTo(W, GY);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+      drawBasket();
 
       gs.players.forEach((p: any, idx: number) => {
         const ss = gs.shootStates[idx];
@@ -332,6 +417,8 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         ctx.textAlign = "center";
         ctx.fillText(f.text, f.x, f.y - (f.t * 2*scaleY));
       });
+
+      drawParticipantsPanel();
     }
 
     const handleClick = (e: MouseEvent) => {
