@@ -5,6 +5,7 @@ import ChatPageMobile from "./ChatPageMobile";
 import ChatActivePoll, { ChatPollData } from "./ChatActivePoll";
 import NewsTicker from "@/components/NewsTicker";
 import TvBlock from "@/components/TvBlock";
+import RucheekGameOverlay from "./RucheekGameOverlay";
 import { createChatPoll, finishChatPoll } from "@/actions/chat-poll";
 
 const LS_KEY = "ldbl_chat_user";
@@ -270,6 +271,7 @@ export default function ChatPage() {
   const [leaderboard, setLeaderboard] = useState<{ phone: string; firstName: string; lastName: string; hp: number; weeklyHp?: number | null }[]>([]);
   const [leaderboardWeekStart, setLeaderboardWeekStart] = useState<string>("");
   const [isPending, startTransition] = useTransition();
+  const [showRucheekGame, setShowRucheekGame] = useState(false);
   // Polling is used instead of EventSource
   const activeRoomRef = useRef<"general" | "parents">("general");
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -1500,6 +1502,12 @@ export default function ChatPage() {
                 style={{ background: spinDone ? "#334155" : "linear-gradient(135deg,#7c3aed,#4f46e5)", color: "white", border: "none", borderRadius: "8px", padding: "4px 12px", fontSize: "13px", cursor: "pointer", fontWeight: 700, fontFamily: "Exo 2, sans-serif", whiteSpace: "nowrap", opacity: spinDone ? 0.7 : 1 }}
               >
                 🎰 {spinDone ? "Спін ✓" : "Спін"}
+              </button>
+              <button
+                onClick={() => setShowRucheekGame(true)}
+                style={{ background: "linear-gradient(135deg,#ea580c,#f46f10)", color: "white", border: "none", borderRadius: "8px", padding: "4px 12px", fontSize: "13px", cursor: "pointer", fontWeight: 700, fontFamily: "Exo 2, sans-serif", whiteSpace: "nowrap" }}
+              >
+                🏀 Струмок
               </button>
               <button
                 onClick={() => openLeaderboard()}
@@ -2741,6 +2749,16 @@ export default function ChatPage() {
             })()}
         </div>
       </div>
+
+      {/* ── РУЧЕЁК Game Overlay ────────────────────────────────────────────── */}
+      <RucheekGameOverlay
+        isOpen={showRucheekGame}
+        onClose={() => setShowRucheekGame(false)}
+        userName={user ? `${user.firstName} ${user.lastName}` : "Гравець"}
+        userPhone={user?.phone || ""}
+        containerWidth={400}
+        containerHeight={500}
+      />
 
     </div>
   );
