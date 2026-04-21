@@ -5,7 +5,7 @@ import ChatPageMobile from "./ChatPageMobile";
 import ChatActivePoll, { ChatPollData } from "./ChatActivePoll";
 import NewsTicker from "@/components/NewsTicker";
 import TvBlock from "@/components/TvBlock";
-import RucheekGameOverlay from "./RucheekGameOverlay";
+import RucheekGameCanvas from "./RucheekGameCanvas";
 import { createChatPoll, finishChatPoll } from "@/actions/chat-poll";
 
 const LS_KEY = "ldbl_chat_user";
@@ -2750,14 +2750,11 @@ export default function ChatPage() {
         </div>
       </div>
 
-      {/* ── РУЧЕЁК Game Overlay ────────────────────────────────────────────── */}
-      <RucheekGameOverlay
-        isOpen={showRucheekGame}
-        onClose={() => setShowRucheekGame(false)}
+      {/* ── РУЧЕЁК Game Canvas (прозрачный overlay поверх всей страницы) ────── */}
+      <RucheekGameCanvas
+        isVisible={showRucheekGame}
         userName={user ? `${user.firstName} ${user.lastName}` : "Гравець"}
         userPhone={user?.phone || ""}
-        containerWidth={400}
-        containerHeight={500}
       />
 
     </div>

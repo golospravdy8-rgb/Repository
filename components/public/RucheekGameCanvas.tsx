@@ -2,13 +2,11 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 
-interface RucheekGameOverlayProps {
-  isOpen: boolean;
-  onClose: () => void;
+interface RucheekGameCanvasProps {
+  isVisible: boolean;
   userName: string;
   userPhone: string;
-  containerWidth?: number;
-  containerHeight?: number;
+  onQueueUpdate?: (queue: any[]) => void;
 }
 
 interface Player {
@@ -24,37 +22,23 @@ interface Player {
   ownerId: string;
 }
 
-interface ShootState {
-  phase: null | "aiming" | "charging" | "flying" | "auto_run" | "manual_run" | "pickup_wait";
-  aimAngle: number;
-  aimDir: number;
-  power: number;
-  powerDir: number;
-  ball: any;
-  lockedAngle: number | null;
-  idealTraj: any;
-  idealSpeed: number;
-  runTarget: { x: number; y: number } | null;
-  inDanger: boolean;
-}
-
-export default function RucheekGameOverlay({
-  isOpen,
-  onClose,
+export default function RucheekGameCanvas({
+  isVisible,
   userName,
   userPhone,
-  containerWidth = 400,
-  containerHeight = 500,
-}: RucheekGameOverlayProps) {
+  onQueueUpdate,
+}: RucheekGameCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [gameState, setGameState] = useState<"waiting" | "playing" | "finished">("waiting");
   const [queue, setQueue] = useState<{ name: string; playerId: string; timestamp: number }[]>([]);
   const [players, setPlayers] = useState<Player[]>([]);
   const [myPlayerIndices, setMyPlayerIndices] = useState<number[]>([]);
+  const [selectedMoveIdx, setSelectedMoveIdx] = useState(-1);
+  const [showQueuePanel, setShowQueuePanel] = useState(false);
 
-  // Масштабирование
-  const scaleX = containerWidth / 860;
-  const scaleY = containerHeight / 624;
+  // Масштабирование под размер окна браузера
+  const scaleX = typeof window !== "undefined" ? window.innerWidth / 860 : 1;
+  const scaleY = typeof window !== "undefined" ? window.innerHeight / 624 : 1;
 
   // Константы (адаптированные)
   const HOOP_X = 188 * scaleX;
@@ -76,13 +60,15 @@ export default function RucheekGameOverlay({
 
   // Загрузить очередь из localStorage
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isVisible) return;
 
     const loadQueue = () => {
       try {
         const saved = localStorage.getItem("rucheek_queue");
         if (saved) {
-          setQueue(JSON.parse(saved));
+          const q = JSON.parse(saved);
+          setQueue(q);
+          onQueueUpdate?.(q);
         }
       } catch (e) {
         console.error("Failed to load queue:", e);
@@ -91,7 +77,6 @@ export default function RucheekGameOverlay({
 
     loadQueue();
 
-    // Слушать изменения в других вкладках
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === "rucheek_queue") {
         loadQueue();
@@ -100,13 +85,14 @@ export default function RucheekGameOverlay({
 
     window.addEventListener("storage", handleStorageChange);
     return () => window.removeEventListener("storage", handleStorageChange);
-  }, [isOpen]);
+  }, [isVisible, onQueueUpdate]);
 
   // Сохранить очередь в localStorage
   const saveQueue = useCallback((newQueue: typeof queue) => {
     setQueue(newQueue);
     localStorage.setItem("rucheek_queue", JSON.stringify(newQueue));
-  }, []);
+    onQueueUpdate?.(newQueue);
+  }, [onQueueUpdate]);
 
   // Добавить игрока в очередь
   const addPlayerToQueue = useCallback(() => {
@@ -149,47 +135,50 @@ export default function RucheekGameOverlay({
         .filter((i) => i !== -1)
     );
     setGameState("playing");
+    setShowQueuePanel(true);
   }, [queue, userPhone, P_START, P_STEP, GY, PLAYER_COLORS]);
 
   // Рендеринг игры на canvas
   useEffect(() => {
-    if (!isOpen || !canvasRef.current || gameState !== "playing") return;
+    if (!isVisible || !canvasRef.current) return;
 
     const canvas = canvasRef.current;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
+    // Обновить размер canvas
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
     const render = () => {
-      // Очистить canvas
-      ctx.clearRect(0, 0, containerWidth, containerHeight);
+      // Очистить canvas (прозрачный фон)
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // Фон (прозрачный)
-      ctx.fillStyle = "rgba(0, 0, 0, 0.05)";
-      ctx.fillRect(0, 0, containerWidth, containerHeight);
+      if (gameState === "playing") {
+        // Линия подлоги
+        ctx.globalAlpha = 0.15;
+        ctx.strokeStyle = "#fff";
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.moveTo(0, GY);
+        ctx.lineTo(canvas.width, GY);
+        ctx.stroke();
+        ctx.globalAlpha = 1;
 
-      // Линия подлоги
-      ctx.globalAlpha = 0.25;
-      ctx.strokeStyle = "#fff";
-      ctx.lineWidth = 1.2;
-      ctx.beginPath();
-      ctx.moveTo(0, GY);
-      ctx.lineTo(containerWidth, GY);
-      ctx.stroke();
-      ctx.globalAlpha = 1;
+        // Рисуем кошик
+        drawBasket(ctx);
 
-      // Рисуем кошик
-      drawBasket(ctx);
-
-      // Рисуем игроков
-      players.forEach((p, i) => {
-        if (p.status === "eliminated") return;
-        drawPlayer(ctx, p, i);
-      });
+        // Рисуем игроков
+        players.forEach((p, i) => {
+          if (p.status === "eliminated") return;
+          drawPlayer(ctx, p, i);
+        });
+      }
     };
 
     const animationId = requestAnimationFrame(render);
     return () => cancelAnimationFrame(animationId);
-  }, [isOpen, gameState, players, containerWidth, containerHeight, GY, POLE_X, ARM_X, BOARD_X, BOARD_W, BOARD_TOP, BOARD_BOT, BOARD_FACE, HOOP_X, HOOP_Y, HOOP_R]);
+  }, [isVisible, gameState, players, GY, POLE_X, ARM_X, BOARD_X, BOARD_W, BOARD_TOP, BOARD_BOT, BOARD_FACE, HOOP_X, HOOP_Y, HOOP_R, scaleX, scaleY]);
 
   const drawBasket = (ctx: CanvasRenderingContext2D) => {
     ctx.save();
@@ -282,92 +271,72 @@ export default function RucheekGameOverlay({
     ctx.restore();
   };
 
-  if (!isOpen) return null;
+  if (!isVisible) return null;
 
   return (
-    <div
-      style={{
-        position: "fixed",
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        background: "rgba(0, 0, 0, 0.7)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 9999,
-      }}
-      onClick={onClose}
-    >
-      <div
+    <>
+      {/* Прозрачный canvas overlay поверх всей страницы */}
+      <canvas
+        ref={canvasRef}
         style={{
-          background: "#0d1117",
-          borderRadius: "12px",
-          padding: "20px",
-          maxWidth: "90vw",
-          maxHeight: "90vh",
-          display: "flex",
-          flexDirection: "column",
-          gap: "12px",
+          position: "fixed",
+          top: 0,
+          left: 0,
+          width: "100vw",
+          height: "100vh",
+          zIndex: 9000,
+          pointerEvents: gameState === "playing" ? "auto" : "none",
+          background: "transparent",
         }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Заголовок */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <h2 style={{ color: "#ffdd00", margin: 0, fontSize: "18px" }}>🏀 РУЧЕЁК</h2>
-          <button
-            onClick={onClose}
-            style={{
-              background: "none",
-              border: "none",
-              color: "#fff",
-              fontSize: "20px",
-              cursor: "pointer",
-            }}
-          >
-            ✕
-          </button>
-        </div>
+      />
 
-        {/* Canvas */}
-        <canvas
-          ref={canvasRef}
-          width={containerWidth}
-          height={containerHeight}
+      {/* Панель очереди (маленький блок в углу) */}
+      {showQueuePanel && gameState === "playing" && (
+        <div
           style={{
-            background: "#111827",
-            borderRadius: "8px",
-            border: "1px solid #1e2d4a",
-            display: "block",
+            position: "fixed",
+            bottom: "20px",
+            right: "20px",
+            background: "rgba(20, 20, 30, 0.95)",
+            border: "2px solid #e05545",
+            borderRadius: "10px",
+            padding: "12px 16px",
+            color: "#fff",
+            fontFamily: "sans-serif",
+            fontSize: "12px",
+            zIndex: 9001,
+            maxWidth: "280px",
+            boxShadow: "0 4px 20px rgba(0, 0, 0, 0.8)",
           }}
-        />
-
-        {/* Очередь */}
-        <div style={{ background: "#1a1f35", padding: "12px", borderRadius: "8px", color: "#fff" }}>
-          <div style={{ fontSize: "12px", color: "#ffdd00", marginBottom: "8px", fontWeight: "bold" }}>
+        >
+          <div style={{ color: "#ffdd00", marginBottom: "8px", fontWeight: "bold" }}>
             🏀 Очередь ({queue.length}/6):
           </div>
-          {queue.length === 0 ? (
-            <div style={{ fontSize: "12px", color: "#999" }}>Очередь пуста</div>
-          ) : (
-            <div style={{ fontSize: "12px", color: "#ccc" }}>
-              {queue.map((q, i) => (
-                <div key={i}>
-                  {i + 1}. {q.name}
-                </div>
-              ))}
+          {queue.map((q, i) => (
+            <div key={i} style={{ color: q.playerId === userPhone ? "#44ff88" : "#ccc" }}>
+              {i + 1}. {q.name}
             </div>
-          )}
+          ))}
         </div>
+      )}
 
-        {/* Кнопки */}
-        <div style={{ display: "flex", gap: "8px" }}>
+      {/* Кнопки управления (маленькая панель) */}
+      {gameState === "waiting" && (
+        <div
+          style={{
+            position: "fixed",
+            bottom: "20px",
+            right: "20px",
+            display: "flex",
+            flexDirection: "column",
+            gap: "8px",
+            zIndex: 9001,
+          }}
+        >
           <button
             onClick={addPlayerToQueue}
             style={{
-              flex: 1,
-              padding: "10px",
+              padding: "10px 16px",
               background: "#27ae60",
               color: "#fff",
               border: "none",
@@ -377,14 +346,13 @@ export default function RucheekGameOverlay({
               fontSize: "13px",
             }}
           >
-            + Добавить
+            + Додати
           </button>
           <button
             onClick={startGame}
             disabled={queue.length < 2}
             style={{
-              flex: 1,
-              padding: "10px",
+              padding: "10px 16px",
               background: queue.length < 2 ? "#444" : "#e05545",
               color: "#fff",
               border: "none",
@@ -398,7 +366,7 @@ export default function RucheekGameOverlay({
             ▶ Старт
           </button>
         </div>
-      </div>
-    </div>
+      )}
+    </>
   );
 }
