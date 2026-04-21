@@ -464,14 +464,20 @@ export default function ChatPage() {
         return;
       }
     }
-    fetch(`/api/chat/messages?limit=50&room=${activeRoom}`, { headers })
-      .then((r) => r.ok ? r.json() : { messages: [], pinnedMessage: null })
-      .then((d) => {
-        setMessages(d.messages ?? []);
-        if (d.pinnedMessage) setPinnedMessage(d.pinnedMessage);
-      })
-      .catch(() => {});
-  }, [step, activeRoom, user?.phone]); // eslint-disable-line react-hooks/exhaustive-deps
+    const loadMessages = () => {
+      fetch(`/api/chat/messages?limit=50&room=${activeRoom}`, { headers })
+        .then((r) => r.ok ? r.json() : { messages: [], pinnedMessage: null })
+        .then((d) => {
+          setMessages(d.messages ?? []);
+          if (d.pinnedMessage) setPinnedMessage(d.pinnedMessage);
+        })
+        .catch(() => {});
+    };
+    loadMessages();
+    // Poll every 3s for game events, 30s otherwise
+    const pollInterval = setInterval(loadMessages, showRucheekGame ? 3000 : 30000);
+    return () => clearInterval(pollInterval);
+  }, [step, activeRoom, user?.phone, showRucheekGame]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Load players for MVP ───────────────────────────────────────────────
   useEffect(() => {
@@ -2758,6 +2764,14 @@ export default function ChatPage() {
         isVisible={showRucheekGame}
         userName={user ? `${user.firstName} ${user.lastName}` : "Гравець"}
         userPhone={user?.phone || ""}
+        onSendGameEvent={(data) => {
+          fetch("/api/chat", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action: "game-event", phone: user?.phone, name: user ? `${user.firstName} ${user.lastName}` : "Гравець", data, roomId: "general" })
+          }).catch(e => console.error("Game event send failed:", e));
+        }}
+        gameMessages={messages.filter((m: any) => m.text?.startsWith("__GAME__:")).map((m: any) => m.text)}
       />
 
     </div>
