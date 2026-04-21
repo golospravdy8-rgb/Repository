@@ -108,13 +108,30 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
 
     const gameLoop = () => {
       const gs = gsRef.current;
+
+      // Always draw
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
       if (gs.state === 'playing') {
-        update(gs, canvas);
-        draw(gs, ctx, canvas);
+        // Draw all players
+        gs.allPlayers.forEach((player: GamePlayer) => {
+          drawPlayer(ctx, player);
+        });
+        // Draw basket
+        drawBasket(ctx, canvas);
       } else {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        drawWaitingScreen(ctx, canvas, gs);
+        // Waiting screen
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 24px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('🏀 Рухейок', canvas.width / 2, canvas.height / 2 - 40);
+        ctx.font = '16px sans-serif';
+        ctx.fillText(`Гравців: ${gs.allPlayers.length}`, canvas.width / 2, canvas.height / 2 + 20);
       }
+
       rafRef.current = requestAnimationFrame(gameLoop);
     };
 
@@ -313,37 +330,8 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
 }
 
 // ============================================================================
-// GAME LOGIC
+// DRAWING FUNCTIONS
 // ============================================================================
-
-function update(gs: any, canvas: HTMLCanvasElement) {
-  // Placeholder for game physics
-}
-
-function draw(gs: any, ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement) {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  // Draw all players
-  gs.allPlayers.forEach((player: GamePlayer) => {
-    drawPlayer(ctx, player);
-  });
-
-  // Draw basket
-  drawBasket(ctx, canvas);
-}
-
-function drawWaitingScreen(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, gs: any) {
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  ctx.fillStyle = '#fff';
-  ctx.font = 'bold 24px sans-serif';
-  ctx.textAlign = 'center';
-  ctx.fillText('🏀 Рухейок', canvas.width / 2, canvas.height / 2 - 40);
-
-  ctx.font = '16px sans-serif';
-  ctx.fillText(`Гравців: ${gs.allPlayers.length}`, canvas.width / 2, canvas.height / 2 + 20);
-}
 
 function drawPlayer(ctx: CanvasRenderingContext2D, player: GamePlayer) {
   ctx.save();
