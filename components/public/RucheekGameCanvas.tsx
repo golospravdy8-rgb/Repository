@@ -69,136 +69,532 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
     const GY = GY_ORIG * scaleY;
     const G = 0.22 * scaleY;
 
-    const POLE_X = 80*scaleX, ARM_X = 120*scaleX;
-    const BOARD_X = 125*scaleX, BOARD_W = 10*scaleX;
+    const POLE_X = 12*scaleX, ARM_X = 52*scaleX;
+    const BOARD_X = 57*scaleX, BOARD_W = 10*scaleX;
     const BOARD_TOP = 189*scaleY, BOARD_BOT = 292*scaleY;
     const BOARD_FACE = BOARD_X + BOARD_W;
-    const HOOP_X = 188*scaleX, HOOP_Y = 307*scaleY;
-    const HOOP_R = 27*scaleX*0.7;
-    const P_START = 680*scaleX, P_STEP = 58*scaleX;
+    const HOOP_X = 110*scaleX, HOOP_Y = 307*scaleY;
+    const HOOP_R = 27*scaleX;
+    const P_START = W * 0.65, P_STEP = W * 0.07;
 
     const gs = gsRef.current;
     let ss_ideal_power = 50;
 
     // Game logic functions from original demo
     function hitTestPlayer(mx: number, my: number, px: number, py: number) {
-      return Math.hypot(mx - px, my - py) < 20;
+      if (Math.hypot(mx - px, my - (py - 54*scaleY)) <= 12*scaleX) return true;
+      if (mx >= px - 5*scaleX && mx <= px + 5*scaleX && my >= py - 44*scaleY && my <= py - 17*scaleY) return true;
+      if (my >= py - 19*scaleY && my <= py + 1*scaleY) {
+        const t = (my - (py - 18*scaleY)) / (18*scaleY);
+        if (mx >= px - 12*scaleX*t && mx <= px + 12*scaleX*t) return true;
+      }
+      return false;
     }
 
     function addFlash(text: string, x: number, y: number, color: string) {
-      gs.flashes.push({ text, x, y, color, t: 0, life: 60 });
+      gs.flashes.push({ text, x, y, color, alpha: 1, dy: 0 });
+    }
+
+    function simTraj(sx: number, sy: number, angle: number, speed: number, maxSteps: number) {
+      const pts = [{ x: sx, y: sy }];
+      let x = sx, y = sy, vx = Math.cos(angle) * speed, vy = Math.sin(angle) * speed;
+      for (let i = 0; i < (maxSteps || 95); i++) {
+        vy += G;
+        x += vx;
+        y += vy;
+        pts.push({ x, y });
+        if (y > GY || x < 0 || x > W) break;
+      }
+      return pts;
     }
 
     function findIdealSpeedForAngle(sx: number, sy: number, angle: number) {
-      const dx = HOOP_X - sx;
-      const dy = HOOP_Y - sy;
-      const d = Math.hypot(dx, dy);
-      const g_half = G / 2;
-      const cos_a = Math.cos(angle);
-      const sin_a = Math.sin(angle);
-      const tan_a = Math.tan(angle);
-      const sec_a = 1 / cos_a;
-      const v_sq = (g_half * d * d * sec_a * sec_a) / (d * tan_a - dy);
-      return Math.sqrt(Math.max(0, v_sq));
+      let bestSpd = 10, bestD = 1e9;
+      for (let spd = 4; spd <= 16; spd += 0.12) {
+        const pts = simTraj(sx, sy, angle, spd, 95);
+        for (const pt of pts) {
+          const d = Math.hypot(pt.x - HOOP_X, pt.y - HOOP_Y);
+          if (d < bestD && pt.y < GY) { bestD = d; bestSpd = spd; }
+        }
+      }
+      return bestSpd;
     }
 
-    function simTraj(sx: number, sy: number, angle: number, speed: number, max_t: number) {
-      const traj = [];
-      const cos_a = Math.cos(angle);
-      const sin_a = Math.sin(angle);
-      for (let t = 0; t <= max_t; t += 1) {
-        const x = sx + speed * cos_a * t;
-        const y = sy + speed * sin_a * t + 0.5 * G * t * t;
-        traj.push({ x, y });
-      }
-      return traj;
-    }
+    function stepBall(b: any) {
+      if (b.state !== 'flying') return;
+      const prevX = b.x, prevY = b.y;
+      b.vy += G;
+      b.x += b.vx;
+      b.y += b.vy;
+      b.rot += 0.14;
+      if (b.x < 10) { b.x = 10; b.vx = Math.abs(b.vx) * 0.5; }
+      if (b.x > W - 10) { b.x = W - 10; b.vx = -Math.abs(b.vx) * 0.5; }
+      if (b.y < 10) { b.y = 10; b.vy = Math.abs(b.vy) * 0.4; }
 
-    function stepBall(ball: any) {
-      ball.vx *= 0.99;
-      ball.vy += G;
-      ball.vy *= 0.99;
-      ball.x += ball.vx;
-      ball.y += ball.vy;
-      if (ball.y > GY) {
-        ball.y = GY;
-        ball.vy *= -0.6;
-        ball.vx *= 0.8;
+      if (b.outcome === 'perfect_direct' || b.outcome === 'direct') {
+        const toHX = HOOP_X - b.x, toHY = HOOP_Y - b.y;
+        const dist = Math.hypot(toHX, toHY);
+        if (dist > 0) {
+          const strength = b.outcome === 'perfect_direct' ? 0.015 : 0.008;
+          const onlyFalling = b.outcome === 'direct';
+          if (!onlyFalling || (onlyFalling && b.vy > 0 && dist < 180)) {
+            const pull = strength * (1 - Math.min(1, dist / 200));
+            b.vx += toHX / dist * pull * dist;
+            b.vy += toHY / dist * pull * dist;
+          }
+        }
       }
-      if (ball.x < 0 || ball.x > W) {
-        ball.vx *= -0.8;
-        ball.x = Math.max(0, Math.min(W, ball.x));
+
+      if (!b.boardHandled) {
+        const crossedFace = (prevX > BOARD_FACE && b.x <= BOARD_FACE) || (prevX >= BOARD_FACE && b.x < BOARD_FACE);
+        const nearFace = b.x <= BOARD_FACE + 12 && b.x >= BOARD_X - 4 && b.vx < 0;
+        if ((crossedFace || nearFace) && b.vx < 0) {
+          const hitY = prevY + (b.y - prevY) * Math.max(0, Math.min(1, (prevX - BOARD_FACE) / Math.max(0.001, prevX - b.x)));
+          if (hitY >= BOARD_TOP - 8 && hitY <= BOARD_BOT + 8) {
+            b.boardHandled = true;
+            b.x = BOARD_FACE + 2;
+            const hitRatio = Math.max(0, Math.min(1, (hitY - BOARD_TOP) / (BOARD_BOT - BOARD_TOP)));
+            const impactSpd = Math.hypot(b.vx, b.vy);
+            const goIn = Math.random() < 0.50;
+            if (goIn) {
+              addFlash('💥 ВІДБІЙ!', BOARD_X + 50*scaleX, BOARD_TOP - 32*scaleY, '#ff9900');
+              const toHX = HOOP_X - b.x, toHY = HOOP_Y - hitY;
+              const toHLen = Math.hypot(toHX, toHY);
+              const normHX = toHX / toHLen, normHY = toHY / toHLen;
+              const reflectVx = Math.abs(b.vx) * 0.65, reflectVy = b.vy * 0.80;
+              const blendToHoop = 0.80 - hitRatio * 0.40;
+              const physBlend = 1 - blendToHoop;
+              const finalSpd = impactSpd * 0.68;
+              b.vx = (normHX * blendToHoop + (reflectVx / impactSpd) * physBlend) * finalSpd + (Math.random() - 0.5) * 0.3;
+              b.vy = (normHY * blendToHoop + (reflectVy / impactSpd) * physBlend) * finalSpd + (Math.random() - 0.5) * 0.2;
+              b.outcome = 'direct';
+            } else {
+              addFlash('🔶 ВІДБІЙ→МИМО', BOARD_X + 50*scaleX, BOARD_TOP - 32*scaleY, '#ff6600');
+              b.vx = Math.abs(b.vx) * 0.60 * (0.9 + Math.random() * 0.2);
+              b.vy = b.vy * 0.50 + Math.random() * 0.5;
+              b.outcome = 'miss_fly';
+            }
+          }
+        }
+      }
+
+      if (!b.rimHandled && (b.outcome === 'rim_in' || b.outcome === 'rim_out')) {
+        const dLeft = Math.hypot(b.x - (HOOP_X - HOOP_R), b.y - HOOP_Y);
+        const dRight = Math.hypot(b.x - (HOOP_X + HOOP_R), b.y - HOOP_Y);
+        const dPrevLeft = Math.hypot(prevX - (HOOP_X - HOOP_R), prevY - HOOP_Y);
+        const dPrevRight = Math.hypot(prevX - (HOOP_X + HOOP_R), prevY - HOOP_Y);
+        const hitRim = (dLeft < 14 || dRight < 14 || dPrevLeft < 14 || dPrevRight < 14) && b.vy > -2;
+        if (hitRim) {
+          b.rimHandled = true;
+          if (b.outcome === 'rim_in') {
+            addFlash('🔥 РИМ-ШОТ!', HOOP_X, HOOP_Y - 52*scaleY, '#ff44ff');
+            b.vx *= 0.12;
+            b.vy = Math.abs(b.vy) * 0.18;
+            b.outcome = 'direct';
+          } else {
+            addFlash('💢 В ОБІД!', HOOP_X, HOOP_Y - 52*scaleY, '#ff8800');
+            b.vx *= -0.55;
+            b.vy = -Math.abs(b.vy) * 0.65;
+            b.outcome = 'miss_fly';
+          }
+        }
+      }
+
+      const d = Math.hypot(b.x - HOOP_X, b.y - HOOP_Y);
+      if (d < 32 && (b.outcome === 'direct' || b.outcome === 'perfect_direct') && b.vy > 0) {
+        b.state = 'scored';
+        b.vx = 0;
+        b.vy = 0;
+        b.x = HOOP_X;
+        b.y = HOOP_Y + 26*scaleY;
+        return;
+      }
+      if (b.y >= GY) {
+        b.y = GY;
+        b.state = 'missed';
+        b.vx = 0;
+        b.vy = 0;
       }
     }
 
     function launchBall(idx: number) {
       const p = gs.players[idx];
       const ss = gs.shootStates[idx];
-      const sx = p.x - 15*scaleX;
-      const sy = p.y - 55*scaleY;
-      const speed = ss.idealSpeed * (0.8 + ss.power / 100 * 0.4);
-      ss.ball = { x: sx, y: sy, vx: speed * Math.cos(ss.lockedAngle), vy: speed * Math.sin(ss.lockedAngle), t: 0 };
-      ss.phase = "flying";
-      p.status = "waiting";
+      const curSpd = 5 + (ss.power / 100) * 11;
+      const angle = ss.aimAngle;
+
+      const pts = simTraj(p.x - 15*scaleX, p.y - 55*scaleY, angle, curSpd, 95);
+      const idealEnd = ss.idealTraj ? ss.idealTraj[ss.idealTraj.length - 1] : { x: HOOP_X, y: HOOP_Y };
+      const curEnd = pts[pts.length - 1];
+      const endDiff = Math.hypot(curEnd.x - idealEnd.x, curEnd.y - idealEnd.y);
+      const spdDiff = Math.abs(curSpd - ss.idealSpeed);
+      const matchPct = Math.max(0, Math.min(100, 100 - spdDiff * 13 - endDiff * 0.3));
+
+      let nearBoard = false;
+      for (const pt of pts) {
+        if (pt.x >= BOARD_X - 30 && pt.x <= BOARD_FACE + 30 && pt.y >= BOARD_TOP - 15 && pt.y <= BOARD_BOT + 15) {
+          nearBoard = true;
+          break;
+        }
+      }
+
+      let rimHit = false;
+      for (const pt of pts) {
+        const dRim = Math.hypot(pt.x - (HOOP_X + HOOP_R), pt.y - HOOP_Y);
+        const dRim2 = Math.hypot(pt.x - (HOOP_X - HOOP_R), pt.y - HOOP_Y);
+        if (dRim < 9 || dRim2 < 9) { rimHit = true; break; }
+      }
+
+      let outcome = 'miss';
+      if (matchPct >= 92) {
+        ss.ball = {
+          x: p.x - 15*scaleX, y: p.y - 55*scaleY,
+          vx: Math.cos(angle) * ss.idealSpeed, vy: Math.sin(angle) * ss.idealSpeed,
+          rot: 0, state: 'flying', outcome: 'perfect_direct',
+          boardHandled: false, rimHandled: false, owner: idx, perfectShot: true
+        };
+        addFlash('🎯 ІДЕАЛЬНО!', p.x, p.y - 115*scaleY, '#44ff88');
+        ss.phase = 'flying';
+        ss.lockedAngle = null;
+        ss.idealTraj = null;
+        p.status = 'shooting';
+        if (idx === gs.disputeP1 && gs.disputeP2 === -1 && gs.players.length > 1) gs.disputeP2 = 1;
+        return;
+      }
+
+      const rnd = Math.random();
+      const directChance = Math.max(0, Math.min(0.82, (matchPct - 8) / 100));
+      if (rnd < directChance) {
+        outcome = 'direct';
+      } else if (nearBoard) {
+        const boardRnd = Math.random();
+        outcome = boardRnd < 0.50 ? 'board_in' : 'board_out';
+      } else if (rimHit && matchPct > 35) {
+        const rimChance = 0.15 + (matchPct - 35) / 200;
+        outcome = Math.random() < rimChance ? 'rim_in' : 'rim_out';
+      } else {
+        outcome = 'miss';
+      }
+
+      ss.ball = {
+        x: p.x - 15*scaleX, y: p.y - 55*scaleY,
+        vx: Math.cos(angle) * curSpd, vy: Math.sin(angle) * curSpd,
+        rot: 0, state: 'flying', outcome,
+        boardHandled: false, rimHandled: false, owner: idx, perfectShot: false
+      };
+      ss.phase = 'flying';
+      ss.lockedAngle = null;
+      ss.idealTraj = null;
+      p.status = 'shooting';
+      if (idx === gs.disputeP1 && gs.disputeP2 === -1 && gs.players.length > 1) gs.disputeP2 = 1;
     }
 
     function update() {
-      gs.players.forEach((p: any, idx: number) => {
-        const ss = gs.shootStates[idx];
-        if (ss.phase === "aiming") {
-          ss.aimAngle += 0.05 * ss.aimDir;
-          if (ss.aimAngle < -Math.PI * 0.9) ss.aimDir = 1;
-          if (ss.aimAngle > -0.1) ss.aimDir = -1;
-        } else if (ss.phase === "charging") {
-          ss.power += ss.powerDir * 2;
-          if (ss.power <= 0) ss.powerDir = 1;
-          if (ss.power >= 100) ss.powerDir = -1;
-        } else if (ss.phase === "flying" && ss.ball) {
-          stepBall(ss.ball);
-          ss.ball.t++;
-          const dx = HOOP_X - ss.ball.x;
-          const dy = HOOP_Y - ss.ball.y;
-          if (Math.hypot(dx, dy) < HOOP_R) {
-            handleScored(idx);
-          }
-          if (ss.ball.t > 300) {
-            handleMissed(idx);
-          }
-        } else if (ss.phase === "manual_run" && ss.runTarget) {
-          const dx = ss.runTarget.x - p.x;
-          if (Math.abs(dx) > 2) {
-            p.x += Math.sign(dx) * 3;
+      if (gs.state !== 'playing') return;
+      for (let i = 0; i < gs.players.length; i++) {
+        const p = gs.players[i], ss = gs.shootStates[i];
+        if (p.status === 'eliminated') continue;
+        if (ss.phase === 'aiming') {
+          const sx = p.x - 15*scaleX;
+          const behindBoard = sx < BOARD_FACE;
+          ss.aimAngle += 0.022 * ss.aimDir;
+          if (behindBoard) {
+            if (ss.aimAngle >= -0.06) { ss.aimAngle = -0.06; ss.aimDir = -1; }
+            if (ss.aimAngle <= -Math.PI * 0.5) { ss.aimAngle = -Math.PI * 0.5; ss.aimDir = 1; }
           } else {
-            ss.phase = null;
-            p.status = "idle";
+            if (ss.aimAngle >= -Math.PI * 0.5) { ss.aimAngle = -Math.PI * 0.5; ss.aimDir = -1; }
+            if (ss.aimAngle <= -Math.PI * 0.94) { ss.aimAngle = -Math.PI * 0.94; ss.aimDir = 1; }
           }
         }
-      });
+        if (ss.phase === 'charging') {
+          ss.power += 1.3 * ss.powerDir;
+          if (ss.power >= 100) { ss.power = 100; ss.powerDir = -1; }
+          if (ss.power <= 0) { ss.power = 0; ss.powerDir = 1; }
+        }
+        if (ss.phase === 'flying' && ss.ball) {
+          stepBall(ss.ball);
+          if (ss.ball.state === 'scored') handleScored(i);
+          else if (ss.ball.state === 'missed') handleMissed(i);
+        }
+        if (ss.phase === 'auto_run' || ss.phase === 'manual_run') {
+          p.rf++;
+          const t = ss.runTarget;
+          if (!t) { ss.phase = ss.phase === 'auto_run' ? 'pickup_wait' : null; p.status = 'idle'; continue; }
+          const dx = t.x - p.x;
+          if (Math.abs(dx) > 4) { p.x += Math.sign(dx) * 3.5; }
+          else {
+            if (ss.phase === 'auto_run') { ss.phase = 'pickup_wait'; ss.ball = null; }
+            else ss.phase = null;
+            p.status = 'idle';
+          }
+        }
+      }
+      if (gs.netShake && Date.now() > gs.netShakeEnd) gs.netShake = false;
+      if (gs.netShake) gs.netShakeT += 0.4;
       gs.flashes = gs.flashes.filter((f: any) => {
-        f.t++;
-        return f.t < f.life;
+        f.dy -= 0.5;
+        f.alpha -= 0.011;
+        return f.alpha > 0;
       });
     }
 
     function handleScored(idx: number) {
+      const p = gs.players[idx];
+      p.score++;
+      gs.shootStates[idx].inDanger = false;
+      addFlash('✅ ПОПАВ! +1', HOOP_X + 55*scaleX, HOOP_Y - 45*scaleY, '#44cc44');
+      gs.netShake = true;
+      gs.netShakeEnd = Date.now() + 700;
       const ss = gs.shootStates[idx];
-      gs.players[idx].score++;
-      gs.players[idx].kills++;
-      addFlash("🎯 ВЛУЧЕННЯ!", gs.players[idx].x, gs.players[idx].y - 100*scaleY, "rgba(0,255,100,0.95)");
-      ss.ball = null;
       ss.phase = null;
-      gs.players[idx].status = "idle";
+      ss.ball = null;
+      ss.lockedAngle = null;
+      ss.idealTraj = null;
+
+      if (idx === gs.disputeP2 && gs.disputeP1 >= 0 && gs.disputeP1 < gs.players.length) {
+        const p1ph = gs.shootStates[gs.disputeP1]?.phase;
+        const dangerPhases = ['auto_run', 'pickup_wait', 'flying', 'aiming', 'charging'];
+        if (dangerPhases.includes(p1ph) || gs.shootStates[gs.disputeP1]?.inDanger) {
+          addFlash('💀 ВИБИТО!', gs.players[gs.disputeP1]?.x || 300, GY - 130*scaleY, '#ff4444');
+          if (gs.players[gs.disputeP1]) gs.players[gs.disputeP1].status = 'eliminated';
+          if (gs.players[idx]) gs.players[idx].kills = (gs.players[idx].kills || 0) + 1;
+          setTimeout(() => {
+            const idx2 = gs.disputeP1;
+            if (idx2 < gs.players.length) { gs.players.splice(idx2, 1); gs.shootStates.splice(idx2, 1); }
+            gs.disputeP1 = 0;
+            gs.disputeP2 = -1;
+            if (gs.players.length <= 1) { gs.state = 'finished'; return; }
+          }, 900);
+          return;
+        }
+      }
+
+      if (idx === 0) {
+        const w = gs.players.shift(), sw = gs.shootStates.shift();
+        if (w && sw) {
+          const tailX = P_START + gs.players.length * P_STEP;
+          w.status = 'running';
+          sw.phase = 'manual_run';
+          sw.runTarget = { x: tailX, y: GY };
+          sw.inDanger = false;
+          gs.players.push(w);
+          gs.shootStates.push(sw);
+          gs.disputeP1 = 0;
+          gs.disputeP2 = -1;
+          gs.players.forEach((p2: any, i: number) => { p2.x = P_START + i * P_STEP; });
+        }
+      }
+      if (gs.players.length <= 1) gs.state = 'finished';
     }
 
     function handleMissed(idx: number) {
       const ss = gs.shootStates[idx];
-      addFlash("❌ ПРОМАХ", gs.players[idx].x, gs.players[idx].y - 100*scaleY, "rgba(255,100,100,0.9)");
-      ss.ball = null;
-      ss.phase = null;
-      gs.players[idx].status = "idle";
+      const p = gs.players[idx];
+      ss.inDanger = true;
+      addFlash('❌ МИМО!', p.x, p.y - 100*scaleY, '#e05545');
+      const bx = ss.ball ? ss.ball.x : p.x;
+      ss.runTarget = { x: Math.max(50*scaleX, Math.min(W - 30*scaleX, bx)), y: GY };
+      ss.phase = 'auto_run';
+      p.status = 'running';
+    }
+
+    function drawBball(cx: number, cy: number, r: number) {
+      ctx.fillStyle = '#e06030';
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#7a2008';
+      ctx.lineWidth = 1.1;
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, -Math.PI * 0.5, Math.PI * 0.5);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, Math.PI * 0.5, Math.PI * 1.5);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(cx - r, cy);
+      ctx.lineTo(cx + r, cy);
+      ctx.stroke();
+    }
+
+    function drawStick(x: number, y: number, pose: string, rf: number, danger: boolean, playerColor: string) {
+      ctx.save();
+      let sc = playerColor || '#e05545';
+      if (danger) {
+        const t = (Date.now() / 300) % 1;
+        const r = Math.floor(220 + 35 * Math.sin(t * Math.PI * 2));
+        sc = `rgb(${r},40,40)`;
+      }
+      ctx.strokeStyle = sc;
+      ctx.fillStyle = sc;
+      ctx.lineWidth = 2.5;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+
+      if (pose === 'run') {
+        const leg = Math.sin(rf * 0.65) * 17, lean = -5;
+        ctx.beginPath();
+        ctx.arc(x + lean, y - 54*scaleY, 10*scaleX, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(x + lean, y - 43*scaleY);
+        ctx.lineTo(x + lean - 2*scaleX, y - 18*scaleY);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(x + lean, y - 35*scaleY);
+        ctx.lineTo(x + lean - 18*scaleX, y - 25*scaleY);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(x + lean, y - 35*scaleY);
+        ctx.lineTo(x + lean + 15*scaleX, y - 25*scaleY);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(x + lean - 2*scaleX, y - 18*scaleY);
+        ctx.lineTo(x + lean - 2*scaleX + leg, y);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(x + lean - 2*scaleX, y - 18*scaleY);
+        ctx.lineTo(x + lean - 2*scaleX - leg, y);
+        ctx.stroke();
+        ctx.globalAlpha = 0.35;
+        ctx.lineWidth = 1.1;
+        for (let k = 0; k < 3; k++) {
+          ctx.beginPath();
+          ctx.moveTo(x + lean + 17*scaleX + k * 4*scaleX, y - 38*scaleY + k * 7*scaleY);
+          ctx.lineTo(x + lean + 28*scaleX + k * 4*scaleX, y - 38*scaleY + k * 7*scaleY);
+          ctx.stroke();
+        }
+        ctx.globalAlpha = 1;
+      } else if (pose === 'shoot') {
+        ctx.beginPath();
+        ctx.arc(x, y - 54*scaleY, 10*scaleX, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(x, y - 43*scaleY);
+        ctx.lineTo(x, y - 18*scaleY);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(x, y - 35*scaleY);
+        ctx.lineTo(x - 25*scaleX, y - 43*scaleY);
+        ctx.stroke();
+        drawBball(x - 33*scaleX, y - 46*scaleY, 9*scaleX);
+        ctx.strokeStyle = sc;
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.moveTo(x, y - 35*scaleY);
+        ctx.lineTo(x + 13*scaleX, y - 25*scaleY);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(x, y - 18*scaleY);
+        ctx.lineTo(x - 11*scaleX, y);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(x, y - 18*scaleY);
+        ctx.lineTo(x + 11*scaleX, y);
+        ctx.stroke();
+      } else {
+        ctx.beginPath();
+        ctx.arc(x, y - 54*scaleY, 10*scaleX, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(x, y - 43*scaleY);
+        ctx.lineTo(x, y - 18*scaleY);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(x, y - 37*scaleY);
+        ctx.lineTo(x + 17*scaleX, y - 22*scaleY);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(x, y - 37*scaleY);
+        ctx.lineTo(x - 12*scaleX, y - 26*scaleY);
+        ctx.stroke();
+        drawBball(x + 24*scaleX, y - 12*scaleY, 10*scaleX);
+        ctx.strokeStyle = sc;
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.moveTo(x, y - 18*scaleY);
+        ctx.lineTo(x - 10*scaleX, y);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(x, y - 18*scaleY);
+        ctx.lineTo(x + 10*scaleX, y);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    function drawTrajPts(pts: any[], color: string, dash?: number[], lw?: number) {
+      if (!pts || pts.length < 2) return;
+      ctx.strokeStyle = color;
+      ctx.lineWidth = lw || 1.5;
+      ctx.setLineDash(dash || []);
+      ctx.beginPath();
+      ctx.moveTo(pts[0].x, pts[0].y);
+      for (const pt of pts) ctx.lineTo(pt.x, pt.y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    function drawAimArrow(px: number, py: number, angle: number) {
+      const hx = px, hy = py - 52*scaleY;
+      const ex = hx + Math.cos(angle) * 88*scaleX, ey = hy + Math.sin(angle) * 88*scaleY;
+      ctx.strokeStyle = '#ffdd00';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([7, 4]);
+      ctx.beginPath();
+      ctx.moveTo(hx, hy);
+      ctx.lineTo(ex, ey);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = '#ffdd00';
+      ctx.beginPath();
+      ctx.moveTo(ex, ey);
+      ctx.lineTo(ex - Math.cos(angle - 0.4) * 11*scaleX, ey - Math.sin(angle - 0.4) * 11*scaleY);
+      ctx.lineTo(ex - Math.cos(angle + 0.4) * 11*scaleX, ey - Math.sin(angle + 0.4) * 11*scaleY);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    function drawPowerBar(p: any, pwr: number, matchPct: number) {
+      const bw = 22*scaleX, bh = 115*scaleY, bx = p.x + 16*scaleX, by = p.y - bh - 32*scaleY, fh = (pwr / 100) * bh;
+      ctx.fillStyle = 'rgba(0,0,0,0.85)';
+      ctx.fillRect(bx, by, bw, bh);
+      ctx.strokeStyle = '#555';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(bx, by, bw, bh);
+      const clr = matchPct > 92 ? '#00ffaa' : matchPct > 85 ? '#44cc44' : matchPct > 55 ? '#ffcc00' : '#e05545';
+      ctx.fillStyle = clr;
+      ctx.fillRect(bx, by + bh - fh, bw, fh);
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.moveTo(bx - 5*scaleX, by + bh - fh);
+      ctx.lineTo(bx + bw + 5*scaleX, by + bh - fh);
+      ctx.stroke();
+      ctx.setLineDash([3, 3]);
+      ctx.strokeStyle = 'rgba(100,255,100,0.75)';
+      ctx.lineWidth = 1.5;
+      const idealFrac = (ss_ideal_power || 50) / 100;
+      const idealY = by + bh - idealFrac * bh;
+      ctx.beginPath();
+      ctx.moveTo(bx - 3*scaleX, idealY);
+      ctx.lineTo(bx + bw + 3*scaleX, idealY);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = clr;
+      ctx.font = `bold ${11*scaleX}px sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.fillText(Math.round(matchPct) + '%', bx + bw / 2, by - 7*scaleY);
+      ctx.fillStyle = 'rgba(100,255,100,0.8)';
+      ctx.font = `${9*scaleX}px sans-serif`;
+      ctx.fillText('▲ціль', bx + bw / 2, idealY - 3*scaleY);
     }
 
     function drawBasket() {
+      const sh = gs.netShake ? Math.sin(gs.netShakeT) * 2.5 : 0;
       ctx.save();
       ctx.strokeStyle = '#e05545';
       ctx.lineCap = 'round';
@@ -206,29 +602,29 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       ctx.lineWidth = 5*scaleX;
       ctx.beginPath();
       ctx.moveTo(POLE_X, GY);
-      ctx.lineTo(POLE_X, BOARD_TOP);
+      ctx.lineTo(POLE_X, 209*scaleY);
       ctx.stroke();
       ctx.lineWidth = 3*scaleX;
       ctx.beginPath();
-      ctx.moveTo(POLE_X, BOARD_TOP - 40*scaleY);
-      ctx.lineTo(ARM_X, BOARD_TOP - 40*scaleY);
+      ctx.moveTo(POLE_X, 209*scaleY);
+      ctx.lineTo(ARM_X, 209*scaleY);
       ctx.stroke();
       ctx.lineWidth = 3*scaleX;
       ctx.strokeRect(BOARD_X, BOARD_TOP, BOARD_W, BOARD_BOT - BOARD_TOP);
       ctx.lineWidth = 1.5*scaleX;
-      ctx.strokeRect(BOARD_X + 1*scaleX, BOARD_TOP + 38*scaleY, BOARD_W - 2*scaleX, 30*scaleY);
+      ctx.strokeRect(BOARD_X + 1*scaleX, 227*scaleY, BOARD_W - 2*scaleX, 30*scaleY);
       ctx.lineWidth = 1.8*scaleX;
       ctx.beginPath();
-      ctx.moveTo(BOARD_FACE, BOARD_TOP + 53*scaleY);
-      ctx.lineTo(HOOP_X - HOOP_R + 3*scaleX, HOOP_Y);
+      ctx.moveTo(BOARD_FACE, 262*scaleY);
+      ctx.lineTo(HOOP_X - HOOP_R + 3*scaleX, HOOP_Y + sh * 0.3);
       ctx.stroke();
       ctx.beginPath();
-      ctx.moveTo(BOARD_FACE, BOARD_TOP + 67*scaleY);
-      ctx.lineTo(HOOP_X - HOOP_R + 3*scaleX, HOOP_Y);
+      ctx.moveTo(BOARD_FACE, 276*scaleY);
+      ctx.lineTo(HOOP_X - HOOP_R + 3*scaleX, HOOP_Y + sh * 0.3);
       ctx.stroke();
       ctx.lineWidth = 3*scaleX;
       ctx.beginPath();
-      ctx.ellipse(HOOP_X, HOOP_Y, HOOP_R, 8*scaleY, 0, 0, Math.PI * 2);
+      ctx.ellipse(HOOP_X + sh * 0.3, HOOP_Y + sh * 0.15, HOOP_R, 8*scaleY, 0, 0, Math.PI * 2);
       ctx.stroke();
       ctx.lineWidth = 1*scaleX;
       ctx.globalAlpha = 0.65;
@@ -236,77 +632,34 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         const tx = HOOP_X - HOOP_R + 3*scaleX + i * (HOOP_R * 2 - 6*scaleX) / 6;
         const bx2 = HOOP_X - 11*scaleX + i * 22*scaleX / 6;
         ctx.beginPath();
-        ctx.moveTo(tx, HOOP_Y + 8*scaleY);
-        ctx.lineTo(bx2, HOOP_Y + 46*scaleY);
+        ctx.moveTo(tx + sh * 0.08 * (i - 3), HOOP_Y + 8*scaleY);
+        ctx.lineTo(bx2 + sh * 0.12 * (i - 3), HOOP_Y + 46*scaleY + sh);
         ctx.stroke();
       }
       for (let j = 0; j < 3; j++) {
         const t = (j + 1) / 4;
-        const yw = HOOP_Y + 8*scaleY + t * 38*scaleY;
+        const yw = HOOP_Y + 8*scaleY + t * 38*scaleY + sh * 0.08;
         const hw = HOOP_R * (1 - t * 0.4) - 2*scaleX;
         ctx.beginPath();
         ctx.moveTo(HOOP_X - hw, yw);
         ctx.lineTo(HOOP_X + hw, yw);
         ctx.stroke();
       }
+      if (gs.netShake) {
+        const a = Math.max(0, (gs.netShakeEnd - Date.now()) / 700);
+        ctx.globalAlpha = a * 0.55;
+        ctx.fillStyle = '#44cc44';
+        ctx.beginPath();
+        ctx.ellipse(HOOP_X, HOOP_Y, HOOP_R + 14*scaleX, 11*scaleY, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
       ctx.globalAlpha = 1;
       ctx.restore();
     }
 
-    function drawParticipantsPanel() {
-      if (gs.state !== 'playing' && gs.state !== 'waiting') return;
-      const listX = 4, listY = 8, rowH = 19, padX = 6, padY = 4;
-      const roster = gs.players;
-      if (roster.length === 0) return;
-
-      const panelW = 110, panelH = rowH * roster.length + padY * 2 + 14;
-      ctx.fillStyle = 'rgba(0,0,0,0.6)';
-      ctx.fillRect(listX, listY, panelW, panelH);
-      ctx.strokeStyle = 'rgba(255,255,255,0.07)';
-      ctx.lineWidth = 1;
-      ctx.strokeRect(listX, listY, panelW, panelH);
-
-      ctx.fillStyle = 'rgba(255,255,255,0.3)';
-      ctx.font = 'bold 8px sans-serif';
-      ctx.textAlign = 'left';
-      ctx.fillText('УЧАСНИКИ', listX + padX, listY + padY + 7);
-
-      roster.forEach((p: any, i: number) => {
-        const ry = listY + padY + 15 + i * rowH;
-        const eliminated = p.status === 'eliminated';
-        const isMine = i === 0;
-
-        if (eliminated) {
-          ctx.fillStyle = 'rgba(120,120,120,0.2)';
-          ctx.fillRect(listX + 3, ry - 11, panelW - 6, rowH - 2);
-          ctx.fillStyle = 'rgba(150,150,150,0.4)';
-          ctx.font = '10px sans-serif';
-          ctx.textAlign = 'left';
-          ctx.fillText('✖ ' + p.name, listX + padX + 10, ry + 1);
-        } else {
-          if (isMine) {
-            ctx.fillStyle = 'rgba(255,255,255,0.06)';
-            ctx.fillRect(listX + 3, ry - 11, panelW - 6, rowH - 2);
-          }
-          ctx.fillStyle = p.color || '#fff';
-          ctx.beginPath();
-          ctx.arc(listX + padX + 3, ry - 2, 3, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.fillStyle = isMine ? (p.color || '#fff') : 'rgba(220,220,220,0.65)';
-          ctx.font = (isMine ? 'bold ' : '') + '10px sans-serif';
-          ctx.textAlign = 'left';
-          ctx.fillText(p.name, listX + padX + 10, ry + 1);
-          ctx.fillStyle = 'rgba(255,220,80,0.7)';
-          ctx.font = '8px sans-serif';
-          ctx.textAlign = 'right';
-          ctx.fillText('🏀' + p.score, listX + panelW - padX, ry + 1);
-        }
-      });
-    }
-
     function draw() {
       ctx.clearRect(0, 0, W, H);
-      ctx.globalAlpha = 0.3;
+      ctx.globalAlpha = 0.25;
       ctx.strokeStyle = '#fff';
       ctx.lineWidth = 1.2;
       ctx.beginPath();
@@ -316,112 +669,275 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       ctx.globalAlpha = 1;
       drawBasket();
 
-      gs.players.forEach((p: any, idx: number) => {
-        const ss = gs.shootStates[idx];
-        ctx.fillStyle = p.color;
-        ctx.beginPath();
-        ctx.arc(p.x, p.y - 28*scaleY, 8*scaleX, 0, Math.PI * 2);
-        ctx.fill();
+      for (let i = 0; i < gs.players.length; i++) {
+        const p = gs.players[i], ss = gs.shootStates[i];
+        if (p.status === 'eliminated') continue;
+        const sx = p.x - 15*scaleX, sy = p.y - 55*scaleY;
+        const danger = ss.inDanger || false;
 
-        ctx.strokeStyle = p.color;
-        ctx.lineWidth = 2*scaleX;
-        ctx.beginPath();
-        ctx.moveTo(p.x, p.y - 20*scaleY);
-        ctx.lineTo(p.x, p.y - 8*scaleY);
-        ctx.stroke();
-
-        ctx.beginPath();
-        ctx.moveTo(p.x, p.y - 8*scaleY);
-        ctx.lineTo(p.x - 6*scaleX, p.y);
-        ctx.stroke();
-
-        ctx.beginPath();
-        ctx.moveTo(p.x, p.y - 8*scaleY);
-        ctx.lineTo(p.x + 6*scaleX, p.y);
-        ctx.stroke();
-
-        if (ss.phase === "aiming") {
-          ctx.strokeStyle = "rgba(255,100,100,0.8)";
-          ctx.lineWidth = 2*scaleX;
-          const armLen = 80*scaleX;
+        if (danger && (ss.phase !== 'flying')) {
+          const al = 0.3 + 0.4 * Math.sin(Date.now() / 200);
+          ctx.strokeStyle = `rgba(255,50,50,${al})`;
+          ctx.lineWidth = 2;
           ctx.beginPath();
-          ctx.moveTo(p.x - 15*scaleX, p.y - 55*scaleY);
-          ctx.lineTo(p.x - 15*scaleX + armLen * Math.cos(ss.aimAngle), p.y - 55*scaleY + armLen * Math.sin(ss.aimAngle));
+          ctx.arc(p.x, p.y - 37*scaleY, 48*scaleX, 0, Math.PI * 2);
           ctx.stroke();
+        }
 
-          if (ss.idealTraj) {
-            ctx.strokeStyle = "rgba(255,100,100,0.5)";
-            ctx.lineWidth = 1*scaleX;
+        if (i === gs.selectedMoveIdx) {
+          const al = 0.5 + 0.4 * Math.sin(Date.now() / 250);
+          ctx.strokeStyle = `rgba(255,220,50,${al})`;
+          ctx.lineWidth = 2.5;
+          ctx.setLineDash([6, 4]);
+          ctx.beginPath();
+          ctx.arc(p.x, p.y - 37*scaleY, 46*scaleX, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.setLineDash([]);
+          ctx.fillStyle = `rgba(255,220,50,${al * 0.85})`;
+          ctx.font = `bold ${10*scaleX}px sans-serif`;
+          ctx.textAlign = 'center';
+          ctx.fillText('ПКМ на підлогу → бігти', p.x, p.y - 92*scaleY);
+        }
+
+        if (ss.phase === 'aiming') {
+          const pts = simTraj(sx, sy, ss.aimAngle, 10, 95);
+          drawTrajPts(pts, 'rgba(220,80,60,0.45)', [5, 5]);
+          drawAimArrow(p.x, p.y, ss.aimAngle);
+        }
+
+        if (ss.phase === 'charging') {
+          if (ss.idealTraj) drawTrajPts(ss.idealTraj, 'rgba(255,230,0,0.75)', [6, 5], 1.9);
+          const curSpd = 5 + (ss.power / 100) * 11;
+          const pts = simTraj(sx, sy, ss.aimAngle, curSpd, 95);
+          const idealEnd = ss.idealTraj ? ss.idealTraj[ss.idealTraj.length - 1] : { x: HOOP_X, y: HOOP_Y };
+          const curEnd = pts[pts.length - 1];
+          const endDiff = Math.hypot(curEnd.x - idealEnd.x, curEnd.y - idealEnd.y);
+          const spdDiff = Math.abs(curSpd - ss.idealSpeed);
+          const matchPct = Math.max(0, Math.min(100, 100 - spdDiff * 13 - endDiff * 0.3));
+          let tColor;
+          if (matchPct > 92) tColor = 'rgba(0,255,170,0.9)';
+          else if (matchPct > 85) tColor = 'rgba(60,220,80,0.8)';
+          else if (matchPct > 55) tColor = 'rgba(255,210,0,0.7)';
+          else tColor = 'rgba(220,80,60,0.6)';
+          drawTrajPts(pts, tColor, [4, 4], 2.2);
+          ss_ideal_power = (ss.idealSpeed - 5) / 11 * 100;
+          drawPowerBar(p, ss.power, matchPct);
+          if (matchPct > 92) {
+            const pulse = 0.4 + 0.5 * Math.sin(Date.now() / 120);
+            ctx.strokeStyle = `rgba(0,255,170,${pulse})`;
+            ctx.lineWidth = 3;
             ctx.beginPath();
-            ctx.moveTo(ss.idealTraj[0].x, ss.idealTraj[0].y);
-            for (let i = 1; i < ss.idealTraj.length; i++) {
-              ctx.lineTo(ss.idealTraj[i].x, ss.idealTraj[i].y);
-            }
+            ctx.ellipse(HOOP_X, HOOP_Y, HOOP_R + 8*scaleX, 11*scaleY, 0, 0, Math.PI * 2);
             ctx.stroke();
-          }
-        } else if (ss.phase === "charging") {
-          ctx.strokeStyle = "rgba(255,200,0,0.9)";
-          ctx.lineWidth = 3*scaleX;
-          const armLen = 80*scaleX;
-          ctx.beginPath();
-          ctx.moveTo(p.x - 15*scaleX, p.y - 55*scaleY);
-          ctx.lineTo(p.x - 15*scaleX + armLen * Math.cos(ss.lockedAngle), p.y - 55*scaleY + armLen * Math.sin(ss.lockedAngle));
-          ctx.stroke();
-
-          if (ss.idealTraj) {
-            ctx.strokeStyle = "rgba(255,200,0,0.7)";
-            ctx.lineWidth = 1.5*scaleX;
+            ctx.fillStyle = `rgba(0,255,170,${pulse * 0.35})`;
             ctx.beginPath();
-            ctx.moveTo(ss.idealTraj[0].x, ss.idealTraj[0].y);
-            for (let i = 1; i < ss.idealTraj.length; i++) {
-              ctx.lineTo(ss.idealTraj[i].x, ss.idealTraj[i].y);
-            }
-            ctx.stroke();
+            ctx.ellipse(HOOP_X, HOOP_Y, HOOP_R + 8*scaleX, 11*scaleY, 0, 0, Math.PI * 2);
+            ctx.fill();
           }
-
-          ctx.fillStyle = "rgba(255,200,0,0.3)";
-          ctx.fillRect(p.x + 30*scaleX, p.y - 80*scaleY, 60*scaleX, 20*scaleY);
-          ctx.strokeStyle = "rgba(255,200,0,0.9)";
-          ctx.lineWidth = 2*scaleX;
-          ctx.strokeRect(p.x + 30*scaleX, p.y - 80*scaleY, 60*scaleX, 20*scaleY);
-          ctx.fillStyle = "rgba(255,200,0,0.8)";
-          ctx.fillRect(p.x + 30*scaleX, p.y - 80*scaleY, (ss.power / 100) * 60*scaleX, 20*scaleY);
         }
 
-        if (gs.selectedMoveIdx === idx) {
-          ctx.strokeStyle = "rgba(255,220,80,0.8)";
-          ctx.lineWidth = 3*scaleX;
+        if (ss.ball && ss.phase === 'flying') {
+          ctx.save();
+          ctx.translate(ss.ball.x, ss.ball.y);
+          ctx.rotate(ss.ball.rot);
+          drawBball(0, 0, 11*scaleX);
+          ctx.restore();
+        }
+        if (ss.ball && ss.phase === 'auto_run') {
+          ctx.save();
+          ctx.translate(ss.ball.x, ss.ball.y);
+          ctx.rotate(ss.ball.rot || 0);
+          drawBball(0, 0, 11*scaleX);
+          ctx.restore();
+        }
+
+        if (ss.phase === 'pickup_wait') {
+          const al = 0.4 + 0.5 * Math.sin(Date.now() / 180);
+          ctx.strokeStyle = `rgba(255,220,0,${al})`;
+          ctx.lineWidth = 2.5;
           ctx.beginPath();
-          ctx.arc(p.x, p.y, 35*scaleX, 0, Math.PI * 2);
+          ctx.arc(p.x, p.y - 37*scaleY, 42*scaleX, 0, Math.PI * 2);
           ctx.stroke();
+          ctx.fillStyle = `rgba(255,220,0,${al})`;
+          ctx.font = `bold ${10*scaleX}px sans-serif`;
+          ctx.textAlign = 'center';
+          ctx.fillText('← КЛІКНИ → кидок', p.x, p.y - 90*scaleY);
         }
 
-        if (ss.ball) {
-          ctx.fillStyle = "rgba(255,150,0,0.9)";
-          ctx.beginPath();
-          ctx.arc(ss.ball.x, ss.ball.y, 6*scaleX, 0, Math.PI * 2);
-          ctx.fill();
-        }
+        let pose = 'idle';
+        if (p.status === 'running') pose = 'run';
+        else if (p.status === 'shooting') pose = 'shoot';
+        drawStick(p.x, p.y, pose, p.rf, danger, p.color);
 
-        ctx.fillStyle = p.color;
-        ctx.font = `bold ${12*scaleX}px sans-serif`;
-        ctx.textAlign = "center";
-        ctx.fillText(p.name, p.x, p.y + 20*scaleY);
-        ctx.fillText(`${p.score}`, p.x, p.y + 35*scaleY);
-      });
+        const kills = p.kills || 0;
+        const isMine = i === 0;
+        if (kills > 0) {
+          ctx.fillStyle = '#ff6644';
+          ctx.font = `bold ${11*scaleX}px sans-serif`;
+          ctx.textAlign = 'center';
+          ctx.fillText('💀×' + kills, p.x, p.y - 84*scaleY);
+        }
+        const namePrefix = danger ? '🎯 ' : (isMine ? '👤 ' : '🔒 ');
+        ctx.fillStyle = danger ? 'rgba(255,110,110,0.95)' : isMine ? p.color : 'rgba(180,180,180,0.6)';
+        ctx.font = (danger ? 'bold ' : isMine ? 'bold ' : '') + `${11*scaleX}px sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.fillText(namePrefix + (danger ? p.name : p.name), p.x, p.y - 73*scaleY);
+        ctx.fillStyle = danger ? '#ff5555' : '#ffdd00';
+        ctx.font = `bold ${11*scaleX}px sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.fillText('🏀 ' + p.score, p.x, p.y - 61*scaleY);
+
+        if (i === gs.disputeP2 && ss.phase === null && gs.state === 'playing' && gs.players.length > 1) {
+          const al = 0.7 + 0.3 * Math.sin(Date.now() / 200);
+          ctx.fillStyle = `rgba(255,200,0,${al})`;
+          ctx.font = `bold ${10*scaleX}px sans-serif`;
+          ctx.textAlign = 'center';
+          ctx.fillText('▶ ВИБИЙ!', p.x, p.y - 90*scaleY);
+        }
+      }
 
       gs.flashes.forEach((f: any) => {
-        const alpha = 1 - f.t / f.life;
-        ctx.fillStyle = f.color.replace("0.95", String(alpha * 0.95)).replace("0.9", String(alpha * 0.9)).replace("0.85", String(alpha * 0.85));
-        ctx.font = `bold ${16*scaleX}px sans-serif`;
-        ctx.textAlign = "center";
-        ctx.fillText(f.text, f.x, f.y - (f.t * 2*scaleY));
+        ctx.globalAlpha = f.alpha;
+        ctx.fillStyle = f.color;
+        ctx.font = `bold ${17*scaleX}px sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.fillText(f.text, f.x, f.y + f.dy);
       });
+      ctx.globalAlpha = 1;
 
-      drawParticipantsPanel();
+      if (gs.state === 'playing' || gs.state === 'waiting') {
+        const listX = 4, listY = 8, rowH = 19, padX = 6, padY = 4;
+        const roster = gs.players;
+        if (roster.length > 0) {
+          const panelW = 110*scaleX, panelH = rowH * roster.length + padY * 2 + 14;
+          ctx.fillStyle = 'rgba(0,0,0,0.6)';
+          ctx.fillRect(listX, listY, panelW, panelH);
+          ctx.strokeStyle = 'rgba(255,255,255,0.07)';
+          ctx.lineWidth = 1;
+          ctx.strokeRect(listX, listY, panelW, panelH);
+
+          ctx.fillStyle = 'rgba(255,255,255,0.3)';
+          ctx.font = `bold ${8*scaleX}px sans-serif`;
+          ctx.textAlign = 'left';
+          ctx.fillText('УЧАСНИКИ', listX + padX, listY + padY + 7);
+
+          roster.forEach((p2: any, i2: number) => {
+            const ry = listY + padY + 15 + i2 * rowH;
+            const ss2 = gs.state === 'playing' ? gs.shootStates[i2] : null;
+            const danger2 = ss2?.inDanger || false;
+            const eliminated2 = p2.status === 'eliminated';
+            const isMine2 = i2 === 0;
+            const blink = danger2 ? (Math.sin(Date.now() / 180) > 0) : true;
+
+            if (eliminated2) {
+              ctx.fillStyle = 'rgba(120,120,120,0.2)';
+              ctx.fillRect(listX + 3, ry - 11, panelW - 6, rowH - 2);
+              ctx.fillStyle = 'rgba(150,150,150,0.4)';
+              ctx.font = `${10*scaleX}px sans-serif`;
+              ctx.textAlign = 'left';
+              ctx.fillText('✖ ' + p2.name, listX + padX + 10, ry + 1);
+              ctx.strokeStyle = 'rgba(180,60,60,0.45)';
+              ctx.lineWidth = 1;
+              ctx.beginPath();
+              const tw = ctx.measureText('✖ ' + p2.name).width;
+              ctx.moveTo(listX + padX + 10, ry - 4);
+              ctx.lineTo(listX + padX + 10 + tw, ry - 4);
+              ctx.stroke();
+            } else if (danger2 && blink) {
+              ctx.fillStyle = 'rgba(200,30,30,0.4)';
+              ctx.fillRect(listX + 3, ry - 11, panelW - 6, rowH - 2);
+              ctx.fillStyle = 'rgba(255,80,80,0.95)';
+              ctx.font = `bold ${10*scaleX}px sans-serif`;
+              ctx.textAlign = 'left';
+              ctx.fillText('🎯 ' + p2.name, listX + padX, ry + 1);
+              ctx.fillStyle = 'rgba(255,150,150,0.8)';
+              ctx.font = `${8*scaleX}px sans-serif`;
+              ctx.textAlign = 'right';
+              ctx.fillText('🏀' + p2.score, listX + panelW - padX, ry + 1);
+            } else {
+              if (isMine2) {
+                ctx.fillStyle = 'rgba(255,255,255,0.06)';
+                ctx.fillRect(listX + 3, ry - 11, panelW - 6, rowH - 2);
+              }
+              ctx.fillStyle = p2.color || '#fff';
+              ctx.beginPath();
+              ctx.arc(listX + padX + 3, ry - 2, 3*scaleX, 0, Math.PI * 2);
+              ctx.fill();
+              ctx.fillStyle = isMine2 ? (p2.color || '#fff') : 'rgba(220,220,220,0.65)';
+              ctx.font = (isMine2 ? 'bold ' : '') + `${10*scaleX}px sans-serif`;
+              ctx.textAlign = 'left';
+              ctx.fillText(p2.name, listX + padX + 10, ry + 1);
+              ctx.fillStyle = 'rgba(255,220,80,0.7)';
+              ctx.font = `${8*scaleX}px sans-serif`;
+              ctx.textAlign = 'right';
+              ctx.fillText('🏀' + p2.score, listX + panelW - padX, ry + 1);
+            }
+          });
+        }
+      }
+
+      ctx.textAlign = 'left';
+      if (gs.state === 'playing') {
+        const activeIdx = gs.selectedMoveIdx >= 0 ? gs.selectedMoveIdx : -1;
+        const ph = activeIdx >= 0 ? gs.shootStates[activeIdx]?.phase : null;
+        const hints: any = {
+          null: 'ПКМ на гравця → активувати  |  ЛКМ на підлогу → бігти  |  ПКМ на пустому → скинути вибір',
+          aiming: '[1] ЛКМ — зафіксуй кут  |  ПКМ на гравця → скасувати',
+          charging: '[2] ЛКМ на гравця = кидок  |  ПКМ на гравця = ↺ переприціл',
+          flying: 'М\'яч летить...',
+          auto_run: 'Біжить за м\'ячем...',
+          pickup_wait: 'Підібрав! ЛКМ щоб кидати знову',
+          manual_run: 'Біжить...',
+        };
+        let hintText = hints[ph] ?? 'ПКМ на гравця → активувати  |  ЛКМ на підлогу → бігти  |  ЛКМ на гравця → кидок';
+        if (activeIdx >= 0 && gs.players[activeIdx]) {
+          hintText = '[' + gs.players[activeIdx].name + '] ' + (hints[ph] ?? '');
+        }
+        ctx.fillStyle = 'rgba(255,255,255,0.72)';
+        ctx.font = `${13*scaleX}px sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.fillText(hintText, W / 2, H - 11*scaleY);
+        const alive = gs.players.filter((p: any) => p.status !== 'eliminated').length;
+        ctx.fillStyle = 'rgba(255,255,255,0.28)';
+        ctx.font = `${11*scaleX}px sans-serif`;
+        ctx.textAlign = 'right';
+        ctx.fillText('Гравців: ' + alive + '/6', W - 8*scaleX, 17*scaleY);
+      }
+
+      if (gs.state === 'waiting') {
+        ctx.fillStyle = 'rgba(255,255,255,0.35)';
+        ctx.font = `${15*scaleX}px sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.fillText('Додай 2–6 гравців і натисни ▶ Старт', W / 2, 235*scaleY);
+        ctx.fillStyle = 'rgba(255,255,255,0.18)';
+        ctx.font = `${12*scaleX}px sans-serif`;
+        ctx.fillText('Натисни 📖 Інструкція для правил гри', W / 2, 260*scaleY);
+      }
+
+      if (gs.state === 'finished') {
+        ctx.fillStyle = 'rgba(0,0,0,0.85)';
+        ctx.fillRect(0, 0, W, H);
+        ctx.fillStyle = '#ffdd00';
+        ctx.font = `bold ${30*scaleX}px sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.fillText('🏆 ГРА ЗАВЕРШЕНА', W / 2, 165*scaleY);
+        if (gs.players.length === 1) {
+          ctx.fillStyle = '#44cc44';
+          ctx.font = `bold ${22*scaleX}px sans-serif`;
+          ctx.fillText('Переможець: ' + gs.players[0].name + ' 🥇', W / 2, 205*scaleY);
+        }
+        [...gs.players].sort((a: any, b: any) => b.score - a.score).forEach((p: any, k: number) => {
+          ctx.fillStyle = k === 0 ? '#ffdd00' : 'rgba(255,255,255,0.8)';
+          ctx.font = (k === 0 ? `bold ${17*scaleX}px` : `${14*scaleX}px`) + ' sans-serif';
+          ctx.fillText((k === 0 ? '🥇' : (k === 1 ? '🥈' : '🥉')) + ' ' + p.name + ' — ' + p.score + ' очок', W / 2, 245*scaleY + k * 24*scaleY);
+        });
+        ctx.fillStyle = 'rgba(255,255,255,0.4)';
+        ctx.font = `${13*scaleX}px sans-serif`;
+        ctx.fillText('↺ Рестарт', W / 2, 410*scaleY);
+      }
     }
 
-    const handleClick = (e: MouseEvent) => {
+    canvas.addEventListener("click", (e: MouseEvent) => {
       if (gs.state !== "playing") return;
       const rect = canvas.getBoundingClientRect();
       const sc = W / rect.width;
@@ -439,16 +955,19 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           const behindBoard = (p.x - 15*scaleX) < BOARD_FACE;
           ss.aimAngle = behindBoard ? -0.1 : -Math.PI*0.72;
           ss.aimDir = behindBoard ? -1 : 1;
-          ss.lockedAngle = null; ss.idealTraj = null;
+          ss.lockedAngle = null;
+          ss.idealTraj = null;
           p.status = "shooting";
           if (hitIdx === 0) gs.disputeP1 = 0;
         } else if (ss.phase === "aiming") {
           ss.lockedAngle = ss.aimAngle;
-          const idealSpd = findIdealSpeedForAngle(p.x-15*scaleX, p.y-55*scaleY, ss.lockedAngle);
+          const idealSpd = findIdealSpeedForAngle(p.x - 15*scaleX, p.y - 55*scaleY, ss.lockedAngle);
           ss.idealSpeed = idealSpd;
-          ss_ideal_power = (idealSpd-5)/11*100;
-          ss.idealTraj = simTraj(p.x-15*scaleX, p.y-55*scaleY, ss.lockedAngle, idealSpd, 95);
-          ss.phase = "charging"; ss.power = 0; ss.powerDir = 1;
+          ss_ideal_power = (idealSpd - 5) / 11 * 100;
+          ss.idealTraj = simTraj(p.x - 15*scaleX, p.y - 55*scaleY, ss.lockedAngle, idealSpd, 95);
+          ss.phase = "charging";
+          ss.power = 0;
+          ss.powerDir = 1;
         } else if (ss.phase === "charging") {
           launchBall(hitIdx);
         }
@@ -456,15 +975,15 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         if (gs.selectedMoveIdx >= 0 && gs.selectedMoveIdx < gs.players.length) {
           const p = gs.players[gs.selectedMoveIdx], ss = gs.shootStates[gs.selectedMoveIdx];
           if (p.status !== "eliminated" && (ss.phase === null || ss.phase === "pickup_wait" || ss.phase === "manual_run")) {
-            ss.runTarget = { x: Math.max(50*scaleX, Math.min(W-30*scaleX, mx)), y: GY };
-            ss.phase = "manual_run"; p.status = "running";
+            ss.runTarget = { x: Math.max(50*scaleX, Math.min(W - 30*scaleX, mx)), y: GY };
+            ss.phase = "manual_run";
+            p.status = "running";
           }
         }
       }
-      forceUpdate(n => n+1);
-    };
+    });
 
-    const handleRClick = (e: MouseEvent) => {
+    canvas.addEventListener("contextmenu", (e: MouseEvent) => {
       e.preventDefault();
       if (gs.state !== "playing") return;
       const rect = canvas.getBoundingClientRect();
@@ -479,25 +998,29 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       if (hitIdx >= 0) {
         const p = gs.players[hitIdx], ss = gs.shootStates[hitIdx];
         if (ss.phase === "charging") {
-          ss.phase = "aiming"; ss.aimAngle = ss.lockedAngle || ss.aimAngle; ss.aimDir = 1;
-          ss.lockedAngle = null; ss.idealTraj = null;
-          addFlash("↺ переприціл", p.x, p.y-105*scaleY, "rgba(255,210,80,0.95)");
+          ss.phase = "aiming";
+          ss.aimAngle = ss.lockedAngle || ss.aimAngle;
+          ss.aimDir = 1;
+          ss.lockedAngle = null;
+          ss.idealTraj = null;
+          addFlash("↺ переприціл", p.x, p.y - 105*scaleY, "rgba(255,210,80,0.95)");
         } else if (ss.phase === "aiming") {
-          ss.phase = null; ss.lockedAngle = null; ss.idealTraj = null; ss.ball = null;
-          p.status = "idle"; gs.selectedMoveIdx = -1;
-          addFlash("✖ скасовано", p.x, p.y-95*scaleY, "rgba(200,200,200,0.9)");
+          ss.phase = null;
+          ss.lockedAngle = null;
+          ss.idealTraj = null;
+          ss.ball = null;
+          p.status = "idle";
+          gs.selectedMoveIdx = -1;
+          addFlash("✖ скасовано", p.x, p.y - 95*scaleY, "rgba(200,200,200,0.9)");
         } else if (p.status !== "eliminated") {
           gs.selectedMoveIdx = hitIdx;
-          addFlash("👆 вибрано", p.x, p.y-95*scaleY, "rgba(255,220,80,0.95)");
+          addFlash("👆 вибрано", p.x, p.y - 95*scaleY, "rgba(255,220,80,0.95)");
         }
       } else {
-        if (gs.selectedMoveIdx >= 0) addFlash("✖ вибір скасовано", mx, my-20*scaleY, "rgba(200,200,200,0.85)");
+        if (gs.selectedMoveIdx >= 0) addFlash("✖ вибір скасовано", mx, my - 20*scaleY, "rgba(200,200,200,0.85)");
         gs.selectedMoveIdx = -1;
       }
-    };
-
-    canvas.addEventListener("click", handleClick);
-    canvas.addEventListener("contextmenu", handleRClick);
+    });
 
     function renderLoop() {
       update();
@@ -508,8 +1031,6 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
 
     return () => {
       cancelAnimationFrame(rafRef.current);
-      canvas.removeEventListener("click", handleClick);
-      canvas.removeEventListener("contextmenu", handleRClick);
     };
   }, [mounted, isVisible]);
 
