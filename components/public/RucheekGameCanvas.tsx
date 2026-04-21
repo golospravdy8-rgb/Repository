@@ -5,6 +5,8 @@ import { createPortal } from "react-dom";
 
 interface RucheekGameCanvasProps {
   isVisible: boolean;
+  userName?: string;
+  userPhone?: string;
 }
 
 const PLAYER_COLORS = ["#4fc3f7", "#81c784", "#ffb74d", "#f06292", "#ce93d8", "#80cbc4"];
