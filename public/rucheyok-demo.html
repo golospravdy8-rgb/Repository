@@ -53,7 +53,7 @@ canvas{border-radius:10px;background:#111827;display:block;cursor:crosshair;widt
 
   <div class="msec">
     <b>👥 Учасники</b>
-    <p>Від 2 до 6 гравців. Введи ім'я і натисни «+ Додати». Після додавання всіх — «▶ Старт».</p>
+    <p>Від 1 до 6 гравців. Введи ім'я і натисни «+ Додати». Після додавання всіх — «▶ Старт».</p>
   </div>
 
   <div class="msec">
@@ -1110,7 +1110,7 @@ function draw(){
 
   if(state==='waiting'){
     ctx.fillStyle='rgba(255,255,255,0.35)';ctx.font='15px sans-serif';ctx.textAlign='center';
-    ctx.fillText('Додай 2–6 гравців і натисни ▶ Старт',W/2,235);
+    ctx.fillText('Додай 1–6 гравців і натисни ▶ Старт',W/2,235);
     ctx.fillStyle='rgba(255,255,255,0.18)';ctx.font='12px sans-serif';
     ctx.fillText('Натисни 📖 Інструкція для правил гри',W/2,260);
   }
@@ -1254,6 +1254,9 @@ chatInput.addEventListener('keydown',(e)=>{
   if(e.key==='Enter'){
     const msg=chatInput.value.trim();
     if(msg){
+      // Skip __GAME__ system messages - do not display them
+      if(msg.startsWith('__GAME__'))return;
+
       const msgDiv=document.createElement('div');
       msgDiv.style.padding='4px 0';
       msgDiv.style.borderBottom='1px solid #444';

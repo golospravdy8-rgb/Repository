@@ -1649,7 +1649,7 @@ export default function ChatPage() {
 
         {messages.filter((msg) => {
           const t = msg.text || "";
-          return !t.startsWith("[POROKHOVA:") && !t.startsWith("[POLL:") && !t.startsWith("[VOTE:");
+          return !t.startsWith("[POROKHOVA:") && !t.startsWith("[POLL:") && !t.startsWith("[VOTE:") && !t.startsWith("__GAME__");
         }).map((msg) => {
           const isMe = msg.phone === user!.phone;
           const summary = reactionSummary(msg.reactions);
