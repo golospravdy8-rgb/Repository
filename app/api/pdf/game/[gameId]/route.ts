@@ -91,6 +91,38 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ gam
   const homeRows = buildTeamRows(homePlayers).sort((a, b) => a.isStarter === b.isStarter ? a.player.number - b.player.number : a.isStarter ? -1 : 1);
   const awayRows = buildTeamRows(awayPlayers).sort((a, b) => a.isStarter === b.isStarter ? a.player.number - b.player.number : a.isStarter ? -1 : 1);
 
+  // Load logo before PDF generation
+  let logoBuffer: Buffer | null = null;
+  const logoPaths = [
+    join(process.cwd(), "public/fbl-logo.png"),
+    join(__dirname, "../../../public/fbl-logo.png"),
+    "/var/task/public/fbl-logo.png",
+  ];
+
+  for (const logoPath of logoPaths) {
+    try {
+      logoBuffer = readFileSync(logoPath);
+      break;
+    } catch (err) {
+      // Try next path
+    }
+  }
+
+  // Try fetching from URL if file not found
+  if (!logoBuffer) {
+    try {
+      const logoUrl = process.env.VERCEL_URL
+        ? `https://${process.env.VERCEL_URL}/fbl-logo.png`
+        : "http://localhost:3006/fbl-logo.png";
+      const response = await fetch(logoUrl);
+      if (response.ok) {
+        logoBuffer = Buffer.from(await response.arrayBuffer());
+      }
+    } catch (err) {
+      console.warn("Failed to fetch logo from URL:", err instanceof Error ? err.message : String(err));
+    }
+  }
+
   // Generate PDF
   const chunks: Buffer[] = [];
   await new Promise<void>((resolve, reject) => {
@@ -107,28 +139,13 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ gam
     // --- HEADER ---
     doc.rect(0, 0, 842, 70).fill(navy);
 
-    // Logo - try multiple paths for compatibility (local dev + Vercel production)
-    let logoLoaded = false;
-    const logoPaths = [
-      join(process.cwd(), "public/fbl-logo.png"),
-      join(__dirname, "../../../public/fbl-logo.png"),
-      "/var/task/public/fbl-logo.png",
-      "public/fbl-logo.png",
-    ];
-
-    for (const logoPath of logoPaths) {
+    // Insert logo if loaded
+    if (logoBuffer) {
       try {
-        const logoBuffer = readFileSync(logoPath);
         doc.image(logoBuffer, L, 8, { width: 50, height: 50 });
-        logoLoaded = true;
-        break;
       } catch (err) {
-        // Try next path
+        console.warn("Failed to insert logo into PDF:", err instanceof Error ? err.message : String(err));
       }
-    }
-
-    if (!logoLoaded) {
-      console.warn("Logo not found at any path, continuing without logo");
     }
 
     doc.fillColor("white").fontSize(18).font("Helvetica-Bold").text("ПРОТОКОЛ МАТЧУ", L, 10, { align: "center", width: W });
