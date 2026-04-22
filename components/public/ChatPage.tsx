@@ -1665,7 +1665,7 @@ export default function ChatPage() {
                 </div>
               )}
               {msg.replyTo && (
-                <div style={{ fontSize: "11px", padding: "4px 8px", borderRadius: "6px", marginBottom: "2px", maxWidth: "260px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", background: "rgba(255,255,255,0.04)", color: "#94a3b8", borderLeft: "2px solid #f46f10" }}>
+                <div style={{ fontSize: "11px", padding: "4px 8px", borderRadius: "6px", marginBottom: "2px", maxWidth: "260px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", background: "rgba(255,255,255,0.04)", color: "#94a3b8", borderLeft: "2px solid #6b7280" }}>
                   <strong>{msg.replyTo.name}:</strong> {msg.replyTo.text}
                 </div>
               )}
@@ -1673,7 +1673,7 @@ export default function ChatPage() {
               <div style={{ position: "relative", display: "inline-flex", alignItems: "center", gap: "4px", flexDirection: "row" }}>
                 {/* Bubble */}
                 <div
-                  style={{ padding: msg.text.startsWith("[STICKER:") || msg.text.startsWith("[IMAGE:") || msg.text.startsWith("[GIF:") ? "4px" : "9px 13px", borderRadius: "16px", fontSize: "14px", maxWidth: "280px", wordBreak: "break-word", lineHeight: 1.4, background: isMe ? "#f46f10" : "rgba(255,255,255,0.08)", cursor: "pointer" }}
+                  style={{ padding: msg.text.startsWith("[STICKER:") || msg.text.startsWith("[IMAGE:") || msg.text.startsWith("[GIF:") ? "4px" : "9px 13px", borderRadius: "16px", fontSize: "14px", maxWidth: "280px", wordBreak: "break-word", lineHeight: 1.4, background: isMe ? "#6b7280" : "rgba(255,255,255,0.08)", cursor: "pointer" }}
                   onContextMenu={(e) => { e.preventDefault(); setContextMenu({ msgId: msg.id, x: e.clientX, y: e.clientY }); }}
                 >
                   {msg.text.startsWith("[STICKER:") ? (

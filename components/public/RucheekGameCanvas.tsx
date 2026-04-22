@@ -1267,7 +1267,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       />
       <div
         style={{ position:"absolute", top:0, left:0, width:"100%", height:"100%",
-          zIndex:10000, pointerEvents:"auto", cursor:"crosshair" }}
+          zIndex:10000, pointerEvents: gs.state==="playing" ? "auto" : "none", cursor:"crosshair" }}
         onMouseDown={(e) => {
           const canvas = canvasRef.current;
           if (!canvas) return;

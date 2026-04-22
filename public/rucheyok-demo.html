@@ -675,6 +675,8 @@ function handleMissed(i){
   const bx=ss.ball?ss.ball.x:p.x;
   ss.runTarget={x:Math.max(50,Math.min(W-30,bx)),y:GY};
   ss.phase='auto_run';p.status='running';
+  // Keep player active/selected while picking up ball
+  if(isMyPlayer(i)){selectedMoveIdx=i;}
 }
 
 // ── МАЛЮВАННЯ ──────────────────────────────────────────────
