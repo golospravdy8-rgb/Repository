@@ -2,8 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 // @ts-expect-error pdfkit types
 import PDFDocument from "pdfkit";
-import { join } from "path";
-import { readFileSync } from "fs";
+import { FBL_LOGO_BASE64 } from "@/lib/fbl-logo-base64";
 export const runtime = 'nodejs';
 
 export const dynamic = 'force-dynamic';
@@ -91,37 +90,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ gam
   const homeRows = buildTeamRows(homePlayers).sort((a, b) => a.isStarter === b.isStarter ? a.player.number - b.player.number : a.isStarter ? -1 : 1);
   const awayRows = buildTeamRows(awayPlayers).sort((a, b) => a.isStarter === b.isStarter ? a.player.number - b.player.number : a.isStarter ? -1 : 1);
 
-  // Load logo before PDF generation
-  let logoBuffer: Buffer | null = null;
-  const logoPaths = [
-    join(process.cwd(), "public/fbl-logo.png"),
-    join(__dirname, "../../../public/fbl-logo.png"),
-    "/var/task/public/fbl-logo.png",
-  ];
-
-  for (const logoPath of logoPaths) {
-    try {
-      logoBuffer = readFileSync(logoPath);
-      break;
-    } catch (err) {
-      // Try next path
-    }
-  }
-
-  // Try fetching from URL if file not found
-  if (!logoBuffer) {
-    try {
-      const logoUrl = process.env.VERCEL_URL
-        ? `https://${process.env.VERCEL_URL}/fbl-logo.png`
-        : "http://localhost:3006/fbl-logo.png";
-      const response = await fetch(logoUrl);
-      if (response.ok) {
-        logoBuffer = Buffer.from(await response.arrayBuffer());
-      }
-    } catch (err) {
-      console.warn("Failed to fetch logo from URL:", err instanceof Error ? err.message : String(err));
-    }
-  }
+  // Load logo from base64
+  const logoBuffer = Buffer.from(FBL_LOGO_BASE64, 'base64');
 
   // Generate PDF
   const chunks: Buffer[] = [];
@@ -139,13 +109,11 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ gam
     // --- HEADER ---
     doc.rect(0, 0, 842, 70).fill(navy);
 
-    // Insert logo if loaded
-    if (logoBuffer) {
-      try {
-        doc.image(logoBuffer, L, 8, { width: 50, height: 50 });
-      } catch (err) {
-        console.warn("Failed to insert logo into PDF:", err instanceof Error ? err.message : String(err));
-      }
+    // Insert FBL logo
+    try {
+      doc.image(logoBuffer, L, 8, { width: 50, height: 50 });
+    } catch (err) {
+      console.warn("Failed to insert logo into PDF:", err instanceof Error ? err.message : String(err));
     }
 
     doc.fillColor("white").fontSize(18).font("Helvetica-Bold").text("ПРОТОКОЛ МАТЧУ", L, 10, { align: "center", width: W });
