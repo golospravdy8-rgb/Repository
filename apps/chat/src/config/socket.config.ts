@@ -3,10 +3,18 @@
 export const SOCKET_CONFIG = {
   // Server settings
   server: {
-    port: 3011,
+    port: process.env.SOCKET_IO_PORT || 3011,
     cors: {
-      origin: '*',
+      origin: process.env.NODE_ENV === 'production'
+        ? [
+            'https://basket-lviv.vercel.app',
+            'https://basket-lviv-*.vercel.app',
+            'http://localhost:3006',
+            'http://localhost:3011',
+          ]
+        : ['http://localhost:3006', 'http://localhost:3011', 'http://localhost:*'],
       methods: ['GET', 'POST'],
+      credentials: true,
     },
     transports: ['websocket', 'polling'],
     // Performance tuning
