@@ -289,22 +289,38 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       shotAngle: number,
       shotPower: number,
       idealAngle: number,
-      idealPower: number
+      idealPower: number,
+      greenZoneTolerance: number
     ) {
-      const distFraction = distToHoop / Math.hypot(W, H);
-      const angleDiff = Math.abs(shotAngle - idealAngle);
-      const angleAccuracy = Math.max(0, 100 - angleDiff * 200);
-      const powerDiff = Math.abs(shotPower - idealPower);
-      const powerAccuracy = Math.max(0, 100 - powerDiff * 2);
-      const difficultyMultiplier = distFraction < 0.3 ? 1.0
-                                  : distFraction < 0.6 ? 0.85
-                                  : 0.65;
-      const accuracy = (angleAccuracy * 0.4 + powerAccuracy * 0.6) * difficultyMultiplier;
+      // Check if power is in green zone
+      const powerInZone = Math.abs(shotPower - idealPower) <= greenZoneTolerance;
 
-      if (accuracy >= 85) return { score: true, matchPct: 95 };
-      if (accuracy >= 70) return { score: true, matchPct: 75 };
-      if (accuracy >= 55) return { score: Math.random() < 0.5, matchPct: 50 };
-      return { score: false, matchPct: 20 };
+      // Check if angle is acceptable (±6° tolerance converted to radians)
+      const angleInRange = Math.abs(shotAngle - idealAngle) <= (6 * Math.PI / 180);
+
+      // GUARANTEED SCORE: Power in zone AND angle reasonable
+      if (powerInZone && angleInRange) {
+        return { score: true, matchPct: 95 };
+      }
+
+      // LIKELY SCORE: Power in zone but angle slightly off (±8°)
+      if (powerInZone && Math.abs(shotAngle - idealAngle) <= (8 * Math.PI / 180)) {
+        return { score: true, matchPct: 85 };
+      }
+
+      // POSSIBLE SCORE: Angle good but power slightly off (±tolerance+3)
+      if (angleInRange && Math.abs(shotPower - idealPower) <= (greenZoneTolerance + 3)) {
+        return { score: true, matchPct: 75 };
+      }
+
+      // RISKY: Both factors somewhat off
+      if (Math.abs(shotPower - idealPower) <= (greenZoneTolerance + 8) &&
+          Math.abs(shotAngle - idealAngle) <= (12 * Math.PI / 180)) {
+        return { score: Math.random() < 0.4, matchPct: 40 };
+      }
+
+      // MISS: Way off in power or angle
+      return { score: false, matchPct: 15 };
     }
 
     function findIdealSpeedForAngle(sx: number, sy: number, angle: number) {
@@ -440,7 +456,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       const angleRange = getIdealAngleForDistance(distToHoop);
       const accuracyResult = calculateRealisticAccuracy(
         distToHoop, angle, ss.power,
-        angleRange.ideal, idealPwrPct
+        angleRange.ideal, idealPwrPct, greenZoneTolerance
       );
       const matchPct = accuracyResult.matchPct;
 
