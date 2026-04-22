@@ -791,40 +791,22 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         }
 
         if (ss.phase === 'aiming') {
-          const pts = simTraj(sx, sy, ss.aimAngle, 10, 95);
-          drawTrajPts(pts, 'rgba(220,80,60,0.45)', [5, 5]);
-          drawAimArrow(p.x, p.y, ss.aimAngle);
-        }
-
-        if (ss.phase === 'charging') {
-          if (ss.idealTraj) drawTrajPts(ss.idealTraj, 'rgba(255,230,0,0.75)', [6, 5], 1.9);
-          const curSpd = 5 + (ss.power / 100) * 11;
-          const pts = simTraj(sx, sy, ss.aimAngle, curSpd, 95);
-          const idealEnd = ss.idealTraj ? ss.idealTraj[ss.idealTraj.length - 1] : { x: HOOP_X, y: HOOP_Y };
-          const curEnd = pts[pts.length - 1];
-          const endDiff = Math.hypot(curEnd.x - idealEnd.x, curEnd.y - idealEnd.y);
-          const spdDiff = Math.abs(curSpd - ss.idealSpeed);
-          const matchPct = Math.max(0, Math.min(100, 100 - spdDiff * 13 - endDiff * 0.3));
-          let tColor;
-          if (matchPct > 92) tColor = 'rgba(0,255,170,0.9)';
-          else if (matchPct > 85) tColor = 'rgba(60,220,80,0.8)';
-          else if (matchPct > 55) tColor = 'rgba(255,210,0,0.7)';
-          else tColor = 'rgba(220,80,60,0.6)';
-          drawTrajPts(pts, tColor, [4, 4], 2.2);
-          ss_ideal_power = (ss.idealSpeed - 5) / 11 * 100;
-          drawPowerBar(p, ss.power, matchPct);
-          if (matchPct > 92) {
-            const pulse = 0.4 + 0.5 * Math.sin(Date.now() / 120);
-            ctx.strokeStyle = `rgba(0,255,170,${pulse})`;
-            ctx.lineWidth = 3;
-            ctx.beginPath();
-            ctx.ellipse(HOOP_X, HOOP_Y, HOOP_R + 8*scaleX, 11*scaleY, 0, 0, Math.PI * 2);
-            ctx.stroke();
-            ctx.fillStyle = `rgba(0,255,170,${pulse * 0.35})`;
-            ctx.beginPath();
-            ctx.ellipse(HOOP_X, HOOP_Y, HOOP_R + 8*scaleX, 11*scaleY, 0, 0, Math.PI * 2);
-            ctx.fill();
-          }
+          ctx.strokeStyle = '#ffdd00';
+          ctx.lineWidth = 2;
+          ctx.setLineDash([5, 5]);
+          ctx.beginPath();
+          ctx.moveTo(sx, sy);
+          ctx.lineTo(ss.clickX, ss.clickY);
+          ctx.stroke();
+          ctx.setLineDash([]);
+          ctx.fillStyle = 'rgba(255,220,0,0.6)';
+          ctx.beginPath();
+          ctx.arc(ss.clickX, ss.clickY, 6*scaleX, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = 'rgba(255,255,255,0.7)';
+          ctx.font = `bold ${10*scaleX}px sans-serif`;
+          ctx.textAlign = 'center';
+          ctx.fillText('КЛІК 2: стріляй', ss.clickX, ss.clickY - 16*scaleY);
         }
 
         if (ss.ball && ss.phase === 'flying') {
@@ -852,7 +834,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           ctx.fillStyle = `rgba(255,220,0,${al})`;
           ctx.font = `bold ${10*scaleX}px sans-serif`;
           ctx.textAlign = 'center';
-          ctx.fillText('← КЛІКНИ → кидок', p.x, p.y - 90*scaleY);
+          ctx.fillText('ЛКМ щоб кидати знову', p.x, p.y - 90*scaleY);
         }
 
         let pose = 'idle';
@@ -1027,8 +1009,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         const ph = activeIdx >= 0 ? gs.shootStates[activeIdx]?.phase : null;
         const hints: any = {
           null: 'ПКМ на гравця → активувати  |  ЛКМ на підлогу → бігти  |  ПКМ на пустому → скинути вибір',
-          aiming: '[1] ЛКМ — зафіксуй кут  |  ПКМ на гравця → скасувати',
-          charging: '[2] ЛКМ на гравця = кидок  |  ПКМ на гравця = ↺ переприціл',
+          aiming: '[1] ЛКМ на ціль — встанови траєкторію  |  [2] ЛКМ на гравця — стріляй  |  ПКМ → скасувати',
           flying: 'М\'яч летить...',
           auto_run: 'Біжить за м\'ячем...',
           pickup_wait: 'Підібрав! ЛКМ щоб кидати знову',
@@ -1090,24 +1071,51 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       if (hitIdx >= 0) {
         const p = gs.players[hitIdx], ss = gs.shootStates[hitIdx];
         if (ss.phase === null || ss.phase === "pickup_wait") {
+          // Click 1: Set trajectory endpoint
+          ss.clickX = mx;
+          ss.clickY = my;
           ss.phase = "aiming";
-          const behindBoard = (p.x - 15*scaleX) < BOARD_FACE;
-          ss.aimAngle = behindBoard ? -0.1 : -Math.PI*0.72;
-          ss.aimDir = behindBoard ? -1 : 1;
-          ss.lockedAngle = null;
-          ss.idealTraj = null;
           p.status = "shooting";
+          gs.selectedMoveIdx = hitIdx;
           if (hitIdx === 0) gs.disputeP1 = 0;
         } else if (ss.phase === "aiming") {
-          ss.lockedAngle = ss.aimAngle;
-          const idealSpd = findIdealSpeedForAngle(p.x - 15*scaleX, p.y - 55*scaleY, ss.lockedAngle);
+          // Click 2: Calculate angle and shoot
+          const px = p.x - 15*scaleX;
+          const py = p.y - 55*scaleY;
+          const dx = ss.clickX - px;
+          const dy = ss.clickY - py;
+          const dist = Math.hypot(dx, dy);
+
+          if (dist < 10) {
+            ss.phase = null;
+            p.status = "idle";
+            return;
+          }
+
+          const angleToClick = Math.atan2(dy, dx);
+          let clampedAngle = angleToClick;
+          const behindBoard = px < BOARD_FACE;
+          if (behindBoard) {
+            if (clampedAngle > -0.06) clampedAngle = -0.06;
+            if (clampedAngle < -Math.PI * 0.5) clampedAngle = -Math.PI * 0.5;
+          } else {
+            if (clampedAngle > -Math.PI * 0.5) clampedAngle = -Math.PI * 0.5;
+            if (clampedAngle < -Math.PI * 0.94) clampedAngle = -Math.PI * 0.94;
+          }
+
+          ss.lockedAngle = clampedAngle;
+          const idealSpd = findIdealSpeedForAngle(px, py, ss.lockedAngle);
           ss.idealSpeed = idealSpd;
           ss_ideal_power = (idealSpd - 5) / 11 * 100;
-          ss.idealTraj = simTraj(p.x - 15*scaleX, p.y - 55*scaleY, ss.lockedAngle, idealSpd, 95);
-          ss.phase = "charging";
-          ss.power = 0;
-          ss.powerDir = 1;
-        } else if (ss.phase === "charging") {
+          ss.idealTraj = simTraj(px, py, ss.lockedAngle, idealSpd, 95);
+
+          const idealEndPt = ss.idealTraj[ss.idealTraj.length - 1];
+          const distToIdeal = Math.hypot(ss.clickX - idealEndPt.x, ss.clickY - idealEndPt.y);
+          const maxDistForGreen = 80 * scaleX;
+          const powerFraction = Math.max(0, 1 - distToIdeal / maxDistForGreen);
+          ss.power = ss_ideal_power + (powerFraction * 20 - 10);
+          ss.power = Math.max(20, Math.min(100, ss.power));
+
           launchBall(hitIdx);
         }
       } else {
@@ -1136,14 +1144,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       }
       if (hitIdx >= 0) {
         const p = gs.players[hitIdx], ss = gs.shootStates[hitIdx];
-        if (ss.phase === "charging") {
-          ss.phase = "aiming";
-          ss.aimAngle = ss.lockedAngle || ss.aimAngle;
-          ss.aimDir = 1;
-          ss.lockedAngle = null;
-          ss.idealTraj = null;
-          addFlash("↺ переприціл", p.x, p.y - 105*scaleY, "rgba(255,210,80,0.95)");
-        } else if (ss.phase === "aiming") {
+        if (ss.phase === "aiming") {
           ss.phase = null;
           ss.lockedAngle = null;
           ss.idealTraj = null;
