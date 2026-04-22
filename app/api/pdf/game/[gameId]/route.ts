@@ -116,14 +116,14 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ gam
       console.warn("Failed to insert logo into PDF:", err instanceof Error ? err.message : String(err));
     }
 
-    doc.fillColor("white").fontSize(18).font("Helvetica-Bold").text("ПРОТОКОЛ МАТЧУ", L, 10, { align: "center", width: W });
+    doc.fillColor("white").fontSize(18).font("Times-Bold").text("ПРОТОКОЛ МАТЧУ", L, 10, { align: "center", width: W });
     doc.fontSize(9).font("Helvetica").text("Дитячо-юнацька баскетбольна ліга Львова", L, 32, { align: "center", width: W });
     const dateStr = new Date(game.scheduledAt).toLocaleDateString("uk-UA", { day: "numeric", month: "long", year: "numeric" });
     doc.text(`Дата: ${dateStr}  |  Місце: Мазепи 1А`, L, 46, { align: "center", width: W });
 
     // --- SCORE ---
     let y = 82;
-    doc.fillColor(navy).fontSize(22).font("Helvetica-Bold");
+    doc.fillColor(navy).fontSize(22).font("Times-Bold");
     doc.text(game.homeTeam.name, L, y, { width: W * 0.35, align: "right" });
     doc.text(`${game.homeScore} : ${game.awayScore}`, L + W * 0.35 + 10, y, { width: W * 0.2, align: "center" });
     doc.text(game.awayTeam.name, L + W * 0.55 + 20, y, { width: W * 0.35, align: "left" });
@@ -164,7 +164,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ gam
 
     function drawTableHeader(yy: number) {
       doc.rect(L, yy, W, 14).fill("#1e2a4a");
-      doc.fillColor("white").fontSize(7).font("Helvetica-Bold");
+      doc.fillColor("white").fontSize(7).font("Times-Bold");
       let x = L;
       for (const col of cols) {
         doc.text(col.label, x + 1, yy + 3, { width: col.w - 2, align: "center" });
@@ -175,7 +175,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ gam
 
     function drawTeamHeader(teamName: string, yy: number) {
       doc.rect(L, yy, W, 16).fill("#f1f5f9");
-      doc.fillColor(navy).fontSize(9).font("Helvetica-Bold").text(teamName.toUpperCase(), L + 4, yy + 4);
+      doc.fillColor(navy).fontSize(9).font("Times-Bold").text(teamName.toUpperCase(), L + 4, yy + 4);
       return yy + 16;
     }
 
@@ -230,7 +230,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ gam
       );
       const pct = (m: number, a: number) => a > 0 ? `${Math.round((m / a) * 100)}` : "-";
       doc.rect(L, yy, W, 14).fill("#e2e8f0");
-      doc.fillColor(navy).fontSize(7).font("Helvetica-Bold");
+      doc.fillColor(navy).fontSize(7).font("Times-Bold");
       const values = [
         "Σ", "РАЗОМ", "", "",
         `${t.pts}`,
@@ -259,7 +259,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ gam
       if (prevStarter === true && !row.isStarter) {
         // Bench divider
         doc.rect(L, y, W, 10).fill("#f1f5f9");
-        doc.fillColor("#94a3b8").fontSize(6.5).font("Helvetica-Bold").text("ЛАВКА", L + 4, y + 2);
+        doc.fillColor("#94a3b8").fontSize(6.5).font("Times-Bold").text("ЛАВКА", L + 4, y + 2);
         y += 10;
       }
       prevStarter = row.isStarter;
@@ -279,7 +279,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ gam
     for (const row of awayRows) {
       if (prevStarter === true && !row.isStarter) {
         doc.rect(L, y, W, 10).fill("#f1f5f9");
-        doc.fillColor("#94a3b8").fontSize(6.5).font("Helvetica-Bold").text("ЛАВКА", L + 4, y + 2);
+        doc.fillColor("#94a3b8").fontSize(6.5).font("Times-Bold").text("ЛАВКА", L + 4, y + 2);
         y += 10;
       }
       prevStarter = row.isStarter;
@@ -301,7 +301,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ gam
     y += 16;
 
     // --- FOOTER ---
-    doc.fillColor(orange).fontSize(8).font("Helvetica-Bold").text("Дитячо-юнацька баскетбольна ліга Львова  ·  www.basket.lviv.ua", L, y, { align: "center", width: W });
+    doc.fillColor(orange).fontSize(8).font("Times-Bold").text("Дитячо-юнацька баскетбольна ліга Львова  ·  www.basket.lviv.ua", L, y, { align: "center", width: W });
 
     doc.end();
   });
