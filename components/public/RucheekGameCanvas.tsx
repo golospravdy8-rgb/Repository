@@ -1063,6 +1063,27 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
     setPname(userName); forceUpdate(n => n+1);
   };
 
+  const handleDeleteLast = () => {
+    if (gs.state === "playing") { alert("❌ Не можна видалити гравця під час гри!"); return; }
+    if (gs.players.length <= 1) { alert("❌ Потрібно щонайменше 1 гравець для видалення!"); return; }
+    gs.players.pop();
+    gs.shootStates.pop();
+    forceUpdate(n => n+1);
+  };
+
+  const handleExit = () => {
+    if (!confirm("Вихід з гри? Усі гравці будуть видалені!")) return;
+    gs.state = "waiting";
+    gs.players = [];
+    gs.shootStates = [];
+    gs.flashes = [];
+    gs.disputeP1 = 0;
+    gs.disputeP2 = -1;
+    gs.selectedMoveIdx = -1;
+    setPname(userName);
+    forceUpdate(n => n+1);
+  };
+
   if (!mounted || !isVisible) return null;
 
   const btnStyle = (bg: string, disabled = false): React.CSSProperties => ({
@@ -1102,17 +1123,9 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         zIndex:10001, display:"flex", gap:7, alignItems:"center",
         background:"rgba(0,0,0,0.6)", padding:"6px 12px", borderRadius:8,
         boxShadow:"0 2px 12px rgba(0,0,0,0.5)" }}>
-        <input
-          ref={pnameRef}
-          value={pname}
-          onChange={e => setPname(e.target.value)}
-          onKeyDown={e => e.key==="Enter" && handleAddPlayer()}
-          placeholder="Ім'я гравця"
-          maxLength={12}
-          style={{ padding:"6px 11px", borderRadius:6, border:"1px solid #333",
-            background:"#1a1f35", color:"#fff", fontSize:13, width:120 }}
-        />
+        <button onClick={handleDeleteLast} style={btnStyle("#ff6644", gs.state==="playing")}>🗑 Видалити</button>
         <button onClick={handleAddPlayer} style={btnStyle("#e06030", gs.players.length>=6)}>+ Додати</button>
+        {gs.state === "playing" && <button onClick={handleExit} style={btnStyle("#ff2222")}>🚪 Вийти</button>}
         <button ref={btnStartRef} onClick={handleStart} style={btnStyle("#27ae60", gs.players.length<2)} disabled={gs.players.length<2}>▶ Старт</button>
         <button onClick={handleRestart} style={btnStyle("#444")}>↺ Рестарт</button>
         <button onClick={() => setShowModal(true)} style={btnStyle("#1a4a8a")}>📖 Інструкція</button>
