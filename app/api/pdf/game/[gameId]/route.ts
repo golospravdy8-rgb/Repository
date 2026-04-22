@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 // @ts-expect-error pdfkit types
 import PDFDocument from "pdfkit";
-import { join } from "path";
+import { join, resolve } from "path";
 import { readFileSync } from "fs";
 export const runtime = 'nodejs';
 
@@ -107,13 +107,28 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ gam
     // --- HEADER ---
     doc.rect(0, 0, 842, 70).fill(navy);
 
-    // Logo
-    try {
-      const logoPath = join(process.cwd(), "public/fbl-logo.png");
-      const logoBuffer = readFileSync(logoPath);
-      doc.image(logoBuffer, L, 8, { width: 50, height: 50 });
-    } catch (err) {
-      console.warn("Logo not found, skipping...", err);
+    // Logo - try multiple paths for compatibility (local dev + Vercel production)
+    let logoLoaded = false;
+    const logoPaths = [
+      resolve(process.cwd(), "public/fbl-logo.png"),
+      resolve(__dirname, "../../../public/fbl-logo.png"),
+      "/var/task/public/fbl-logo.png",
+      "public/fbl-logo.png",
+    ];
+
+    for (const logoPath of logoPaths) {
+      try {
+        const logoBuffer = readFileSync(logoPath);
+        doc.image(logoBuffer, L, 8, { width: 50, height: 50 });
+        logoLoaded = true;
+        break;
+      } catch (err) {
+        // Try next path
+      }
+    }
+
+    if (!logoLoaded) {
+      console.warn("Logo not found at any path, continuing without logo");
     }
 
     doc.fillColor("white").fontSize(18).font("Helvetica-Bold").text("ПРОТОКОЛ МАТЧУ", L, 10, { align: "center", width: W });
