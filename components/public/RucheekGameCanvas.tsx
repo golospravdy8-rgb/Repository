@@ -199,6 +199,55 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       return pts;
     }
 
+    function getIdealAngleForDistance(distToHoop: number) {
+      const distFraction = distToHoop / Math.hypot(W, H);
+      let angleRange = { min: -0.60, ideal: -0.70, max: -0.80 };
+
+      if (distFraction > 0.5) {
+        angleRange = { min: -0.75, ideal: -0.87, max: -0.98 };
+      }
+      if (distFraction > 0.75) {
+        angleRange = { min: -0.85, ideal: -0.93, max: -1.02 };
+      }
+      return angleRange;
+    }
+
+    function calculateGreenZoneBands(distToHoop: number) {
+      const distFraction = distToHoop / Math.hypot(W, H);
+      let tolerance;
+      if (distFraction < 0.3) {
+        tolerance = 5;
+      } else if (distFraction < 0.6) {
+        tolerance = 6;
+      } else {
+        tolerance = 7;
+      }
+      return tolerance;
+    }
+
+    function calculateRealisticAccuracy(
+      distToHoop: number,
+      shotAngle: number,
+      shotPower: number,
+      idealAngle: number,
+      idealPower: number
+    ) {
+      const distFraction = distToHoop / Math.hypot(W, H);
+      const angleDiff = Math.abs(shotAngle - idealAngle);
+      const angleAccuracy = Math.max(0, 100 - angleDiff * 200);
+      const powerDiff = Math.abs(shotPower - idealPower);
+      const powerAccuracy = Math.max(0, 100 - powerDiff * 2);
+      const difficultyMultiplier = distFraction < 0.3 ? 1.0
+                                  : distFraction < 0.6 ? 0.85
+                                  : 0.65;
+      const accuracy = (angleAccuracy * 0.4 + powerAccuracy * 0.6) * difficultyMultiplier;
+
+      if (accuracy >= 85) return { score: true, matchPct: 95 };
+      if (accuracy >= 70) return { score: true, matchPct: 75 };
+      if (accuracy >= 55) return { score: Math.random() < 0.5, matchPct: 50 };
+      return { score: false, matchPct: 20 };
+    }
+
     function findIdealSpeedForAngle(sx: number, sy: number, angle: number) {
       let bestSpd = 10, bestD = 1e9;
       for (let spd = 4; spd <= 16; spd += 0.12) {
@@ -320,11 +369,20 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       const maxDist = Math.hypot(W, H);
       const distFraction = distToHoop / maxDist;
       const idealPwrPct = 50 + distFraction * 50;
-      const inGreenZone = Math.abs(ss.power - idealPwrPct) <= 8;
+      const greenZoneTolerance = calculateGreenZoneBands(distToHoop);
+      const inGreenZone = Math.abs(ss.power - idealPwrPct) <= greenZoneTolerance;
 
-      // Green zone guarantee: ball reaches hoop
+      // Calculate realistic accuracy
+      const angleRange = getIdealAngleForDistance(distToHoop);
+      const accuracyResult = calculateRealisticAccuracy(
+        distToHoop, angle, ss.power,
+        angleRange.ideal, idealPwrPct
+      );
+      const matchPct = accuracyResult.matchPct;
+
+      // Calculate speed based on accuracy
       let curSpd;
-      if (inGreenZone) {
+      if (accuracyResult.score && inGreenZone) {
         curSpd = ss.idealSpeed;
       } else {
         curSpd = (5 + (ss.power / 100) * 11) * 1.3;
@@ -335,7 +393,6 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       const curEnd = pts[pts.length - 1];
       const endDiff = Math.hypot(curEnd.x - idealEnd.x, curEnd.y - idealEnd.y);
       const spdDiff = Math.abs(curSpd - ss.idealSpeed);
-      const matchPct = inGreenZone ? 95 : Math.max(0, Math.min(100, 100 - spdDiff * 13 - endDiff * 0.3));
 
       let nearBoard = false;
       for (const pt of pts) {
@@ -353,34 +410,24 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       }
 
       let outcome = 'miss';
-      if (matchPct >= 92) {
-        ss.ball = {
-          x: p.x - 15*scaleX, y: p.y - 55*scaleY,
-          vx: Math.cos(angle) * ss.idealSpeed, vy: Math.sin(angle) * ss.idealSpeed,
-          rot: 0, state: 'flying', outcome: 'perfect_direct',
-          boardHandled: false, rimHandled: false, owner: idx, perfectShot: true
-        };
-        addFlash('🎯 ІДЕАЛЬНО!', p.x, p.y - 115*scaleY, '#44ff88');
-        ss.phase = 'flying';
-        ss.lockedAngle = null;
-        ss.idealTraj = null;
-        p.status = 'shooting';
-        if (idx === gs.disputeP1 && gs.disputeP2 === -1 && gs.players.length > 1) gs.disputeP2 = 1;
-        return;
-      }
 
-      const rnd = Math.random();
-      const directChance = Math.max(0, Math.min(0.82, (matchPct - 8) / 100));
-      if (rnd < directChance) {
-        outcome = 'direct';
-      } else if (nearBoard) {
-        const boardRnd = Math.random();
-        outcome = boardRnd < 0.50 ? 'board_in' : 'board_out';
-      } else if (rimHit && matchPct > 35) {
-        const rimChance = 0.15 + (matchPct - 35) / 200;
-        outcome = Math.random() < rimChance ? 'rim_in' : 'rim_out';
+      // Use realistic accuracy to determine if shot goes in
+      if (accuracyResult.score) {
+        if (matchPct >= 85) {
+          outcome = 'perfect_direct';
+          addFlash('🎯 ІДЕАЛЬНО!', p.x, p.y - 115*scaleY, '#44ff88');
+        } else {
+          outcome = 'direct';
+        }
       } else {
-        outcome = 'miss';
+        if (nearBoard) {
+          outcome = Math.random() < 0.50 ? 'board_in' : 'board_out';
+        } else if (rimHit && matchPct > 35) {
+          const rimChance = 0.15 + (matchPct - 35) / 200;
+          outcome = Math.random() < rimChance ? 'rim_in' : 'rim_out';
+        } else {
+          outcome = 'miss';
+        }
       }
 
       ss.ball = {
