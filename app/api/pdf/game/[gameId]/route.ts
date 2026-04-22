@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 // @ts-expect-error pdfkit types
 import PDFDocument from "pdfkit";
+import { join } from "path";
+import { readFileSync } from "fs";
 export const runtime = 'nodejs';
 
 export const dynamic = 'force-dynamic';
@@ -104,6 +106,16 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ gam
 
     // --- HEADER ---
     doc.rect(0, 0, 842, 70).fill(navy);
+
+    // Logo
+    try {
+      const logoPath = join(process.cwd(), "public/fbl-logo.png");
+      const logoBuffer = readFileSync(logoPath);
+      doc.image(logoBuffer, L, 8, { width: 50, height: 50 });
+    } catch (err) {
+      console.warn("Logo not found, skipping...", err);
+    }
+
     doc.fillColor("white").fontSize(18).font("Helvetica-Bold").text("ПРОТОКОЛ МАТЧУ", L, 10, { align: "center", width: W });
     doc.fontSize(9).font("Helvetica").text("Дитячо-юнацька баскетбольна ліга Львова", L, 32, { align: "center", width: W });
     const dateStr = new Date(game.scheduledAt).toLocaleDateString("uk-UA", { day: "numeric", month: "long", year: "numeric" });
