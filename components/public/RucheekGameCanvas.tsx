@@ -1209,7 +1209,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
   };
 
   const handleStart = () => {
-    if (gs.players.length < 2) return;
+    if (gs.players.length < 1) return;
     gs.state = "playing";
     gs.flashes = [];
     gs.players.forEach((p:any) => { p.score=0; p.kills=0; p.status="idle"; p.rf=0; });
