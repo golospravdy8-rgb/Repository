@@ -28,6 +28,7 @@ interface GameRoom {
 const gameRooms = new Map<string, GameRoom>();
 const UPDATE_INTERVAL = 50; // 50ms
 const gameLoops = new Map<string, NodeJS.Timeout>();
+const roomPlayers: { [roomId: string]: { [socketId: string]: any } } = {};
 
 export function initializeSocket(httpServer: HTTPServer): Server {
   const io = new Server(httpServer, {
@@ -215,6 +216,26 @@ export function initializeSocket(httpServer: HTTPServer): Server {
       });
     });
 
+    // NEW EVENT HANDLERS FOR HTML DEMO (Rucheyok)
+    socket.on('join-room', (data: { room: string; name: string }) => {
+      const { room: roomId, name } = data;
+      socket.join(roomId);
+      console.log(`[Socket] Player joined room: ${roomId} (${name})`);
+      if (!roomPlayers[roomId]) {
+        roomPlayers[roomId] = {};
+      }
+    });
+
+    socket.on('player-move', (data: { room: string; id: string; playerIdx: number; x: number; y: number; score: number; status: string; name?: string }) => {
+      const { room: roomId } = data;
+      if (!roomPlayers[roomId]) {
+        roomPlayers[roomId] = {};
+      }
+      roomPlayers[roomId][socket.id] = data;
+      // Broadcast updated players to room
+      io.to(roomId).emit('players-update', roomPlayers[roomId]);
+    });
+
     // DISCONNECT
     socket.on('disconnect', () => {
       const rooms = Array.from(io.sockets.adapter.rooms.entries())
@@ -242,6 +263,10 @@ export function initializeSocket(httpServer: HTTPServer): Server {
             gameRooms.delete(roomId);
             console.log(`[Socket.IO] Room ${roomId} cleaned up (empty)`);
           }
+        }
+        // Clean up roomPlayers for this connection
+        if (roomPlayers[roomId]) {
+          delete roomPlayers[roomId][socket.id];
         }
       });
     });

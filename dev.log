@@ -6246,3 +6246,314 @@ prisma:query SELECT "public"."ChatReaction"."id", "public"."ChatReaction"."messa
  GET /api/chat/messages?room=general&limit=50 200 in 710ms
 prisma:query SELECT "public"."ChatPinnedMessage"."id", "public"."ChatPinnedMessage"."text", "public"."ChatPinnedMessage"."updatedAt" FROM "public"."ChatPinnedMessage" WHERE 1=1 LIMIT $1 OFFSET $2
 prisma:query SELECT "public"."ChatModerator"."id", "public"."ChatModerator"."phone" FROM "public"."ChatModerator" WHERE 1=1 OFFSET $1
+prisma:query SELECT "public"."ChatMessage"."id", "public"."ChatMessage"."phone", "public"."ChatMessage"."name", "public"."ChatMessage"."text", "public"."ChatMessage"."replyToId", "public"."ChatMessage"."createdAt", "public"."ChatMessage"."roomId" FROM "public"."ChatMessage" WHERE "public"."ChatMessage"."roomId" = $1 ORDER BY "public"."ChatMessage"."createdAt" DESC LIMIT $2 OFFSET $3
+prisma:query SELECT "public"."ChatReaction"."id", "public"."ChatReaction"."messageId", "public"."ChatReaction"."phone", "public"."ChatReaction"."emoji" FROM "public"."ChatReaction" WHERE "public"."ChatReaction"."messageId" IN ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41,$42,$43,$44,$45,$46,$47,$48,$49,$50) OFFSET $51
+ GET /api/chat/messages?room=general&limit=50 200 in 542ms
+prisma:query SELECT "public"."ChatModerator"."id", "public"."ChatModerator"."phone" FROM "public"."ChatModerator" WHERE 1=1 OFFSET $1
+prisma:query SELECT "public"."ChatPinnedMessage"."id", "public"."ChatPinnedMessage"."text", "public"."ChatPinnedMessage"."updatedAt" FROM "public"."ChatPinnedMessage" WHERE 1=1 LIMIT $1 OFFSET $2
+prisma:query SELECT "public"."ChatMessage"."id", "public"."ChatMessage"."phone", "public"."ChatMessage"."name", "public"."ChatMessage"."text", "public"."ChatMessage"."replyToId", "public"."ChatMessage"."createdAt", "public"."ChatMessage"."roomId" FROM "public"."ChatMessage" WHERE "public"."ChatMessage"."roomId" = $1 ORDER BY "public"."ChatMessage"."createdAt" DESC LIMIT $2 OFFSET $3
+prisma:query SELECT "public"."ChatReaction"."id", "public"."ChatReaction"."messageId", "public"."ChatReaction"."phone", "public"."ChatReaction"."emoji" FROM "public"."ChatReaction" WHERE "public"."ChatReaction"."messageId" IN ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41,$42,$43,$44,$45,$46,$47,$48,$49,$50) OFFSET $51
+ GET /api/chat/messages?room=general&limit=50 200 in 518ms
+prisma:query SELECT "public"."ChatPinnedMessage"."id", "public"."ChatPinnedMessage"."text", "public"."ChatPinnedMessage"."updatedAt" FROM "public"."ChatPinnedMessage" WHERE 1=1 LIMIT $1 OFFSET $2
+prisma:query SELECT "public"."ChatModerator"."id", "public"."ChatModerator"."phone" FROM "public"."ChatModerator" WHERE 1=1 OFFSET $1
+prisma:query SELECT "public"."ChatMessage"."id", "public"."ChatMessage"."phone", "public"."ChatMessage"."name", "public"."ChatMessage"."text", "public"."ChatMessage"."replyToId", "public"."ChatMessage"."createdAt", "public"."ChatMessage"."roomId" FROM "public"."ChatMessage" WHERE "public"."ChatMessage"."roomId" = $1 ORDER BY "public"."ChatMessage"."createdAt" DESC LIMIT $2 OFFSET $3
+prisma:query SELECT "public"."ChatReaction"."id", "public"."ChatReaction"."messageId", "public"."ChatReaction"."phone", "public"."ChatReaction"."emoji" FROM "public"."ChatReaction" WHERE "public"."ChatReaction"."messageId" IN ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41,$42,$43,$44,$45,$46,$47,$48,$49,$50) OFFSET $51
+ GET /api/chat/messages?room=general&limit=50 200 in 543ms
+prisma:query SELECT "public"."ChatPinnedMessage"."id", "public"."ChatPinnedMessage"."text", "public"."ChatPinnedMessage"."updatedAt" FROM "public"."ChatPinnedMessage" WHERE 1=1 LIMIT $1 OFFSET $2
+prisma:query SELECT "public"."ChatModerator"."id", "public"."ChatModerator"."phone" FROM "public"."ChatModerator" WHERE 1=1 OFFSET $1
+prisma:query SELECT "public"."ChatMessage"."id", "public"."ChatMessage"."phone", "public"."ChatMessage"."name", "public"."ChatMessage"."text", "public"."ChatMessage"."replyToId", "public"."ChatMessage"."createdAt", "public"."ChatMessage"."roomId" FROM "public"."ChatMessage" WHERE "public"."ChatMessage"."roomId" = $1 ORDER BY "public"."ChatMessage"."createdAt" DESC LIMIT $2 OFFSET $3
+prisma:query SELECT "public"."ChatReaction"."id", "public"."ChatReaction"."messageId", "public"."ChatReaction"."phone", "public"."ChatReaction"."emoji" FROM "public"."ChatReaction" WHERE "public"."ChatReaction"."messageId" IN ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41,$42,$43,$44,$45,$46,$47,$48,$49,$50) OFFSET $51
+ GET /api/chat/messages?room=general&limit=50 200 in 530ms
+prisma:query SELECT "public"."ChatPinnedMessage"."id", "public"."ChatPinnedMessage"."text", "public"."ChatPinnedMessage"."updatedAt" FROM "public"."ChatPinnedMessage" WHERE 1=1 LIMIT $1 OFFSET $2
+prisma:query SELECT 1
+prisma:query SELECT "public"."ChatModerator"."id", "public"."ChatModerator"."phone" FROM "public"."ChatModerator" WHERE 1=1 OFFSET $1
+prisma:query SELECT "public"."ChatMessage"."id", "public"."ChatMessage"."phone", "public"."ChatMessage"."name", "public"."ChatMessage"."text", "public"."ChatMessage"."replyToId", "public"."ChatMessage"."createdAt", "public"."ChatMessage"."roomId" FROM "public"."ChatMessage" WHERE "public"."ChatMessage"."roomId" = $1 ORDER BY "public"."ChatMessage"."createdAt" DESC LIMIT $2 OFFSET $3
+prisma:query SELECT "public"."ChatReaction"."id", "public"."ChatReaction"."messageId", "public"."ChatReaction"."phone", "public"."ChatReaction"."emoji" FROM "public"."ChatReaction" WHERE "public"."ChatReaction"."messageId" IN ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41,$42,$43,$44,$45,$46,$47,$48,$49,$50) OFFSET $51
+ GET /api/chat/messages?room=general&limit=50 200 in 711ms
+prisma:query SELECT 1
+prisma:query SELECT "public"."ChatModerator"."id", "public"."ChatModerator"."phone" FROM "public"."ChatModerator" WHERE 1=1 OFFSET $1
+prisma:query SELECT 1
+prisma:query SELECT "public"."ChatPinnedMessage"."id", "public"."ChatPinnedMessage"."text", "public"."ChatPinnedMessage"."updatedAt" FROM "public"."ChatPinnedMessage" WHERE 1=1 LIMIT $1 OFFSET $2
+prisma:query SELECT "public"."ChatMessage"."id", "public"."ChatMessage"."phone", "public"."ChatMessage"."name", "public"."ChatMessage"."text", "public"."ChatMessage"."replyToId", "public"."ChatMessage"."createdAt", "public"."ChatMessage"."roomId" FROM "public"."ChatMessage" WHERE "public"."ChatMessage"."roomId" = $1 ORDER BY "public"."ChatMessage"."createdAt" DESC LIMIT $2 OFFSET $3
+prisma:query SELECT "public"."ChatReaction"."id", "public"."ChatReaction"."messageId", "public"."ChatReaction"."phone", "public"."ChatReaction"."emoji" FROM "public"."ChatReaction" WHERE "public"."ChatReaction"."messageId" IN ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41,$42,$43,$44,$45,$46,$47,$48,$49,$50) OFFSET $51
+ GET /api/chat/messages?room=general&limit=50 200 in 712ms
+prisma:query SELECT "public"."ChatModerator"."id", "public"."ChatModerator"."phone" FROM "public"."ChatModerator" WHERE 1=1 OFFSET $1
+prisma:query SELECT "public"."ChatPinnedMessage"."id", "public"."ChatPinnedMessage"."text", "public"."ChatPinnedMessage"."updatedAt" FROM "public"."ChatPinnedMessage" WHERE 1=1 LIMIT $1 OFFSET $2
+prisma:query SELECT "public"."ChatMessage"."id", "public"."ChatMessage"."phone", "public"."ChatMessage"."name", "public"."ChatMessage"."text", "public"."ChatMessage"."replyToId", "public"."ChatMessage"."createdAt", "public"."ChatMessage"."roomId" FROM "public"."ChatMessage" WHERE "public"."ChatMessage"."roomId" = $1 ORDER BY "public"."ChatMessage"."createdAt" DESC LIMIT $2 OFFSET $3
+prisma:query SELECT "public"."ChatReaction"."id", "public"."ChatReaction"."messageId", "public"."ChatReaction"."phone", "public"."ChatReaction"."emoji" FROM "public"."ChatReaction" WHERE "public"."ChatReaction"."messageId" IN ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41,$42,$43,$44,$45,$46,$47,$48,$49,$50) OFFSET $51
+ GET /api/chat/messages?room=general&limit=50 200 in 547ms
+prisma:query SELECT "public"."ChatPinnedMessage"."id", "public"."ChatPinnedMessage"."text", "public"."ChatPinnedMessage"."updatedAt" FROM "public"."ChatPinnedMessage" WHERE 1=1 LIMIT $1 OFFSET $2
+prisma:query SELECT "public"."ChatModerator"."id", "public"."ChatModerator"."phone" FROM "public"."ChatModerator" WHERE 1=1 OFFSET $1
+prisma:query SELECT "public"."ChatMessage"."id", "public"."ChatMessage"."phone", "public"."ChatMessage"."name", "public"."ChatMessage"."text", "public"."ChatMessage"."replyToId", "public"."ChatMessage"."createdAt", "public"."ChatMessage"."roomId" FROM "public"."ChatMessage" WHERE "public"."ChatMessage"."roomId" = $1 ORDER BY "public"."ChatMessage"."createdAt" DESC LIMIT $2 OFFSET $3
+prisma:query SELECT "public"."ChatReaction"."id", "public"."ChatReaction"."messageId", "public"."ChatReaction"."phone", "public"."ChatReaction"."emoji" FROM "public"."ChatReaction" WHERE "public"."ChatReaction"."messageId" IN ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41,$42,$43,$44,$45,$46,$47,$48,$49,$50) OFFSET $51
+ GET /api/chat/messages?room=general&limit=50 200 in 512ms
+prisma:query SELECT "public"."ChatPinnedMessage"."id", "public"."ChatPinnedMessage"."text", "public"."ChatPinnedMessage"."updatedAt" FROM "public"."ChatPinnedMessage" WHERE 1=1 LIMIT $1 OFFSET $2
+prisma:query SELECT "public"."ChatModerator"."id", "public"."ChatModerator"."phone" FROM "public"."ChatModerator" WHERE 1=1 OFFSET $1
+prisma:query SELECT "public"."ChatMessage"."id", "public"."ChatMessage"."phone", "public"."ChatMessage"."name", "public"."ChatMessage"."text", "public"."ChatMessage"."replyToId", "public"."ChatMessage"."createdAt", "public"."ChatMessage"."roomId" FROM "public"."ChatMessage" WHERE "public"."ChatMessage"."roomId" = $1 ORDER BY "public"."ChatMessage"."createdAt" DESC LIMIT $2 OFFSET $3
+prisma:query SELECT "public"."ChatReaction"."id", "public"."ChatReaction"."messageId", "public"."ChatReaction"."phone", "public"."ChatReaction"."emoji" FROM "public"."ChatReaction" WHERE "public"."ChatReaction"."messageId" IN ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41,$42,$43,$44,$45,$46,$47,$48,$49,$50) OFFSET $51
+ GET /api/chat/messages?room=general&limit=50 200 in 521ms
+prisma:query SELECT "public"."ChatPinnedMessage"."id", "public"."ChatPinnedMessage"."text", "public"."ChatPinnedMessage"."updatedAt" FROM "public"."ChatPinnedMessage" WHERE 1=1 LIMIT $1 OFFSET $2
+prisma:query SELECT "public"."ChatModerator"."id", "public"."ChatModerator"."phone" FROM "public"."ChatModerator" WHERE 1=1 OFFSET $1
+prisma:query SELECT "public"."ChatMessage"."id", "public"."ChatMessage"."phone", "public"."ChatMessage"."name", "public"."ChatMessage"."text", "public"."ChatMessage"."replyToId", "public"."ChatMessage"."createdAt", "public"."ChatMessage"."roomId" FROM "public"."ChatMessage" WHERE "public"."ChatMessage"."roomId" = $1 ORDER BY "public"."ChatMessage"."createdAt" DESC LIMIT $2 OFFSET $3
+prisma:query SELECT "public"."ChatReaction"."id", "public"."ChatReaction"."messageId", "public"."ChatReaction"."phone", "public"."ChatReaction"."emoji" FROM "public"."ChatReaction" WHERE "public"."ChatReaction"."messageId" IN ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41,$42,$43,$44,$45,$46,$47,$48,$49,$50) OFFSET $51
+ GET /api/chat/messages?room=general&limit=50 200 in 520ms
+prisma:query SELECT "public"."ChatPinnedMessage"."id", "public"."ChatPinnedMessage"."text", "public"."ChatPinnedMessage"."updatedAt" FROM "public"."ChatPinnedMessage" WHERE 1=1 LIMIT $1 OFFSET $2
+prisma:query SELECT 1
+prisma:query SELECT "public"."ChatMessage"."id", "public"."ChatMessage"."phone", "public"."ChatMessage"."name", "public"."ChatMessage"."text", "public"."ChatMessage"."replyToId", "public"."ChatMessage"."createdAt", "public"."ChatMessage"."roomId" FROM "public"."ChatMessage" WHERE "public"."ChatMessage"."roomId" = $1 ORDER BY "public"."ChatMessage"."createdAt" DESC LIMIT $2 OFFSET $3
+prisma:query SELECT "public"."ChatModerator"."id", "public"."ChatModerator"."phone" FROM "public"."ChatModerator" WHERE 1=1 OFFSET $1
+prisma:query SELECT "public"."ChatReaction"."id", "public"."ChatReaction"."messageId", "public"."ChatReaction"."phone", "public"."ChatReaction"."emoji" FROM "public"."ChatReaction" WHERE "public"."ChatReaction"."messageId" IN ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41,$42,$43,$44,$45,$46,$47,$48,$49,$50) OFFSET $51
+ GET /api/chat/messages?room=general&limit=50 200 in 532ms
+prisma:query SELECT 1
+prisma:query SELECT 1
+prisma:query SELECT "public"."ChatModerator"."id", "public"."ChatModerator"."phone" FROM "public"."ChatModerator" WHERE 1=1 OFFSET $1
+prisma:query SELECT "public"."ChatPinnedMessage"."id", "public"."ChatPinnedMessage"."text", "public"."ChatPinnedMessage"."updatedAt" FROM "public"."ChatPinnedMessage" WHERE 1=1 LIMIT $1 OFFSET $2
+prisma:query SELECT "public"."ChatMessage"."id", "public"."ChatMessage"."phone", "public"."ChatMessage"."name", "public"."ChatMessage"."text", "public"."ChatMessage"."replyToId", "public"."ChatMessage"."createdAt", "public"."ChatMessage"."roomId" FROM "public"."ChatMessage" WHERE "public"."ChatMessage"."roomId" = $1 ORDER BY "public"."ChatMessage"."createdAt" DESC LIMIT $2 OFFSET $3
+prisma:query SELECT "public"."ChatReaction"."id", "public"."ChatReaction"."messageId", "public"."ChatReaction"."phone", "public"."ChatReaction"."emoji" FROM "public"."ChatReaction" WHERE "public"."ChatReaction"."messageId" IN ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41,$42,$43,$44,$45,$46,$47,$48,$49,$50) OFFSET $51
+ GET /api/chat/messages?room=general&limit=50 200 in 680ms
+ GET /api/online 200 in 93ms
+ POST /api/online 200 in 84ms
+prisma:query SELECT "public"."ChatPoll"."id", "public"."ChatPoll"."question", "public"."ChatPoll"."options", "public"."ChatPoll"."createdBy", "public"."ChatPoll"."createdAt", "public"."ChatPoll"."isActive" FROM "public"."ChatPoll" WHERE "public"."ChatPoll"."isActive" = $1 ORDER BY "public"."ChatPoll"."createdAt" DESC LIMIT $2 OFFSET $3
+ GET /api/chat/active-poll 200 in 423ms
+ GET /api/playground/checkin 200 in 435ms
+prisma:query SELECT "public"."LiveSession"."id", "public"."LiveSession"."gameId", "public"."LiveSession"."homeTeam", "public"."LiveSession"."awayTeam", "public"."LiveSession"."gameTime", "public"."LiveSession"."kyivTime", "public"."LiveSession"."liveUrl", "public"."LiveSession"."liveSource", "public"."LiveSession"."isActive", "public"."LiveSession"."lastChecked" FROM "public"."LiveSession" WHERE ("public"."LiveSession"."isActive" = $1 AND "public"."LiveSession"."lastChecked" >= $2) ORDER BY "public"."LiveSession"."gameTime" ASC OFFSET $3
+prisma:query 
+    INSERT INTO "ChatOnline" (phone, room, "lastSeen", name, role)
+    VALUES ($1, $2, NOW(), $3, $4)
+    ON CONFLICT (phone) DO UPDATE
+    SET room = $5, "lastSeen" = NOW(), name = $6, role = $7
+  
+ POST /api/chat/heartbeat 200 in 428ms
+prisma:query 
+      SELECT
+        gc.phone,
+        gc."firstName",
+        gc."lastName",
+        gc.hp,
+        gc.role,
+        CASE
+          WHEN co."lastSeen" > NOW() - INTERVAL '2 minutes' AND co.room = 'general'
+          THEN true
+          ELSE false
+        END AS isonline
+      FROM "GuestContact" gc
+      LEFT JOIN "ChatOnline" co ON co.phone = gc.phone
+      ORDER BY isonline DESC, gc.hp DESC
+    
+prisma:query SELECT "public"."ChatModerator"."id", "public"."ChatModerator"."phone" FROM "public"."ChatModerator" WHERE 1=1 OFFSET $1
+ GET /api/chat/participants?room=general 200 in 519ms
+prisma:query SELECT "public"."ChatPinnedMessage"."id", "public"."ChatPinnedMessage"."text", "public"."ChatPinnedMessage"."updatedAt" FROM "public"."ChatPinnedMessage" WHERE 1=1 LIMIT $1 OFFSET $2
+prisma:query SELECT "public"."ChatModerator"."id", "public"."ChatModerator"."phone" FROM "public"."ChatModerator" WHERE 1=1 OFFSET $1
+ GET /api/tv-session 200 in 1209ms
+prisma:query SELECT "public"."ChatMessage"."id", "public"."ChatMessage"."phone", "public"."ChatMessage"."name", "public"."ChatMessage"."text", "public"."ChatMessage"."replyToId", "public"."ChatMessage"."createdAt", "public"."ChatMessage"."roomId" FROM "public"."ChatMessage" WHERE "public"."ChatMessage"."roomId" = $1 ORDER BY "public"."ChatMessage"."createdAt" DESC LIMIT $2 OFFSET $3
+prisma:query SELECT "public"."ChatReaction"."id", "public"."ChatReaction"."messageId", "public"."ChatReaction"."phone", "public"."ChatReaction"."emoji" FROM "public"."ChatReaction" WHERE "public"."ChatReaction"."messageId" IN ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41,$42,$43,$44,$45,$46,$47,$48,$49,$50) OFFSET $51
+ GET /api/chat/messages?room=general&limit=50 200 in 529ms
+prisma:query SELECT "public"."ChatPinnedMessage"."id", "public"."ChatPinnedMessage"."text", "public"."ChatPinnedMessage"."updatedAt" FROM "public"."ChatPinnedMessage" WHERE 1=1 LIMIT $1 OFFSET $2
+prisma:query SELECT "public"."ChatModerator"."id", "public"."ChatModerator"."phone" FROM "public"."ChatModerator" WHERE 1=1 OFFSET $1
+prisma:query SELECT "public"."ChatMessage"."id", "public"."ChatMessage"."phone", "public"."ChatMessage"."name", "public"."ChatMessage"."text", "public"."ChatMessage"."replyToId", "public"."ChatMessage"."createdAt", "public"."ChatMessage"."roomId" FROM "public"."ChatMessage" WHERE "public"."ChatMessage"."roomId" = $1 ORDER BY "public"."ChatMessage"."createdAt" DESC LIMIT $2 OFFSET $3
+prisma:query SELECT "public"."ChatReaction"."id", "public"."ChatReaction"."messageId", "public"."ChatReaction"."phone", "public"."ChatReaction"."emoji" FROM "public"."ChatReaction" WHERE "public"."ChatReaction"."messageId" IN ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41,$42,$43,$44,$45,$46,$47,$48,$49,$50) OFFSET $51
+ GET /api/chat/messages?limit=50&room=general 200 in 2162ms
+ GET /api/live-sessions 200 in 2243ms
+prisma:query SELECT "public"."ChatPinnedMessage"."id", "public"."ChatPinnedMessage"."text", "public"."ChatPinnedMessage"."updatedAt" FROM "public"."ChatPinnedMessage" WHERE 1=1 LIMIT $1 OFFSET $2
+ ✓ Compiled in 1090ms (851 modules)
+[prisma.ts] ========== PRISMA INIT START ==========
+[prisma.ts] Initializing Prisma Client
+[prisma.ts] DATABASE_URL exists: true
+[prisma.ts] DATABASE_URL_UNPOOLED exists: true
+[prisma.ts] NODE_ENV: development
+[prisma.ts] Runtime: Node.js
+[prisma.ts] Prisma Client initialized successfully
+[prisma.ts] ========== PRISMA INIT END ==========
+prisma:query SELECT "public"."ChatModerator"."id", "public"."ChatModerator"."phone" FROM "public"."ChatModerator" WHERE 1=1 OFFSET $1
+prisma:query SELECT "public"."SiteSettings"."id", "public"."SiteSettings"."key", "public"."SiteSettings"."value", "public"."SiteSettings"."updatedAt" FROM "public"."SiteSettings" WHERE "public"."SiteSettings"."key" IN ($1,$2,$3) OFFSET $4
+prisma:query SELECT "public"."ChatMessage"."id", "public"."ChatMessage"."phone", "public"."ChatMessage"."name", "public"."ChatMessage"."text", "public"."ChatMessage"."replyToId", "public"."ChatMessage"."createdAt", "public"."ChatMessage"."roomId" FROM "public"."ChatMessage" WHERE "public"."ChatMessage"."roomId" = $1 ORDER BY "public"."ChatMessage"."createdAt" DESC LIMIT $2 OFFSET $3
+ GET /api/online 200 in 120ms
+prisma:query SELECT "public"."ChatReaction"."id", "public"."ChatReaction"."messageId", "public"."ChatReaction"."phone", "public"."ChatReaction"."emoji" FROM "public"."ChatReaction" WHERE "public"."ChatReaction"."messageId" IN ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41,$42,$43,$44,$45,$46,$47,$48,$49,$50) OFFSET $51
+ GET /api/chat/messages?room=general&limit=50 200 in 3283ms
+ GET /api/tv-session 200 in 1298ms
+ GET /api/playground/checkin 200 in 1662ms
+ GET /api/tv-session 200 in 506ms
+prisma:query SELECT "public"."ChatPinnedMessage"."id", "public"."ChatPinnedMessage"."text", "public"."ChatPinnedMessage"."updatedAt" FROM "public"."ChatPinnedMessage" WHERE 1=1 LIMIT $1 OFFSET $2
+prisma:query SELECT "public"."ChatModerator"."id", "public"."ChatModerator"."phone" FROM "public"."ChatModerator" WHERE 1=1 OFFSET $1
+prisma:query SELECT "public"."ChatPoll"."id", "public"."ChatPoll"."question", "public"."ChatPoll"."options", "public"."ChatPoll"."createdBy", "public"."ChatPoll"."createdAt", "public"."ChatPoll"."isActive" FROM "public"."ChatPoll" WHERE "public"."ChatPoll"."isActive" = $1 ORDER BY "public"."ChatPoll"."createdAt" DESC LIMIT $2 OFFSET $3
+ GET /api/chat/active-poll 200 in 699ms
+ ✓ Compiled in 1901ms (851 modules)
+[prisma.ts] ========== PRISMA INIT START ==========
+[prisma.ts] Initializing Prisma Client
+[prisma.ts] DATABASE_URL exists: true
+[prisma.ts] DATABASE_URL_UNPOOLED exists: true
+[prisma.ts] NODE_ENV: development
+[prisma.ts] Runtime: Node.js
+[prisma.ts] Prisma Client initialized successfully
+[prisma.ts] ========== PRISMA INIT END ==========
+prisma:query SELECT "public"."ChatMessage"."id", "public"."ChatMessage"."phone", "public"."ChatMessage"."name", "public"."ChatMessage"."text", "public"."ChatMessage"."replyToId", "public"."ChatMessage"."createdAt", "public"."ChatMessage"."roomId" FROM "public"."ChatMessage" WHERE "public"."ChatMessage"."roomId" = $1 ORDER BY "public"."ChatMessage"."createdAt" DESC LIMIT $2 OFFSET $3
+ ✓ Compiled /api/shop/products-chat in 142ms (469 modules)
+prisma:query SELECT "public"."SiteSettings"."id", "public"."SiteSettings"."key", "public"."SiteSettings"."value", "public"."SiteSettings"."updatedAt" FROM "public"."SiteSettings" WHERE "public"."SiteSettings"."key" IN ($1,$2,$3) OFFSET $4
+ ✓ Compiled (471 modules)
+prisma:query SELECT "public"."ChatReaction"."id", "public"."ChatReaction"."messageId", "public"."ChatReaction"."phone", "public"."ChatReaction"."emoji" FROM "public"."ChatReaction" WHERE "public"."ChatReaction"."messageId" IN ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41,$42,$43,$44,$45,$46,$47,$48,$49,$50) OFFSET $51
+ GET /api/chat/messages?room=general&limit=50 200 in 2398ms
+ ✓ Compiled /api/players in 255ms (473 modules)
+[prisma.ts] ========== PRISMA INIT START ==========
+[prisma.ts] Initializing Prisma Client
+[prisma.ts] DATABASE_URL exists: true
+[prisma.ts] DATABASE_URL_UNPOOLED exists: true
+[prisma.ts] NODE_ENV: development
+[prisma.ts] Runtime: Node.js
+[prisma.ts] Prisma Client initialized successfully
+[prisma.ts] ========== PRISMA INIT END ==========
+prisma:query SELECT "public"."ChatPinnedMessage"."id", "public"."ChatPinnedMessage"."text", "public"."ChatPinnedMessage"."updatedAt" FROM "public"."ChatPinnedMessage" WHERE 1=1 LIMIT $1 OFFSET $2
+prisma:query SELECT "public"."ChatModerator"."id", "public"."ChatModerator"."phone" FROM "public"."ChatModerator" WHERE 1=1 OFFSET $1
+prisma:query SELECT "public"."ShopProduct"."id", "public"."ShopProduct"."name", "public"."ShopProduct"."description", "public"."ShopProduct"."price", "public"."ShopProduct"."oldPrice", "public"."ShopProduct"."category", "public"."ShopProduct"."emoji", "public"."ShopProduct"."badge", "public"."ShopProduct"."imageUrl", "public"."ShopProduct"."sizes", "public"."ShopProduct"."inStock", "public"."ShopProduct"."sortOrder", "public"."ShopProduct"."showInChat", "public"."ShopProduct"."chatPriority" FROM "public"."ShopProduct" WHERE ("public"."ShopProduct"."showInChat" = $1 AND "public"."ShopProduct"."inStock" = $2) ORDER BY "public"."ShopProduct"."chatPriority" DESC, "public"."ShopProduct"."sortOrder" ASC OFFSET $3
+prisma:query SELECT "public"."ChatMessage"."id", "public"."ChatMessage"."phone", "public"."ChatMessage"."name", "public"."ChatMessage"."text", "public"."ChatMessage"."replyToId", "public"."ChatMessage"."createdAt", "public"."ChatMessage"."roomId" FROM "public"."ChatMessage" WHERE "public"."ChatMessage"."roomId" = $1 ORDER BY "public"."ChatMessage"."createdAt" DESC LIMIT $2 OFFSET $3
+ GET /api/shop/products-chat 200 in 1647ms
+ GET /api/playground/checkin 200 in 1976ms
+prisma:query SELECT "public"."ChatReaction"."id", "public"."ChatReaction"."messageId", "public"."ChatReaction"."phone", "public"."ChatReaction"."emoji" FROM "public"."ChatReaction" WHERE "public"."ChatReaction"."messageId" IN ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41,$42,$43,$44,$45,$46,$47,$48,$49,$50) OFFSET $51
+ GET /api/chat/messages?limit=50&room=general 200 in 2001ms
+ ○ Compiling /_not-found ...
+prisma:query SELECT "public"."ChatBan"."id", "public"."ChatBan"."phone", "public"."ChatBan"."reason", "public"."ChatBan"."bannedUntil", "public"."ChatBan"."createdAt" FROM "public"."ChatBan" WHERE ("public"."ChatBan"."phone" = $1 AND 1=1) LIMIT $2 OFFSET $3
+prisma:query SELECT "public"."Player"."id", "public"."Player"."number", "public"."Player"."firstName", "public"."Player"."lastName", "public"."Player"."position", "public"."Player"."teamId", "public"."Player"."photoUrl" FROM "public"."Player" WHERE ("public"."Player"."firstName"::text LIKE $1 AND "public"."Player"."lastName"::text LIKE $2) LIMIT $3 OFFSET $4
+prisma:query SELECT "public"."GuestContact"."id", "public"."GuestContact"."phone", "public"."GuestContact"."firstName", "public"."GuestContact"."lastName", "public"."GuestContact"."refCode", "public"."GuestContact"."hp", "public"."GuestContact"."isLeaguePlayer", "public"."GuestContact"."createdAt", "public"."GuestContact"."avatarInitials", "public"."GuestContact"."childTeamId", "public"."GuestContact"."displayName", "public"."GuestContact"."role" FROM "public"."GuestContact" WHERE ("public"."GuestContact"."phone" = $1 AND 1=1) LIMIT $2 OFFSET $3
+ ✓ Compiled /_not-found in 3.3s (863 modules)
+[prisma.ts] ========== PRISMA INIT START ==========
+[prisma.ts] Initializing Prisma Client
+[prisma.ts] DATABASE_URL exists: true
+[prisma.ts] DATABASE_URL_UNPOOLED exists: true
+[prisma.ts] NODE_ENV: development
+[prisma.ts] Runtime: Node.js
+[prisma.ts] Prisma Client initialized successfully
+[prisma.ts] ========== PRISMA INIT END ==========
+prisma:query INSERT INTO "public"."GuestContact" ("phone","firstName","lastName","hp","isLeaguePlayer","createdAt","role") VALUES ($1,$2,$3,$4,$5,$6,$7) ON CONFLICT ("phone") DO UPDATE SET "firstName" = $8, "lastName" = $9 WHERE ("public"."GuestContact"."phone" = $10 AND 1=1) RETURNING "public"."GuestContact"."id", "public"."GuestContact"."phone", "public"."GuestContact"."firstName", "public"."GuestContact"."lastName", "public"."GuestContact"."refCode", "public"."GuestContact"."hp", "public"."GuestContact"."isLeaguePlayer", "public"."GuestContact"."createdAt", "public"."GuestContact"."avatarInitials", "public"."GuestContact"."childTeamId", "public"."GuestContact"."displayName", "public"."GuestContact"."role"
+prisma:query SELECT "public"."SiteSettings"."id", "public"."SiteSettings"."key", "public"."SiteSettings"."value", "public"."SiteSettings"."updatedAt" FROM "public"."SiteSettings" WHERE "public"."SiteSettings"."key" IN ($1,$2,$3) OFFSET $4
+ GET /api/chat/next-game 404 in 2652ms
+ POST /api/online 200 in 30ms
+prisma:query SELECT "public"."ChatStreak"."id", "public"."ChatStreak"."phone", "public"."ChatStreak"."currentStreak", "public"."ChatStreak"."lastVisit", "public"."ChatStreak"."updatedAt" FROM "public"."ChatStreak" WHERE ("public"."ChatStreak"."phone" = $1 AND 1=1) LIMIT $2 OFFSET $3
+ POST /api/chat 200 in 4419ms
+prisma:query SELECT "public"."Player"."id", "public"."Player"."firstName", "public"."Player"."lastName", "public"."Player"."position" FROM "public"."Player" WHERE 1=1 ORDER BY "public"."Player"."lastName" ASC, "public"."Player"."firstName" ASC OFFSET $1
+ GET /api/players?limit=100 200 in 4742ms
+prisma:query SELECT COUNT("public"."ChatMvpVote"."id"), "public"."ChatMvpVote"."playerName" FROM "public"."ChatMvpVote" WHERE "public"."ChatMvpVote"."month" = $1 GROUP BY "public"."ChatMvpVote"."playerName" OFFSET $2
+prisma:query SELECT "public"."ChatDailySpin"."id", "public"."ChatDailySpin"."phone", "public"."ChatDailySpin"."day", "public"."ChatDailySpin"."hpGained", "public"."ChatDailySpin"."createdAt" FROM "public"."ChatDailySpin" WHERE (("public"."ChatDailySpin"."phone" = $1 AND "public"."ChatDailySpin"."day" = $2) AND 1=1) LIMIT $3 OFFSET $4
+ GET /api/chat/mvp-results 200 in 3329ms
+ GET /api/online 200 in 56ms
+prisma:query 
+    INSERT INTO "ChatOnline" (phone, room, "lastSeen", name, role)
+    VALUES ($1, $2, NOW(), $3, $4)
+    ON CONFLICT (phone) DO UPDATE
+    SET room = $5, "lastSeen" = NOW(), name = $6, role = $7
+  
+ POST /api/chat/heartbeat 200 in 372ms
+prisma:query SELECT "public"."ChatPinnedMessage"."id", "public"."ChatPinnedMessage"."text", "public"."ChatPinnedMessage"."updatedAt" FROM "public"."ChatPinnedMessage" WHERE 1=1 LIMIT $1 OFFSET $2
+prisma:query 
+      SELECT
+        gc.phone,
+        gc."firstName",
+        gc."lastName",
+        gc.hp,
+        gc.role,
+        CASE
+          WHEN co."lastSeen" > NOW() - INTERVAL '2 minutes' AND co.room = 'general'
+          THEN true
+          ELSE false
+        END AS isonline
+      FROM "GuestContact" gc
+      LEFT JOIN "ChatOnline" co ON co.phone = gc.phone
+      ORDER BY isonline DESC, gc.hp DESC
+    
+prisma:query SELECT "public"."ChatPoll"."id", "public"."ChatPoll"."question", "public"."ChatPoll"."options", "public"."ChatPoll"."createdBy", "public"."ChatPoll"."createdAt", "public"."ChatPoll"."isActive" FROM "public"."ChatPoll" WHERE "public"."ChatPoll"."isActive" = $1 ORDER BY "public"."ChatPoll"."createdAt" DESC LIMIT $2 OFFSET $3
+ GET /api/chat/active-poll 200 in 404ms
+prisma:query SELECT "public"."ChatModerator"."id", "public"."ChatModerator"."phone" FROM "public"."ChatModerator" WHERE 1=1 OFFSET $1
+prisma:query SELECT "public"."ChatModerator"."id", "public"."ChatModerator"."phone" FROM "public"."ChatModerator" WHERE 1=1 OFFSET $1
+ GET /api/chat/participants?room=general 200 in 712ms
+prisma:query SELECT "public"."SiteSettings"."id", "public"."SiteSettings"."key", "public"."SiteSettings"."value", "public"."SiteSettings"."updatedAt" FROM "public"."SiteSettings" WHERE "public"."SiteSettings"."key" IN ($1,$2,$3) OFFSET $4
+prisma:query SELECT "public"."ChatStreak"."id", "public"."ChatStreak"."phone", "public"."ChatStreak"."currentStreak", "public"."ChatStreak"."lastVisit", "public"."ChatStreak"."updatedAt" FROM "public"."ChatStreak" WHERE ("public"."ChatStreak"."phone" = $1 AND 1=1) LIMIT $2 OFFSET $3
+ GET /api/chat/status?phone=%2B380931045421 200 in 4059ms
+prisma:query SELECT COUNT(*) FROM (SELECT "public"."ChatWarn"."id" FROM "public"."ChatWarn" WHERE "public"."ChatWarn"."phone" = $1 OFFSET $2) AS "sub"
+prisma:query SELECT "slowMode" FROM "ChatRoom" WHERE id = 'general' LIMIT 1
+prisma:query SELECT "public"."ChatModerator"."id", "public"."ChatModerator"."phone", "public"."ChatModerator"."name", "public"."ChatModerator"."assignedBy", "public"."ChatModerator"."addedAt" FROM "public"."ChatModerator" WHERE ("public"."ChatModerator"."phone" = $1 AND 1=1) LIMIT $2 OFFSET $3
+prisma:query SELECT "public"."ChatPinnedMessage"."id", "public"."ChatPinnedMessage"."text", "public"."ChatPinnedMessage"."updatedAt" FROM "public"."ChatPinnedMessage" WHERE 1=1 LIMIT $1 OFFSET $2
+prisma:query SELECT "public"."ChatBan"."id", "public"."ChatBan"."phone", "public"."ChatBan"."reason", "public"."ChatBan"."bannedUntil", "public"."ChatBan"."createdAt" FROM "public"."ChatBan" WHERE ("public"."ChatBan"."phone" = $1 AND 1=1) LIMIT $2 OFFSET $3
+prisma:query SELECT "public"."Player"."id", "public"."Player"."number", "public"."Player"."firstName", "public"."Player"."lastName", "public"."Player"."position", "public"."Player"."teamId", "public"."Player"."photoUrl" FROM "public"."Player" WHERE ("public"."Player"."firstName"::text LIKE $1 AND "public"."Player"."lastName"::text LIKE $2) LIMIT $3 OFFSET $4
+ GET /api/tv-session 200 in 1202ms
+prisma:query SELECT "public"."ChatMvpVote"."id", "public"."ChatMvpVote"."voterPhone", "public"."ChatMvpVote"."playerName", "public"."ChatMvpVote"."month", "public"."ChatMvpVote"."createdAt" FROM "public"."ChatMvpVote" WHERE (("public"."ChatMvpVote"."voterPhone" = $1 AND "public"."ChatMvpVote"."month" = $2) AND 1=1) LIMIT $3 OFFSET $4
+ POST /api/chat 200 in 6552ms
+prisma:query SELECT "public"."ShopProduct"."id", "public"."ShopProduct"."name", "public"."ShopProduct"."description", "public"."ShopProduct"."price", "public"."ShopProduct"."oldPrice", "public"."ShopProduct"."category", "public"."ShopProduct"."emoji", "public"."ShopProduct"."badge", "public"."ShopProduct"."imageUrl", "public"."ShopProduct"."sizes", "public"."ShopProduct"."inStock", "public"."ShopProduct"."sortOrder", "public"."ShopProduct"."showInChat", "public"."ShopProduct"."chatPriority" FROM "public"."ShopProduct" WHERE ("public"."ShopProduct"."showInChat" = $1 AND "public"."ShopProduct"."inStock" = $2) ORDER BY "public"."ShopProduct"."chatPriority" DESC, "public"."ShopProduct"."sortOrder" ASC OFFSET $3
+ GET /api/shop/products-chat 200 in 560ms
+prisma:query SELECT "public"."GuestContact"."id", "public"."GuestContact"."phone", "public"."GuestContact"."firstName", "public"."GuestContact"."lastName", "public"."GuestContact"."refCode", "public"."GuestContact"."hp", "public"."GuestContact"."isLeaguePlayer", "public"."GuestContact"."createdAt", "public"."GuestContact"."avatarInitials", "public"."GuestContact"."childTeamId", "public"."GuestContact"."displayName", "public"."GuestContact"."role" FROM "public"."GuestContact" WHERE ("public"."GuestContact"."phone" = $1 AND 1=1) LIMIT $2 OFFSET $3
+prisma:query INSERT INTO "public"."GuestContact" ("phone","firstName","lastName","hp","isLeaguePlayer","createdAt","role") VALUES ($1,$2,$3,$4,$5,$6,$7) ON CONFLICT ("phone") DO UPDATE SET "firstName" = $8, "lastName" = $9 WHERE ("public"."GuestContact"."phone" = $10 AND 1=1) RETURNING "public"."GuestContact"."id", "public"."GuestContact"."phone", "public"."GuestContact"."firstName", "public"."GuestContact"."lastName", "public"."GuestContact"."refCode", "public"."GuestContact"."hp", "public"."GuestContact"."isLeaguePlayer", "public"."GuestContact"."createdAt", "public"."GuestContact"."avatarInitials", "public"."GuestContact"."childTeamId", "public"."GuestContact"."displayName", "public"."GuestContact"."role"
+prisma:query SELECT "public"."ChatModerator"."id", "public"."ChatModerator"."phone" FROM "public"."ChatModerator" WHERE 1=1 OFFSET $1
+prisma:query SELECT "public"."ChatPinnedMessage"."id", "public"."ChatPinnedMessage"."text", "public"."ChatPinnedMessage"."updatedAt" FROM "public"."ChatPinnedMessage" WHERE 1=1 LIMIT $1 OFFSET $2
+prisma:query SELECT "public"."ChatMessage"."id", "public"."ChatMessage"."phone", "public"."ChatMessage"."name", "public"."ChatMessage"."text", "public"."ChatMessage"."replyToId", "public"."ChatMessage"."createdAt", "public"."ChatMessage"."roomId" FROM "public"."ChatMessage" WHERE "public"."ChatMessage"."roomId" = $1 ORDER BY "public"."ChatMessage"."createdAt" DESC LIMIT $2 OFFSET $3
+prisma:query SELECT COUNT("public"."ChatMvpVote"."id"), "public"."ChatMvpVote"."playerName" FROM "public"."ChatMvpVote" WHERE "public"."ChatMvpVote"."month" = $1 GROUP BY "public"."ChatMvpVote"."playerName" OFFSET $2
+prisma:query SELECT "public"."ChatMessage"."id", "public"."ChatMessage"."phone", "public"."ChatMessage"."name", "public"."ChatMessage"."text", "public"."ChatMessage"."replyToId", "public"."ChatMessage"."createdAt", "public"."ChatMessage"."roomId" FROM "public"."ChatMessage" WHERE "public"."ChatMessage"."roomId" = $1 ORDER BY "public"."ChatMessage"."createdAt" DESC LIMIT $2 OFFSET $3
+ GET /api/chat/mvp-results 200 in 365ms
+prisma:query SELECT COUNT(*) FROM (SELECT "public"."ChatWarn"."id" FROM "public"."ChatWarn" WHERE "public"."ChatWarn"."phone" = $1 OFFSET $2) AS "sub"
+prisma:query SELECT "slowMode" FROM "ChatRoom" WHERE id = 'general' LIMIT 1
+prisma:query SELECT "public"."Player"."id", "public"."Player"."firstName", "public"."Player"."lastName", "public"."Player"."position" FROM "public"."Player" WHERE 1=1 ORDER BY "public"."Player"."lastName" ASC, "public"."Player"."firstName" ASC OFFSET $1
+ GET /api/players?limit=100 200 in 563ms
+prisma:query SELECT "public"."ChatPinnedMessage"."id", "public"."ChatPinnedMessage"."text", "public"."ChatPinnedMessage"."updatedAt" FROM "public"."ChatPinnedMessage" WHERE 1=1 LIMIT $1 OFFSET $2
+prisma:query SELECT "public"."ChatModerator"."id", "public"."ChatModerator"."phone", "public"."ChatModerator"."name", "public"."ChatModerator"."assignedBy", "public"."ChatModerator"."addedAt" FROM "public"."ChatModerator" WHERE ("public"."ChatModerator"."phone" = $1 AND 1=1) LIMIT $2 OFFSET $3
+prisma:query SELECT "public"."ChatReaction"."id", "public"."ChatReaction"."messageId", "public"."ChatReaction"."phone", "public"."ChatReaction"."emoji" FROM "public"."ChatReaction" WHERE "public"."ChatReaction"."messageId" IN ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41,$42,$43,$44,$45,$46,$47,$48,$49,$50) OFFSET $51
+ GET /api/chat/messages?room=general&limit=50 200 in 2083ms
+prisma:query SELECT "public"."ChatReaction"."id", "public"."ChatReaction"."messageId", "public"."ChatReaction"."phone", "public"."ChatReaction"."emoji" FROM "public"."ChatReaction" WHERE "public"."ChatReaction"."messageId" IN ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41,$42,$43,$44,$45,$46,$47,$48,$49,$50) OFFSET $51
+ GET /api/chat/messages?limit=50&room=general 200 in 856ms
+prisma:query SELECT "public"."SiteSettings"."id", "public"."SiteSettings"."key", "public"."SiteSettings"."value", "public"."SiteSettings"."updatedAt" FROM "public"."SiteSettings" WHERE "public"."SiteSettings"."key" IN ($1,$2,$3) OFFSET $4
+ POST /api/online 200 in 42ms
+ GET /api/chat/next-game 404 in 385ms
+ GET /api/online 200 in 48ms
+prisma:query SELECT "public"."ChatMvpVote"."id", "public"."ChatMvpVote"."voterPhone", "public"."ChatMvpVote"."playerName", "public"."ChatMvpVote"."month", "public"."ChatMvpVote"."createdAt" FROM "public"."ChatMvpVote" WHERE (("public"."ChatMvpVote"."voterPhone" = $1 AND "public"."ChatMvpVote"."month" = $2) AND 1=1) LIMIT $3 OFFSET $4
+ POST /api/chat 200 in 1455ms
+prisma:query SELECT "public"."ChatStreak"."id", "public"."ChatStreak"."phone", "public"."ChatStreak"."currentStreak", "public"."ChatStreak"."lastVisit", "public"."ChatStreak"."updatedAt" FROM "public"."ChatStreak" WHERE ("public"."ChatStreak"."phone" = $1 AND 1=1) LIMIT $2 OFFSET $3
+ POST /api/chat 200 in 375ms
+ POST /api/online 200 in 27ms
+prisma:query 
+      SELECT
+        gc.phone,
+        gc."firstName",
+        gc."lastName",
+        gc.hp,
+        gc.role,
+        CASE
+          WHEN co."lastSeen" > NOW() - INTERVAL '2 minutes' AND co.room = 'general'
+          THEN true
+          ELSE false
+        END AS isonline
+      FROM "GuestContact" gc
+      LEFT JOIN "ChatOnline" co ON co.phone = gc.phone
+      ORDER BY isonline DESC, gc.hp DESC
+    
+ GET /api/playground/checkin 200 in 1535ms
+prisma:query 
+    INSERT INTO "ChatOnline" (phone, room, "lastSeen", name, role)
+    VALUES ($1, $2, NOW(), $3, $4)
+    ON CONFLICT (phone) DO UPDATE
+    SET room = $5, "lastSeen" = NOW(), name = $6, role = $7
+  
+prisma:query SELECT "public"."ChatPoll"."id", "public"."ChatPoll"."question", "public"."ChatPoll"."options", "public"."ChatPoll"."createdBy", "public"."ChatPoll"."createdAt", "public"."ChatPoll"."isActive" FROM "public"."ChatPoll" WHERE "public"."ChatPoll"."isActive" = $1 ORDER BY "public"."ChatPoll"."createdAt" DESC LIMIT $2 OFFSET $3
+ POST /api/chat/heartbeat 200 in 403ms
+ GET /api/chat/active-poll 200 in 367ms
+ POST /api/online 200 in 52ms
+prisma:query SELECT "public"."ChatStreak"."id", "public"."ChatStreak"."phone", "public"."ChatStreak"."currentStreak", "public"."ChatStreak"."lastVisit", "public"."ChatStreak"."updatedAt" FROM "public"."ChatStreak" WHERE ("public"."ChatStreak"."phone" = $1 AND 1=1) LIMIT $2 OFFSET $3
+prisma:query SELECT "public"."ChatDailySpin"."id", "public"."ChatDailySpin"."phone", "public"."ChatDailySpin"."day", "public"."ChatDailySpin"."hpGained", "public"."ChatDailySpin"."createdAt" FROM "public"."ChatDailySpin" WHERE (("public"."ChatDailySpin"."phone" = $1 AND "public"."ChatDailySpin"."day" = $2) AND 1=1) LIMIT $3 OFFSET $4
+ GET /api/chat/status?phone=%2B380931045421 200 in 373ms
+prisma:query SELECT "public"."ChatModerator"."id", "public"."ChatModerator"."phone" FROM "public"."ChatModerator" WHERE 1=1 OFFSET $1
+ GET /api/chat/participants?room=general 200 in 707ms
+prisma:query 
+    INSERT INTO "ChatOnline" (phone, room, "lastSeen", name, role)
+    VALUES ($1, $2, NOW(), $3, $4)
+    ON CONFLICT (phone) DO UPDATE
+    SET room = $5, "lastSeen" = NOW(), name = $6, role = $7
+  
+ POST /api/chat/heartbeat 200 in 370ms
+prisma:query SELECT "public"."ChatPinnedMessage"."id", "public"."ChatPinnedMessage"."text", "public"."ChatPinnedMessage"."updatedAt" FROM "public"."ChatPinnedMessage" WHERE 1=1 LIMIT $1 OFFSET $2
+prisma:query SELECT "public"."ChatModerator"."id", "public"."ChatModerator"."phone" FROM "public"."ChatModerator" WHERE 1=1 OFFSET $1
+prisma:query 
+    INSERT INTO "ChatOnline" (phone, room, "lastSeen", name, role)
+    VALUES ($1, $2, NOW(), $3, $4)
+    ON CONFLICT (phone) DO UPDATE
+    SET room = $5, "lastSeen" = NOW(), name = $6, role = $7
+  
+ POST /api/chat/heartbeat 200 in 382ms
+ GET /api/tv-session 200 in 216ms
+prisma:query SELECT "public"."ChatMessage"."id", "public"."ChatMessage"."phone", "public"."ChatMessage"."name", "public"."ChatMessage"."text", "public"."ChatMessage"."replyToId", "public"."ChatMessage"."createdAt", "public"."ChatMessage"."roomId" FROM "public"."ChatMessage" WHERE "public"."ChatMessage"."roomId" = $1 ORDER BY "public"."ChatMessage"."createdAt" DESC LIMIT $2 OFFSET $3
+prisma:query SELECT "public"."LiveSession"."id", "public"."LiveSession"."gameId", "public"."LiveSession"."homeTeam", "public"."LiveSession"."awayTeam", "public"."LiveSession"."gameTime", "public"."LiveSession"."kyivTime", "public"."LiveSession"."liveUrl", "public"."LiveSession"."liveSource", "public"."LiveSession"."isActive", "public"."LiveSession"."lastChecked" FROM "public"."LiveSession" WHERE ("public"."LiveSession"."isActive" = $1 AND "public"."LiveSession"."lastChecked" >= $2) ORDER BY "public"."LiveSession"."gameTime" ASC OFFSET $3
+prisma:query SELECT "public"."ChatReaction"."id", "public"."ChatReaction"."messageId", "public"."ChatReaction"."phone", "public"."ChatReaction"."emoji" FROM "public"."ChatReaction" WHERE "public"."ChatReaction"."messageId" IN ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41,$42,$43,$44,$45,$46,$47,$48,$49,$50) OFFSET $51
+ GET /api/chat/messages?room=general&limit=50 200 in 870ms
+ GET /api/live-sessions 200 in 572ms

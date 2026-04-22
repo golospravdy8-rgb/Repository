@@ -22,12 +22,13 @@ canvas{border-radius:10px;background:#111827;display:block;cursor:crosshair;widt
 .msec ul{padding-left:16px}
 .tag{display:inline-block;padding:1px 6px;border-radius:4px;font-size:11px;font-weight:700;margin-right:4px}
 </style>
+<script src="/socket.io/socket.io.js"></script>
 </head>
 <body>
 <div id="wrap" style="position:relative">
 <canvas id="gc" width="860" height="624" style="z-index:100"></canvas>
 <div id="controls">
-  <button id="deleteLastBtn" class="btn" onclick="deleteLastPlayer()" style="background:#ff6644;opacity:1">🗑 Видалити</button>
+  <button id="deleteLastBtn" class="btn" onclick="exitGame()" style="background:#ff6644;opacity:1">🗑 Видалити</button>
   <button class="btn" onclick="addPlayer()" style="background:#e06030">+ Додати</button>
   <button id="exit-btn" class="btn" onclick="exitGame()" style="background:#ff2222;display:none">🚪 Вийти</button>
   <button id="btnStart" class="btn" onclick="startGame()" disabled style="background:#27ae60;opacity:0.4">▶ Старт</button>
@@ -125,6 +126,22 @@ let disputeP1=0,disputeP2=-1;
 let ss_ideal_power=50;
 
 const PLAYER_COLORS=['#4fc3f7','#81c784','#ffb74d','#f06292','#ce93d8','#80cbc4'];
+
+// ── WEBSOCKET MULTIPLAYER ──────────────────────────────
+const socket=io(window.location.origin);
+const myRoom='default';
+let remotePlayers={};
+socket.on('connect',()=>{
+  console.log('[Socket] Connected: '+socket.id);
+  socket.emit('join-room',{room:myRoom,name:'Player'});
+});
+socket.on('players-update',(data)=>{
+  remotePlayers=data||{};
+});
+socket.on('disconnect',()=>{
+  console.log('[Socket] Disconnected');
+  remotePlayers={};
+});
 
 // ── MODAL ──────────────────────────────────────────────────
 function openModal(){document.getElementById('modal').style.display='flex';}
@@ -253,7 +270,7 @@ let selectedMoveIdx=-1;
 
 // ── КЛІК (ЛКМ) ────────────────────────────────────────────
 canvas.addEventListener('click',e=>{
-  if(state!=='playing')return;
+  if(state!=='playing'&&state!=='waiting')return;
   const r=canvas.getBoundingClientRect();
   const sc=W/r.width;
   const mx=(e.clientX-r.left)*sc,my=(e.clientY-r.top)*sc;
@@ -318,7 +335,7 @@ canvas.addEventListener('click',e=>{
 // ── ПКМ ───────────────────────────────────────────────────
 canvas.addEventListener('contextmenu',e=>{
   e.preventDefault();
-  if(state!=='playing')return;
+  if(state!=='playing'&&state!=='waiting')return;
   const r=canvas.getBoundingClientRect();
   const sc=W/r.width;
   const mx=(e.clientX-r.left)*sc,my=(e.clientY-r.top)*sc;
@@ -1191,8 +1208,57 @@ canvas.addEventListener('contextmenu',function(e){
   if(originalCanvasContextMenu)originalCanvasContextMenu.call(this,e);
 });
 
-function loop(){update();draw();requestAnimationFrame(loop);}
+let lastEmitTime=0;
+function loop(){
+  update();
+  draw();
+
+  // Emit local players position every 100ms
+  const now=Date.now();
+  if(now-lastEmitTime>100&&myPlayerIndices.length>0){
+    const myPlayer=players[myPlayerIndices[0]];
+    if(myPlayer){
+      socket.emit('player-move',{
+        room:myRoom,
+        id:socket.id,
+        playerIdx:myPlayerIndices[0],
+        x:myPlayer.x,
+        y:myPlayer.y,
+        score:myPlayer.score,
+        status:myPlayer.status
+      });
+    }
+    lastEmitTime=now;
+  }
+
+  requestAnimationFrame(loop);
+}
 loop();
+
+// Draw remote players in canvas
+const originalDraw=draw;
+draw=function(){
+  originalDraw();
+  // Draw remote players (cyan) after local players
+  Object.values(remotePlayers).forEach(p=>{
+    if(p.id===socket.id)return; // Skip self
+    if(p.status==='eliminated')return;
+    ctx.fillStyle='#80cbc4';
+    ctx.strokeStyle='#80cbc4';
+    ctx.lineWidth=2;
+    ctx.beginPath();
+    ctx.arc(p.x,p.y-37,48,0,Math.PI*2);
+    ctx.stroke();
+    drawStick(p.x,p.y,'idle',0,false,'#80cbc4');
+    ctx.fillStyle='#80cbc4';
+    ctx.font='bold 11px sans-serif';
+    ctx.textAlign='center';
+    ctx.fillText('🌐 '+p.name,p.x,p.y-73);
+    ctx.fillStyle='#7fffd4';
+    ctx.font='bold 11px sans-serif';
+    ctx.fillText('🏀 '+p.score,p.x,p.y-61);
+  });
+};
 </script>
 </body>
 </html>
