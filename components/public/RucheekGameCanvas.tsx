@@ -209,6 +209,33 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       return 200;
     }
 
+    function calculateIdealPowerByExactDistance(distToHoop: number): number {
+      // Professional calibration: distance → ideal power (0-200%)
+      const maxDist = Math.hypot(W, H);
+      const distFraction = distToHoop / maxDist;
+
+      let idealPower;
+
+      if (distFraction <= 0.15) {
+        // Very close (0-15%)
+        idealPower = 30 + (distFraction / 0.15) * 20;
+      } else if (distFraction <= 0.35) {
+        // Close (15-35%)
+        idealPower = 50 + ((distFraction - 0.15) / 0.20) * 20;
+      } else if (distFraction <= 0.55) {
+        // Mid-range (35-55%)
+        idealPower = 70 + ((distFraction - 0.35) / 0.20) * 50;
+      } else if (distFraction <= 0.80) {
+        // Three-point (55-80%)
+        idealPower = 120 + ((distFraction - 0.55) / 0.25) * 50;
+      } else {
+        // Deep (80%+)
+        idealPower = 170 + ((distFraction - 0.80) / 0.20) * 30;
+      }
+
+      return Math.max(30, Math.min(200, Math.round(idealPower)));
+    }
+
     // Game logic functions from original demo
     function hitTestPlayer(mx: number, my: number, px: number, py: number) {
       if (Math.hypot(mx - px, my - (py - 54*scaleY)) <= 12*scaleX) return true;
@@ -498,8 +525,8 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       const maxDist = Math.hypot(W, H);
       const distFraction = distToHoop / maxDist;
 
-      // Use 200% power scale (doubled from original)
-      const idealPwrPct = recalculateIdealPowerFor200Scale(distFraction);
+      // Use precise distance-based ideal power calibration
+      const idealPwrPct = calculateIdealPowerByExactDistance(distToHoop);
       const greenZoneTolerance = calculateGreenZoneBands(distToHoop);
       const inGreenZone = Math.abs(ss.power - idealPwrPct) <= greenZoneTolerance;
 
@@ -508,13 +535,18 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       const angleError = Math.abs(angle - angleRange.ideal);
       const angleAcceptable = angleError <= (3 * Math.PI / 180);
 
-      // Calculate ball speed from new 0-200% scale
-      let curSpd = calculateBallSpeedFromPower(ss.power);
+      // CRITICAL FIX: Convert power % directly to pixels-per-frame velocity
+      // Power meter 0-200% → ball velocity 5-16 m/s → pixels per frame
+      // Scaling: ~40 pixels = 1 meter of court distance
+      const speedInMS = calculateBallSpeedFromPower(ss.power);
+      const pixelsPerMeter = 35; // Calibrated for court scale
+      let curSpd = speedInMS * pixelsPerMeter; // Convert m/s to pixels/frame
 
       // GREEN ZONE GUARANTEE: Power in zone AND angle acceptable = 100% score
       let guaranteedScore = false;
       if (inGreenZone && angleAcceptable) {
-        curSpd = calculateBallSpeedFromPower(idealPwrPct);
+        const idealSpeedMS = calculateBallSpeedFromPower(idealPwrPct);
+        curSpd = idealSpeedMS * pixelsPerMeter;
         guaranteedScore = true;
         addFlash('✅ ГАРАНТОВАНИЙ ГОЛ!', p.x, p.y - 115*scaleY, '#44ff88');
       } else if (inGreenZone) {
