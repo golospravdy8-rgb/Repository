@@ -22,7 +22,7 @@ canvas{border-radius:10px;background:#111827;display:block;cursor:crosshair;widt
 .msec ul{padding-left:16px}
 .tag{display:inline-block;padding:1px 6px;border-radius:4px;font-size:11px;font-weight:700;margin-right:4px}
 </style>
-<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+<script src="https://js.pusher.com/8.4/pusher.min.js"></script>
 </head>
 <body>
 <div id="wrap" style="position:relative">
@@ -127,21 +127,44 @@ let ss_ideal_power=50;
 
 const PLAYER_COLORS=['#4fc3f7','#81c784','#ffb74d','#f06292','#ce93d8','#80cbc4'];
 
-// ── WEBSOCKET MULTIPLAYER ──────────────────────────────
-const socket=io(window.location.origin);
-const myRoom='default';
+// ── PUSHER MULTIPLAYER ──────────────────────────────
+const PUSHER_KEY='9fe1ba2119a241c8b676';
+const PUSHER_CLUSTER='eu';
+const myPlayerId=Date.now()+'_'+Math.random().toString(36).substr(2,9);
+const myRoom=new URLSearchParams(window.location.search).get('room')||'game1';
 let remotePlayers={};
-socket.on('connect',()=>{
-  console.log('[Socket] Connected: '+socket.id);
-  socket.emit('join-room',{room:myRoom,name:'Player'});
-});
-socket.on('players-update',(data)=>{
-  remotePlayers=data||{};
-});
-socket.on('disconnect',()=>{
-  console.log('[Socket] Disconnected');
-  remotePlayers={};
-});
+let pusherChannel=null;
+let pusherInstance=null;
+
+function initPusher(){
+  pusherInstance=new Pusher(PUSHER_KEY,{cluster:PUSHER_CLUSTER});
+  pusherChannel=pusherInstance.subscribe('game-'+myRoom);
+
+  pusherChannel.bind('pusher:subscription_succeeded',()=>{
+    console.log('✅ Pusher connected to room: '+myRoom);
+  });
+
+  pusherChannel.bind('player-move',(data)=>{
+    if(data.playerId!==myPlayerId){
+      remotePlayers[data.playerId]={...data,lastSeen:Date.now()};
+    }
+  });
+
+  pusherChannel.bind('player-leave',(data)=>{
+    delete remotePlayers[data.playerId];
+  });
+
+  setInterval(()=>{
+    const now=Date.now();
+    Object.keys(remotePlayers).forEach(id=>{
+      if(now-remotePlayers[id].lastSeen>5000){
+        delete remotePlayers[id];
+      }
+    });
+  },2000);
+}
+
+initPusher();
 
 // ── MODAL ──────────────────────────────────────────────────
 function openModal(){document.getElementById('modal').style.display='flex';}
@@ -696,6 +719,21 @@ function handleMissed(i){
   if(isMyPlayer(i)){selectedMoveIdx=i;}
 }
 
+// ── POLYFILL: roundRect ────────────────────────────────────
+if(!CanvasRenderingContext2D.prototype.roundRect){
+  CanvasRenderingContext2D.prototype.roundRect=function(x,y,w,h,r){
+    if(w<2*r)r=w/2;
+    if(h<2*r)r=h/2;
+    this.beginPath();
+    this.moveTo(x+r,y);
+    this.arcTo(x+w,y,x+w,y+h,r);
+    this.arcTo(x+w,y+h,x,y+h,r);
+    this.arcTo(x,y+h,x,y,r);
+    this.arcTo(x,y,x+w,y,r);
+    this.closePath();
+  };
+}
+
 // ── МАЛЮВАННЯ ──────────────────────────────────────────────
 function drawBball(cx,cy,r){
   ctx.fillStyle='#e06030';ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.fill();
@@ -1208,27 +1246,36 @@ canvas.addEventListener('contextmenu',function(e){
   if(originalCanvasContextMenu)originalCanvasContextMenu.call(this,e);
 });
 
-let lastEmitTime=0;
+let lastSendTime=0;
+function sendPosition(player){
+  const now=Date.now();
+  if(now-lastSendTime<100)return;
+  lastSendTime=now;
+
+  fetch('/api/pusher',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({
+      room:myRoom,
+      playerId:myPlayerId,
+      x:player.x,
+      y:player.y,
+      name:player.name,
+      score:player.score||0
+    })
+  }).catch(e=>console.warn('Pusher send failed:',e));
+}
+
 function loop(){
   update();
   draw();
 
-  // Emit local players position every 100ms
-  const now=Date.now();
-  if(now-lastEmitTime>100&&myPlayerIndices.length>0){
+  // Send local player position every 100ms
+  if(myPlayerIndices.length>0){
     const myPlayer=players[myPlayerIndices[0]];
     if(myPlayer){
-      socket.emit('player-move',{
-        room:myRoom,
-        id:socket.id,
-        playerIdx:myPlayerIndices[0],
-        x:myPlayer.x,
-        y:myPlayer.y,
-        score:myPlayer.score,
-        status:myPlayer.status
-      });
+      sendPosition(myPlayer);
     }
-    lastEmitTime=now;
   }
 
   requestAnimationFrame(loop);
@@ -1241,22 +1288,26 @@ draw=function(){
   originalDraw();
   // Draw remote players (cyan) after local players
   Object.values(remotePlayers).forEach(p=>{
-    if(p.id===socket.id)return; // Skip self
-    if(p.status==='eliminated')return;
-    ctx.fillStyle='#80cbc4';
-    ctx.strokeStyle='#80cbc4';
-    ctx.lineWidth=2;
+    if(p.playerId===myPlayerId)return; // Skip self
+    ctx.fillStyle='rgba(0,255,255,0.15)';
     ctx.beginPath();
-    ctx.arc(p.x,p.y-37,48,0,Math.PI*2);
-    ctx.stroke();
-    drawStick(p.x,p.y,'idle',0,false,'#80cbc4');
-    ctx.fillStyle='#80cbc4';
-    ctx.font='bold 11px sans-serif';
+    ctx.ellipse(p.x,p.y+5,18,8,0,0,Math.PI*2);
+    ctx.fill();
+    ctx.fillStyle='#00ffff';
+    ctx.beginPath();
+    ctx.arc(p.x,p.y-25,16,0,Math.PI*2);
+    ctx.fill();
+    ctx.fillStyle='#fff';
+    ctx.font='bold 13px Arial';
     ctx.textAlign='center';
-    ctx.fillText('🌐 '+p.name,p.x,p.y-73);
-    ctx.fillStyle='#7fffd4';
-    ctx.font='bold 11px sans-serif';
-    ctx.fillText('🏀 '+p.score,p.x,p.y-61);
+    ctx.textBaseline='middle';
+    ctx.fillText(p.name,p.x,p.y-48);
+    ctx.fillStyle='rgba(0,0,0,0.5)';
+    ctx.roundRect(p.x-18,p.y-8,36,16,4);
+    ctx.fill();
+    ctx.fillStyle='#00ffff';
+    ctx.font='11px Arial';
+    ctx.fillText(p.score,p.x,p.y);
   });
 };
 </script>
