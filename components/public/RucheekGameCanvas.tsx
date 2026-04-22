@@ -215,14 +215,73 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
     function calculateGreenZoneBands(distToHoop: number) {
       const distFraction = distToHoop / Math.hypot(W, H);
       let tolerance;
-      if (distFraction < 0.3) {
+      if (distFraction <= 0.3) {
         tolerance = 5;
-      } else if (distFraction < 0.6) {
-        tolerance = 6;
+      } else if (distFraction <= 0.6) {
+        tolerance = 8;
       } else {
         tolerance = 7;
       }
       return tolerance;
+    }
+
+    function getShootingPhysicsForDistance(distToHoop: number) {
+      const maxDist = Math.hypot(W, H);
+      const distFraction = distToHoop / maxDist;
+
+      let physics = {
+        minPowerRequired: 35,
+        idealPower: 50,
+        maxPowerUseful: 70,
+        tolerance: 5,
+        estimatedSpeed: 6.5,
+        optimalAngle: 38,
+        angleTolerance: 4
+      };
+
+      if (distFraction < 0.30) {
+        physics = {
+          minPowerRequired: 35,
+          idealPower: 50,
+          maxPowerUseful: 70,
+          tolerance: 8,
+          estimatedSpeed: 6.5,
+          optimalAngle: 38,
+          angleTolerance: 4
+        };
+      } else if (distFraction < 0.60) {
+        physics = {
+          minPowerRequired: 55,
+          idealPower: 70,
+          maxPowerUseful: 85,
+          tolerance: 7,
+          estimatedSpeed: 8.0,
+          optimalAngle: 44,
+          angleTolerance: 3.5
+        };
+      } else if (distFraction < 0.85) {
+        physics = {
+          minPowerRequired: 75,
+          idealPower: 88,
+          maxPowerUseful: 98,
+          tolerance: 6,
+          estimatedSpeed: 9.5,
+          optimalAngle: 50,
+          angleTolerance: 3
+        };
+      } else {
+        physics = {
+          minPowerRequired: 90,
+          idealPower: 98,
+          maxPowerUseful: 100,
+          tolerance: 5,
+          estimatedSpeed: 11.0,
+          optimalAngle: 53,
+          angleTolerance: 2.5
+        };
+      }
+
+      return physics;
     }
 
     function calculateRealisticAccuracy(
@@ -368,7 +427,12 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       const distToHoop = Math.hypot(HOOP_X - px, HOOP_Y - py);
       const maxDist = Math.hypot(W, H);
       const distFraction = distToHoop / maxDist;
-      const idealPwrPct = 50 + distFraction * 50;
+      let idealPwrPct;
+      if (distFraction <= 0.6) {
+        idealPwrPct = 60 + (distFraction - 0.3) * 50;
+      } else {
+        idealPwrPct = 85 + (distFraction - 0.6) * 33;
+      }
       const greenZoneTolerance = calculateGreenZoneBands(distToHoop);
       const inGreenZone = Math.abs(ss.power - idealPwrPct) <= greenZoneTolerance;
 
@@ -714,14 +778,49 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
 
     function drawPowerBar(p: any, pwr: number, matchPct: number) {
       const bw = 22*scaleX, bh = 115*scaleY, bx = p.x + 16*scaleX, by = p.y - bh - 32*scaleY, fh = (pwr / 100) * bh;
+      const px = p.x - 15*scaleX, py = p.y - 55*scaleY;
+      const distToHoop = Math.hypot(HOOP_X - px, HOOP_Y - py);
+      const physics = getShootingPhysicsForDistance(distToHoop);
+
+      // Background
       ctx.fillStyle = 'rgba(0,0,0,0.85)';
       ctx.fillRect(bx, by, bw, bh);
       ctx.strokeStyle = '#555';
       ctx.lineWidth = 1;
       ctx.strokeRect(bx, by, bw, bh);
+
+      // Draw 5-zone system
+      const minY = by + bh - (physics.minPowerRequired / 100) * bh;
+      const idealY = by + bh - (physics.idealPower / 100) * bh;
+      const maxY = by + bh - (physics.maxPowerUseful / 100) * bh;
+
+      // Zone 1: RED - TOO LOW (0 to minPowerRequired)
+      ctx.fillStyle = 'rgba(200,60,60,0.3)';
+      ctx.fillRect(bx, minY, bw, bh - (minY - by));
+
+      // Zone 2: ORANGE - BELOW IDEAL (minPowerRequired to idealPower)
+      ctx.fillStyle = 'rgba(255,165,0,0.25)';
+      ctx.fillRect(bx, idealY, bw, minY - idealY);
+
+      // Zone 3: GREEN - IDEAL (idealPower ± tolerance)
+      const greenTolHeight = (physics.tolerance * 2 / 100) * bh;
+      ctx.fillStyle = 'rgba(68,255,68,0.4)';
+      ctx.fillRect(bx, idealY - greenTolHeight / 2, bw, greenTolHeight);
+
+      // Zone 4: BLUE - ABOVE IDEAL (maxPowerUseful to idealPower+tolerance)
+      ctx.fillStyle = 'rgba(100,150,255,0.25)';
+      ctx.fillRect(bx, maxY, bw, idealY - greenTolHeight / 2 - maxY);
+
+      // Zone 5: RED - TOO HIGH (maxPowerUseful to 100)
+      ctx.fillStyle = 'rgba(200,60,60,0.3)';
+      ctx.fillRect(bx, by, bw, maxY - by);
+
+      // Draw current power level (bright indicator)
       const clr = matchPct > 92 ? '#00ffaa' : matchPct > 85 ? '#44cc44' : matchPct > 55 ? '#ffcc00' : '#e05545';
       ctx.fillStyle = clr;
       ctx.fillRect(bx, by + bh - fh, bw, fh);
+
+      // Current power line
       ctx.strokeStyle = '#fff';
       ctx.lineWidth = 2.5;
       ctx.beginPath();
@@ -729,17 +828,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       ctx.lineTo(bx + bw + 5*scaleX, by + bh - fh);
       ctx.stroke();
 
-      const idealFrac = (ss_ideal_power || 50) / 100;
-      const idealY = by + bh - idealFrac * bh;
-
-      // Draw green zone (±8% around ideal power)
-      const greenZoneHeight = bh * 0.16;
-      ctx.fillStyle = 'rgba(68,255,68,0.25)';
-      ctx.fillRect(bx, idealY - greenZoneHeight / 2, bw, greenZoneHeight);
-      ctx.strokeStyle = 'rgba(100,255,100,0.6)';
-      ctx.lineWidth = 2;
-      ctx.strokeRect(bx, idealY - greenZoneHeight / 2, bw, greenZoneHeight);
-
+      // Draw ideal power line with label
       ctx.setLineDash([3, 3]);
       ctx.strokeStyle = 'rgba(100,255,100,0.75)';
       ctx.lineWidth = 1.5;
@@ -748,13 +837,33 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       ctx.lineTo(bx + bw + 3*scaleX, idealY);
       ctx.stroke();
       ctx.setLineDash([]);
+
+      // Draw min/max power lines (faint)
+      ctx.strokeStyle = 'rgba(255,100,100,0.4)';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([2, 2]);
+      ctx.beginPath();
+      ctx.moveTo(bx - 3*scaleX, minY);
+      ctx.lineTo(bx + bw + 3*scaleX, minY);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(bx - 3*scaleX, maxY);
+      ctx.lineTo(bx + bw + 3*scaleX, maxY);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Labels
       ctx.fillStyle = clr;
       ctx.font = `bold ${11*scaleX}px sans-serif`;
       ctx.textAlign = 'center';
-      ctx.fillText(Math.round(matchPct) + '%', bx + bw / 2, by - 7*scaleY);
-      ctx.fillStyle = 'rgba(100,255,100,0.8)';
-      ctx.font = `${9*scaleX}px sans-serif`;
-      ctx.fillText('▲ціль', bx + bw / 2, idealY - 3*scaleY);
+      ctx.fillText(Math.round(pwr) + '%', bx + bw / 2, by - 7*scaleY);
+
+      ctx.fillStyle = 'rgba(100,255,100,0.9)';
+      ctx.font = `${8*scaleX}px sans-serif`;
+      ctx.textAlign = 'left';
+      ctx.fillText('min', bx + bw + 3*scaleX, minY + 4*scaleY);
+      ctx.fillText('ideal', bx + bw + 3*scaleX, idealY + 4*scaleY);
+      ctx.fillText('max', bx + bw + 3*scaleX, maxY + 4*scaleY);
     }
 
     function drawBasket() {
