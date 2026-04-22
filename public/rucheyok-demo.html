@@ -1139,8 +1139,8 @@ function deleteLastPlayer(){
     alert('❌ Не можна видалити гравця під час гри!');
     return;
   }
-  if(players.length<=1){
-    alert('❌ Потрібно щонайменше 1 гравець для видалення!');
+  if(players.length<1){
+    alert('❌ Потрібен щонайменше 1 гравець!');
     return;
   }
   console.log('🗑️ Видаляю останнього гравця: '+players[players.length-1].name);
@@ -1150,8 +1150,8 @@ function deleteLastPlayer(){
   myPlayerIdx=myPlayerIndices.length>0?myPlayerIndices[0]:-1;
   try{sessionStorage.setItem('rucheek_myIndices',JSON.stringify(myPlayerIndices));}catch(e){}
   const b=document.getElementById('btnStart');
-  b.disabled=players.length<2;
-  b.style.opacity=players.length<2?'0.4':'1';
+  b.disabled=myPlayerIndices.length<1;
+  b.style.opacity=myPlayerIndices.length<1?'0.4':'1';
   updatePlayersList();
   updateDeleteLastButtonState();
   console.log('✅ Гравців залишилось: '+players.length);
@@ -1163,8 +1163,8 @@ function updateDeleteLastButtonState(){
     btn.disabled=true;
     btn.style.opacity='0.4';
   }else{
-    btn.disabled=players.length<=1;
-    btn.style.opacity=players.length<=1?'0.4':'1';
+    btn.disabled=myPlayerIndices.length<1;
+    btn.style.opacity=myPlayerIndices.length<1?'0.4':'1';
   }
 }
 
@@ -1196,8 +1196,8 @@ function deletePlayer(index){
     alert('❌ Не можна видалити гравця під час гри!');
     return;
   }
-  if(players.length<=2){
-    alert('❌ Мінімум 2 гравці для гри!');
+  if(myPlayerIndices.length<2){
+    alert('❌ Потрібен щонайменше 1 гравець!');
     return;
   }
   console.log('🗑️ Видаляю гравця #'+index+': '+players[index].name);
@@ -1207,8 +1207,8 @@ function deletePlayer(index){
   myPlayerIdx=myPlayerIndices.length>0?myPlayerIndices[0]:-1;
   try{sessionStorage.setItem('rucheek_myIndices',JSON.stringify(myPlayerIndices));}catch(e){}
   const b=document.getElementById('btnStart');
-  b.disabled=players.length<2;
-  b.style.opacity=players.length<2?'0.4':'1';
+  b.disabled=myPlayerIndices.length<1;
+  b.style.opacity=myPlayerIndices.length<1?'0.4':'1';
   document.getElementById('pname').disabled=players.length>=MAX_PLAYERS;
   updatePlayersList();
   console.log('✅ Гравців залишилось: '+players.length);
