@@ -311,8 +311,8 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
     function launchBall(idx: number) {
       const p = gs.players[idx];
       const ss = gs.shootStates[idx];
-      const curSpd = 5 + (ss.power / 100) * 11;
-      const angle = ss.aimAngle;
+      const curSpd = (5 + (ss.power / 100) * 11) * 1.3;
+      const angle = ss.lockedAngle;
 
       const pts = simTraj(p.x - 15*scaleX, p.y - 55*scaleY, angle, curSpd, 95);
       const idealEnd = ss.idealTraj ? ss.idealTraj[ss.idealTraj.length - 1] : { x: HOOP_X, y: HOOP_Y };
