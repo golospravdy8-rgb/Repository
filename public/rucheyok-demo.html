@@ -1108,12 +1108,6 @@ function draw(){
     ctx.fillText('Гравців: '+alive+'/6',W-8,17);
   }
 
-  if(state==='waiting'){
-    ctx.fillStyle='rgba(255,255,255,0.35)';ctx.font='15px sans-serif';ctx.textAlign='center';
-    ctx.fillText('Додай 1–6 гравців і натисни ▶ Старт',W/2,235);
-    ctx.fillStyle='rgba(255,255,255,0.18)';ctx.font='12px sans-serif';
-    ctx.fillText('Натисни 📖 Інструкція для правил гри',W/2,260);
-  }
 
   if(state==='finished'){
     ctx.fillStyle='rgba(0,0,0,0.85)';ctx.fillRect(0,0,W,H);
