@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 // @ts-expect-error pdfkit types
 import PDFDocument from "pdfkit";
-import { join, resolve } from "path";
+import { join } from "path";
 import { readFileSync } from "fs";
 export const runtime = 'nodejs';
 
@@ -110,8 +110,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ gam
     // Logo - try multiple paths for compatibility (local dev + Vercel production)
     let logoLoaded = false;
     const logoPaths = [
-      resolve(process.cwd(), "public/fbl-logo.png"),
-      resolve(__dirname, "../../../public/fbl-logo.png"),
+      join(process.cwd(), "public/fbl-logo.png"),
+      join(__dirname, "../../../public/fbl-logo.png"),
       "/var/task/public/fbl-logo.png",
       "public/fbl-logo.png",
     ];
