@@ -150,8 +150,22 @@ function initPusher(){
 
   pusherChannel.bind('player-move',(data)=>{
     console.log('[Pusher] Received player-move:', data);
-    if(data.playerId!==myPlayerId){
-      remotePlayers[data.playerId]={...data,lastSeen:Date.now()};
+    // Check if this is from another browser (not our local players)
+    if(!data.playerId.startsWith(myPlayerId)){
+      remotePlayers[data.playerId]={...data,lastSeen:Date.now(),isRemote:true};
+      // Also update in players array
+      let existingIdx=players.findIndex(p=>p.ownerId===data.playerId&&p.isRemote);
+      if(existingIdx===-1){
+        // New remote player
+        players.push({name:data.name||'Remote',x:data.x,y:data.y,score:data.score||0,kills:0,status:'idle',rf:0,color:'#00ffff',ownerId:data.playerId,isRemote:true});
+        shootStates.push(mkSS());
+      } else {
+        // Update existing remote player
+        players[existingIdx].x=data.x;
+        players[existingIdx].y=data.y;
+        players[existingIdx].score=data.score||0;
+        players[existingIdx].name=data.name||players[existingIdx].name;
+      }
       console.log('[Pusher] Updated remotePlayers. Total remote:', Object.keys(remotePlayers).length);
     } else {
       console.log('[Pusher] Ignored own message (playerId:', data.playerId, ')');
@@ -159,7 +173,12 @@ function initPusher(){
   });
 
   pusherChannel.bind('player-leave',(data)=>{
-    delete remotePlayers[data.playerId];
+    if(remotePlayers[data.playerId]){
+      delete remotePlayers[data.playerId];
+      // Remove from players array
+      const idx=players.findIndex(p=>p.ownerId===data.playerId&&p.isRemote);
+      if(idx!==-1){players.splice(idx,1);shootStates.splice(idx,1);}
+    }
   });
 
   setInterval(()=>{
@@ -167,6 +186,9 @@ function initPusher(){
     Object.keys(remotePlayers).forEach(id=>{
       if(now-remotePlayers[id].lastSeen>5000){
         delete remotePlayers[id];
+        // Remove from players array
+        const idx=players.findIndex(p=>p.ownerId===id&&p.isRemote);
+        if(idx!==-1){players.splice(idx,1);shootStates.splice(idx,1);}
       }
     });
   },2000);
@@ -218,20 +240,20 @@ function addPlayer(){
   if(players.length>=MAX_PLAYERS){alert('Максимум 6 гравців!');return;}
   const idx=players.length;
   const name='Гравець '+(idx+1);
-  players.push({name,x:P_START+idx*P_STEP,y:GY,score:0,kills:0,status:'idle',rf:0,color:PLAYER_COLORS[idx%PLAYER_COLORS.length]});
+  players.push({name,x:P_START+idx*P_STEP,y:GY,score:0,kills:0,status:'idle',rf:0,color:PLAYER_COLORS[idx%PLAYER_COLORS.length],ownerId:myPlayerId,isLocal:true});
   shootStates.push(mkSS());
   // Ця вкладка стає власником кожного доданого гравця
   myPlayerIndices.push(idx);
   myPlayerIdx=myPlayerIndices[0];
   try{sessionStorage.setItem('rucheek_myIndices',JSON.stringify(myPlayerIndices));}catch(e){}
   const b=document.getElementById('btnStart');
-  b.disabled=players.length<2;b.style.opacity=players.length<2?'0.4':'1';
+  b.disabled=myPlayerIndices.length<1;b.style.opacity=myPlayerIndices.length<1?'0.4':'1';
   updatePlayersList();
   updateDeleteLastButtonState();
 }
 
 function startGame(){
-  if(players.length<2)return;
+  if(myPlayerIndices.length<1)return;
   state='playing';flashes=[];
   players.forEach((p,i)=>{p.x=P_START+i*P_STEP;p.score=0;p.kills=0;p.status='idle';p.rf=0;});
   shootStates=players.map(()=>mkSS());
@@ -957,19 +979,36 @@ function draw(){
     // Ім'я + очки + вбивства над головою
     const kills=p.kills||0;
     const isMine=isMyPlayer(i);
+    const isRemote=p.isRemote||false;
+
     // Рядок 1 (найвище): кількість вибитих — тільки якщо > 0
     if(kills>0){
       ctx.fillStyle='#ff6644';
       ctx.font='bold 11px sans-serif';ctx.textAlign='center';
       ctx.fillText('💀×'+kills,p.x,p.y-84);
     }
+
     // Рядок 2: ім'я + значок власності
-    const namePrefix=danger?'🎯 ':(isMine?'👤 ':'🔒 ');
-    ctx.fillStyle=danger?'rgba(255,110,110,0.95)':isMine?p.color:'rgba(180,180,180,0.6)';
-    ctx.font=(danger?'bold ':isMine?'bold ':'')+' 11px sans-serif';ctx.textAlign='center';
+    let namePrefix,nameColor;
+    if(isRemote){
+      namePrefix='👁️ ';
+      nameColor='#00ffff';
+    } else if(danger){
+      namePrefix='🎯 ';
+      nameColor='rgba(255,110,110,0.95)';
+    } else if(isMine){
+      namePrefix='👤 ';
+      nameColor=p.color;
+    } else {
+      namePrefix='🔒 ';
+      nameColor='rgba(180,180,180,0.6)';
+    }
+    ctx.fillStyle=nameColor;
+    ctx.font=(danger?'bold ':(isMine?'bold ':isRemote?'bold':''))+' 11px sans-serif';ctx.textAlign='center';
     ctx.fillText(namePrefix+(danger?p.name:p.name),p.x,p.y-73);
+
     // Рядок 3: очки (кількість потрапляньв кільце)
-    ctx.fillStyle=danger?'#ff5555':'#ffdd00';
+    ctx.fillStyle=danger?'#ff5555':(isRemote?'#00ffff':'#ffdd00');
     ctx.font='bold 11px sans-serif';ctx.textAlign='center';
     ctx.fillText('🏀 '+p.score,p.x,p.y-61);
 
@@ -1255,72 +1294,43 @@ canvas.addEventListener('contextmenu',function(e){
 });
 
 let lastSendTime=0;
-function sendPosition(player){
+function sendAllLocalPlayers(){
   const now=Date.now();
   if(now-lastSendTime<100)return;
   lastSendTime=now;
 
-  const payload={
-    room:myRoom,
-    playerId:myPlayerId,
-    x:player.x,
-    y:player.y,
-    name:player.name,
-    score:player.score||0
-  };
-  console.log('[Pusher] Sending position:', payload);
+  // Send position of ALL local players owned by this browser
+  const localPlayers=players.filter(p=>p.isLocal&&p.ownerId===myPlayerId);
+  localPlayers.forEach(player=>{
+    const playerId=myPlayerId+'_'+player.name;
+    const payload={
+      room:myRoom,
+      playerId:playerId,
+      x:player.x,
+      y:player.y,
+      name:player.name,
+      score:player.score||0
+    };
+    console.log('[Pusher] Sending local player:', payload);
 
-  fetch('/api/pusher',{
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body:JSON.stringify(payload)
-  }).then(r=>r.json()).then(d=>console.log('[Pusher] API response:', d)).catch(e=>console.warn('[Pusher] Send failed:',e));
+    fetch('/api/pusher',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(payload)
+    }).then(r=>r.json()).then(d=>console.log('[Pusher] API response:', d)).catch(e=>console.warn('[Pusher] Send failed:',e));
+  });
 }
 
 function loop(){
   update();
   draw();
 
-  // Send local player position every 100ms
-  if(myPlayerIndices.length>0){
-    const myPlayer=players[myPlayerIndices[0]];
-    if(myPlayer){
-      sendPosition(myPlayer);
-    }
-  }
+  // Send all local players' positions
+  sendAllLocalPlayers();
 
   requestAnimationFrame(loop);
 }
 loop();
-
-// Draw remote players in canvas
-const originalDraw=draw;
-draw=function(){
-  originalDraw();
-  // Draw remote players (cyan) after local players
-  Object.values(remotePlayers).forEach(p=>{
-    if(p.playerId===myPlayerId)return; // Skip self
-    ctx.fillStyle='rgba(0,255,255,0.15)';
-    ctx.beginPath();
-    ctx.ellipse(p.x,p.y+5,18,8,0,0,Math.PI*2);
-    ctx.fill();
-    ctx.fillStyle='#00ffff';
-    ctx.beginPath();
-    ctx.arc(p.x,p.y-25,16,0,Math.PI*2);
-    ctx.fill();
-    ctx.fillStyle='#fff';
-    ctx.font='bold 13px Arial';
-    ctx.textAlign='center';
-    ctx.textBaseline='middle';
-    ctx.fillText(p.name,p.x,p.y-48);
-    ctx.fillStyle='rgba(0,0,0,0.5)';
-    ctx.roundRect(p.x-18,p.y-8,36,16,4);
-    ctx.fill();
-    ctx.fillStyle='#00ffff';
-    ctx.font='11px Arial';
-    ctx.fillText(p.score,p.x,p.y);
-  });
-};
 </script>
 </body>
 </html>
