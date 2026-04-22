@@ -27,9 +27,9 @@ canvas{border-radius:10px;background:#111827;display:block;cursor:crosshair;widt
 <div id="wrap" style="position:relative">
 <canvas id="gc" width="860" height="624" style="z-index:100"></canvas>
 <div id="controls">
-  <input id="pname" placeholder="Ім'я гравця" maxlength="12" style="padding:6px 11px;border-radius:6px;border:1px solid #333;background:#1a1f35;color:#fff;font-size:13px;width:120px">
-  <button id="exit-btn" class="btn" onclick="exitGame()" style="background:#ff4444;display:none;margin:0 5px">← Выход</button>
+  <button id="deleteLastBtn" class="btn" onclick="deleteLastPlayer()" style="background:#ff6644;opacity:1">🗑 Видалити гравця</button>
   <button class="btn" onclick="addPlayer()" style="background:#e06030">+ Додати</button>
+  <button id="exit-btn" class="btn" onclick="exitGame()" style="background:#ff4444;display:none">🚪 Вийти з гри</button>
   <div id="players-list" style="margin-top:8px;padding:8px;background:rgba(0,0,0,0.3);border-radius:4px;max-height:200px;overflow-y:auto;font-size:13px;color:#fff;display:none"></div>
   <button id="btnStart" class="btn" onclick="startGame()" disabled style="background:#27ae60;opacity:0.4">▶ Старт</button>
   <button class="btn" onclick="restartGame()" style="background:#444">↺ Рестарт</button>
@@ -169,24 +169,19 @@ function blockMsg(px,py){
 
 function addPlayer(){
   if(players.length>=MAX_PLAYERS){alert('Максимум 6 гравців!');return;}
-  const inp=document.getElementById('pname');
-  const name=inp.value.trim()||('Гр.'+(players.length+1));
   const idx=players.length;
+  const name='Гравець '+(idx+1);
   players.push({name,x:P_START+idx*P_STEP,y:GY,score:0,kills:0,status:'idle',rf:0,color:PLAYER_COLORS[idx%PLAYER_COLORS.length]});
   shootStates.push(mkSS());
   // Ця вкладка стає власником кожного доданого гравця
   myPlayerIndices.push(idx);
   myPlayerIdx=myPlayerIndices[0];
   try{sessionStorage.setItem('rucheek_myIndices',JSON.stringify(myPlayerIndices));}catch(e){}
-  inp.value='';
   const b=document.getElementById('btnStart');
   b.disabled=players.length<2;b.style.opacity=players.length<2?'0.4':'1';
-  if(players.length>=MAX_PLAYERS){
-    document.getElementById('pname').disabled=true;
-  }
   updatePlayersList();
+  updateDeleteLastButtonState();
 }
-document.getElementById('pname').addEventListener('keydown',e=>{if(e.key==='Enter')addPlayer();});
 
 function startGame(){
   if(players.length<2)return;
@@ -194,8 +189,9 @@ function startGame(){
   players.forEach((p,i)=>{p.x=P_START+i*P_STEP;p.score=0;p.kills=0;p.status='idle';p.rf=0;});
   shootStates=players.map(()=>mkSS());
   disputeP1=0;disputeP2=-1;selectedMoveIdx=-1;
-  document.getElementById('exit-btn').style.display='block';
+  document.getElementById('exit-btn').style.display='inline-block';
   updatePlayersList();
+  updateDeleteLastButtonState();
 }
 function restartGame(){
   state='waiting';players=[];shootStates=[];flashes=[];
@@ -204,11 +200,11 @@ function restartGame(){
   try{sessionStorage.removeItem('rucheek_myIndices');}catch(e){}
   document.getElementById('btnStart').disabled=true;
   document.getElementById('btnStart').style.opacity='0.4';
-  document.getElementById('pname').disabled=false;
   document.getElementById('exit-btn').style.display='none';
   document.getElementById('players-list').innerHTML='';
   document.getElementById('chat-messages').innerHTML='';
   updatePlayersList();
+  updateDeleteLastButtonState();
 }
 function endGame(){state='finished';}
 function reposQueue(){players.forEach((p,i)=>{p.x=P_START+i*P_STEP;});}
@@ -1034,6 +1030,41 @@ function draw(){
   }
 }
 
+// ── DELETE LAST PLAYER BUTTON ─────────────────────────────
+function deleteLastPlayer(){
+  if(state==='playing'){
+    alert('❌ Не можна видалити гравця під час гри!');
+    return;
+  }
+  if(players.length<=1){
+    alert('❌ Потрібно щонайменше 1 гравець для видалення!');
+    return;
+  }
+  console.log('🗑️ Видаляю останнього гравця: '+players[players.length-1].name);
+  players.pop();
+  shootStates.pop();
+  myPlayerIndices=myPlayerIndices.filter(i=>i!==players.length);
+  myPlayerIdx=myPlayerIndices.length>0?myPlayerIndices[0]:-1;
+  try{sessionStorage.setItem('rucheek_myIndices',JSON.stringify(myPlayerIndices));}catch(e){}
+  const b=document.getElementById('btnStart');
+  b.disabled=players.length<2;
+  b.style.opacity=players.length<2?'0.4':'1';
+  updatePlayersList();
+  updateDeleteLastButtonState();
+  console.log('✅ Гравців залишилось: '+players.length);
+}
+
+function updateDeleteLastButtonState(){
+  const btn=document.getElementById('deleteLastBtn');
+  if(state==='playing'){
+    btn.disabled=true;
+    btn.style.opacity='0.4';
+  }else{
+    btn.disabled=players.length<=1;
+    btn.style.opacity=players.length<=1?'0.4':'1';
+  }
+}
+
 // ── FEATURE 1: EXIT BUTTON ────────────────────────────────
 function exitGame(){
   if(confirm('Вихід з гри? Усі гравці будуть видалені!')){
@@ -1049,10 +1080,10 @@ function exitGame(){
     try{sessionStorage.removeItem('rucheek_myIndices');}catch(e){}
     document.getElementById('btnStart').disabled=true;
     document.getElementById('btnStart').style.opacity='0.4';
-    document.getElementById('pname').disabled=false;
     document.getElementById('exit-btn').style.display='none';
     document.getElementById('players-list').innerHTML='';
     updatePlayersList();
+    updateDeleteLastButtonState();
   }
 }
 
@@ -1135,6 +1166,7 @@ chatInput.addEventListener('keydown',(e)=>{
 // Инициализация списка при загрузке
 document.addEventListener('DOMContentLoaded',()=>{
   updatePlayersList();
+  updateDeleteLastButtonState();
   console.log('✅ Игра инициализирована');
 });
 
