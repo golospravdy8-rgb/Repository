@@ -130,7 +130,7 @@ const PLAYER_COLORS=['#4fc3f7','#81c784','#ffb74d','#f06292','#ce93d8','#80cbc4'
 // ── PUSHER MULTIPLAYER ──────────────────────────────
 const PUSHER_KEY='9fe1ba2119a241c8b676';
 const PUSHER_CLUSTER='eu';
-const myPlayerId=Date.now()+'_'+Math.random().toString(36).substr(2,9);
+const myPlayerId='player_'+Date.now()+'_'+Math.random().toString(36).substr(2,9)+'_'+Math.random().toString(36).substr(2,9)+'_'+Math.random().toString(36).substr(2,9);
 const myRoom=new URLSearchParams(window.location.search).get('room')||'game1';
 let remotePlayers={};
 let pusherChannel=null;
