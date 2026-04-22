@@ -95,11 +95,13 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ gam
 
   // Generate PDF
   const chunks: Buffer[] = [];
-  await new Promise<void>((resolve, reject) => {
-    const doc = new PDFDocument({ size: "A4", layout: "landscape", margin: 30 });
-    doc.on("data", (chunk: Buffer) => chunks.push(chunk));
-    doc.on("end", resolve);
-    doc.on("error", reject);
+  try {
+    await new Promise<void>((resolve, reject) => {
+      try {
+        const doc = new PDFDocument({ size: "A4", layout: "landscape", margin: 30 });
+        doc.on("data", (chunk: Buffer) => chunks.push(chunk));
+        doc.on("end", resolve);
+        doc.on("error", reject);
 
     const orange = "#f46f10";
     const navy = "#1e2a4a";
@@ -304,7 +306,14 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ gam
     doc.fillColor(orange).fontSize(8).font("Times-Bold").text("Дитячо-юнацька баскетбольна ліга Львова  ·  www.basket.lviv.ua", L, y, { align: "center", width: W });
 
     doc.end();
-  });
+      } catch (innerErr) {
+        reject(innerErr);
+      }
+    });
+  } catch (err) {
+    console.error("PDF generation error:", err instanceof Error ? err.message : String(err), err);
+    return NextResponse.json({ error: "Failed to generate PDF", details: err instanceof Error ? err.message : String(err) }, { status: 500 });
+  }
 
   const buffer = Buffer.concat(chunks);
   return new NextResponse(buffer, {
