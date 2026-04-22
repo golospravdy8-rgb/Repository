@@ -11,13 +11,13 @@ export const config = {
 let io: any = null;
 
 export default function handler(req: NextApiRequest, res: NextApiResponse) {
-  if (!res.socket.server.io) {
+  if (!(res.socket as any).server?.io) {
     console.log('[Socket.IO] Initializing Socket.IO server...');
 
-    const httpServer = res.socket.server as unknown as HTTPServer;
+    const httpServer = (res.socket as any).server as unknown as HTTPServer;
     io = initializeSocket(httpServer);
 
-    res.socket.server.io = io;
+    (res.socket as any).server.io = io;
 
     // Optional: Log room updates for debugging
     io.on('connection', (socket: any) => {

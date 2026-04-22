@@ -51,7 +51,7 @@ const gameLoops = new Map<string, NodeJS.Timeout>();
 export function initializeSocketAdvanced(httpServer: HTTPServer): Server {
   const io = new Server(httpServer, {
     cors: SOCKET_CONFIG.server.cors,
-    transports: SOCKET_CONFIG.server.transports,
+    transports: SOCKET_CONFIG.server.transports as any,
     maxHttpBufferSize: SOCKET_CONFIG.server.maxHttpBufferSize,
     pingInterval: SOCKET_CONFIG.server.pingInterval,
     pingTimeout: SOCKET_CONFIG.server.pingTimeout,
@@ -304,7 +304,7 @@ export function initializeSocketAdvanced(httpServer: HTTPServer): Server {
     // DISCONNECT
     socket.on('disconnect', () => {
       const rooms = Array.from(io.sockets.adapter.rooms.entries())
-        .filter(([_, members]) => members.has(socket.id))
+        .filter(([,members]) => members.has(socket.id))
         .map(([roomId]) => roomId);
 
       if (SOCKET_CONFIG.performance.logConnections) {
@@ -434,7 +434,7 @@ function startGameLoop(io: Server, roomId: string) {
     }));
 
     // Контрольные точки мяча для гладкого полета через интерполяцию
-    const ballControlPoints = [];
+    const ballControlPoints: Array<{ x: number; y: number; vx: number; vy: number; t: number }> = [];
     if (currentRoom.ball.state === 'flying') {
       ballControlPoints.push({
         x: currentRoom.ball.x,

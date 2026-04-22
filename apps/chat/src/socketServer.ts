@@ -36,7 +36,7 @@ export function initializeSocket(httpServer: HTTPServer): Server {
       origin: '*',
       methods: ['GET', 'POST'],
     },
-    transports: ['websocket', 'polling'],
+    transports: ['websocket', 'polling'] as const,
   });
 
   io.on('connection', (socket: Socket) => {
@@ -85,7 +85,7 @@ export function initializeSocket(httpServer: HTTPServer): Server {
     // PLAYER MOVE EVENT
     socket.on('player_move', (data: { index: number; x: number; y: number; status: 'alive' | 'eliminated' }) => {
       const rooms = Array.from(io.sockets.adapter.rooms.entries())
-        .filter(([_, members]) => members.has(socket.id))
+        .filter(([,members]) => members.has(socket.id))
         .map(([roomId]) => roomId);
 
       if (rooms.length === 0) return;
@@ -114,8 +114,8 @@ export function initializeSocket(httpServer: HTTPServer): Server {
 
     // SHOOT START EVENT
     socket.on('shoot_start', (data: { index: number; angle: number }) => {
-      const rooms = Array.from(io.to(socket.id).sockets.adapter.rooms.entries())
-        .filter(([_, members]) => members.has(socket.id))
+      const rooms = Array.from(io.sockets.adapter.rooms.entries())
+        .filter(([,members]) => members.has(socket.id))
         .map(([roomId]) => roomId);
 
       if (rooms.length === 0) return;
@@ -134,7 +134,7 @@ export function initializeSocket(httpServer: HTTPServer): Server {
     // BALL STATE UPDATE
     socket.on('ball_state', (data: { x: number; y: number; vx: number; vy: number; state: string }) => {
       const rooms = Array.from(io.sockets.adapter.rooms.entries())
-        .filter(([_, members]) => members.has(socket.id))
+        .filter(([,members]) => members.has(socket.id))
         .map(([roomId]) => roomId);
 
       if (rooms.length === 0) return;
@@ -166,7 +166,7 @@ export function initializeSocket(httpServer: HTTPServer): Server {
     // PLAYER ELIMINATED EVENT
     socket.on('player_eliminated', (data: { index: number }) => {
       const rooms = Array.from(io.sockets.adapter.rooms.entries())
-        .filter(([_, members]) => members.has(socket.id))
+        .filter(([,members]) => members.has(socket.id))
         .map(([roomId]) => roomId);
 
       if (rooms.length === 0) return;
@@ -191,7 +191,7 @@ export function initializeSocket(httpServer: HTTPServer): Server {
     // SCORE UPDATE EVENT
     socket.on('score_updated', (data: { index: number; score: number; kills: number }) => {
       const rooms = Array.from(io.sockets.adapter.rooms.entries())
-        .filter(([_, members]) => members.has(socket.id))
+        .filter(([,members]) => members.has(socket.id))
         .map(([roomId]) => roomId);
 
       if (rooms.length === 0) return;
@@ -239,7 +239,7 @@ export function initializeSocket(httpServer: HTTPServer): Server {
     // DISCONNECT
     socket.on('disconnect', () => {
       const rooms = Array.from(io.sockets.adapter.rooms.entries())
-        .filter(([_, members]) => members.has(socket.id))
+        .filter(([,members]) => members.has(socket.id))
         .map(([roomId]) => roomId);
 
       console.log(`[Socket.IO] Client disconnected: ${socket.id}`);
