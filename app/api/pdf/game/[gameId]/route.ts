@@ -117,7 +117,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ gam
     }
 
     doc.fillColor("white").fontSize(18).font("Times-Bold").text("ПРОТОКОЛ МАТЧУ", L, 10, { align: "center", width: W });
-    doc.fontSize(9).font("Helvetica").text("Дитячо-юнацька баскетбольна ліга Львова", L, 32, { align: "center", width: W });
+    doc.fontSize(9).font("Times-Roman").text("Дитячо-юнацька баскетбольна ліга Львова", L, 32, { align: "center", width: W });
     const dateStr = new Date(game.scheduledAt).toLocaleDateString("uk-UA", { day: "numeric", month: "long", year: "numeric" });
     doc.text(`Дата: ${dateStr}  |  Місце: Мазепи 1А`, L, 46, { align: "center", width: W });
 
@@ -132,7 +132,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ gam
     y += 28;
     const qStr = quarterScores.map((q) => `Q${q.quarter}: ${q.home}-${q.away}`).join("  |  ");
     doc.setFontSize !== undefined;
-    doc.fontSize(9).font("Helvetica").fillColor("#6b7280").text(qStr, L, y, { align: "center", width: W });
+    doc.fontSize(9).font("Times-Roman").fillColor("#6b7280").text(qStr, L, y, { align: "center", width: W });
 
     y += 14;
     doc.moveTo(L, y).lineTo(L + W, y).strokeColor(orange).lineWidth(1.5).stroke();
@@ -185,7 +185,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ gam
       even: boolean
     ) {
       doc.rect(L, yy, W, 13).fill(even ? "#f9fafb" : "white");
-      doc.fillColor(navy).fontSize(7).font("Helvetica");
+      doc.fillColor(navy).fontSize(7).font("Times-Roman");
       const { player: p, bs, stats, isStarter } = row;
       const values = [
         isStarter ? `*${p.number}` : `${p.number}`,
@@ -294,7 +294,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ gam
     if (y > 545) { doc.addPage(); y = 30; }
     doc.moveTo(L, y).lineTo(L + W, y).strokeColor("#e5e7eb").lineWidth(0.5).stroke();
     y += 5;
-    doc.fillColor("#6b7280").fontSize(6.5).font("Helvetica").text(
+    doc.fillColor("#6b7280").fontSize(6.5).font("Times-Roman").text(
       "КП-кидки з поля | 2О-двоочкові | 3О-триочкові | ШТ-штрафні | НПД-підбір напад | ЗПД-підбір захист | ПДБ-підбори | ПЕР-передачі | ВТ-втрати | БЛК-блоки | ФОЛ-фоли | *-стартовий",
       L, y, { width: W }
     );
