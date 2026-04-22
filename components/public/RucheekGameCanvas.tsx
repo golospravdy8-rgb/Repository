@@ -514,6 +514,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
     }
 
     function launchBall(idx: number) {
+      console.log(`[LAUNCH] Player ${idx} launching ball with power ${gs.shootStates[idx].power.toFixed(0)}%`);
       const p = gs.players[idx];
       const ss = gs.shootStates[idx];
       const px = p.x - 15*scaleX;
@@ -664,6 +665,9 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       ss.lockedAngle = null;
       ss.idealTraj = null;
 
+      // DEBUG: Log scoring event
+      console.log(`[SCORE] Player ${idx} (${p.name}) scored! Total: ${p.score}`);
+
       if (idx === gs.disputeP2 && gs.disputeP1 >= 0 && gs.disputeP1 < gs.players.length) {
         const p1ph = gs.shootStates[gs.disputeP1]?.phase;
         const dangerPhases = ['auto_run', 'pickup_wait', 'flying', 'aiming', 'charging'];
@@ -699,7 +703,11 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       }
       // Only end game if only 1 player left alive (all others eliminated)
       const aliveCount = gs.players.filter((p: any) => p.status !== 'eliminated').length;
-      if (aliveCount <= 1) gs.state = 'finished';
+      console.log(`[GAME] Total players: ${gs.players.length}, Alive: ${aliveCount}, State: ${gs.state}`);
+      if (aliveCount <= 1) {
+        console.log(`[GAME-OVER] Game finished! Winner: ${gs.players[0]?.name}`);
+        gs.state = 'finished';
+      }
     }
 
     function handleMissed(idx: number) {
