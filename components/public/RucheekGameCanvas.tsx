@@ -311,15 +311,31 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
     function launchBall(idx: number) {
       const p = gs.players[idx];
       const ss = gs.shootStates[idx];
-      const curSpd = (5 + (ss.power / 100) * 11) * 1.3;
+      const px = p.x - 15*scaleX;
+      const py = p.y - 55*scaleY;
       const angle = ss.aimAngle;
 
-      const pts = simTraj(p.x - 15*scaleX, p.y - 55*scaleY, angle, curSpd, 95);
+      // Calculate distance-based physics
+      const distToHoop = Math.hypot(HOOP_X - px, HOOP_Y - py);
+      const maxDist = Math.hypot(W, H);
+      const distFraction = distToHoop / maxDist;
+      const idealPwrPct = 50 + distFraction * 50;
+      const inGreenZone = Math.abs(ss.power - idealPwrPct) <= 8;
+
+      // Green zone guarantee: ball reaches hoop
+      let curSpd;
+      if (inGreenZone) {
+        curSpd = ss.idealSpeed;
+      } else {
+        curSpd = (5 + (ss.power / 100) * 11) * 1.3;
+      }
+
+      const pts = simTraj(px, py, angle, curSpd, 95);
       const idealEnd = ss.idealTraj ? ss.idealTraj[ss.idealTraj.length - 1] : { x: HOOP_X, y: HOOP_Y };
       const curEnd = pts[pts.length - 1];
       const endDiff = Math.hypot(curEnd.x - idealEnd.x, curEnd.y - idealEnd.y);
       const spdDiff = Math.abs(curSpd - ss.idealSpeed);
-      const matchPct = Math.max(0, Math.min(100, 100 - spdDiff * 13 - endDiff * 0.3));
+      const matchPct = inGreenZone ? 95 : Math.max(0, Math.min(100, 100 - spdDiff * 13 - endDiff * 0.3));
 
       let nearBoard = false;
       for (const pt of pts) {
@@ -665,11 +681,21 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       ctx.moveTo(bx - 5*scaleX, by + bh - fh);
       ctx.lineTo(bx + bw + 5*scaleX, by + bh - fh);
       ctx.stroke();
+
+      const idealFrac = (ss_ideal_power || 50) / 100;
+      const idealY = by + bh - idealFrac * bh;
+
+      // Draw green zone (±8% around ideal power)
+      const greenZoneHeight = bh * 0.16;
+      ctx.fillStyle = 'rgba(68,255,68,0.25)';
+      ctx.fillRect(bx, idealY - greenZoneHeight / 2, bw, greenZoneHeight);
+      ctx.strokeStyle = 'rgba(100,255,100,0.6)';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(bx, idealY - greenZoneHeight / 2, bw, greenZoneHeight);
+
       ctx.setLineDash([3, 3]);
       ctx.strokeStyle = 'rgba(100,255,100,0.75)';
       ctx.lineWidth = 1.5;
-      const idealFrac = (ss_ideal_power || 50) / 100;
-      const idealY = by + bh - idealFrac * bh;
       ctx.beginPath();
       ctx.moveTo(bx - 3*scaleX, idealY);
       ctx.lineTo(bx + bw + 3*scaleX, idealY);
@@ -811,7 +837,9 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           else if (matchPct > 55) tColor = 'rgba(255,210,0,0.7)';
           else tColor = 'rgba(220,80,60,0.6)';
           drawTrajPts(pts, tColor, [4, 4], 2.2);
-          ss_ideal_power = (ss.idealSpeed - 5) / 11 * 100;
+          const distToHoop = Math.hypot(HOOP_X - sx, HOOP_Y - sy);
+          const maxDist = Math.hypot(W, H);
+          ss_ideal_power = 50 + (distToHoop / maxDist) * 50;
           drawPowerBar(p, ss.power, matchPct);
           if (matchPct > 92) {
             const pulse = 0.4 + 0.5 * Math.sin(Date.now() / 120);
@@ -1102,8 +1130,12 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           ss.lockedAngle = ss.aimAngle;
           const idealSpd = findIdealSpeedForAngle(p.x - 15*scaleX, p.y - 55*scaleY, ss.lockedAngle);
           ss.idealSpeed = idealSpd;
-          ss_ideal_power = (idealSpd - 5) / 11 * 100;
-          ss.idealTraj = simTraj(p.x - 15*scaleX, p.y - 55*scaleY, ss.lockedAngle, idealSpd, 95);
+          const px = p.x - 15*scaleX;
+          const py = p.y - 55*scaleY;
+          const distToHoop = Math.hypot(HOOP_X - px, HOOP_Y - py);
+          const maxDist = Math.hypot(W, H);
+          ss_ideal_power = 50 + (distToHoop / maxDist) * 50;
+          ss.idealTraj = simTraj(px, py, ss.lockedAngle, idealSpd, 95);
           ss.phase = "charging";
           ss.power = 0;
           ss.powerDir = 1;
