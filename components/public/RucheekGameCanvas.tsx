@@ -158,7 +158,9 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
     const W = canvas.width;
     const H = canvas.height;
     const GY = GY_ORIG * scaleY;
-    const G = 0.22 * scaleY;
+    // Real gravity: 9.81 m/s² = 0.095 px/frame² at 35px=1m, 60fps
+    // Using 0.12 for slightly stronger visual arc
+    const G = 0.12;
 
     const POLE_X = 12*scaleX, ARM_X = 52*scaleX;
     const BOARD_X = 57*scaleX, BOARD_W = 10*scaleX;
@@ -538,10 +540,15 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
 
       // CRITICAL FIX: Convert power % directly to pixels-per-frame velocity
       // Power meter 0-200% → ball velocity 5-16 m/s → pixels per frame
-      // Scaling: ~40 pixels = 1 meter of court distance
+      // Scaling: ~35 pixels = 1 meter of court distance
       const speedInMS = calculateBallSpeedFromPower(ss.power);
       const pixelsPerMeter = 35; // Calibrated for court scale
-      let curSpd = speedInMS * pixelsPerMeter; // Convert m/s to pixels/frame
+      const framesPerSecond = 60; // Game loop runs at 60fps
+
+      // CRITICAL: Normalize velocity to frame rate
+      // speedPixelsPerSecond = speedInMS * pixelsPerMeter
+      // speedPixelsPerFrame = speedPixelsPerSecond / framesPerSecond
+      let curSpd = (speedInMS * pixelsPerMeter) / framesPerSecond;
 
       // GREEN ZONE GUARANTEE: Power in zone AND angle acceptable = 100% score
       let guaranteedScore = false;
