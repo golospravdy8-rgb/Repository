@@ -137,16 +137,24 @@ let pusherChannel=null;
 let pusherInstance=null;
 
 function initPusher(){
+  console.log('[Pusher] Initializing with KEY:', PUSHER_KEY, 'CLUSTER:', PUSHER_CLUSTER);
   pusherInstance=new Pusher(PUSHER_KEY,{cluster:PUSHER_CLUSTER});
-  pusherChannel=pusherInstance.subscribe('game-'+myRoom);
+  const channelName='game-'+myRoom;
+  console.log('[Pusher] Subscribing to channel:', channelName);
+  pusherChannel=pusherInstance.subscribe(channelName);
 
   pusherChannel.bind('pusher:subscription_succeeded',()=>{
-    console.log('✅ Pusher connected to room: '+myRoom);
+    console.log('✅ Pusher connected to room: '+myRoom, '(channel: game-'+myRoom+')');
+    console.log('[Pusher] My playerId:', myPlayerId);
   });
 
   pusherChannel.bind('player-move',(data)=>{
+    console.log('[Pusher] Received player-move:', data);
     if(data.playerId!==myPlayerId){
       remotePlayers[data.playerId]={...data,lastSeen:Date.now()};
+      console.log('[Pusher] Updated remotePlayers. Total remote:', Object.keys(remotePlayers).length);
+    } else {
+      console.log('[Pusher] Ignored own message (playerId:', data.playerId, ')');
     }
   });
 
@@ -1252,18 +1260,21 @@ function sendPosition(player){
   if(now-lastSendTime<100)return;
   lastSendTime=now;
 
+  const payload={
+    room:myRoom,
+    playerId:myPlayerId,
+    x:player.x,
+    y:player.y,
+    name:player.name,
+    score:player.score||0
+  };
+  console.log('[Pusher] Sending position:', payload);
+
   fetch('/api/pusher',{
     method:'POST',
     headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({
-      room:myRoom,
-      playerId:myPlayerId,
-      x:player.x,
-      y:player.y,
-      name:player.name,
-      score:player.score||0
-    })
-  }).catch(e=>console.warn('Pusher send failed:',e));
+    body:JSON.stringify(payload)
+  }).then(r=>r.json()).then(d=>console.log('[Pusher] API response:', d)).catch(e=>console.warn('[Pusher] Send failed:',e));
 }
 
 function loop(){
