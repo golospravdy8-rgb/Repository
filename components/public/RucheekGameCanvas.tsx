@@ -1,6 +1,7 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { createPortal } from "react-dom";
+import { io, Socket } from "socket.io-client";
 
 interface RucheekGameCanvasProps {
   isVisible: boolean;
@@ -17,6 +18,8 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
   const rafRef = useRef<number>(0);
   const pnameRef = useRef<HTMLInputElement>(null);
   const btnStartRef = useRef<HTMLButtonElement>(null);
+  const socketRef = useRef<Socket | null>(null);
+  const remotePlayersRef = useRef<Map<string, any>>(new Map());
   const [mounted, setMounted] = useState(false);
   const [pname, setPname] = useState(userName);
   const [showModal, setShowModal] = useState(false);
@@ -33,8 +36,95 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
     netShakeEnd: 0,
     netShakeT: 0,
   });
+  const playerIdRef = useRef<number>(0);
+  const lastEmitTimeRef = useRef<number>(0);
 
   useEffect(() => { setMounted(true); }, []);
+
+  // Initialize Socket.IO connection
+  useEffect(() => {
+    if (!mounted || socketRef.current) return;
+
+    const protocol = typeof window !== 'undefined' && window.location.protocol === 'https:' ? 'https' : 'http';
+    const host = typeof window !== 'undefined' ? window.location.host : 'localhost:3006';
+    const socketUrl = `${protocol}//${host}`;
+
+    console.log(`[RucheekGameCanvas] Connecting to Socket.IO at ${socketUrl}`);
+
+    const socket = io(socketUrl, {
+      transports: ['websocket', 'polling'],
+      reconnection: true,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
+      reconnectionAttempts: 5,
+    });
+
+    socket.on('connect', () => {
+      console.log(`[RucheekGameCanvas] Connected: ${socket.id}`);
+      // Join game room
+      socket.emit('join_game', {
+        roomId: gameRoomId,
+        playerIndex: playerIdRef.current,
+        x: 680,
+        y: 584,
+        playerName: userName,
+      });
+    });
+
+    // Listen for remote player movements
+    socket.on('player_moved', (data: any) => {
+      console.log('[RucheekGameCanvas] Remote player moved:', data);
+      remotePlayersRef.current.set(data.socketId, {
+        socketId: data.socketId,
+        playerIndex: data.playerIndex,
+        x: data.x,
+        y: data.y,
+        status: data.status,
+        name: data.name || `Player ${data.playerIndex}`,
+      });
+      forceUpdate(n => n + 1);
+    });
+
+    // Listen for player joined
+    socket.on('player_joined', (data: any) => {
+      console.log('[RucheekGameCanvas] Remote player joined:', data);
+      if (data.socketId !== socket.id) {
+        remotePlayersRef.current.set(data.socketId, {
+          socketId: data.socketId,
+          playerIndex: data.playerIndex,
+          x: data.x,
+          y: data.y,
+          status: 'alive',
+          name: data.name || `Player ${data.playerIndex}`,
+        });
+      }
+    });
+
+    // Listen for disconnections
+    socket.on('player_disconnected', (data: any) => {
+      console.log('[RucheekGameCanvas] Remote player disconnected:', data);
+      remotePlayersRef.current.delete(data.socketId);
+      forceUpdate(n => n + 1);
+    });
+
+    socket.on('disconnect', () => {
+      console.log('[RucheekGameCanvas] Disconnected from server');
+      remotePlayersRef.current.clear();
+    });
+
+    socket.on('error', (error: any) => {
+      console.error('[RucheekGameCanvas] Socket error:', error);
+    });
+
+    socketRef.current = socket;
+
+    return () => {
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+        socketRef.current = null;
+      }
+    };
+  }, [mounted, gameRoomId, userName]);
 
   useEffect(() => {
     if (!mounted || !canvasRef.current) return;
@@ -797,6 +887,60 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         }
       }
 
+      // Draw remote players from Socket.IO
+      remotePlayersRef.current.forEach((rp: any) => {
+        const rpx = rp.x;
+        const rpy = rp.y;
+        const rpColor = '#80cbc4'; // Cyan for remote players
+
+        // Draw simple circle for remote player (idle pose)
+        ctx.fillStyle = rpColor;
+        ctx.beginPath();
+        ctx.arc(rpx, rpy - 54*scaleY, 10*scaleX, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Draw body
+        ctx.strokeStyle = rpColor;
+        ctx.lineWidth = 2.5;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.beginPath();
+        ctx.moveTo(rpx, rpy - 43*scaleY);
+        ctx.lineTo(rpx, rpy - 18*scaleY);
+        ctx.stroke();
+
+        // Draw arms
+        ctx.beginPath();
+        ctx.moveTo(rpx, rpy - 35*scaleY);
+        ctx.lineTo(rpx - 12*scaleX, rpy - 28*scaleY);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(rpx, rpy - 35*scaleY);
+        ctx.lineTo(rpx + 12*scaleX, rpy - 28*scaleY);
+        ctx.stroke();
+
+        // Draw legs
+        ctx.beginPath();
+        ctx.moveTo(rpx, rpy - 18*scaleY);
+        ctx.lineTo(rpx - 8*scaleX, rpy);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(rpx, rpy - 18*scaleY);
+        ctx.lineTo(rpx + 8*scaleX, rpy);
+        ctx.stroke();
+
+        // Draw name label
+        ctx.fillStyle = rpColor;
+        ctx.font = `bold ${11*scaleX}px sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.fillText('🌐 ' + (rp.name || `Remote ${rp.playerIndex}`), rpx, rpy - 73*scaleY);
+
+        // Draw status
+        ctx.fillStyle = '#80cbc4';
+        ctx.font = `${10*scaleX}px sans-serif`;
+        ctx.fillText(rp.status === 'alive' ? '✓ alive' : '✗ eliminated', rpx, rpy - 60*scaleY);
+      });
+
       gs.flashes.forEach((f: any) => {
         ctx.globalAlpha = f.alpha;
         ctx.fillStyle = f.color;
@@ -1026,6 +1170,14 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
     function renderLoop() {
       update();
       draw();
+
+      // Emit player position every 100ms to server
+      const now = Date.now();
+      if (now - lastEmitTimeRef.current > 100) {
+        emitPlayerPosition();
+        lastEmitTimeRef.current = now;
+      }
+
       rafRef.current = requestAnimationFrame(renderLoop);
     }
     renderLoop();
@@ -1036,6 +1188,20 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
   }, [mounted, isVisible]);
 
   const gs = gsRef.current;
+
+  const emitPlayerPosition = useCallback(() => {
+    if (!socketRef.current?.connected || gs.players.length === 0) return;
+    const myPlayer = gs.players[0];
+    if (myPlayer) {
+      socketRef.current.emit('player_move', {
+        index: 0,
+        x: myPlayer.x,
+        y: myPlayer.y,
+        status: myPlayer.status || 'idle',
+        name: myPlayer.name,
+      });
+    }
+  }, []);
 
   const handleAddPlayer = () => {
     if (gs.players.length >= MAX_PLAYERS) { alert("Максимум 6 гравців!"); return; }
