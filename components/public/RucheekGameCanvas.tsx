@@ -1050,13 +1050,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       }
 
       if (gs.state === 'waiting') {
-        ctx.fillStyle = 'rgba(255,255,255,0.35)';
-        ctx.font = `${15*scaleX}px sans-serif`;
-        ctx.textAlign = 'center';
-        ctx.fillText('Додай 2–6 гравців і натисни ▶ Старт', W / 2, 235*scaleY);
-        ctx.fillStyle = 'rgba(255,255,255,0.18)';
-        ctx.font = `${12*scaleX}px sans-serif`;
-        ctx.fillText('Натисни 📖 Інструкція для правил гри', W / 2, 260*scaleY);
+        // Canvas clean - no hint text
       }
 
       if (gs.state === 'finished') {
@@ -1292,7 +1286,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         <button onClick={handleDeleteLast} style={btnStyle("#ff6644", gs.state==="playing")}>🗑 Видалити</button>
         <button onClick={handleAddPlayer} style={btnStyle("#e06030", gs.players.length>=6)}>+ Додати</button>
         {gs.state === "playing" && <button onClick={handleExit} style={btnStyle("#ff2222")}>🚪 Вийти</button>}
-        <button ref={btnStartRef} onClick={handleStart} style={btnStyle("#27ae60", gs.players.length<2)} disabled={gs.players.length<2}>▶ Старт</button>
+        <button ref={btnStartRef} onClick={handleStart} style={btnStyle("#27ae60", gs.players.length<1)} disabled={gs.players.length<1}>▶ Старт</button>
         <button onClick={handleRestart} style={btnStyle("#444")}>↺ Рестарт</button>
         <button onClick={() => setShowModal(true)} style={btnStyle("#1a4a8a")}>📖 Інструкція</button>
       </div>
@@ -1306,7 +1300,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
             maxHeight:"92vh", overflowY:"auto" }}>
             <h2 style={{color:"#ffdd00",fontSize:17,marginBottom:14,textAlign:"center"}}>🏀 РУЧЕЁК — Правила та Інструкція</h2>
             <p style={{marginBottom:12}}><b style={{color:"#e05545"}}>🎯 Мета:</b> Вибий усіх суперників! Останній гравець — переможець.</p>
-            <p style={{marginBottom:12}}><b style={{color:"#e05545"}}>👥 Учасники:</b> Від 2 до 6. Введи ім'я → «+ Додати» → «▶ Старт».</p>
+            <p style={{marginBottom:12}}><b style={{color:"#e05545"}}>👥 Учасники:</b> Від 1 до 6. Введи ім'я → «+ Додати» → «▶ Старт».</p>
             <p style={{marginBottom:8}}><b style={{color:"#e05545"}}>🖱️ Кидок — 3 кліки:</b></p>
             <ul style={{paddingLeft:16,fontSize:13,lineHeight:1.8,marginBottom:12}}>
               <li><b>Клік 1 по гравцю</b> — стрілка крутиться, червона траєкторія</li>
