@@ -109,12 +109,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ gam
     // --- HEADER ---
     doc.rect(0, 0, 842, 70).fill(navy);
 
-    // Insert FBL logo
-    try {
-      doc.image(logoBuffer, L, 8, { width: 50, height: 50 });
-    } catch (err) {
-      console.warn("Failed to insert logo into PDF:", err instanceof Error ? err.message : String(err));
-    }
+    const logoBuffer = Buffer.from(FBL_LOGO_BASE64, 'base64');
+    doc.image(logoBuffer, L, 8, { width: 50, height: 50 });
 
     doc.fillColor("white").fontSize(18).font("Helvetica-Bold").text("ПРОТОКОЛ МАТЧУ", L, 10, { align: "center", width: W });
     doc.fontSize(9).font("Helvetica").text("Дитячо-юнацька баскетбольна ліга Львова", L, 32, { align: "center", width: W });
