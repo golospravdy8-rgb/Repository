@@ -697,7 +697,9 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           gs.players.forEach((p2: any, i: number) => { p2.x = P_START + i * P_STEP; });
         }
       }
-      if (gs.players.length <= 1) gs.state = 'finished';
+      // Only end game if only 1 player left alive (all others eliminated)
+      const aliveCount = gs.players.filter((p: any) => p.status !== 'eliminated').length;
+      if (aliveCount <= 1) gs.state = 'finished';
     }
 
     function handleMissed(idx: number) {
