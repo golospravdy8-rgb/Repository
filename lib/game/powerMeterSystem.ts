@@ -57,12 +57,14 @@ export class PowerMeterSystem {
   /**
    * Calculate dynamic green line position based on current distance
    * Formula: greenLinePosition = (currentDistance / maxDistance) * 180
+   * Returns position from BOTTOM of meter (0px = bottom, 180px = top)
    */
   calculateGreenLinePosition(currentDistance: number): number {
     const ratio = Math.min(1, currentDistance / this.maxDistance);
     const greenLine = ratio * 180;
     console.log(
-      `[PowerMeter] Distance: ${currentDistance.toFixed(0)}px, Max: ${this.maxDistance}px, Green line: ${greenLine.toFixed(0)}px`
+      `[DEBUG PowerMeter] currentDistance=${currentDistance.toFixed(0)}px, maxDistance=${this.maxDistance.toFixed(0)}px, ` +
+      `ratio=${ratio.toFixed(3)}, greenLinePosition=${greenLine.toFixed(0)}px`
     );
     return greenLine;
   }

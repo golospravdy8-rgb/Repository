@@ -344,45 +344,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
     }
 
     // NEW: Draw dynamic power meter with distance-based green zone
-    function drawDynamicPowerMeter(ctx: any, x: number, y: number, width: number, height: number, currentPower: number, idealPower: number, tolerance: number) {
-      const fillHeight = (currentPower / 200) * height;
-      const idealY = y + height - (idealPower / 200) * height;
-      const toleranceHeight = (tolerance * 2 / 100) * height;
-
-      // Background
-      ctx.fillStyle = 'rgba(0,0,0,0.85)';
-      ctx.fillRect(x, y, width, height);
-      ctx.strokeStyle = '#555';
-      ctx.lineWidth = 1;
-      ctx.strokeRect(x, y, width, height);
-
-      // Green zone (dynamic position based on ideal power)
-      ctx.fillStyle = 'rgba(68,255,68,0.5)';
-      ctx.fillRect(x, idealY - toleranceHeight / 2, width, toleranceHeight);
-
-      // Current power fill
-      const clr = currentPower > 92 ? '#00ffaa' : currentPower > 85 ? '#44cc44' : currentPower > 55 ? '#ffcc00' : '#e05545';
-      ctx.fillStyle = clr;
-      ctx.fillRect(x, y + height - fillHeight, width, fillHeight);
-
-      // Current power indicator line
-      ctx.strokeStyle = '#fff';
-      ctx.lineWidth = 2.5;
-      ctx.beginPath();
-      ctx.moveTo(x - 5, y + height - fillHeight);
-      ctx.lineTo(x + width + 5, y + height - fillHeight);
-      ctx.stroke();
-
-      // Ideal power line (dashed)
-      ctx.setLineDash([3, 3]);
-      ctx.strokeStyle = 'rgba(100,255,100,0.75)';
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.moveTo(x - 3, idealY);
-      ctx.lineTo(x + width + 3, idealY);
-      ctx.stroke();
-      ctx.setLineDash([]);
-    }
+    // OLD POWER METER REMOVED - Using new PowerMeterUI system with dynamic green line
 
     function getShootingPhysicsForDistance(distToHoop: number) {
       const maxDist = Math.hypot(W, H);
@@ -636,9 +598,9 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
 
       // CRITICAL FIX: Convert power % directly to pixels-per-frame velocity
       // Power meter 0-200% → ball velocity 5-16 m/s → pixels per frame
-      // Scaling: ~35 pixels = 1 meter of court distance
+      // Scaling: ~63 pixels = 1 meter of court distance (increased from 35 for better accuracy multiplier compensation)
       const speedInMS = calculateBallSpeedFromPower(ss.power);
-      const pixelsPerMeter = 35; // Calibrated for court scale
+      const pixelsPerMeter = 35 * 1.8; // 63px/meter — increased 1.8x to ensure balls reach basket at 100% accuracy
       const framesPerSecond = 60; // Game loop runs at 60fps
 
       // CRITICAL: Normalize velocity to frame rate
@@ -999,28 +961,9 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       const px = p.x - 15*scaleX, py = p.y - 55*scaleY;
       const distToHoop = Math.hypot(HOOP_X - px, HOOP_Y - py);
 
-      // Get dynamic ideal power and tolerance based on distance
-      const maxDist = Math.hypot(W, H);
-      const distFraction = distToHoop / maxDist;
-      const idealPower = calculateIdealPowerByDistance(px, py);
-      const tolerance = calculateGreenZoneTolerance(distFraction);
-
-      // Use new dynamic power meter drawer
-      drawDynamicPowerMeter(ctx, bx, by, bw, bh, pwr, idealPower, tolerance);
-
-      // Power percentage label
-      const clr = matchPct > 92 ? '#00ffaa' : matchPct > 85 ? '#44cc44' : matchPct > 55 ? '#ffcc00' : '#e05545';
-      ctx.fillStyle = clr;
-      ctx.font = `bold ${11*scaleX}px sans-serif`;
-      ctx.textAlign = 'center';
-      ctx.fillText(Math.round(pwr) + '%', bx + bw / 2, by - 7*scaleY);
-
-      // Distance indicator
-      ctx.fillStyle = 'rgba(150,200,255,0.8)';
-      ctx.font = `${8*scaleX}px sans-serif`;
-      ctx.textAlign = 'center';
-      const distPercent = Math.round(distFraction * 100);
-      ctx.fillText(`${distPercent}% dist`, bx + bw / 2, by + bh + 12*scaleY);
+      // ✅ OLD POWER METER REMOVED - Power meter now uses PowerMeterUI with dynamic green line
+      // Power visualization moved to new PowerMeterUI system (createMeterElement)
+      // Green line position calculated by PowerMeterSystem.calculateGreenLinePosition()
     }
 
     function drawBasket() {
