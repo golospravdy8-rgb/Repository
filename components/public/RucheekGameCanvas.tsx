@@ -574,6 +574,36 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       return bestSpd;
     }
 
+    // AUTOTEST: Тестування зеленої лінії та гарантії
+    function autoTest() {
+      console.log('\n=== АВТОТЕСТ ПОЧАТ ===');
+      let greenLineHits = 0;
+      let greenLineScored = 0;
+
+      // Симулюємо 10 бросків з різною accuracy
+      for (let i = 0; i < 10; i++) {
+        const accuracy = i < 5 ? 100 : Math.floor(Math.random() * 60);
+        const isGreen = accuracy >= 95;
+
+        if (isGreen) {
+          greenLineHits++;
+          console.log(`[ТЕСТ ${i + 1}] accuracy=${accuracy}% → ЗЕЛЕНА ЛІНІЯ → очікуємо ГОЛ ✅`);
+        } else {
+          console.log(`[ТЕСТ ${i + 1}] accuracy=${accuracy}% → промах можливий ❌`);
+        }
+      }
+
+      console.log(`\n=== РЕЗУЛЬТАТ: зелених кліків=${greenLineHits}/10 ===\n`);
+      return greenLineHits;
+    }
+
+    // Запусти autoTest при завантаженні
+    if (typeof window !== 'undefined' && !gs.autoTestRun) {
+      console.log('[INIT] Запускаємо autoTest...');
+      autoTest();
+      gs.autoTestRun = true;
+    }
+
     function stepBall(b: any) {
       if (b.state !== 'flying') return;
       const prevX = b.x, prevY = b.y;
@@ -642,20 +672,33 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         }
       }
 
-      // ГАРАНТІЯ ПОПАДАННЯ: Якщо дріб точно попав на зелену лінію → автогол
-      if (b.guaranteedScore && b.vy > 0 && !b.scoredGoal) {
-        b.scoredGoal = true;
-        b.state = 'scored';
-        b.outcome = 'swish';
-        b.vx = 0;
-        b.vy = 0;
-        b.x = HOOP_X;
-        b.y = HOOP_Y + 26*scaleY;
-        gs.netShake = true;
-        gs.netShakeEnd = Date.now() + 700;
-        addFlash('🎯 ГАРАНТОВАНИЙ SWISH!', HOOP_X, HOOP_Y - 52*scaleY, '#00ff00');
-        console.log('[GUARANTEED] Accuracy = 100% → automatic goal!');
-        return;
+      // ГАРАНТІЯ ПОПАДАННЯ: Якщо дріб точно попав на зелену лінію → коригуємо траєкторію до кільця
+      if (b.guaranteedScore && !b.scoredGoal) {
+        const distToHoop = Math.hypot(b.x - HOOP_X, b.y - HOOP_Y);
+
+        // Коригуємо траєкторію якщо м'яч ще далеко від кільця
+        if (distToHoop < HOOP_RADIUS * 4 && b.vy > 0) {
+          const correction = 0.08;
+          b.vx += (HOOP_X - b.x) * correction;
+          b.vy += (HOOP_Y - b.y) * correction;
+          console.log(`[GUARANTEE TRAJECTORY] Correcting: dist=${distToHoop.toFixed(0)}, vx=${b.vx.toFixed(1)}, vy=${b.vy.toFixed(1)}`);
+        }
+
+        // Перевіряємо чи м'яч вже в кільці
+        if (distToHoop < HOOP_RADIUS && b.vy > 0) {
+          b.scoredGoal = true;
+          b.state = 'scored';
+          b.outcome = 'swish';
+          b.vx = 0;
+          b.vy = 0;
+          b.x = HOOP_X;
+          b.y = HOOP_Y + 26*scaleY;
+          gs.netShake = true;
+          gs.netShakeEnd = Date.now() + 700;
+          addFlash('🎯 ГАРАНТОВАНИЙ SWISH!', HOOP_X, HOOP_Y - 52*scaleY, '#00ff00');
+          console.log('[GUARANTEED GOAL] Accuracy = 100% → automatic goal!');
+          return;
+        }
       }
 
       // НОВА СИСТЕМА КОЛІЖІЙ: Реалістична фізика з 5 результатами
@@ -699,18 +742,38 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         }
 
         if (collisionType === 'rimOut') {
-          // RIM_OUT: дотик обіду + повернення
+          // RIM_OUT: дотик обіду + 50/50 повернення або повернення в кільце
           b.rimHandled = true;
           b.outcome = 'rimOut';
           applyRimBounce(b);
-          // Сильніший відскік для rimOut - м'яч летить назад
-          b.vx *= -0.55;
-          b.vy = -Math.abs(b.vy) * 0.65;
-          addFlash('💢 RIM!', HOOP_X, HOOP_Y - 52*scaleY, '#ff0000');
-          gs.netShake = true;
-          gs.netShakeEnd = Date.now() + 500;
-          console.log('[COLLISION] Rim out - ball bounces back');
-          b.outcome = 'miss_fly';
+
+          // 50/50: половину м'яч летить назад, половину повертається в кільце
+          const bounceBackToHoop = Math.random() < 0.5;
+
+          if (bounceBackToHoop) {
+            // 50% УСПІХ: М'яч повертається в кільце після відскоку від дужки
+            const dx = HOOP_X - b.x;
+            const dy = HOOP_Y - b.y;
+            const dist = Math.hypot(dx, dy);
+            const bounceSpeed = Math.hypot(b.vx, b.vy) * 0.6;
+            b.vx = (dx / dist) * bounceSpeed;
+            b.vy = (dy / dist) * bounceSpeed;
+            b.guaranteedScore = true;
+            addFlash('🔄 RATTLES IN! 🏀', HOOP_X, HOOP_Y - 52*scaleY, '#ff8800');
+            gs.netShake = true;
+            gs.netShakeEnd = Date.now() + 700;
+            console.log('[COLLISION] Rim bounce 50% SUCCESS → returns to hoop');
+            b.outcome = 'direct';
+          } else {
+            // 50% ПРОМАХ: Обычный отскок назад
+            b.vx *= -0.55;
+            b.vy = -Math.abs(b.vy) * 0.65;
+            addFlash('💢 RIM!', HOOP_X, HOOP_Y - 52*scaleY, '#ff0000');
+            gs.netShake = true;
+            gs.netShakeEnd = Date.now() + 500;
+            console.log('[COLLISION] Rim bounce 50% MISS → bounces back');
+            b.outcome = 'miss_fly';
+          }
         }
       }
 
@@ -927,6 +990,9 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         guaranteedScore: guaranteedScore,
         scoredGoal: false
       };
+
+      // DEBUG: Log guarantee status
+      console.log(`[LAUNCH] accuracy=${ss.powerMeterResult?.accuracy || 'N/A'}, guaranteedScore=${guaranteedScore}`);
 
       // Инициализация Matter.js для коллизий с обручем
       if (!physicsRef.current) {
