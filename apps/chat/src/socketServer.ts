@@ -20,9 +20,12 @@ interface BallState {
 
 interface GameRoom {
   roomId: string;
-  players: Map<string, PlayerState>;
+  players: Map<string, PlayerState & { nickname: string; socketId: string }>;
   ball: BallState;
   lastUpdateTime: number;
+  scores: Map<string, number>;
+  turnOrder: string[];
+  currentTurn: number;
 }
 
 const gameRooms = new Map<string, GameRoom>();
@@ -57,11 +60,11 @@ export function initializeSocket(httpServer: HTTPServer): Server {
     console.log(`[Socket.IO] Client connected: ${socket.id}`);
 
     // JOIN GAME ROOM
-    socket.on('join_game', (data: { roomId: string; playerIndex: number; x: number; y: number }) => {
-      const { roomId, playerIndex, x, y } = data;
+    socket.on('join_game', (data: { roomId: string; playerIndex: number; x: number; y: number; nickname?: string }) => {
+      const { roomId, playerIndex, x, y, nickname = `Player ${playerIndex}` } = data;
       socket.join(roomId);
 
-      console.log(`[Socket.IO] Player ${playerIndex} joined room ${roomId}`);
+      console.log(`[Socket.IO] Player ${playerIndex} (${nickname}) joined room ${roomId}`);
 
       // Initialize or get existing room
       if (!gameRooms.has(roomId)) {
@@ -70,6 +73,9 @@ export function initializeSocket(httpServer: HTTPServer): Server {
           players: new Map(),
           ball: { x: 400, y: 300, vx: 0, vy: 0, state: 'idle' },
           lastUpdateTime: Date.now(),
+          scores: new Map(),
+          turnOrder: [],
+          currentTurn: 0,
         });
 
         // Start game loop for this room
@@ -77,19 +83,43 @@ export function initializeSocket(httpServer: HTTPServer): Server {
       }
 
       const room = gameRooms.get(roomId)!;
-      room.players.set(socket.id, {
+      const playerData = {
         index: playerIndex,
+        socketId: socket.id,
+        nickname,
         x,
         y,
-        status: 'alive',
+        status: 'alive' as const,
         score: 0,
         kills: 0,
+      };
+
+      room.players.set(socket.id, playerData);
+      room.scores.set(socket.id, 0);
+      room.turnOrder.push(socket.id);
+
+      // ✅ SEND FULL ROOM STATE TO NEW PLAYER
+      const roomPlayers = Array.from(room.players.values());
+      const leaderboard = Array.from(room.scores.entries()).map(([sid, score]) => ({
+        socketId: sid,
+        nickname: room.players.get(sid)?.nickname || 'Unknown',
+        score,
+      })).sort((a, b) => b.score - a.score);
+
+      socket.emit('room_state', {
+        players: roomPlayers,
+        ball: room.ball,
+        leaderboard,
+        currentTurn: room.currentTurn,
+        turnOrder: room.turnOrder,
+        yourSocketId: socket.id,
       });
 
-      // Broadcast player joined
+      // 📡 NOTIFY ALL PLAYERS OF NEW PLAYER
       io.to(roomId).emit('player_joined', {
         socketId: socket.id,
         playerIndex,
+        nickname,
         x,
         y,
         totalPlayers: room.players.size,
@@ -228,6 +258,68 @@ export function initializeSocket(httpServer: HTTPServer): Server {
         kills: data.kills,
         timestamp: Date.now(),
       });
+    });
+
+    // ✅ NEW: SHOT COMPLETED EVENT (multiplayer sync)
+    socket.on('shoot_completed', (data: {
+      roomId: string;
+      playerIndex: number;
+      shotScore: number;
+      accuracy: number;
+      collisionType?: string;
+    }) => {
+      const { roomId, playerIndex, shotScore, accuracy } = data;
+      const room = gameRooms.get(roomId);
+      if (!room) return;
+
+      const player = room.players.get(socket.id);
+      if (!player) return;
+
+      // ✅ SERVER UPDATES SCORE (authoritative)
+      player.score += shotScore;
+      room.scores.set(socket.id, player.score);
+
+      console.log(`[SCORE] ${player.nickname} scored ${shotScore}pts! Total: ${player.score}`);
+
+      // 📡 BROADCAST SHOT RESULT TO ALL PLAYERS IN ROOM
+      io.to(roomId).emit('shot_result', {
+        socketId: socket.id,
+        playerIndex,
+        nickname: player.nickname,
+        shotScore,
+        totalScore: player.score,
+        accuracy,
+        timestamp: Date.now(),
+        collisionType: data.collisionType,
+      });
+
+      // 📊 SEND UPDATED LEADERBOARD
+      const leaderboard = Array.from(room.scores.entries())
+        .map(([sid, score]) => ({
+          socketId: sid,
+          nickname: room.players.get(sid)?.nickname || 'Unknown',
+          score,
+        }))
+        .sort((a, b) => b.score - a.score);
+
+      io.to(roomId).emit('leaderboard_update', {
+        leaderboard,
+        timestamp: Date.now(),
+      });
+
+      // 🔄 MOVE TO NEXT TURN
+      if (room.turnOrder.length > 1) {
+        room.currentTurn = (room.currentTurn + 1) % room.turnOrder.length;
+        const nextPlayerSocketId = room.turnOrder[room.currentTurn];
+        const nextPlayer = room.players.get(nextPlayerSocketId);
+
+        io.to(roomId).emit('next_turn', {
+          currentPlayerIndex: room.currentTurn,
+          playerSocketId: nextPlayerSocketId,
+          nickname: nextPlayer?.nickname,
+          timestamp: Date.now(),
+        });
+      }
     });
 
     // GAME STATE PERSISTENCE: Client requests server state

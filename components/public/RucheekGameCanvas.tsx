@@ -39,9 +39,13 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
     netShake: false,
     netShakeEnd: 0,
     netShakeT: 0,
+    otherPlayers: [] as any[], // ✅ MULTIPLAYER: Other players
+    leaderboard: [] as any[], // ✅ MULTIPLAYER: Leaderboard
+    currentTurn: 0, // ✅ MULTIPLAYER: Current turn index
   });
   const playerIdRef = useRef<number>(0);
   const lastEmitTimeRef = useRef<number>(0);
+  const yourSocketIdRef = useRef<string>(''); // ✅ MULTIPLAYER: Your socket ID
 
   // Power Meter System refs and state
   const powerMeterRef = useRef<PowerMeterSystem | null>(null);
@@ -77,8 +81,56 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         playerIndex: playerIdRef.current,
         x: 680,
         y: 584,
-        playerName: userName,
+        nickname: userName || `Player ${playerIdRef.current}`,
       });
+    });
+
+    // ✅ MULTIPLAYER: Receive full room state on join
+    socket.on('room_state', (data: any) => {
+      console.log('[MULTIPLAYER] Received room state:', data);
+      yourSocketIdRef.current = data.yourSocketId;
+      const gs = gsRef.current;
+      gs.leaderboard = data.leaderboard;
+      gs.currentTurn = data.currentTurn;
+      gs.otherPlayers = data.players.filter((p: any) => p.socketId !== data.yourSocketId);
+      forceUpdate(n => n + 1);
+    });
+
+    // ✅ MULTIPLAYER: Real-time shot result broadcast
+    socket.on('shot_result', (data: any) => {
+      console.log('[MULTIPLAYER] Shot result:', data);
+      const gs = gsRef.current;
+      gs.flashes.push({
+        text: `⚽ ${data.nickname}: ${data.shotScore}pts (${data.accuracy.toFixed(0)}%)`,
+        x: 400,
+        y: 150,
+        color: '#ffdd44',
+        alpha: 1,
+        dy: 0,
+      });
+      forceUpdate(n => n + 1);
+    });
+
+    // ✅ MULTIPLAYER: Leaderboard update
+    socket.on('leaderboard_update', (data: any) => {
+      console.log('[MULTIPLAYER] Leaderboard update:', data.leaderboard);
+      gsRef.current.leaderboard = data.leaderboard;
+      forceUpdate(n => n + 1);
+    });
+
+    // ✅ MULTIPLAYER: Next turn notification
+    socket.on('next_turn', (data: any) => {
+      console.log('[MULTIPLAYER] Next turn - Player:', data.nickname);
+      gsRef.current.currentTurn = data.currentPlayerIndex;
+      gsRef.current.flashes.push({
+        text: `🎯 Ход: ${data.nickname}`,
+        x: 400,
+        y: 300,
+        color: '#44ff44',
+        alpha: 1,
+        dy: 0,
+      });
+      forceUpdate(n => n + 1);
     });
 
     // Listen for remote player movements
@@ -105,9 +157,18 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           x: data.x,
           y: data.y,
           status: 'alive',
-          name: data.name || `Player ${data.playerIndex}`,
+          nickname: data.nickname || `Player ${data.playerIndex}`,
+        });
+        gsRef.current.flashes.push({
+          text: `✅ ${data.nickname} присоединився!`,
+          x: 400,
+          y: 50,
+          color: '#88ff88',
+          alpha: 1,
+          dy: 0,
         });
       }
+      forceUpdate(n => n + 1);
     });
 
     // Listen for disconnections
@@ -1184,6 +1245,18 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       // DEBUG: Log scoring event
       console.log(`[SCORE] Player ${idx} (${p.name}) scored! Total: ${p.score}`);
 
+      // ✅ MULTIPLAYER: Emit shot completion to server
+      if (socketRef.current && idx === 0) {
+        const accuracy = ss.powerMeterResult?.accuracy || 100;
+        socketRef.current.emit('shoot_completed', {
+          roomId: gameRoomId,
+          playerIndex: idx,
+          shotScore: 1,
+          accuracy: accuracy,
+          collisionType: 'swish', // Can be: swish, rattle, bank, etc
+        });
+      }
+
       if (idx === gs.disputeP2 && gs.disputeP1 >= 0 && gs.disputeP1 < gs.players.length) {
         const p1ph = gs.shootStates[gs.disputeP1]?.phase;
         const dangerPhases = ['auto_run', 'pickup_wait', 'flying', 'aiming', 'charging'];
@@ -1810,6 +1883,37 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
 
       if (gs.state === 'waiting') {
         // Canvas clean - no hint text
+      }
+
+      // ✅ MULTIPLAYER: Draw leaderboard in top-right corner
+      if (gs.leaderboard && gs.leaderboard.length > 0) {
+        const boardX = W - 220*scaleX;
+        const boardY = 15*scaleY;
+        const boardW = 200*scaleX;
+        const boardH = Math.min(gs.leaderboard.length * 24*scaleY + 35*scaleY, H * 0.5);
+
+        // Background
+        ctx.fillStyle = 'rgba(0,0,0,0.8)';
+        ctx.fillRect(boardX, boardY, boardW, boardH);
+
+        // Title
+        ctx.fillStyle = '#ffdd00';
+        ctx.font = `bold ${13*scaleX}px sans-serif`;
+        ctx.textAlign = 'right';
+        ctx.fillText('📊 ТАБЛИЦЯ ЛІДЕРІВ', W - 10*scaleX, boardY + 20*scaleY);
+
+        // Leaderboard entries
+        gs.leaderboard.slice(0, 6).forEach((entry: any, i: number) => {
+          const y = boardY + 35*scaleY + i * 24*scaleY;
+          const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i+1}.`;
+          const isCurrentPlayer = entry.socketId === yourSocketIdRef.current;
+          const color = isCurrentPlayer ? '#44ff44' : '#ffffff';
+
+          ctx.fillStyle = color;
+          ctx.font = `${12*scaleX}px sans-serif`;
+          ctx.textAlign = 'right';
+          ctx.fillText(`${medal} ${entry.nickname.substring(0, 12)}: ${entry.score}`, W - 10*scaleX, y);
+        });
       }
 
       if (gs.state === 'finished') {
