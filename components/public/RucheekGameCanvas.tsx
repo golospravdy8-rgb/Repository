@@ -192,8 +192,8 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
     const BALL_RADIUS = 12 * scaleX;
     const HOOP_RADIUS = 22 * scaleX;
     const HOOP_DEPTH = 15 * scaleY;
-    const MIN_BALL_SPEED = 5.0;
-    const MAX_BALL_SPEED = 16.0;
+    const MIN_BALL_SPEED = 5.0 * 1.25; // 6.25 m/s — increased for power meter accuracy multiplier
+    const MAX_BALL_SPEED = 16.0 * 1.25; // 20.0 m/s — increased for power meter accuracy multiplier
 
     function calculateBallSpeedFromPower(powerPercent: number): number {
       // Power scale: 0-200% → Speed: 5-16 m/s
@@ -645,6 +645,16 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       // speedPixelsPerSecond = speedInMS * pixelsPerMeter
       // speedPixelsPerFrame = speedPixelsPerSecond / framesPerSecond
       let curSpd = (speedInMS * pixelsPerMeter) / framesPerSecond;
+
+      // POWER METER FIX: Apply accuracy multiplier from power meter system
+      if (ss.powerMeterResult) {
+        const accuracyMultiplier = ss.powerMeterResult.accuracy / 100; // 0-1.0
+        curSpd = curSpd * accuracyMultiplier;
+        console.log(
+          `[PowerMeter] Applied accuracy multiplier: ${ss.powerMeterResult.accuracy}% ` +
+          `(${accuracyMultiplier.toFixed(2)}) → adjusted speed: ${curSpd.toFixed(2)}`
+        );
+      }
 
       // GREEN ZONE GUARANTEE: Power in zone AND angle acceptable = 100% score
       let guaranteedScore = false;
