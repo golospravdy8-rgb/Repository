@@ -287,7 +287,7 @@ export default function ChatPage() {
   const [leaderboard, setLeaderboard] = useState<{ phone: string; firstName: string; lastName: string; hp: number; weeklyHp?: number | null }[]>([]);
   const [leaderboardWeekStart, setLeaderboardWeekStart] = useState<string>("");
   const [isPending, startTransition] = useTransition();
-  const [showRucheekGame, setShowRucheekGame] = useState(false);
+  const [showRucheekGame, setShowRucheekGame] = useState(true);  // ETAP 6: Game visible by default
   // Polling is used instead of EventSource
   const activeRoomRef = useRef<"general" | "parents">("general");
   const bottomRef = useRef<HTMLDivElement>(null);
