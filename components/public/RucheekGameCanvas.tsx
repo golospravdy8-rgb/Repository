@@ -195,6 +195,20 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
     if (!powerMeterRef.current) {
       powerMeterRef.current = new PowerMeterSystem(realMaxDistance);
       console.log(`[CALIBRATION] maxDistance=${realMaxDistance.toFixed(0)}px (from P_START=${P_START.toFixed(0)}, Y=${P_START_Y.toFixed(0)} to HOOP=${HOOP_X.toFixed(0)}, ${HOOP_Y.toFixed(0)})`);
+
+      // ТЕСТУВАННЯ: Перевіри зелену лінію для різних дистанцій
+      const testCases = [
+        { dist: realMaxDistance, name: 'Дальній кут', expectMin: 170 },
+        { dist: realMaxDistance * 0.67, name: 'Середня', expectMin: 110 },
+        { dist: realMaxDistance * 0.33, name: 'Ближня', expectMin: 50 },
+        { dist: realMaxDistance * 0.15, name: 'Дуже близько', expectMin: 20 }
+      ];
+
+      testCases.forEach(tc => {
+        const greenLine = powerMeterRef.current!.calculateGreenLinePosition(tc.dist);
+        const ok = greenLine >= tc.expectMin;
+        console.log(`[GREEN LINE TEST] ${tc.name}: dist=${tc.dist.toFixed(0)}, line=${greenLine.toFixed(0)} (очіку ${tc.expectMin}+) ${ok ? '✅' : '❌'}`);
+      });
     }
 
     // Ball physics constants
@@ -620,6 +634,22 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
             }
           }
         }
+      }
+
+      // ГАРАНТІЯ ПОПАДАННЯ: Якщо дріб точно попав на зелену лінію → автогол
+      if (b.guaranteedScore && b.vy > 0 && !b.scoredGoal) {
+        b.scoredGoal = true;
+        b.state = 'scored';
+        b.outcome = 'swish';
+        b.vx = 0;
+        b.vy = 0;
+        b.x = HOOP_X;
+        b.y = HOOP_Y + 26*scaleY;
+        gs.netShake = true;
+        gs.netShakeEnd = Date.now() + 700;
+        addFlash('🎯 ГАРАНТОВАНИЙ SWISH!', HOOP_X, HOOP_Y - 52*scaleY, '#00ff00');
+        console.log('[GUARANTEED] Accuracy = 100% → automatic goal!');
+        return;
       }
 
       // НОВА СИСТЕМА КОЛІЖІЙ: Реалістична фізика з 5 результатами
