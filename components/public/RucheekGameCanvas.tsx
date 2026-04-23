@@ -40,6 +40,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
     netShake: false,
     netShakeEnd: 0,
     netShakeT: 0,
+    netSwing: { type: null, startTime: 0, duration: 0 },  // ETAP 5: Track hit type and net animation
     otherPlayers: [] as any[], // ✅ MULTIPLAYER: Other players
     leaderboard: [] as any[], // ✅ MULTIPLAYER: Leaderboard
     currentTurn: 0, // ✅ MULTIPLAYER: Current turn index
@@ -319,6 +320,30 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       // Тут просто пропускаємо, обробка в rimHandled логіці
 
       return 'miss';
+    }
+
+    // ETAP 5: Determine realistic hit type (DIRECT/ARC/SWISH) based on accuracy and position
+    function determineHitType(accuracy: number, dx: number, dy: number, dist: number): string {
+      // DIRECT: 60% (accuracy affects probability)
+      // ARC: 25% (ball bounces off rim)
+      // SWISH: 15% (pure net catch)
+
+      const horizontalDist = Math.abs(dx);
+      const NET_ZONE = HOOP_RADIUS - BALL_RADIUS;  // 10px
+      const RIM_EDGE = HOOP_RADIUS;  // 22px
+
+      // Pure center → SWISH (if accuracy >= 90%)
+      if (dist < NET_ZONE && accuracy >= 90) {
+        return 'SWISH';
+      }
+
+      // Near rim edge → ARC (ball bounces)
+      if (horizontalDist > NET_ZONE && horizontalDist <= RIM_EDGE && accuracy >= 75) {
+        return 'ARC';
+      }
+
+      // Default to DIRECT for most cases
+      return 'DIRECT';
     }
 
     // Зберігаємо стару функцію для сумісності (використовується для fallback)
@@ -1092,32 +1117,52 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       // GREEN LINE GUARANTEE: Clicking exactly on green line (accuracy >= 95%) = 100% score
       let guaranteedScore = false;
 
-      // ✅ FIX 1: 5-TIER ACCURACY SUCCESS SYSTEM
+      // ✅ FIX 1 + ETAP 5: 6-TIER ACCURACY SUCCESS SYSTEM with probabilistic hit types
       const accuracy = ss.powerMeterResult?.accuracy || 0;
+      let hitTypeProb = { DIRECT: 0, ARC: 0, SWISH: 0 };  // Hit type probabilities
+
       if (accuracy >= 95) {
         guaranteedScore = true;
+        hitTypeProb = { DIRECT: 1.0, ARC: 0, SWISH: 0 };  // Always DIRECT
         addFlash('✅ ТОЧНО НА ЛІНІЮ! (100%)', p.x, p.y - 115*scaleY, '#44ff88');
-        console.log(`[SHOOT] 🎯 accuracy=${accuracy}% >= 95% → 100% success (GUARANTEED)`);
+        console.log(`[SHOOT] 🎯 accuracy=${accuracy}% >= 95% → 100% success (DIRECT GUARANTEED)`);
       } else if (accuracy >= 85) {
         guaranteedScore = Math.random() < 0.95;
+        hitTypeProb = { DIRECT: 0.70, ARC: 0.25, SWISH: 0.05 };  // 70% DIRECT, 25% ARC
         addFlash('⭐ ВІДМІННИЙ БРОСОК! (95%)', p.x, p.y - 115*scaleY, '#88ff88');
-        console.log(`[SHOOT] accuracy=${accuracy}% >= 85% → 95% success (${guaranteedScore ? 'HIT' : 'MISS'})`);
+        console.log(`[SHOOT] accuracy=${accuracy}% >= 85% → 95% success (70% DIRECT)`);
       } else if (accuracy >= 75) {
         guaranteedScore = Math.random() < 0.80;
+        hitTypeProb = { DIRECT: 0.50, ARC: 0.30, SWISH: 0.20 };  // 50% DIRECT, 30% ARC
         addFlash('🟢 ХОРОШИЙ БРОСОК! (80%)', p.x, p.y - 115*scaleY, '#ffff44');
-        console.log(`[SHOOT] accuracy=${accuracy}% >= 75% → 80% success (${guaranteedScore ? 'HIT' : 'MISS'})`);
+        console.log(`[SHOOT] accuracy=${accuracy}% >= 75% → 80% success (50% DIRECT)`);
       } else if (accuracy >= 65) {
         guaranteedScore = Math.random() < 0.60;
+        hitTypeProb = { DIRECT: 0.30, ARC: 0.30, SWISH: 0.40 };  // 30% DIRECT, 30% ARC
         addFlash('🟡 НЕПОГАНИЙ БРОСОК (60%)', p.x, p.y - 115*scaleY, '#ffaa44');
-        console.log(`[SHOOT] accuracy=${accuracy}% >= 65% → 60% success (${guaranteedScore ? 'HIT' : 'MISS'})`);
+        console.log(`[SHOOT] accuracy=${accuracy}% >= 65% → 60% success (30% DIRECT)`);
       } else if (accuracy >= 50) {
-        guaranteedScore = Math.random() < 0.30;
-        addFlash('🔴 СЛАБКИЙ БРОСОК (30%)', p.x, p.y - 115*scaleY, '#ff6644');
-        console.log(`[SHOOT] accuracy=${accuracy}% >= 50% → 30% success (${guaranteedScore ? 'HIT' : 'MISS'})`);
+        // ETAP 5 FIX: Minimum 50% success when accuracy 50-65%
+        guaranteedScore = Math.random() < 0.50;
+        hitTypeProb = { DIRECT: 0.20, ARC: 0.30, SWISH: 0.50 };  // 20% DIRECT, mostly SWISH
+        addFlash('🔴 СЛАБКИЙ БРОСОК (50%)', p.x, p.y - 115*scaleY, '#ff6644');
+        console.log(`[SHOOT] accuracy=${accuracy}% >= 50% → 50% success (MIN THRESHOLD)`);
       } else {
         guaranteedScore = false;
+        hitTypeProb = { DIRECT: 0, ARC: 0, SWISH: 0 };  // No hit chance
         addFlash('❌ ДУЖЕ СЛАБКО! (0%)', p.x, p.y - 115*scaleY, '#ff3333');
         console.log(`[SHOOT] accuracy=${accuracy}% < 50% → GUARANTEED MISS`);
+      }
+
+      // Select hit type based on probabilities
+      if (guaranteedScore) {
+        const rand = Math.random();
+        let cumProb = 0;
+        if (rand < (cumProb += hitTypeProb.DIRECT)) ss.hitType = 'DIRECT';
+        else if (rand < (cumProb += hitTypeProb.ARC)) ss.hitType = 'ARC';
+        else ss.hitType = 'SWISH';
+      } else {
+        ss.hitType = null;
       }
 
       const pts = simTraj(px, py, angle, curSpd, 95);
@@ -1157,18 +1202,32 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       let ballVx = Math.cos(angle) * curSpd;
       let ballVy = Math.sin(angle) * curSpd;
 
-      // FIX 2: TRAJECTORY CORRECTION when accuracy >= 85%
-      if (accuracy >= 85) {
+      // FIX 2 + ETAP 5: ENHANCED TRAJECTORY CORRECTION based on accuracy
+      if (accuracy >= 95) {
+        // Green line: maximum correction (40% toward hoop)
         const toHoopX = HOOP_X - px;
         const toHoopY = HOOP_Y - py;
         const hoopDist = Math.sqrt(toHoopX * toHoopX + toHoopY * toHoopY);
         if (hoopDist > 0) {
           const targetVx = (toHoopX / hoopDist) * curSpd;
           const targetVy = (toHoopY / hoopDist) * curSpd;
-          const correction = 0.15;  // Pull toward hoop by 15%
+          const correction = 0.40;  // 40% correction for guaranteed DIRECT shot
           ballVx = ballVx * (1 - correction) + targetVx * correction;
           ballVy = ballVy * (1 - correction) + targetVy * correction;
-          console.log(`[TRAJECTORY] accuracy=${accuracy}% >= 85% → corrected velocity (15% toward hoop)`);
+          console.log(`[TRAJECTORY] 🎯 accuracy=${accuracy}% >= 95% → STRONG correction (40% toward hoop)`);
+        }
+      } else if (accuracy >= 85) {
+        // Excellent: medium correction (25% toward hoop)
+        const toHoopX = HOOP_X - px;
+        const toHoopY = HOOP_Y - py;
+        const hoopDist = Math.sqrt(toHoopX * toHoopX + toHoopY * toHoopY);
+        if (hoopDist > 0) {
+          const targetVx = (toHoopX / hoopDist) * curSpd;
+          const targetVy = (toHoopY / hoopDist) * curSpd;
+          const correction = 0.25;  // 25% correction for high accuracy
+          ballVx = ballVx * (1 - correction) + targetVx * correction;
+          ballVy = ballVy * (1 - correction) + targetVy * correction;
+          console.log(`[TRAJECTORY] accuracy=${accuracy}% >= 85% → medium correction (25% toward hoop)`);
         }
       }
 
@@ -1265,6 +1324,25 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       const flashText = `${accuracyText} ПОПАВ! +1 (${distMeters}m, ${Math.round(accuracy)}%)`;
 
       addFlash(flashText, HOOP_X + 55*scaleX, HOOP_Y - 45*scaleY, '#44cc44');
+
+      // ETAP 5: Determine hit type and set net swing animation
+      const ball = ss.ball;
+      let hitType = 'DIRECT';
+      let netDuration = 200;  // ms
+      if (ball) {
+        const dx = ball.x - HOOP_X;
+        const dy = ball.y - HOOP_Y;
+        const dist = Math.hypot(dx, dy);
+        hitType = determineHitType(accuracy, dx, dy, dist);
+
+        // Different net swing durations for each type
+        if (hitType === 'DIRECT') netDuration = 200;
+        else if (hitType === 'ARC') netDuration = 300;
+        else if (hitType === 'SWISH') netDuration = 100;
+      }
+      gs.netSwing = { type: hitType, startTime: Date.now(), duration: netDuration };
+      console.log(`[NET SWING] Type=${hitType}, Duration=${netDuration}ms`);
+
       gs.netShake = true;
       gs.netShakeEnd = Date.now() + 700;
       ss.phase = null;
@@ -1278,8 +1356,8 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         physicsRef.current = null;
       }
 
-      // DEBUG: Log scoring event with distance and accuracy
-      console.log(`[SCORE] Player ${idx} (${p.name}) scored from ${distMeters}m at ${Math.round(accuracy)}%! Total: ${p.score}`);
+      // DEBUG: Log scoring event with distance, accuracy, and hit type
+      console.log(`[SCORE] Player ${idx} (${p.name}) ${hitType} hit from ${distMeters}m at ${Math.round(accuracy)}%! Total: ${p.score}`);
 
       // ✅ MULTIPLAYER: Emit shot completion to server via Pusher
       if (idx === 0) {
@@ -1589,17 +1667,43 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       ctx.stroke();
       ctx.lineWidth = 1*scaleX;
       ctx.globalAlpha = 0.65;
+
+      // ETAP 5: Calculate net swing displacement based on hit type
+      let netSwing = 0;
+      if (gs.netSwing.type) {
+        const elapsed = Date.now() - gs.netSwing.startTime;
+        const progress = Math.min(1, elapsed / gs.netSwing.duration);
+
+        if (gs.netSwing.type === 'DIRECT') {
+          // DIRECT: 3 oscillations, fast (200ms total)
+          const oscillations = 3;
+          const angle = progress * oscillations * Math.PI * 2;
+          netSwing = Math.sin(angle) * 15 * scaleY * Math.cos(progress * Math.PI);
+        } else if (gs.netSwing.type === 'ARC') {
+          // ARC: 2 oscillations, medium (300ms total)
+          const oscillations = 2;
+          const angle = progress * oscillations * Math.PI * 2;
+          netSwing = Math.sin(angle) * 20 * scaleY * Math.cos(progress * Math.PI);
+        } else if (gs.netSwing.type === 'SWISH') {
+          // SWISH: 1 vibration, fast (100ms total)
+          netSwing = Math.sin(progress * Math.PI * 2) * 8 * scaleY;
+        }
+
+        if (progress >= 1) gs.netSwing.type = null;  // Clear animation when done
+      }
+
+      // Draw net with swing offset
       for (let i = 0; i < 7; i++) {
         const tx = HOOP_X - HOOP_R + 3*scaleX + i * (HOOP_R * 2 - 6*scaleX) / 6;
         const bx2 = HOOP_X - 11*scaleX + i * 22*scaleX / 6;
         ctx.beginPath();
         ctx.moveTo(tx + sh * 0.08 * (i - 3), HOOP_Y + 8*scaleY);
-        ctx.lineTo(bx2 + sh * 0.12 * (i - 3), HOOP_Y + 46*scaleY + sh);
+        ctx.lineTo(bx2 + sh * 0.12 * (i - 3) + netSwing * 0.1, HOOP_Y + 46*scaleY + sh + netSwing);
         ctx.stroke();
       }
       for (let j = 0; j < 3; j++) {
         const t = (j + 1) / 4;
-        const yw = HOOP_Y + 8*scaleY + t * 38*scaleY + sh * 0.08;
+        const yw = HOOP_Y + 8*scaleY + t * 38*scaleY + sh * 0.08 + netSwing * (1 - t);
         const hw = HOOP_R * (1 - t * 0.4) - 2*scaleX;
         ctx.beginPath();
         ctx.moveTo(HOOP_X - hw, yw);
@@ -1708,10 +1812,12 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         }
         if (ss.ball && ss.phase === 'auto_run') {
           ctx.save();
-          // FIX 5: DRIBBLE BOUNCE ANIMATION during auto_run
-          const dribbleBounce = Math.sin(Date.now() / 150) * 8 * scaleY;  // Sine wave bounce ~8px
+          // ETAP 5: ENHANCED DRIBBLE BOUNCE ANIMATION - More realistic (12-15px, 120ms cycle)
+          const dribbleTime = (Date.now() % 120) / 120;  // 0-1 cycle in 120ms
+          const dribbleBounce = Math.sin(dribbleTime * Math.PI) * 13 * scaleY;  // 13px amplitude
+          ss.ball.rot = (ss.ball.rot || 0) + 0.05;  // Ball rotates during dribble
           ctx.translate(ss.ball.x, ss.ball.y + dribbleBounce);
-          ctx.rotate(ss.ball.rot || 0);
+          ctx.rotate(ss.ball.rot);
           drawBball(0, 0, 11*scaleX);
           ctx.restore();
         }
