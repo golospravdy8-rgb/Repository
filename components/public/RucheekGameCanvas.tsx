@@ -177,15 +177,19 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
     const HOOP_X = 110*scaleX, HOOP_Y = 307*scaleY;
     const HOOP_R = 27*scaleX;
     const P_START = W * 0.65, P_STEP = W * 0.07;
+    const P_START_Y = 584 * scaleY; // Starting Y position of player
 
     const gs = gsRef.current;
     let ss_ideal_power = 50;
 
     // Initialize Power Meter System
-    const maxDistance = Math.hypot(W, H); // Maximum diagonal distance
+    // CRITICAL FIX: maxDistance = from farthest player position to hoop (not screen diagonal!)
+    // Farthest position is when player is at far right edge
+    const P_FARTHEST_X = W * 0.95; // Right edge of playable area
+    const maxDistance = Math.hypot(HOOP_X - P_FARTHEST_X, HOOP_Y - P_START_Y);
     if (!powerMeterRef.current) {
       powerMeterRef.current = new PowerMeterSystem(maxDistance);
-      console.log(`[Game] PowerMeterSystem initialized with maxDistance: ${maxDistance.toFixed(0)}px`);
+      console.log(`[INIT] maxDistance calibrated to ${maxDistance.toFixed(0)}px (from farthest position)`);
     }
 
     // Ball physics constants
@@ -598,23 +602,29 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
 
       // CRITICAL FIX: Convert power % directly to pixels-per-frame velocity
       // Power meter 0-200% → ball velocity 5-16 m/s → pixels per frame
-      // Scaling: ~63 pixels = 1 meter of court distance (increased from 35 for better accuracy multiplier compensation)
+      // Scaling: ~87.5 pixels = 1 meter of court distance (increased from 35 for better accuracy multiplier compensation)
       const speedInMS = calculateBallSpeedFromPower(ss.power);
-      const pixelsPerMeter = 35 * 1.8; // 63px/meter — increased 1.8x to ensure balls reach basket at 100% accuracy
+      const pixelsPerMeter = 35 * 2.5; // 87.5px/meter — increased 2.5x to ensure balls reach basket at 100% accuracy
       const framesPerSecond = 60; // Game loop runs at 60fps
+
+      // Debug logging
+      const baseSpd = (speedInMS * pixelsPerMeter) / framesPerSecond;
+      console.log(
+        `[launchBall] speedInMS=${speedInMS.toFixed(2)}, pixelsPerMeter=${pixelsPerMeter.toFixed(1)}, baseSpd=${baseSpd.toFixed(1)}px/frame`
+      );
 
       // CRITICAL: Normalize velocity to frame rate
       // speedPixelsPerSecond = speedInMS * pixelsPerMeter
       // speedPixelsPerFrame = speedPixelsPerSecond / framesPerSecond
-      let curSpd = (speedInMS * pixelsPerMeter) / framesPerSecond;
+      let curSpd = baseSpd;
 
       // POWER METER FIX: Apply accuracy multiplier from power meter system
       if (ss.powerMeterResult) {
         const accuracyMultiplier = ss.powerMeterResult.accuracy / 100; // 0-1.0
         curSpd = curSpd * accuracyMultiplier;
         console.log(
-          `[PowerMeter] Applied accuracy multiplier: ${ss.powerMeterResult.accuracy}% ` +
-          `(${accuracyMultiplier.toFixed(2)}) → adjusted speed: ${curSpd.toFixed(2)}`
+          `[Shot] accuracy=${ss.powerMeterResult.accuracy}%, multiplier=${accuracyMultiplier.toFixed(2)}, ` +
+          `curSpd=${curSpd.toFixed(1)}px/frame (was ${baseSpd.toFixed(1)})`
         );
       }
 
@@ -1412,8 +1422,12 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
             powerMeterRef.current.startMeterAnimation();
 
             console.log(
-              `[FirstClick] Shot distance: ${currentDist.toFixed(0)}px, Green line: ${greenLine.toFixed(0)}px`
+              `[FirstClick] currentDistance=${currentDist.toFixed(0)}px, greenLinePosition=${greenLine.toFixed(0)}px`
             );
+            // Check if green line is at expected height for maximum distance
+            if (currentDist > maxDistance * 0.9) {
+              console.log(`[FirstClick] ⚠️ Near maximum distance - greenLine should be close to 180px`);
+            }
           }
         } else if (ss.phase === "charging") {
           // POWER METER: Calculate accuracy and flight distance
