@@ -209,6 +209,43 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       return MIN_BALL_SPEED + (MAX_BALL_SPEED - MIN_BALL_SPEED) * speedMultiplier;
     }
 
+    // НОВАЯ СИСТЕМА КОЛІЖІЙ: 5 різних результатів кидка
+    function checkHoopCollision(ball: any): string {
+      const dx = ball.x - HOOP_X;
+      const dy = ball.y - HOOP_Y;
+      const dist = Math.hypot(dx, dy);
+
+      // М'яч мусить летіти вниз для розпізнавання коліжій
+      if (ball.vy <= 0) return 'miss';
+
+      // Розрахуй кут входу м'яча в обруч (в градусах)
+      const entryAngle = Math.atan2(ball.vy, ball.vx) * (180 / Math.PI);
+
+      // NET_ZONE = 10px (HOOP_RADIUS 22 - BALL_RADIUS 12)
+      const NET_ZONE = HOOP_RADIUS - BALL_RADIUS;
+
+      // SWISH: чистий пас через центр сітки (dist < 10px)
+      if (dist < NET_ZONE) {
+        return 'swish';
+      }
+
+      // RATTLE_IN: дотик обіду + крутий кут (близько вертикального падіння < -30°)
+      if (dist < HOOP_RADIUS && entryAngle < -30) {
+        return 'rattleIn';
+      }
+
+      // RIM_OUT: дотик обіду + пологий кут (> -30°)
+      if (dist < HOOP_RADIUS + BALL_RADIUS && entryAngle >= -30) {
+        return 'rimOut';
+      }
+
+      // BANK_SHOT: дотик щитка (обробляється окремо в stepBall)
+      // Тут просто пропускаємо, обробка в rimHandled логіці
+
+      return 'miss';
+    }
+
+    // Зберігаємо стару функцію для сумісності (використовується для fallback)
     function checkBallInHoop(ballPos: any, hoopX: number, hoopY: number, hoopRadius: number): boolean {
       const dx = ballPos.x - hoopX;
       const dy = ballPos.y - hoopY;
@@ -216,6 +253,26 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       const inRimArea = horizontalDist < (hoopRadius + BALL_RADIUS);
       const belowRim = ballPos.y > hoopY + 10 * scaleY;
       return inRimArea && belowRim;
+    }
+
+    // Застосування реалістичного відскоку від обіду
+    function applyRimBounce(ball: any): void {
+      // Нормаль від центра обруча до м'яча
+      const dx = ball.x - HOOP_X;
+      const dy = ball.y - HOOP_Y;
+      const dist = Math.hypot(dx, dy);
+
+      if (dist === 0) return; // Уникнути ділення на нуль
+
+      const nx = dx / dist; // Нормалізована вісь X
+      const ny = dy / dist; // Нормалізована вісь Y
+
+      // dot product для проекції швидкості на нормаль
+      const dot = ball.vx * nx + ball.vy * ny;
+
+      // Новий вектор швидкості (гасить рух вздовж нормалі на 40%)
+      ball.vx = ball.vx - 2 * dot * nx * 0.4;
+      ball.vy = ball.vy - 2 * dot * ny * 0.4;
     }
 
     function getHoopInsideDepth(ballX: number, ballY: number, hoopX: number, hoopY: number): number {
@@ -559,31 +616,94 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         }
       }
 
-      if (!b.rimHandled && (b.outcome === 'rim_in' || b.outcome === 'rim_out')) {
-        const dLeft = Math.hypot(b.x - (HOOP_X - HOOP_R), b.y - HOOP_Y);
-        const dRight = Math.hypot(b.x - (HOOP_X + HOOP_R), b.y - HOOP_Y);
-        const dPrevLeft = Math.hypot(prevX - (HOOP_X - HOOP_R), prevY - HOOP_Y);
-        const dPrevRight = Math.hypot(prevX - (HOOP_X + HOOP_R), prevY - HOOP_Y);
-        const hitRim = (dLeft < 14 || dRight < 14 || dPrevLeft < 14 || dPrevRight < 14) && b.vy > -2;
-        if (hitRim) {
+      // НОВА СИСТЕМА КОЛІЖІЙ: Реалістична фізика з 5 результатами
+      // Перевіря коліжію з обручем лише якщо м'яч ще не обробив результат
+      if (!b.rimHandled && b.vy > 0) {
+        const collisionType = checkHoopCollision(b);
+
+        if (collisionType === 'swish') {
+          // SWISH: чистий пас - автоматично гол
+          b.scoredGoal = true;
+          b.state = 'scored';
+          b.outcome = 'swish';
+          b.vx = 0;
+          b.vy = 0;
+          b.x = HOOP_X;
+          b.y = HOOP_Y + 26*scaleY;
+          gs.netShake = true;
+          gs.netShakeEnd = Date.now() + 700;
+          addFlash('🎯 SWISH!', HOOP_X, HOOP_Y - 52*scaleY, '#00ff00');
+          console.log('[COLLISION] Swish - clean shot!');
+          return;
+        }
+
+        if (collisionType === 'rattleIn') {
+          // RATTLE_IN: дотик обіду + відскік + в сітку
           b.rimHandled = true;
-          if (b.outcome === 'rim_in') {
-            addFlash('🔥 РИМ-ШОТ!', HOOP_X, HOOP_Y - 52*scaleY, '#ff44ff');
-            b.vx *= 0.12;
-            b.vy = Math.abs(b.vy) * 0.18;
-            b.outcome = 'direct';
-          } else {
-            addFlash('💢 В ОБІД!', HOOP_X, HOOP_Y - 52*scaleY, '#ff8800');
-            b.vx *= -0.55;
-            b.vy = -Math.abs(b.vy) * 0.65;
-            b.outcome = 'miss_fly';
+          b.outcome = 'rattleIn';
+          applyRimBounce(b);
+          addFlash('💥 Rattles In!', HOOP_X, HOOP_Y - 52*scaleY, '#ff9900');
+          gs.netShake = true;
+          gs.netShakeEnd = Date.now() + 700;
+          console.log('[COLLISION] Rattle in - rim bounce detected');
+          // М'яч продовжує летіти, потім потрапить в обруч через magic pull
+          b.outcome = 'direct';
+        }
+
+        if (collisionType === 'rimOut') {
+          // RIM_OUT: дотик обіду + повернення
+          b.rimHandled = true;
+          b.outcome = 'rimOut';
+          applyRimBounce(b);
+          // Сильніший відскік для rimOut - м'яч летить назад
+          b.vx *= -0.55;
+          b.vy = -Math.abs(b.vy) * 0.65;
+          addFlash('💢 RIM!', HOOP_X, HOOP_Y - 52*scaleY, '#ff0000');
+          gs.netShake = true;
+          gs.netShakeEnd = Date.now() + 500;
+          console.log('[COLLISION] Rim out - ball bounces back');
+          b.outcome = 'miss_fly';
+        }
+      }
+
+      // BANK SHOT обробка (обід щитка потім в сітку) - залишається як раніше
+      if (!b.boardHandled) {
+        const crossedFace = (prevX > BOARD_FACE && b.x <= BOARD_FACE) || (prevX >= BOARD_FACE && b.x < BOARD_FACE);
+        const nearFace = b.x <= BOARD_FACE + 12 && b.x >= BOARD_X - 4 && b.vx < 0;
+        if ((crossedFace || nearFace) && b.vx < 0) {
+          const hitY = prevY + (b.y - prevY) * Math.max(0, Math.min(1, (prevX - BOARD_FACE) / Math.max(0.001, prevX - b.x)));
+          if (hitY >= BOARD_TOP - 8 && hitY <= BOARD_BOT + 8) {
+            b.boardHandled = true;
+            b.x = BOARD_FACE + 2;
+            const hitRatio = Math.max(0, Math.min(1, (hitY - BOARD_TOP) / (BOARD_BOT - BOARD_TOP)));
+            const impactSpd = Math.hypot(b.vx, b.vy);
+            const goIn = Math.random() < 0.50;
+            if (goIn) {
+              addFlash('💥 BANK SHOT! 💥', BOARD_X + 50*scaleX, BOARD_TOP - 32*scaleY, '#ffffff');
+              b.outcome = 'bankShot';
+              const toHX = HOOP_X - b.x, toHY = HOOP_Y - hitY;
+              const toHLen = Math.hypot(toHX, toHY);
+              const normHX = toHX / toHLen, normHY = toHY / toHLen;
+              const reflectVx = Math.abs(b.vx) * 0.65, reflectVy = b.vy * 0.80;
+              const blendToHoop = 0.80 - hitRatio * 0.40;
+              const physBlend = 1 - blendToHoop;
+              const finalSpd = impactSpd * 0.68;
+              b.vx = (normHX * blendToHoop + (reflectVx / impactSpd) * physBlend) * finalSpd + (Math.random() - 0.5) * 0.3;
+              b.vy = (normHY * blendToHoop + (reflectVy / impactSpd) * physBlend) * finalSpd + (Math.random() - 0.5) * 0.2;
+              b.outcome = 'direct';
+            } else {
+              addFlash('🔶 ВІДБІЙ→МИМО', BOARD_X + 50*scaleX, BOARD_TOP - 32*scaleY, '#ff6600');
+              b.vx = Math.abs(b.vx) * 0.60 * (0.9 + Math.random() * 0.2);
+              b.vy = b.vy * 0.50 + Math.random() * 0.5;
+              b.outcome = 'miss_fly';
+            }
           }
         }
       }
 
-      // Enhanced ball-in-hoop collision detection
-      const inHoop = checkBallInHoop({ x: b.x, y: b.y }, HOOP_X, HOOP_Y, HOOP_RADIUS);
-      if (inHoop && !b.scoredGoal && b.vy > 0) {
+      // Fallback: traditional hoop distance check для direct/perfect/bankshot outcomes
+      const d = Math.hypot(b.x - HOOP_X, b.y - HOOP_Y);
+      if (d < 32 && (b.outcome === 'direct' || b.outcome === 'perfect_direct' || b.outcome === 'bankShot') && b.vy > 0 && !b.scoredGoal) {
         b.scoredGoal = true;
         b.state = 'scored';
         b.vx = 0;
@@ -591,18 +711,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         b.x = HOOP_X;
         b.y = HOOP_Y + 26*scaleY;
         addFlash('🎯 ГОЛ!', HOOP_X, HOOP_Y - 52*scaleY, '#44ff88');
-        return;
-      }
-
-      // Fallback: traditional hoop distance check for direct/perfect outcomes
-      const d = Math.hypot(b.x - HOOP_X, b.y - HOOP_Y);
-      if (d < 32 && (b.outcome === 'direct' || b.outcome === 'perfect_direct') && b.vy > 0 && !b.scoredGoal) {
-        b.scoredGoal = true;
-        b.state = 'scored';
-        b.vx = 0;
-        b.vy = 0;
-        b.x = HOOP_X;
-        b.y = HOOP_Y + 26*scaleY;
+        console.log(`[SCORING] Shot type: ${b.outcome}`);
         return;
       }
 
