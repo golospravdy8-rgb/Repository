@@ -220,8 +220,10 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
     canvas.style.height = rect.height + "px";
 
     const W_ORIG = 860, H_ORIG = 624, GY_ORIG = 584;
-    const scaleX = canvas.width / W_ORIG;
-    const scaleY = canvas.height / H_ORIG;
+    // Use uniform scaling (same scale for X and Y) to prevent distortion
+    const scale = Math.min(canvas.width / W_ORIG, canvas.height / H_ORIG);
+    const scaleX = scale;
+    const scaleY = scale;
     const W = canvas.width;
     const H = canvas.height;
     const GY = GY_ORIG * scaleY;
