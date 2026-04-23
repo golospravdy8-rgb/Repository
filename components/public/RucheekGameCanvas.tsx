@@ -584,7 +584,13 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       b.vy += G;
       b.x += b.vx;
       b.y += b.vy;
-      b.rot += 0.14;
+      // Обертання: використай динамічну angular velocity при відскоках, інакше константа
+      if (b.angularVelocity !== undefined) {
+        b.rot += b.angularVelocity;
+        b.angularVelocity *= 0.98; // Зменш обертання при опорі
+      } else {
+        b.rot += 0.14;
+      }
       if (b.x < 10) { b.x = 10; b.vx = Math.abs(b.vx) * 0.5; }
       if (b.x > W - 10) { b.x = W - 10; b.vx = -Math.abs(b.vx) * 0.5; }
       if (b.y < 10) { b.y = 10; b.vy = Math.abs(b.vy) * 0.4; }
@@ -757,11 +763,48 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         return;
       }
 
+      // РЕАЛІСТИЧНИЙ ВІДСКІК ВІД ПІДЛОГИ з фізикою обертання
+      const BOUNCE_RESTITUTION = 0.6;
+      const FLOOR_FRICTION = 0.75;
+      const MIN_BOUNCE_SPEED = 1.5;
+      const MAX_BOUNCES = 4;
+
       if (b.y >= GY) {
-        b.y = GY;
-        b.state = 'missed';
-        b.vx = 0;
-        b.vy = 0;
+        if (!b.bounceCount) b.bounceCount = 0;
+
+        // Ініціалізуй ротацію якщо не розпочата
+        if (!b.angularVelocity) b.angularVelocity = 0;
+
+        // Перший контакт з підлогою - відскік
+        if (b.bounceCount < MAX_BOUNCES && Math.abs(b.vy) >= MIN_BOUNCE_SPEED) {
+          b.y = GY;
+
+          // Коефіцієнт пружності залежить від кута падіння
+          const fallAngle = Math.abs(Math.atan2(b.vy, b.vx));
+          const restitution = BOUNCE_RESTITUTION * (0.8 + 0.4 * Math.cos(fallAngle));
+
+          // Відскік: інвертуй vy, зменши за рахунок пружності
+          b.vy = -b.vy * restitution;
+
+          // Тертя: зменш горизонтальну швидкість при відскоці
+          b.vx *= FLOOR_FRICTION;
+
+          // Обертання: збільш angular velocity при відскоці
+          b.angularVelocity = b.vx * 0.05;
+
+          // Лічи відскоки
+          b.bounceCount++;
+
+          console.log(`[BOUNCE] #${b.bounceCount}: vy=${b.vy.toFixed(1)}, vx=${b.vx.toFixed(1)}, rot_vel=${b.angularVelocity.toFixed(2)}`);
+        } else if (b.bounceCount >= MAX_BOUNCES || Math.abs(b.vy) < MIN_BOUNCE_SPEED) {
+          // Відскоки завершені або низька швидкість - м'яч зупинився
+          b.y = GY;
+          b.vx = 0;
+          b.vy = 0;
+          b.angularVelocity = 0;
+          b.state = 'missed';
+          console.log(`[BOUNCE] Ball stopped after ${b.bounceCount} bounces`);
+        }
       }
     }
 
