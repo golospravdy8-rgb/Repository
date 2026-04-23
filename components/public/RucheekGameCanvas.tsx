@@ -1750,10 +1750,11 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         const ph = activeIdx >= 0 ? gs.shootStates[activeIdx]?.phase : null;
         const hints: any = {
           null: 'ПКМ на гравця → активувати  |  ЛКМ на підлогу → бігти  |  ПКМ на пустому → скинути вибір',
+          idle: 'Активний! ЛКМ на підлогу → бігти  |  ПКМ на гравця → кидок',
           aiming: '[1] ЛКМ — зафіксуй кут  |  ПКМ на гравця → скасувати',
           charging: '[2] ЛКМ на гравця = кидок  |  ПКМ на гравця = ↺ переприціл',
           flying: 'М\'яч летить...',
-          auto_run: 'Біжить за м\'ячем...',
+          auto_run: 'Біжить за м\'ячем...  |  Двійний ЛКМ = підібрати миттєво',
           pickup_wait: 'Підібрав! ЛКМ щоб кидати знову',
           manual_run: 'Біжить...',
         };
@@ -2043,10 +2044,24 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         // Normal click: move player to position
         if (gs.selectedMoveIdx >= 0 && gs.selectedMoveIdx < gs.players.length) {
           const p = gs.players[gs.selectedMoveIdx], ss = gs.shootStates[gs.selectedMoveIdx];
-          if (p.status !== "eliminated" && (ss.phase === null || ss.phase === "pickup_wait" || ss.phase === "manual_run")) {
+
+          // DEBUG: Log why movement might not trigger
+          console.log(`[LMB MOVE] selectedIdx=${gs.selectedMoveIdx}, phase=${ss.phase}, status=${p.status}, eliminated=${p.status === 'eliminated'}`);
+
+          // FIX: Include "idle" phase in movement check (was missing before)
+          const canMove = p.status !== "eliminated" &&
+                         (ss.phase === null ||
+                          ss.phase === "idle" ||
+                          ss.phase === "pickup_wait" ||
+                          ss.phase === "manual_run");
+
+          if (canMove) {
             ss.runTarget = { x: Math.max(50*scaleX, Math.min(W - 30*scaleX, mx)), y: GY };
             ss.phase = "manual_run";
             p.status = "running";
+            console.log(`[LMB MOVE] Player ${gs.selectedMoveIdx} moving to (${mx.toFixed(0)}, ${my.toFixed(0)})`);
+          } else {
+            console.log(`[LMB MOVE] BLOCKED: phase="${ss.phase}" not in allowed list or status="${p.status}" is eliminated`);
           }
         }
       }
