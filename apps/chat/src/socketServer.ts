@@ -30,6 +30,20 @@ const UPDATE_INTERVAL = 50; // 50ms
 const gameLoops = new Map<string, NodeJS.Timeout>();
 const roomPlayers: { [roomId: string]: { [socketId: string]: any } } = {};
 
+// Game state persistence for page reload recovery
+interface PersistedGameState {
+  timestamp: number;
+  roomId: string;
+  state: string;
+  players: any[];
+  shootStates: any[];
+  round: number;
+  disputeP1: number;
+  disputeP2: number;
+}
+
+const persistedGameStates = new Map<string, PersistedGameState>();
+
 export function initializeSocket(httpServer: HTTPServer): Server {
   const io = new Server(httpServer, {
     cors: {
@@ -214,6 +228,48 @@ export function initializeSocket(httpServer: HTTPServer): Server {
         kills: data.kills,
         timestamp: Date.now(),
       });
+    });
+
+    // GAME STATE PERSISTENCE: Client requests server state
+    socket.on('requestGameState', (data: { roomId: string }) => {
+      const { roomId } = data;
+      const savedState = persistedGameStates.get(roomId);
+
+      if (savedState) {
+        // Check if state is still fresh (less than 30 minutes old)
+        const age = Date.now() - savedState.timestamp;
+        if (age < 30 * 60 * 1000) {
+          console.log(`[PERSIST] Sending persisted state for room ${roomId} (age: ${Math.round(age / 1000)}s)`);
+          socket.emit('gameStateSync', savedState);
+        } else {
+          // State too old, discard
+          persistedGameStates.delete(roomId);
+          console.log(`[PERSIST] Persisted state too old for room ${roomId}, discarded`);
+        }
+      }
+    });
+
+    // GAME STATE PERSISTENCE: Client sends updated state for storage
+    socket.on('gameStateUpdate', (data: { roomId: string; state: any }) => {
+      const { roomId, state } = data;
+
+      try {
+        const persisted: PersistedGameState = {
+          timestamp: Date.now(),
+          roomId,
+          state: state.state,
+          players: state.players || [],
+          shootStates: state.shootStates || [],
+          round: state.round || 0,
+          disputeP1: state.disputeP1 || 0,
+          disputeP2: state.disputeP2 || -1,
+        };
+
+        persistedGameStates.set(roomId, persisted);
+        console.log(`[PERSIST] Game state updated for room ${roomId}`);
+      } catch (e) {
+        console.error(`[PERSIST] Failed to update state for room ${roomId}:`, e);
+      }
     });
 
     // NEW EVENT HANDLERS FOR HTML DEMO (Rucheyok)

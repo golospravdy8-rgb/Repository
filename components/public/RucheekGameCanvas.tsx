@@ -1720,6 +1720,143 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       }
     }
 
+    // FEATURE: Game state persistence on page reload
+    const SAVE_KEY = `basketball_game_state_${gameRoomId}`;
+    const SAVE_INTERVAL = 2000; // Save every 2 seconds
+    let lastSaveTime = 0;
+
+    function saveGameState(gs: any) {
+      const now = Date.now();
+      if (now - lastSaveTime < SAVE_INTERVAL) return;
+      lastSaveTime = now;
+
+      try {
+        const saveData = {
+          timestamp: now,
+          roomId: gameRoomId,
+          state: gs.state,
+          players: gs.players.map((p: any) => ({
+            id: p.id,
+            name: p.name,
+            x: p.x,
+            y: p.y,
+            score: p.score,
+            kills: p.kills || 0,
+            status: p.status,
+            color: p.color,
+            rf: p.rf || 0,
+          })),
+          shootStates: gs.shootStates.map((ss: any) => ({
+            phase: ss.phase === 'flying' ? 'idle' : ss.phase, // Don't save mid-flight
+            hasBall: ss.hasBall || false,
+            power: ss.power || 0,
+            aimAngle: ss.aimAngle || 0,
+          })),
+          round: gs.round || 0,
+          disputeP1: gs.disputeP1 || 0,
+          disputeP2: gs.disputeP2 || -1,
+        };
+
+        localStorage.setItem(SAVE_KEY, JSON.stringify(saveData));
+        console.log('[PERSIST] Game state saved to localStorage');
+      } catch (e) {
+        console.error('[PERSIST] Failed to save:', e);
+      }
+    }
+
+    function loadGameState(): any | null {
+      try {
+        const raw = localStorage.getItem(SAVE_KEY);
+        if (!raw) return null;
+
+        const data = JSON.parse(raw);
+
+        // Check data freshness (max 30 minutes)
+        const age = Date.now() - data.timestamp;
+        if (age > 30 * 60 * 1000) {
+          localStorage.removeItem(SAVE_KEY);
+          console.log('[PERSIST] Saved state too old, discarded');
+          return null;
+        }
+
+        // Only restore if it's the same room
+        if (data.roomId !== gameRoomId) return null;
+
+        console.log(`[PERSIST] Restoring game state (${Math.round(age / 1000)}s ago)`);
+        return data;
+      } catch (e) {
+        console.error('[PERSIST] Failed to load:', e);
+        return null;
+      }
+    }
+
+    function restoreGameState(gs: any, saved: any) {
+      if (!saved || saved.state !== 'playing') return false;
+
+      try {
+        // Restore players
+        if (saved.players && saved.players.length > 0) {
+          gs.players = saved.players.map((p: any) => ({
+            ...p,
+            rf: p.rf || 0,
+          }));
+        }
+
+        // Restore shoot states
+        if (saved.shootStates && saved.shootStates.length > 0) {
+          gs.shootStates = saved.shootStates.map((ss: any) => ({
+            phase: ss.phase,
+            aimAngle: ss.aimAngle || -Math.PI * 0.72,
+            aimDir: 1,
+            power: ss.power || 0,
+            powerDir: 1,
+            ball: null,
+            lockedAngle: null,
+            idealTraj: null,
+            idealSpeed: 10,
+            runTarget: null,
+            inDanger: false,
+            hasBall: ss.hasBall || false,
+          }));
+        }
+
+        gs.state = saved.state;
+        gs.round = saved.round || 0;
+        gs.disputeP1 = saved.disputeP1 || 0;
+        gs.disputeP2 = saved.disputeP2 || -1;
+        gs.selectedMoveIdx = -1;
+        gs.flashes = [];
+
+        addFlash('🔄 Гра відновлена!', W / 2, H / 2, '#00FFAA');
+        console.log('[PERSIST] Game successfully restored from localStorage');
+        return true;
+      } catch (e) {
+        console.error('[PERSIST] Failed to restore:', e);
+        return false;
+      }
+    }
+
+    // Try to restore game state on load
+    const savedState = loadGameState();
+    if (savedState) {
+      restoreGameState(gs, savedState);
+    }
+
+    // Request game state from server on socket reconnect
+    if (socketRef.current) {
+      socketRef.current.on('connect', () => {
+        console.log('[PERSIST] Socket reconnected, requesting server state...');
+        socketRef.current?.emit('requestGameState', { roomId: gameRoomId });
+      });
+
+      socketRef.current.on('gameStateSync', (serverState: any) => {
+        if (serverState && serverState.state === 'playing') {
+          console.log('[PERSIST] Received game state from server');
+          restoreGameState(gs, serverState);
+        }
+      });
+    }
+
     // Double-click tracking for instant ball grab
     let lastClickTime = 0;
     const DOUBLE_CLICK_THRESHOLD = 400; // ms
@@ -1884,6 +2021,10 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       }
     });
 
+    // Track last server state emission for persistence
+    let lastServerEmitTime = 0;
+    const SERVER_EMIT_INTERVAL = 3000; // Send to server every 3 seconds
+
     function renderLoop() {
       update();
       draw();
@@ -1893,6 +2034,15 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       if (now - lastEmitTimeRef.current > 100) {
         emitPlayerPosition();
         lastEmitTimeRef.current = now;
+      }
+
+      // Save game state every 2 seconds to localStorage
+      saveGameState(gs);
+
+      // Emit full game state to server every 3 seconds for persistence
+      if (now - lastServerEmitTime > SERVER_EMIT_INTERVAL) {
+        emitGameStateToServer();
+        lastServerEmitTime = now;
       }
 
       rafRef.current = requestAnimationFrame(renderLoop);
@@ -1920,6 +2070,41 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
     }
   }, []);
 
+  // Emit full game state to server every 3 seconds for persistence
+  const emitGameStateToServer = useCallback(() => {
+    if (!socketRef.current?.connected || gs.state !== 'playing') return;
+    try {
+      socketRef.current.emit('gameStateUpdate', {
+        roomId: gameRoomId,
+        state: {
+          state: gs.state,
+          players: gs.players.map((p: any) => ({
+            id: p.id,
+            name: p.name,
+            x: p.x,
+            y: p.y,
+            score: p.score,
+            kills: p.kills || 0,
+            status: p.status,
+            color: p.color,
+            rf: p.rf || 0,
+          })),
+          shootStates: gs.shootStates.map((ss: any) => ({
+            phase: ss.phase,
+            hasBall: ss.hasBall || false,
+            power: ss.power || 0,
+            aimAngle: ss.aimAngle || 0,
+          })),
+          round: gs.round || 0,
+          disputeP1: gs.disputeP1 || 0,
+          disputeP2: gs.disputeP2 || -1,
+        },
+      });
+    } catch (e) {
+      console.error('[PERSIST] Failed to emit game state:', e);
+    }
+  }, [gameRoomId]);
+
   const handleAddPlayer = () => {
     if (gs.players.length >= MAX_PLAYERS) { alert("Максимум 6 гравців!"); return; }
     const name = pname.trim() || `Гр.${gs.players.length+1}`;
@@ -1943,6 +2128,14 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
   const handleRestart = () => {
     gs.state="waiting"; gs.players=[]; gs.shootStates=[]; gs.flashes=[];
     gs.disputeP1=0; gs.disputeP2=-1; gs.selectedMoveIdx=-1;
+    // Clear persisted state when restarting
+    localStorage.removeItem(`basketball_game_state_${gameRoomId}`);
+    if (socketRef.current?.connected) {
+      socketRef.current.emit('gameStateUpdate', {
+        roomId: gameRoomId,
+        state: { state: 'waiting', players: [], shootStates: [] }
+      });
+    }
     setPname(userName); forceUpdate(n => n+1);
   };
 
@@ -1963,6 +2156,14 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
     gs.disputeP1 = 0;
     gs.disputeP2 = -1;
     gs.selectedMoveIdx = -1;
+    // Clear persisted state when exiting
+    localStorage.removeItem(`basketball_game_state_${gameRoomId}`);
+    if (socketRef.current?.connected) {
+      socketRef.current.emit('gameStateUpdate', {
+        roomId: gameRoomId,
+        state: { state: 'waiting', players: [], shootStates: [] }
+      });
+    }
     setPname(userName);
     forceUpdate(n => n+1);
   };
