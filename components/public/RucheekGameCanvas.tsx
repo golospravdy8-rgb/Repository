@@ -577,10 +577,26 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
     // AUTOTEST: Тестування зеленої лінії та гарантії
     function autoTest() {
       console.log('\n=== АВТОТЕСТ ПОЧАТ ===');
+
+      // BUG 3 FIX PHASE 2: Test green line positions at different distances
+      console.log('\n[TEST GREEN LINE] Перевірка позиції зеленої лінії на різних дистанціях:');
+      const testCases = [
+        { name: 'Дальній (макс)', dist: realMaxDistance, expected: 175 },
+        { name: 'Середній', dist: realMaxDistance * 0.6, expected: 108 },
+        { name: 'Близький', dist: realMaxDistance * 0.25, expected: 45 }
+      ];
+
+      testCases.forEach(tc => {
+        const line = (tc.dist / realMaxDistance) * 180;
+        const ok = Math.abs(line - tc.expected) < 20;
+        console.log(`[TEST] ${tc.name}: dist=${tc.dist.toFixed(0)} → greenLine=${line.toFixed(0)} (очіку ~${tc.expected}) ${ok ? '✅' : '❌ ПОМИЛКА'}`);
+      });
+
       let greenLineHits = 0;
       let greenLineScored = 0;
 
       // Симулюємо 10 бросків з різною accuracy
+      console.log('\n[TEST GUARANTEE] Перевірка гарантованого попадання при accuracy >= 95%:');
       for (let i = 0; i < 10; i++) {
         const accuracy = i < 5 ? 100 : Math.floor(Math.random() * 60);
         const isGreen = accuracy >= 95;
@@ -1072,7 +1088,9 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         rot: 0, state: 'flying', outcome,
         boardHandled: false, rimHandled: false, owner: idx,
         guaranteedScore: guaranteedScore,
-        scoredGoal: false
+        scoredGoal: false,
+        bounceCount: 0,  // BUG 2 FIX: Reset bounce counter for new ball
+        rimBounceCount: 0  // Reset rim bounce counter
       };
 
       // DEBUG: Log guarantee status
@@ -1208,6 +1226,12 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       const ss = gs.shootStates[idx];
       const p = gs.players[idx];
       ss.inDanger = true;
+
+      // BUG 2 FIX: Reset pickup flags when ball is missed
+      // This ensures next pickup will happen normally (with running)
+      ss.instantPickup = false;
+      ss.doubleClickPickup = false;
+
       addFlash('❌ МИМО!', p.x, p.y - 100*scaleY, '#e05545');
       const bx = ss.ball ? ss.ball.x : p.x;
       ss.runTarget = { x: Math.max(50*scaleX, Math.min(W - 30*scaleX, bx)), y: GY };
@@ -1219,6 +1243,8 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         physicsRef.current.destroy();
         physicsRef.current = null;
       }
+
+      console.log(`[MISS] Player ${idx} missed shot, chasing ball, pickup flags reset`);
     }
 
     function drawBball(cx: number, cy: number, r: number) {
@@ -2043,14 +2069,26 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
             ss.hasBall = true;
             ss.phase = "idle";
             p.status = "idle";
+
+            // BUG 2 FIX: Reset all pickup-related flags after grabbing ball
+            // This ensures next time ball is missed, player will chase normally
+            ss.instantPickup = false;
+            ss.doubleClickPickup = false;
+
             addFlash("⚡ МЯЧ ПОДОБРАН!", p.x, p.y - 100*scaleY, "#ffdd44");
-            console.log(`[DOUBLE CLICK] Player ${gs.selectedMoveIdx} grabbed ball instantly`);
+            console.log(`[DOUBLE CLICK] Player ${gs.selectedMoveIdx} grabbed ball instantly, pickup flags reset`);
             return;
           }
         }
         // Normal click: move player to position
         if (gs.selectedMoveIdx >= 0 && gs.selectedMoveIdx < gs.players.length) {
           const p = gs.players[gs.selectedMoveIdx], ss = gs.shootStates[gs.selectedMoveIdx];
+
+          // BUG 1 FIX: Block movement during aiming or charging phase
+          if (ss.phase === "aiming" || ss.phase === "charging") {
+            console.log(`[LMB MOVE] BLOCKED: Cannot move during shooting phase (${ss.phase})`);
+            return; // Ignore click, don't move player
+          }
 
           // DEBUG: Log why movement might not trigger
           console.log(`[LMB MOVE] selectedIdx=${gs.selectedMoveIdx}, phase=${ss.phase}, status=${p.status}, eliminated=${p.status === 'eliminated'}`);
