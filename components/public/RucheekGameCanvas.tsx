@@ -3,7 +3,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { io, Socket } from "socket.io-client";
 import { PowerMeterSystem } from "@/lib/game/powerMeterSystem";
-import { createMeterElement, updateMeterDisplay, hideMeter, showAccuracyFeedback } from "@/lib/game/powerMeterUI";
+import { createMeterElement, hideMeter, showAccuracyFeedback } from "@/lib/game/powerMeterUI";
 
 interface RucheekGameCanvasProps {
   isVisible: boolean;

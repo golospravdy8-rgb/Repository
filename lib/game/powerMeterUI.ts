@@ -19,14 +19,6 @@ export const METER_STYLES = {
     boxShadow: '0 0 10px #00FF00, inset 0 0 10px rgba(0, 255, 0, 0.5)',
     animation: 'greenLinePulse 0.8s infinite',
   },
-  meterFill: {
-    position: 'absolute' as const,
-    width: '100%',
-    bottom: '0',
-    background: 'linear-gradient(to top, #FF8C00, #FFFF00)',
-    opacity: '0.9',
-    transition: 'height 0.05s ease-out',
-  },
   label: {
     position: 'absolute' as const,
     top: '-25px',
@@ -59,18 +51,12 @@ export function createMeterElement(
   const greenLineFromBottom = 200 - greenLinePosition;
   greenLine.style.bottom = `${greenLineFromBottom}px`;
 
-  const meterFill = document.createElement('div');
-  meterFill.className = 'power-meter-fill';
-  Object.assign(meterFill.style, METER_STYLES.meterFill);
-  meterFill.style.height = '0px';
-
   const label = document.createElement('div');
   label.className = 'power-meter-label';
   Object.assign(label.style, METER_STYLES.label);
   label.textContent = '⚡ СИЛА';
 
   meter.appendChild(greenLine);
-  meter.appendChild(meterFill);
   meter.appendChild(label);
 
   if (!document.getElementById('power-meter-styles')) {
@@ -93,15 +79,6 @@ export function createMeterElement(
   return meter;
 }
 
-export function updateMeterDisplay(meterElement: HTMLDivElement, currentHeight: number): void {
-  if (!meterElement) return;
-
-  const meterFill = meterElement.querySelector('.power-meter-fill') as HTMLDivElement;
-  if (meterFill) {
-    const clampedHeight = Math.max(0, Math.min(200, currentHeight));
-    meterFill.style.height = `${clampedHeight}px`;
-  }
-}
 
 export function hideMeter(meterElement: HTMLDivElement | null): void {
   if (meterElement && meterElement.parentElement) {
