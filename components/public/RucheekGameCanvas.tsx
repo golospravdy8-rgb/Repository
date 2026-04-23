@@ -2,6 +2,8 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { io, Socket } from "socket.io-client";
+import { PowerMeterSystem } from "@/lib/game/powerMeterSystem";
+import { createMeterElement, updateMeterDisplay, hideMeter, showAccuracyFeedback } from "@/lib/game/powerMeterUI";
 
 interface RucheekGameCanvasProps {
   isVisible: boolean;
@@ -38,6 +40,12 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
   });
   const playerIdRef = useRef<number>(0);
   const lastEmitTimeRef = useRef<number>(0);
+
+  // Power Meter System refs and state
+  const powerMeterRef = useRef<PowerMeterSystem | null>(null);
+  const meterElementRef = useRef<HTMLDivElement | null>(null);
+  const [meterVisible, setMeterVisible] = useState(false);
+  const [greenLinePosition, setGreenLinePosition] = useState(180);
 
   useEffect(() => { setMounted(true); }, []);
 
@@ -169,9 +177,23 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
     const HOOP_X = 110*scaleX, HOOP_Y = 307*scaleY;
     const HOOP_R = 27*scaleX;
     const P_START = W * 0.65, P_STEP = W * 0.07;
+    const P_START_Y = 584 * scaleY;
 
     const gs = gsRef.current;
     let ss_ideal_power = 50;
+
+    // КРОК 1: Правильний maxDistance розрахунок
+    // Максимальна дистанція = від стартової позиції гравця до кільця
+    const realMaxDistance = Math.hypot(
+      HOOP_X - P_START,
+      HOOP_Y - P_START_Y
+    );
+
+    // Initialize Power Meter System з правильним maxDistance
+    if (!powerMeterRef.current) {
+      powerMeterRef.current = new PowerMeterSystem(realMaxDistance);
+      console.log(`[CALIBRATION] maxDistance=${realMaxDistance.toFixed(0)}px (from P_START=${P_START.toFixed(0)}, Y=${P_START_Y.toFixed(0)} to HOOP=${HOOP_X.toFixed(0)}, ${HOOP_Y.toFixed(0)})`);
+    }
 
     // Ball physics constants
     const BALL_RADIUS = 12 * scaleX;
@@ -621,15 +643,32 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
 
       // CRITICAL FIX: Convert power % directly to pixels-per-frame velocity
       // Power meter 0-200% → ball velocity 5-16 m/s → pixels per frame
-      // Scaling: ~35 pixels = 1 meter of court distance
+      // Scaling: ~140 pixels = 1 meter of court distance (4.0x for accuracy multiplier compensation)
       const speedInMS = calculateBallSpeedFromPower(ss.power);
-      const pixelsPerMeter = 35; // Calibrated for court scale
+      const pixelsPerMeter = 35 * 4.0; // 140px/meter — КРОК 2: збільшено для компенсації accuracy
       const framesPerSecond = 60; // Game loop runs at 60fps
 
       // CRITICAL: Normalize velocity to frame rate
       // speedPixelsPerSecond = speedInMS * pixelsPerMeter
       // speedPixelsPerFrame = speedPixelsPerSecond / framesPerSecond
       let curSpd = (speedInMS * pixelsPerMeter) / framesPerSecond;
+
+      // КРОК 3: Перевірити accuracy multiplier та додати логування
+      console.log(
+        `[LAUNCH] speedInMS=${speedInMS.toFixed(2)}, pixelsPerMeter=${pixelsPerMeter.toFixed(0)}, ` +
+        `baseSpd=${curSpd.toFixed(1)}px/frame`
+      );
+
+      // КРОК 5: Застосовуємо accuracy multiplier з PowerMeter
+      if (ss.powerMeterResult) {
+        const accuracy = ss.powerMeterResult.accuracy;
+        const accuracyMultiplier = accuracy / 100;
+        curSpd = curSpd * accuracyMultiplier;
+        console.log(
+          `[SHOT] accuracy=${accuracy}%, multiplier=${accuracyMultiplier.toFixed(2)}, ` +
+          `curSpd=${curSpd.toFixed(1)}px/frame (was ${(curSpd / accuracyMultiplier).toFixed(1)})`
+        );
+      }
 
       // GREEN ZONE GUARANTEE: Power in zone AND angle acceptable = 100% score
       let guaranteedScore = false;
@@ -1427,7 +1466,47 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           ss.phase = "charging";
           ss.power = 0;
           ss.powerDir = 1;
+
+          // КРОК 1: Додаємо PowerMeter при першому клику
+          if (powerMeterRef.current) {
+            const currentDist = distToHoop;
+            const greenLine = powerMeterRef.current.calculateGreenLinePosition(currentDist);
+            powerMeterRef.current.setGreenLinePosition(greenLine);
+            setGreenLinePosition(greenLine);
+
+            const meter = createMeterElement(greenLine);
+            meterElementRef.current = meter;
+            setMeterVisible(true);
+
+            powerMeterRef.current.startMeterAnimation();
+
+            console.log(
+              `[FirstClick] currentDistance=${currentDist.toFixed(0)}px, greenLinePosition=${greenLine.toFixed(0)}px`
+            );
+          }
         } else if (ss.phase === "charging") {
+          // КРОК 4: При другому клику обраховуємо accuracy
+          if (powerMeterRef.current) {
+            const meterHeight = powerMeterRef.current.getMeterCurrentHeight();
+            const px = p.x - 15*scaleX;
+            const py = p.y - 55*scaleY;
+            const currentDist = Math.hypot(HOOP_X - px, HOOP_Y - py);
+
+            const accuracy = powerMeterRef.current.calculateAccuracy(meterHeight, greenLinePosition);
+            ss.powerMeterResult = { accuracy, meterHeight, greenLinePosition };
+
+            showAccuracyFeedback(accuracy, p.x, p.y - 130*scaleY);
+
+            powerMeterRef.current.stopMeterAnimation();
+            if (meterElementRef.current) {
+              hideMeter(meterElementRef.current);
+            }
+            setMeterVisible(false);
+
+            console.log(
+              `[SecondClick] accuracy=${accuracy}%, meterHeight=${meterHeight.toFixed(0)}px, greenLine=${greenLinePosition.toFixed(0)}px`
+            );
+          }
           launchBall(hitIdx);
         }
       } else {
