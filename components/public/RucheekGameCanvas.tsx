@@ -125,6 +125,11 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
     channel.bind('player-move', (data: any) => {
       if (data.playerId === playerIdRef.current) return;
 
+      // ETAP 8: Debug ball data reception
+      if (data.ball) {
+        console.log(`[PUSHER player-move] Received ball data from ${data.name}: state=${data.ball.state}, x=${data.ball.x}, y=${data.ball.y}`);
+      }
+
       const existingPlayer = remotePlayersRef.current.get(data.playerId);
       remotePlayersRef.current.set(data.playerId, {
         ...(existingPlayer || {}),
@@ -1937,20 +1942,20 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         ctx.font = `${10*scaleX}px sans-serif`;
         ctx.fillText(rp.status === 'alive' ? '✓ alive' : '✗ eliminated', rpx, rpy - 60*scaleY);
 
-        // Draw remote player's ball (multiplayer sync)
-        if (rp.ball && rp.ball.state === 'flying') {
-          ctx.save();
-          ctx.translate(rp.ball.x, rp.ball.y);
-          ctx.rotate(rp.ball.rot || 0);
-          drawBball(0, 0, 11*scaleX);
-          ctx.restore();
+        // ETAP 8: Draw remote player's ball (multiplayer sync) with debugging
+        if (rp.ball) {
+          console.log(`[REMOTE BALL DEBUG] Player: ${rp.name}, ball exists: true, state: ${rp.ball.state}, x: ${rp.ball.x}, y: ${rp.ball.y}`);
         }
-        if (rp.ball && rp.ball.state === 'auto_run') {
+
+        if (rp.ball && (rp.ball.state === 'flying' || rp.ball.state === 'auto_run')) {
+          console.log(`[REMOTE BALL RENDER] Rendering ${rp.name} ball - state: ${rp.ball.state}`);
           ctx.save();
           ctx.translate(rp.ball.x, rp.ball.y);
           ctx.rotate(rp.ball.rot || 0);
           drawBball(0, 0, 11*scaleX);
           ctx.restore();
+        } else if (rp.ball) {
+          console.log(`[REMOTE BALL] ${rp.name} ball exists but state not flying/auto_run: ${rp.ball.state}`);
         }
       });
 
