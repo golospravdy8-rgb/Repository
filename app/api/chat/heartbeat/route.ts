@@ -13,10 +13,10 @@ export async function POST(req: NextRequest) {
   const safeName = name || "";
 
   await prisma.$executeRaw`
-    INSERT INTO "ChatOnline" (phone, room, "lastSeen", name, role)
-    VALUES (${phone}, ${safeRoom}, NOW(), ${safeName}, ${safeRole})
+    INSERT INTO "ChatOnline" (phone, room, "lastSeen", name, role, "joinedAt")
+    VALUES (${phone}, ${safeRoom}, NOW(), ${safeName}, ${safeRole}, COALESCE((SELECT "joinedAt" FROM "ChatOnline" WHERE phone = ${phone}), NOW()))
     ON CONFLICT (phone) DO UPDATE
-    SET room = ${safeRoom}, "lastSeen" = NOW(), name = ${safeName}, role = ${safeRole}
+    SET room = ${safeRoom}, "lastSeen" = NOW(), name = ${safeName}, role = ${safeRole}, "leftAt" = NULL
   `;
 
   return NextResponse.json({ ok: true });

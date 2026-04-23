@@ -11,6 +11,8 @@ interface ParticipantRow {
   hp: number;
   role: string;
   isonline: boolean;
+  joinedat: Date | null;
+  leftat: Date | null;
 }
 
 export async function GET(req: NextRequest) {
@@ -31,7 +33,9 @@ export async function GET(req: NextRequest) {
           WHEN co."lastSeen" > NOW() - INTERVAL '2 minutes' AND co.room = 'parents'
           THEN true
           ELSE false
-        END AS isonline
+        END AS isonline,
+        co."joinedAt" AS joinedat,
+        co."leftAt" AS leftat
       FROM "GuestContact" gc
       LEFT JOIN "ChatOnline" co ON co.phone = gc.phone
       WHERE gc.role = 'parent'
@@ -50,7 +54,9 @@ export async function GET(req: NextRequest) {
           WHEN co."lastSeen" > NOW() - INTERVAL '2 minutes' AND co.room = 'general'
           THEN true
           ELSE false
-        END AS isonline
+        END AS isonline,
+        co."joinedAt" AS joinedat,
+        co."leftAt" AS leftat
       FROM "GuestContact" gc
       LEFT JOIN "ChatOnline" co ON co.phone = gc.phone
       ORDER BY isonline DESC, gc.hp DESC
@@ -69,6 +75,8 @@ export async function GET(req: NextRequest) {
       role: r.role,
       isMod: modSet.has(r.phone),
       isOnline: r.isonline,
+      joinedAt: r.joinedat,
+      leftAt: r.leftat,
     })),
   });
 }

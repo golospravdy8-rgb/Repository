@@ -85,6 +85,8 @@ interface Member {
   role: string;
   isMod: boolean;
   isOnline: boolean;
+  joinedAt: Date | null;
+  leftAt: Date | null;
 }
 
 interface ChatPageMobileProps {
@@ -95,6 +97,22 @@ interface ChatPageMobileProps {
   shopTicker: number;
   onlineUsers: Set<string>;
   onSendMessage: (text: string) => Promise<void>;
+}
+
+// Helper: Format time as HH:MM
+function formatTime(date: Date | null): string {
+  if (!date) return "";
+  const d = new Date(date);
+  const h = String(d.getHours()).padStart(2, "0");
+  const m = String(d.getMinutes()).padStart(2, "0");
+  return `${h}:${m}`;
+}
+
+// Helper: Get session time display string
+function getSessionTimeDisplay(joinedAt: Date | null, leftAt: Date | null, isOnline: boolean): string {
+  if (isOnline && joinedAt) return `онлайн з ${formatTime(joinedAt)}`;
+  if (joinedAt && leftAt) return `${formatTime(joinedAt)} - ${formatTime(leftAt)}`;
+  return "";
 }
 
 export default function ChatPageMobile({ user, messages: initialMessages, members, shopItems, shopTicker, onlineUsers, onSendMessage }: ChatPageMobileProps) {
@@ -352,6 +370,21 @@ export default function ChatPageMobile({ user, messages: initialMessages, member
         .catch(() => {});
     }
   }, [showMembersSheet, user.phone, user.firstName, user.lastName]);
+
+  // Track logout when user leaves chat page
+  useEffect(() => {
+    const handleBeforeUnload = async () => {
+      await fetch("/api/chat/logout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: user.phone }),
+        keepalive: true,
+      }).catch(() => {});
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [user.phone]);
 
   // MOBILE ONLY — NEW 2026 APPROACH: SSE listener for real-time updates
   useEffect(() => {
@@ -742,15 +775,21 @@ export default function ChatPageMobile({ user, messages: initialMessages, member
               <h3 style={{ margin: "0", fontSize: "16px", fontWeight: 700 }}>👥 Учасники</h3>
             </div>
             <div style={{ flex: 1, overflowY: "auto", padding: "12px 8px" }}>
-              {members.map((m) => (
-                <div key={m.phone} style={{ padding: "8px 12px", borderRadius: "8px", background: "rgba(255,255,255,0.04)", marginBottom: "6px", display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "13px" }}>
-                  <div>
-                    <div style={{ fontWeight: 600, color: "#e2e8f0" }}>{m.firstName} {m.lastName}</div>
-                    <div style={{ fontSize: "11px", color: "#64748b" }}>💛 {m.hp} HP</div>
+              {members.map((m) => {
+                const sessionTime = getSessionTimeDisplay(m.joinedAt ? new Date(m.joinedAt) : null, m.leftAt ? new Date(m.leftAt) : null, m.isOnline);
+                return (
+                  <div key={m.phone} style={{ padding: "8px 12px", borderRadius: "8px", background: "rgba(255,255,255,0.04)", marginBottom: "6px", display: "flex", flexDirection: "column", gap: "4px", fontSize: "13px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <div style={{ fontWeight: 600, color: "#e2e8f0" }}>{m.firstName} {m.lastName}</div>
+                      <div style={{ fontSize: "10px", color: m.isOnline ? "#16a34a" : "#64748b" }}>● {m.isOnline ? "Онлайн" : "Офлайн"}</div>
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <div style={{ fontSize: "11px", color: "#94a3b8" }}>💛 {m.hp} HP</div>
+                      {sessionTime && <div style={{ fontSize: "10px", color: "#64748b" }}>{sessionTime}</div>}
+                    </div>
                   </div>
-                  <div style={{ fontSize: "11px", color: "#16a34a" }}>● {m.isOnline ? "Онлайн" : "Офлайн"}</div>
-                </div>
-              ))}
+                );
+              })}
             </div>
             {/* MOBILE ONLY — NEW: Referral link at bottom of members sheet */}
             {userRefLink && (

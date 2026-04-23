@@ -464,6 +464,8 @@ model ChatOnline {
   lastSeen DateTime @default(now())
   name     String?
   role     String   @default("player")
+  joinedAt DateTime @default(now())
+  leftAt   DateTime?
 
   @@index([room])
   @@index([lastSeen])

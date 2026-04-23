@@ -163,6 +163,22 @@ function getAvatar(hp: number): { emoji: string; label: string } | null {
   return null;
 }
 
+// ── Format time as HH:MM ──────────────────────────────────────────────────
+function formatTime(date: Date | null): string {
+  if (!date) return "";
+  const d = new Date(date);
+  const h = String(d.getHours()).padStart(2, "0");
+  const m = String(d.getMinutes()).padStart(2, "0");
+  return `${h}:${m}`;
+}
+
+// ── Get session time display string ──────────────────────────────────────
+function getSessionTimeDisplay(joinedAt: Date | null, leftAt: Date | null, isOnline: boolean): string {
+  if (isOnline && joinedAt) return `онлайн з ${formatTime(joinedAt)}`;
+  if (joinedAt && leftAt) return `${formatTime(joinedAt)} - ${formatTime(leftAt)}`;
+  return "";
+}
+
 // ── Spin wheel sectors ────────────────────────────────────────────────────
 const SPIN_SECTORS = [
   { hp: 5,  color: "#334155", label: "+5" },
@@ -231,7 +247,7 @@ export default function ChatPage() {
   const [notification, setNotification] = useState<string | null>(null);
   const [showMvp, setShowMvp] = useState(false);
   const [players, setPlayers] = useState<{ id: number; firstName: string; lastName: string }[]>([]);
-  const [members, setMembers] = useState<{ phone: string; firstName: string; lastName: string; hp: number; role: string; isMod: boolean; isOnline: boolean }[]>([]);
+  const [members, setMembers] = useState<{ phone: string; firstName: string; lastName: string; hp: number; role: string; isMod: boolean; isOnline: boolean; joinedAt: Date | null; leftAt: Date | null }[]>([]);
   const [refCodeFromUrl, setRefCodeFromUrl] = useState<string | null>(null);
   const [showHpRules, setShowHpRules] = useState(false);
   const [showHpModal, setShowHpModal] = useState(false);
@@ -587,6 +603,22 @@ export default function ChatPage() {
     const pollInterval = setInterval(fetchOnline, 15000);
     return () => clearInterval(pollInterval);
   }, [step]);
+
+  // Track logout when user leaves chat page
+  useEffect(() => {
+    if (!user) return;
+    const handleBeforeUnload = async () => {
+      await fetch("/api/chat/logout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: user.phone }),
+        keepalive: true,
+      }).catch(() => {});
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [user?.phone]);
 
   // ── Load active poll ───────────────────────────────────────────────────────
   useEffect(() => {
@@ -2738,9 +2770,16 @@ export default function ChatPage() {
                             </span>
                           )}
                           {!isMvp && !member.isMod && (
-                            <span style={{ fontSize: "11px", color: isOnline ? "#22c55e" : "#4b5563", fontFamily: "Exo 2, sans-serif" }}>
-                              {isOnline ? "● онлайн" : "○ оффлайн"}
-                            </span>
+                            <>
+                              <span style={{ fontSize: "11px", color: isOnline ? "#22c55e" : "#4b5563", fontFamily: "Exo 2, sans-serif" }}>
+                                {isOnline ? "● онлайн" : "○ оффлайн"}
+                              </span>
+                              {getSessionTimeDisplay(member.joinedAt ? new Date(member.joinedAt) : null, member.leftAt ? new Date(member.leftAt) : null, isOnline) && (
+                                <span style={{ fontSize: "10px", color: "#94a3b8", fontFamily: "Exo 2, sans-serif" }}>
+                                  {getSessionTimeDisplay(member.joinedAt ? new Date(member.joinedAt) : null, member.leftAt ? new Date(member.leftAt) : null, isOnline)}
+                                </span>
+                              )}
+                            </>
                           )}
                           {(member.hp ?? 0) > 0 && (
                             <span style={{ fontSize: "10px", color: "#f46f10", fontFamily: "Exo 2, sans-serif", fontWeight: 600 }}>
