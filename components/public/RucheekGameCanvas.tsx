@@ -4,6 +4,7 @@ import { createPortal } from "react-dom";
 import { io, Socket } from "socket.io-client";
 import { PowerMeterSystem } from "@/lib/game/powerMeterSystem";
 import { createMeterElement, hideMeter, showAccuracyFeedback } from "@/lib/game/powerMeterUI";
+import { BasketballPhysics, type CollisionType, type BallPhysicsResult } from "@/lib/game/basketballPhysics";
 
 interface RucheekGameCanvasProps {
   isVisible: boolean;
@@ -22,6 +23,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
   const btnStartRef = useRef<HTMLButtonElement>(null);
   const socketRef = useRef<Socket | null>(null);
   const remotePlayersRef = useRef<Map<string, any>>(new Map());
+  const physicsRef = useRef<BasketballPhysics | null>(null);
   const [mounted, setMounted] = useState(false);
   const [pname, setPname] = useState(userName);
   const [showModal, setShowModal] = useState(false);
@@ -167,8 +169,8 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
     const H = canvas.height;
     const GY = GY_ORIG * scaleY;
     // Real gravity: 9.81 m/s² = 0.095 px/frame² at 35px=1m, 60fps
-    // Using 0.12 for slightly stronger visual arc
-    const G = 0.12;
+    // Гравітація: зменшена на 15% для красивішої параболи (0.12 * 0.85 = 0.102)
+    const G = 0.102;
 
     const POLE_X = 12*scaleX, ARM_X = 52*scaleX;
     const BOARD_X = 57*scaleX, BOARD_W = 10*scaleX;
@@ -561,6 +563,10 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
     function stepBall(b: any) {
       if (b.state !== 'flying') return;
       const prevX = b.x, prevY = b.y;
+
+      // Воздушное сопротивление: теряет 0.5% скорости по X каждый кадр
+      b.vx *= 0.995;
+
       b.vy += G;
       b.x += b.vx;
       b.y += b.vy;
@@ -619,7 +625,13 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       // НОВА СИСТЕМА КОЛІЖІЙ: Реалістична фізика з 5 результатами
       // Перевіря коліжію з обручем лише якщо м'яч ще не обробив результат
       if (!b.rimHandled && b.vy > 0) {
-        const collisionType = checkHoopCollision(b);
+        // Matter.js коліжія для реалістичної фізики обруча
+        let collisionType: string = 'none';
+        if (physicsRef.current) {
+          collisionType = physicsRef.current.checkCollision(b.x, b.y, b.vx, b.vy);
+        } else {
+          collisionType = checkHoopCollision(b);
+        }
 
         if (collisionType === 'swish') {
           // SWISH: чистий пас - автоматично гол
@@ -762,6 +774,9 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       // speedPixelsPerFrame = speedPixelsPerSecond / framesPerSecond
       let curSpd = (speedInMS * pixelsPerMeter) / framesPerSecond;
 
+      // УЛУЧШЕНИЕ: Увеличение скорости мяча на 40% для более быстрого полёта
+      curSpd = curSpd * 1.4;
+
       // КРОК 3: Перевірити accuracy multiplier та додати логування
       console.log(
         `[LAUNCH] speedInMS=${speedInMS.toFixed(2)}, pixelsPerMeter=${pixelsPerMeter.toFixed(0)}, ` +
@@ -824,14 +839,24 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         }
       }
 
+      const ballVx = Math.cos(angle) * curSpd;
+      const ballVy = Math.sin(angle) * curSpd;
+
       ss.ball = {
         x: px, y: py,
-        vx: Math.cos(angle) * curSpd, vy: Math.sin(angle) * curSpd,
+        vx: ballVx, vy: ballVy,
         rot: 0, state: 'flying', outcome,
         boardHandled: false, rimHandled: false, owner: idx,
         guaranteedScore: guaranteedScore,
         scoredGoal: false
       };
+
+      // Инициализация Matter.js для коллизий с обручем
+      if (!physicsRef.current) {
+        physicsRef.current = new BasketballPhysics(HOOP_X, HOOP_Y, HOOP_RADIUS, BALL_RADIUS, BOARD_X, BOARD_TOP);
+      }
+      physicsRef.current.launchBall(px, py, ballVx, ballVy);
+
       ss.phase = 'flying';
       ss.lockedAngle = null;
       ss.idealTraj = null;
@@ -901,6 +926,12 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       ss.lockedAngle = null;
       ss.idealTraj = null;
 
+      // Очистка Matter.js physics engine
+      if (physicsRef.current) {
+        physicsRef.current.destroy();
+        physicsRef.current = null;
+      }
+
       // DEBUG: Log scoring event
       console.log(`[SCORE] Player ${idx} (${p.name}) scored! Total: ${p.score}`);
 
@@ -955,6 +986,12 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       ss.runTarget = { x: Math.max(50*scaleX, Math.min(W - 30*scaleX, bx)), y: GY };
       ss.phase = 'auto_run';
       p.status = 'running';
+
+      // Очистка Matter.js physics engine
+      if (physicsRef.current) {
+        physicsRef.current.destroy();
+        physicsRef.current = null;
+      }
     }
 
     function drawBball(cx: number, cy: number, r: number) {
