@@ -1044,6 +1044,10 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       const greenZoneTolerance = Math.round(calculateGreenZoneTolerance(distFraction) * 2);
       const inGreenZone = Math.abs(ss.power - idealPwrPct) <= greenZoneTolerance;
 
+      // FIX 3: Distance-based power verification logging (140px = 1m, before any ball launch)
+      const distMeters = (distToHoop / 140).toFixed(2);
+      console.log(`[POWER ANALYSIS] Distance=${distMeters}m (${Math.round(distToHoop)}px), Ideal=${idealPwrPct}%, Actual=${ss.power}%, Tolerance=±${greenZoneTolerance}%, In Green=${inGreenZone}`);
+
       // Store for power bar visualization
       ss.distFraction = distFraction;
       ss.idealPowerForDistance = idealPwrPct;
@@ -1088,21 +1092,32 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       // GREEN LINE GUARANTEE: Clicking exactly on green line (accuracy >= 95%) = 100% score
       let guaranteedScore = false;
 
-      // ✅ ПЕРЕВІКА: Якщо accuracy >= 95% → гарантована мета (не залежить від кута)
-      if (ss.powerMeterResult && ss.powerMeterResult.accuracy >= 95) {
-        const idealSpeedMS = calculateBallSpeedFromPower(idealPwrPct);
-        curSpd = idealSpeedMS * pixelsPerMeter;
+      // ✅ FIX 1: 5-TIER ACCURACY SUCCESS SYSTEM
+      const accuracy = ss.powerMeterResult?.accuracy || 0;
+      if (accuracy >= 95) {
         guaranteedScore = true;
-        addFlash('✅ ТОЧНО НА ЛІНІЮ!', p.x, p.y - 115*scaleY, '#44ff88');
-        console.log(`[SHOOT] 🎯 ЗЕЛЕНА ЛІНІЯ! accuracy=${ss.powerMeterResult.accuracy}% >= 95% → ГАРАНТОВАНИЙ ГОЛ`);
-      } else if (inGreenZone && angleAcceptable) {
-        // Резервна логіка: якщо в зеленій зоні І кут хороший
-        addFlash('⚡ ДОБРИЙ БРОСОК!', p.x, p.y - 115*scaleY, '#ffff44');
-        const acc = ss.powerMeterResult?.accuracy || 0;
-        console.log(`[SHOOT] Добрий бросок (accuracy=${acc}%, не гарантія), залежить від рандому`);
+        addFlash('✅ ТОЧНО НА ЛІНІЮ! (100%)', p.x, p.y - 115*scaleY, '#44ff88');
+        console.log(`[SHOOT] 🎯 accuracy=${accuracy}% >= 95% → 100% success (GUARANTEED)`);
+      } else if (accuracy >= 85) {
+        guaranteedScore = Math.random() < 0.95;
+        addFlash('⭐ ВІДМІННИЙ БРОСОК! (95%)', p.x, p.y - 115*scaleY, '#88ff88');
+        console.log(`[SHOOT] accuracy=${accuracy}% >= 85% → 95% success (${guaranteedScore ? 'HIT' : 'MISS'})`);
+      } else if (accuracy >= 75) {
+        guaranteedScore = Math.random() < 0.80;
+        addFlash('🟢 ХОРОШИЙ БРОСОК! (80%)', p.x, p.y - 115*scaleY, '#ffff44');
+        console.log(`[SHOOT] accuracy=${accuracy}% >= 75% → 80% success (${guaranteedScore ? 'HIT' : 'MISS'})`);
+      } else if (accuracy >= 65) {
+        guaranteedScore = Math.random() < 0.60;
+        addFlash('🟡 НЕПОГАНИЙ БРОСОК (60%)', p.x, p.y - 115*scaleY, '#ffaa44');
+        console.log(`[SHOOT] accuracy=${accuracy}% >= 65% → 60% success (${guaranteedScore ? 'HIT' : 'MISS'})`);
+      } else if (accuracy >= 50) {
+        guaranteedScore = Math.random() < 0.30;
+        addFlash('🔴 СЛАБКИЙ БРОСОК (30%)', p.x, p.y - 115*scaleY, '#ff6644');
+        console.log(`[SHOOT] accuracy=${accuracy}% >= 50% → 30% success (${guaranteedScore ? 'HIT' : 'MISS'})`);
       } else {
-        const acc = ss.powerMeterResult?.accuracy || 0;
-        console.log(`[SHOOT] Слабкий бросок (accuracy=${acc}%, низький шанс)`);
+        guaranteedScore = false;
+        addFlash('❌ ДУЖЕ СЛАБКО! (0%)', p.x, p.y - 115*scaleY, '#ff3333');
+        console.log(`[SHOOT] accuracy=${accuracy}% < 50% → GUARANTEED MISS`);
       }
 
       const pts = simTraj(px, py, angle, curSpd, 95);
@@ -1139,8 +1154,23 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         }
       }
 
-      const ballVx = Math.cos(angle) * curSpd;
-      const ballVy = Math.sin(angle) * curSpd;
+      let ballVx = Math.cos(angle) * curSpd;
+      let ballVy = Math.sin(angle) * curSpd;
+
+      // FIX 2: TRAJECTORY CORRECTION when accuracy >= 85%
+      if (accuracy >= 85) {
+        const toHoopX = HOOP_X - px;
+        const toHoopY = HOOP_Y - py;
+        const hoopDist = Math.sqrt(toHoopX * toHoopX + toHoopY * toHoopY);
+        if (hoopDist > 0) {
+          const targetVx = (toHoopX / hoopDist) * curSpd;
+          const targetVy = (toHoopY / hoopDist) * curSpd;
+          const correction = 0.15;  // Pull toward hoop by 15%
+          ballVx = ballVx * (1 - correction) + targetVx * correction;
+          ballVy = ballVy * (1 - correction) + targetVy * correction;
+          console.log(`[TRAJECTORY] accuracy=${accuracy}% >= 85% → corrected velocity (15% toward hoop)`);
+        }
+      }
 
       ss.ball = {
         x: px, y: py,
@@ -1226,10 +1256,17 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       const p = gs.players[idx];
       p.score++;
       gs.shootStates[idx].inDanger = false;
-      addFlash('✅ ПОПАВ! +1', HOOP_X + 55*scaleX, HOOP_Y - 45*scaleY, '#44cc44');
+
+      // FIX 4: ACCURACY DISPLAY IMPROVEMENT with distance and accuracy percentage
+      const ss = gs.shootStates[idx];
+      const accuracy = ss.powerMeterResult?.accuracy || 100;
+      const distMeters = (ss.distToHoop ? (ss.distToHoop / 140).toFixed(1) : '?');  // 140px = 1m
+      const accuracyText = accuracy >= 95 ? '🎯' : accuracy >= 85 ? '⭐' : accuracy >= 75 ? '🟢' : accuracy >= 65 ? '🟡' : '🔴';
+      const flashText = `${accuracyText} ПОПАВ! +1 (${distMeters}m, ${Math.round(accuracy)}%)`;
+
+      addFlash(flashText, HOOP_X + 55*scaleX, HOOP_Y - 45*scaleY, '#44cc44');
       gs.netShake = true;
       gs.netShakeEnd = Date.now() + 700;
-      const ss = gs.shootStates[idx];
       ss.phase = null;
       ss.ball = null;
       ss.lockedAngle = null;
@@ -1241,12 +1278,11 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         physicsRef.current = null;
       }
 
-      // DEBUG: Log scoring event
-      console.log(`[SCORE] Player ${idx} (${p.name}) scored! Total: ${p.score}`);
+      // DEBUG: Log scoring event with distance and accuracy
+      console.log(`[SCORE] Player ${idx} (${p.name}) scored from ${distMeters}m at ${Math.round(accuracy)}%! Total: ${p.score}`);
 
       // ✅ MULTIPLAYER: Emit shot completion to server via Pusher
       if (idx === 0) {
-        const accuracy = ss.powerMeterResult?.accuracy || 100;
         fetch('/api/pusher/shot', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -1672,7 +1708,9 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         }
         if (ss.ball && ss.phase === 'auto_run') {
           ctx.save();
-          ctx.translate(ss.ball.x, ss.ball.y);
+          // FIX 5: DRIBBLE BOUNCE ANIMATION during auto_run
+          const dribbleBounce = Math.sin(Date.now() / 150) * 8 * scaleY;  // Sine wave bounce ~8px
+          ctx.translate(ss.ball.x, ss.ball.y + dribbleBounce);
           ctx.rotate(ss.ball.rot || 0);
           drawBball(0, 0, 11*scaleX);
           ctx.restore();
