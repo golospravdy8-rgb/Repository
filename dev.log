@@ -21,3 +21,6 @@
 
  ✓ Starting...
  ✓ Ready in 3.9s
+ ○ Compiling /api/health ...
+ ✓ Compiled /api/health in 660ms (56 modules)
+ GET /api/health 200 in 789ms

@@ -704,6 +704,32 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       // НОВА СИСТЕМА КОЛІЖІЙ: Реалістична фізика з 5 результатами
       // Перевіря коліжію з обручем лише якщо м'яч ще не обробив результат
       if (!b.rimHandled && b.vy > 0) {
+        // FIX: Check if ball is already INSIDE hoop and falling down
+        // If so, skip rim collision and let it fall through naturally
+        const hoopLeftX = HOOP_X - HOOP_RADIUS;
+        const hoopRightX = HOOP_X + HOOP_RADIUS;
+        const ballInsideHoop =
+          b.x > hoopLeftX + BALL_RADIUS &&
+          b.x < hoopRightX - BALL_RADIUS &&
+          b.y >= HOOP_Y &&
+          b.vy > 0;
+
+        if (ballInsideHoop && !b.scoredGoal) {
+          // Ball is inside hoop and falling → auto-score
+          b.scoredGoal = true;
+          b.state = 'scored';
+          b.outcome = 'direct';
+          b.vx = 0;
+          b.vy = 0;
+          b.x = HOOP_X;
+          b.y = HOOP_Y + 26*scaleY;
+          gs.netShake = true;
+          gs.netShakeEnd = Date.now() + 700;
+          addFlash('🎯 SWISH!', HOOP_X, HOOP_Y - 52*scaleY, '#00ff00');
+          console.log('[COLLISION] Ball inside hoop, falling through - GOAL!');
+          return;
+        }
+
         // Matter.js коліжія для реалістичної фізики обруча
         let collisionType: string = 'none';
         if (physicsRef.current) {
@@ -732,11 +758,33 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           // RATTLE_IN: дотик обіду + відскік + в сітку
           b.rimHandled = true;
           b.outcome = 'rattleIn';
+
+          // Init rim bounce counter to prevent infinite spinning
+          if (b.rimBounceCount === undefined) b.rimBounceCount = 0;
+          b.rimBounceCount++;
+
+          // If too many rim bounces, force result
+          if (b.rimBounceCount >= 3) {
+            // After 3+ bounces, force into hoop
+            b.scoredGoal = true;
+            b.state = 'scored';
+            b.outcome = 'direct';
+            b.vx = 0;
+            b.vy = 0;
+            b.x = HOOP_X;
+            b.y = HOOP_Y + 26*scaleY;
+            gs.netShake = true;
+            gs.netShakeEnd = Date.now() + 700;
+            addFlash('🎯 FINALLY IN!', HOOP_X, HOOP_Y - 52*scaleY, '#00ff00');
+            console.log('[COLLISION] Rattle in - forced goal after 3 bounces');
+            return;
+          }
+
           applyRimBounce(b);
           addFlash('💥 Rattles In!', HOOP_X, HOOP_Y - 52*scaleY, '#ff9900');
           gs.netShake = true;
           gs.netShakeEnd = Date.now() + 700;
-          console.log('[COLLISION] Rattle in - rim bounce detected');
+          console.log(`[COLLISION] Rattle in - rim bounce #${b.rimBounceCount} detected`);
           // М'яч продовжує летіти, потім потрапить в обруч через magic pull
           b.outcome = 'direct';
         }
@@ -745,6 +793,11 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           // RIM_OUT: дотик обіду + 50/50 повернення або повернення в кільце
           b.rimHandled = true;
           b.outcome = 'rimOut';
+
+          // Init rim bounce counter
+          if (b.rimBounceCount === undefined) b.rimBounceCount = 0;
+          b.rimBounceCount++;
+
           applyRimBounce(b);
 
           // 50/50: половину м'яч летить назад, половину повертається в кільце
@@ -759,10 +812,27 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
             b.vx = (dx / dist) * bounceSpeed;
             b.vy = (dy / dist) * bounceSpeed;
             b.guaranteedScore = true;
+
+            // After 3+ bounces, just score directly
+            if (b.rimBounceCount >= 3) {
+              b.scoredGoal = true;
+              b.state = 'scored';
+              b.outcome = 'direct';
+              b.vx = 0;
+              b.vy = 0;
+              b.x = HOOP_X;
+              b.y = HOOP_Y + 26*scaleY;
+              addFlash('🎯 IN!', HOOP_X, HOOP_Y - 52*scaleY, '#00ff00');
+              gs.netShake = true;
+              gs.netShakeEnd = Date.now() + 700;
+              console.log(`[COLLISION] Rim bounce #${b.rimBounceCount} - forced goal`);
+              return;
+            }
+
             addFlash('🔄 RATTLES IN! 🏀', HOOP_X, HOOP_Y - 52*scaleY, '#ff8800');
             gs.netShake = true;
             gs.netShakeEnd = Date.now() + 700;
-            console.log('[COLLISION] Rim bounce 50% SUCCESS → returns to hoop');
+            console.log(`[COLLISION] Rim bounce #${b.rimBounceCount} SUCCESS → returns to hoop`);
             b.outcome = 'direct';
           } else {
             // 50% ПРОМАХ: Обычный отскок назад
@@ -771,7 +841,16 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
             addFlash('💢 RIM!', HOOP_X, HOOP_Y - 52*scaleY, '#ff0000');
             gs.netShake = true;
             gs.netShakeEnd = Date.now() + 500;
-            console.log('[COLLISION] Rim bounce 50% MISS → bounces back');
+
+            // After 3 failed bounces, eject the ball
+            if (b.rimBounceCount >= 3) {
+              b.vx = (Math.random() > 0.5 ? 1 : -1) * 3;
+              b.vy = -2;
+              b.rimBounceCount = 0;
+              console.log(`[COLLISION] Rim bounce #${b.rimBounceCount} - ejecting ball`);
+            } else {
+              console.log(`[COLLISION] Rim bounce #${b.rimBounceCount} MISS → bounces back`);
+            }
             b.outcome = 'miss_fly';
           }
         }
