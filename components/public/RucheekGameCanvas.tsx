@@ -1720,8 +1720,19 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       }
     }
 
+    // Double-click tracking for instant ball grab
+    let lastClickTime = 0;
+    const DOUBLE_CLICK_THRESHOLD = 400; // ms
+
     canvas.addEventListener("click", (e: MouseEvent) => {
       if (gs.state !== "playing") return;
+
+      // Track double-click
+      const now = Date.now();
+      const timeDiff = now - lastClickTime;
+      lastClickTime = now;
+      const isDoubleClick = timeDiff < DOUBLE_CLICK_THRESHOLD;
+
       const rect = canvas.getBoundingClientRect();
       const sc = W / rect.width;
       const mx = (e.clientX - rect.left) * sc;
@@ -1799,6 +1810,21 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           launchBall(hitIdx);
         }
       } else {
+        // FEATURE 1: Double-click to instantly grab ball when chasing
+        if (isDoubleClick && gs.selectedMoveIdx >= 0 && gs.selectedMoveIdx < gs.players.length) {
+          const p = gs.players[gs.selectedMoveIdx], ss = gs.shootStates[gs.selectedMoveIdx];
+          if (p.status !== "eliminated" && ss.phase === "auto_run" && ss.ball) {
+            // Ball exists and player is chasing → grab it instantly
+            ss.ball.state = "done";
+            ss.hasBall = true;
+            ss.phase = "idle";
+            p.status = "idle";
+            addFlash("⚡ МЯЧ ПОДОБРАН!", p.x, p.y - 100*scaleY, "#ffdd44");
+            console.log(`[DOUBLE CLICK] Player ${gs.selectedMoveIdx} grabbed ball instantly`);
+            return;
+          }
+        }
+        // Normal click: move player to position
         if (gs.selectedMoveIdx >= 0 && gs.selectedMoveIdx < gs.players.length) {
           const p = gs.players[gs.selectedMoveIdx], ss = gs.shootStates[gs.selectedMoveIdx];
           if (p.status !== "eliminated" && (ss.phase === null || ss.phase === "pickup_wait" || ss.phase === "manual_run")) {
@@ -1824,21 +1850,30 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       }
       if (hitIdx >= 0) {
         const p = gs.players[hitIdx], ss = gs.shootStates[hitIdx];
+        // FEATURE 2: RMB cancels shot phases (aiming or charging) and keeps player active
         if (ss.phase === "charging") {
-          ss.phase = "aiming";
-          ss.aimAngle = ss.lockedAngle || ss.aimAngle;
-          ss.aimDir = 1;
+          // Charging → reset to idle, clear meter
+          ss.phase = "idle";
+          ss.power = 0;
+          ss.powerDir = 1;
           ss.lockedAngle = null;
           ss.idealTraj = null;
-          addFlash("↺ переприціл", p.x, p.y - 105*scaleY, "rgba(255,210,80,0.95)");
+          if (powerMeterRef.current) {
+            powerMeterRef.current.stopMeterAnimation();
+          }
+          if (meterElementRef.current) {
+            hideMeter(meterElementRef.current);
+          }
+          setMeterVisible(false);
+          addFlash("❌ СКАСОВАНО", p.x, p.y - 105*scaleY, "rgba(255,100,100,0.95)");
+          console.log(`[RMB CANCEL] Player ${hitIdx} cancelled charging phase`);
         } else if (ss.phase === "aiming") {
-          ss.phase = null;
+          // Aiming → reset to idle (same as charging but meter wasn't visible)
+          ss.phase = "idle";
           ss.lockedAngle = null;
           ss.idealTraj = null;
-          ss.ball = null;
-          p.status = "idle";
-          gs.selectedMoveIdx = -1;
-          addFlash("✖ скасовано", p.x, p.y - 95*scaleY, "rgba(200,200,200,0.9)");
+          addFlash("❌ СКАСОВАНО", p.x, p.y - 105*scaleY, "rgba(255,100,100,0.95)");
+          console.log(`[RMB CANCEL] Player ${hitIdx} cancelled aiming phase`);
         } else if (p.status !== "eliminated") {
           gs.selectedMoveIdx = hitIdx;
           addFlash("👆 вибрано", p.x, p.y - 95*scaleY, "rgba(255,220,80,0.95)");
