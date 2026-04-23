@@ -1017,11 +1017,16 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         const idealSpeedMS = calculateBallSpeedFromPower(idealPwrPct);
         curSpd = idealSpeedMS * pixelsPerMeter;
         guaranteedScore = true;
-        addFlash('✅ 100% ГАРАНТІЯ!', p.x, p.y - 115*scaleY, '#44ff88');
-        console.log(`[GREEN LINE GUARANTEE] accuracy=${ss.powerMeterResult.accuracy}% >= 95% → guaranteed goal regardless of angle`);
+        addFlash('✅ ТОЧНО НА ЛІНІЮ!', p.x, p.y - 115*scaleY, '#44ff88');
+        console.log(`[SHOOT] 🎯 ЗЕЛЕНА ЛІНІЯ! accuracy=${ss.powerMeterResult.accuracy}% >= 95% → ГАРАНТОВАНИЙ ГОЛ`);
       } else if (inGreenZone && angleAcceptable) {
         // Резервна логіка: якщо в зеленій зоні І кут хороший
         addFlash('⚡ ДОБРИЙ БРОСОК!', p.x, p.y - 115*scaleY, '#ffff44');
+        const acc = ss.powerMeterResult?.accuracy || 0;
+        console.log(`[SHOOT] Добрий бросок (accuracy=${acc}%, не гарантія), залежить від рандому`);
+      } else {
+        const acc = ss.powerMeterResult?.accuracy || 0;
+        console.log(`[SHOOT] Слабкий бросок (accuracy=${acc}%, низький шанс)`);
       }
 
       const pts = simTraj(px, py, angle, curSpd, 95);
@@ -2020,8 +2025,10 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
             }
             setMeterVisible(false);
 
+            // DIAGNOSTIC: Enhanced logging for accuracy
+            const isGreen = accuracy >= 95;
             console.log(
-              `[SecondClick] accuracy=${accuracy}%, meterHeight=${meterHeight.toFixed(0)}px, greenLine=${greenLinePosition.toFixed(0)}px`
+              `[SecondClick] accuracy=${accuracy}% (${isGreen ? 'ЗЕЛЕНА ЛІНІЯ ✅' : 'мало'}) | meterHeight=${meterHeight.toFixed(0)}px, greenLine=${greenLinePosition.toFixed(0)}px, diff=${Math.abs(meterHeight - greenLinePosition).toFixed(0)}px`
             );
           }
           launchBall(hitIdx);

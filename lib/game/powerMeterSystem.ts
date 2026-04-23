@@ -84,15 +84,22 @@ export class PowerMeterSystem {
   calculateAccuracy(meterHeight: number, greenLinePosition: number): number {
     const distanceFromGreen = Math.abs(meterHeight - greenLinePosition);
 
+    let accuracy: number;
     if (distanceFromGreen < 5) {
-      return 100;
+      accuracy = 100;
     } else if (distanceFromGreen < 15) {
-      return 90;
+      accuracy = 90;
     } else if (distanceFromGreen < 30) {
-      return 70;
+      accuracy = 70;
     } else {
-      return 40;
+      accuracy = 40;
     }
+
+    // DIAGNOSTIC: Log accuracy calculation
+    console.log(`[ACCURACY] meterHeight=${meterHeight.toFixed(0)}px, greenLine=${greenLinePosition.toFixed(0)}px, ` +
+      `distance=${distanceFromGreen.toFixed(0)}px → accuracy=${accuracy}%`);
+
+    return accuracy;
   }
 
   getMeterState(): PowerMeterState {
