@@ -867,14 +867,18 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         );
       }
 
-      // GREEN ZONE GUARANTEE: Power in zone AND angle acceptable = 100% score
+      // GREEN LINE GUARANTEE: Clicking exactly on green line (accuracy >= 95%) = 100% score
       let guaranteedScore = false;
-      if (inGreenZone && angleAcceptable) {
+
+      // ✅ ПЕРЕВІКА: Якщо accuracy >= 95% → гарантована мета (не залежить від кута)
+      if (ss.powerMeterResult && ss.powerMeterResult.accuracy >= 95) {
         const idealSpeedMS = calculateBallSpeedFromPower(idealPwrPct);
         curSpd = idealSpeedMS * pixelsPerMeter;
         guaranteedScore = true;
-        addFlash('✅ ГАРАНТОВАНИЙ ГОЛ!', p.x, p.y - 115*scaleY, '#44ff88');
-      } else if (inGreenZone) {
+        addFlash('✅ 100% ГАРАНТІЯ!', p.x, p.y - 115*scaleY, '#44ff88');
+        console.log(`[GREEN LINE GUARANTEE] accuracy=${ss.powerMeterResult.accuracy}% >= 95% → guaranteed goal regardless of angle`);
+      } else if (inGreenZone && angleAcceptable) {
+        // Резервна логіка: якщо в зеленій зоні І кут хороший
         addFlash('⚡ ДОБРИЙ БРОСОК!', p.x, p.y - 115*scaleY, '#ffff44');
       }
 
