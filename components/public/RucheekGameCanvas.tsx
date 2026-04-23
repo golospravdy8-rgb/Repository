@@ -1118,6 +1118,10 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           if (ss.ball.state === 'scored') handleScored(i);
           else if (ss.ball.state === 'missed') handleMissed(i);
         }
+        // Prevent movement during aiming/charging phases
+        if (ss.phase === 'aiming' || ss.phase === 'charging') {
+          continue;
+        }
         if (ss.phase === 'auto_run' || ss.phase === 'manual_run') {
           p.rf++;
           const t = ss.runTarget;
@@ -2054,6 +2058,12 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
 
           // DEBUG: Log why movement might not trigger
           console.log(`[LMB MOVE] selectedIdx=${gs.selectedMoveIdx}, phase=${ss.phase}, status=${p.status}, eliminated=${p.status === 'eliminated'}`);
+
+          // BLOCK movement during shooting phases (aiming/charging)
+          if (ss.phase === "aiming" || ss.phase === "charging") {
+            console.log(`[LMB MOVE] BLOCKED: Player in shooting phase (${ss.phase}), movement disabled`);
+            return;
+          }
 
           // FIX: Include "idle" phase in movement check (was missing before)
           const canMove = p.status !== "eliminated" &&
