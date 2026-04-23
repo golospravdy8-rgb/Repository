@@ -132,6 +132,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         y: data.y,
         name: data.name || 'Player',
         status: 'alive',
+        ball: data.ball || null,
       });
     });
 
@@ -1774,6 +1775,22 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         ctx.fillStyle = '#80cbc4';
         ctx.font = `${10*scaleX}px sans-serif`;
         ctx.fillText(rp.status === 'alive' ? '✓ alive' : '✗ eliminated', rpx, rpy - 60*scaleY);
+
+        // Draw remote player's ball (multiplayer sync)
+        if (rp.ball && rp.ball.state === 'flying') {
+          ctx.save();
+          ctx.translate(rp.ball.x, rp.ball.y);
+          ctx.rotate(rp.ball.rot || 0);
+          drawBball(0, 0, 11*scaleX);
+          ctx.restore();
+        }
+        if (rp.ball && rp.ball.state === 'auto_run') {
+          ctx.save();
+          ctx.translate(rp.ball.x, rp.ball.y);
+          ctx.rotate(rp.ball.rot || 0);
+          drawBball(0, 0, 11*scaleX);
+          ctx.restore();
+        }
       });
 
       gs.flashes.forEach((f: any) => {
@@ -2304,6 +2321,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
     if (gs.players.length === 0 || !gameRoomId) return;
     const myPlayer = gs.players[0];
     if (myPlayer) {
+      const ball = gs.shootStates[0]?.ball;
       fetch('/api/pusher', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -2314,6 +2332,14 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           y: myPlayer.y,
           name: myPlayer.name,
           score: myPlayer.score,
+          ball: ball ? {
+            x: ball.x,
+            y: ball.y,
+            vx: ball.vx,
+            vy: ball.vy,
+            rot: ball.rot,
+            state: ball.state
+          } : null,
         }),
       }).catch(() => {});
     }
