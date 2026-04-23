@@ -1057,7 +1057,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       const ss = gs.shootStates[idx];
       const px = p.x - 15*scaleX;
       const py = p.y - 55*scaleY;
-      const angle = ss.aimAngle;
+      let angle = ss.aimAngle;  // ETAP 7: Make angle mutable for perfect release lock
 
       // Calculate distance-based physics with 200% power scale
       const distToHoop = Math.hypot(HOOP_X - px, HOOP_Y - py);
@@ -1202,19 +1202,27 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       let ballVx = Math.cos(angle) * curSpd;
       let ballVy = Math.sin(angle) * curSpd;
 
-      // FIX 2 + ETAP 5: ENHANCED TRAJECTORY CORRECTION based on accuracy
+      // ETAP 7: PERFECT RELEASE WINDOW LOCK for accuracy >= 95%
       if (accuracy >= 95) {
-        // Green line: maximum correction (40% toward hoop)
+        // Perfect release: 85% trajectory correction + angle lock guarantee
+        const angleRange = getIdealAngleForDistance(distToHoop);
+        angle = angleRange.ideal;  // LOCK angle to ideal for distance
+
+        // Recalculate velocity with locked angle
+        ballVx = Math.cos(angle) * curSpd;
+        ballVy = Math.sin(angle) * curSpd;
+
+        // Apply 85% correction toward hoop (nearly direct path, still realistic arc)
         const toHoopX = HOOP_X - px;
         const toHoopY = HOOP_Y - py;
         const hoopDist = Math.sqrt(toHoopX * toHoopX + toHoopY * toHoopY);
         if (hoopDist > 0) {
           const targetVx = (toHoopX / hoopDist) * curSpd;
           const targetVy = (toHoopY / hoopDist) * curSpd;
-          const correction = 0.40;  // 40% correction for guaranteed DIRECT shot
+          const correction = 0.85;  // 85% correction = nearly perfect trajectory
           ballVx = ballVx * (1 - correction) + targetVx * correction;
           ballVy = ballVy * (1 - correction) + targetVy * correction;
-          console.log(`[TRAJECTORY] 🎯 accuracy=${accuracy}% >= 95% → STRONG correction (40% toward hoop)`);
+          console.log(`[PERFECT RELEASE] 🎯 accuracy=${accuracy}% → 85% correction + angle lock (GUARANTEED HIT)`);
         }
       } else if (accuracy >= 85) {
         // Excellent: medium correction (25% toward hoop)
@@ -1316,14 +1324,23 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       p.score++;
       gs.shootStates[idx].inDanger = false;
 
-      // FIX 4: ACCURACY DISPLAY IMPROVEMENT with distance and accuracy percentage
+      // FIX 4 + ETAP 7: ACCURACY DISPLAY with perfect release highlight
       const ss = gs.shootStates[idx];
       const accuracy = ss.powerMeterResult?.accuracy || 100;
       const distMeters = (ss.distToHoop ? (ss.distToHoop / 140).toFixed(1) : '?');  // 140px = 1m
-      const accuracyText = accuracy >= 95 ? '🎯' : accuracy >= 85 ? '⭐' : accuracy >= 75 ? '🟢' : accuracy >= 65 ? '🟡' : '🔴';
-      const flashText = `${accuracyText} ПОПАВ! +1 (${distMeters}m, ${Math.round(accuracy)}%)`;
 
-      addFlash(flashText, HOOP_X + 55*scaleX, HOOP_Y - 45*scaleY, '#44cc44');
+      // ETAP 7: Special message for perfect 100% accuracy (green line hit)
+      let flashText: string;
+      let flashColor = '#44cc44';  // Default green
+      if (accuracy >= 95) {
+        flashText = `🎯 100% ІДЕАЛЬНО! ${distMeters}m | ПРЯМЕ ПОПАДАННЯ`;
+        flashColor = '#00ff00';  // Bright green for perfect release
+      } else {
+        const accuracyText = accuracy >= 85 ? '⭐' : accuracy >= 75 ? '🟢' : accuracy >= 65 ? '🟡' : '🔴';
+        flashText = `${accuracyText} ПОПАВ! +1 (${distMeters}m, ${Math.round(accuracy)}%)`;
+      }
+
+      addFlash(flashText, HOOP_X + 55*scaleX, HOOP_Y - 45*scaleY, flashColor);
 
       // ETAP 5: Determine hit type and set net swing animation
       const ball = ss.ball;
