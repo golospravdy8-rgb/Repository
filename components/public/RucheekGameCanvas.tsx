@@ -2,8 +2,6 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { io, Socket } from "socket.io-client";
-import { PowerMeterSystem } from "@/lib/game/powerMeterSystem";
-import { createMeterElement, updateMeterDisplay, hideMeter, showAccuracyFeedback } from "@/lib/game/powerMeterUI";
 
 interface RucheekGameCanvasProps {
   isVisible: boolean;
@@ -40,12 +38,6 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
   });
   const playerIdRef = useRef<number>(0);
   const lastEmitTimeRef = useRef<number>(0);
-
-  // Power Meter System refs and state
-  const powerMeterRef = useRef<PowerMeterSystem | null>(null);
-  const meterElementRef = useRef<HTMLDivElement | null>(null);
-  const [meterVisible, setMeterVisible] = useState(false);
-  const [greenLinePosition, setGreenLinePosition] = useState(180);
 
   useEffect(() => { setMounted(true); }, []);
 
@@ -180,13 +172,6 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
 
     const gs = gsRef.current;
     let ss_ideal_power = 50;
-
-    // Initialize Power Meter System
-    const maxDistance = Math.hypot(W, H); // Maximum diagonal distance
-    if (!powerMeterRef.current) {
-      powerMeterRef.current = new PowerMeterSystem(maxDistance);
-      console.log(`[Game] PowerMeterSystem initialized with maxDistance: ${maxDistance.toFixed(0)}px`);
-    }
 
     // Ball physics constants
     const BALL_RADIUS = 12 * scaleX;
@@ -1442,64 +1427,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           ss.phase = "charging";
           ss.power = 0;
           ss.powerDir = 1;
-
-          // POWER METER: Calculate and display adaptive green line
-          if (powerMeterRef.current) {
-            const currentDist = distToHoop;
-            const greenLine = powerMeterRef.current.calculateGreenLinePosition(currentDist);
-            powerMeterRef.current.setGreenLinePosition(greenLine);
-            setGreenLinePosition(greenLine);
-
-            // Create meter element
-            const meter = createMeterElement(greenLine);
-            meterElementRef.current = meter;
-            setMeterVisible(true);
-
-            // Start meter animation
-            powerMeterRef.current.startMeterAnimation();
-
-            console.log(
-              `[FirstClick] Shot distance: ${currentDist.toFixed(0)}px, Green line: ${greenLine.toFixed(0)}px`
-            );
-          }
         } else if (ss.phase === "charging") {
-          // POWER METER: Calculate accuracy and flight distance
-          if (powerMeterRef.current) {
-            const meterHeight = powerMeterRef.current.getMeterCurrentHeight();
-            const px = p.x - 15*scaleX;
-            const py = p.y - 55*scaleY;
-            const currentDist = Math.hypot(HOOP_X - px, HOOP_Y - py);
-
-            const shotResult = powerMeterRef.current.getShotResult(
-              meterHeight,
-              greenLinePosition,
-              currentDist
-            );
-
-            // Store result in shootState for potential use
-            ss.powerMeterResult = shotResult;
-
-            // Show accuracy feedback
-            showAccuracyFeedback(
-              shotResult.accuracy,
-              p.x,
-              p.y - 130*scaleY
-            );
-
-            // Stop meter animation and hide
-            powerMeterRef.current.stopMeterAnimation();
-            if (meterElementRef.current) {
-              hideMeter(meterElementRef.current);
-            }
-            setMeterVisible(false);
-
-            console.log(
-              `[SecondClick] Accuracy: ${shotResult.accuracy}%, Distance: ${currentDist.toFixed(0)}px, ` +
-              `Meter height: ${meterHeight.toFixed(0)}px, Green line: ${greenLinePosition.toFixed(0)}px, ` +
-              `Is ideal: ${shotResult.isIdealShot}`
-            );
-          }
-
           launchBall(hitIdx);
         }
       } else {
@@ -1556,12 +1484,6 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
     function renderLoop() {
       update();
       draw();
-
-      // Update power meter display
-      if (meterVisible && meterElementRef.current && powerMeterRef.current) {
-        const currentHeight = powerMeterRef.current.getMeterCurrentHeight();
-        updateMeterDisplay(meterElementRef.current, currentHeight);
-      }
 
       // Emit player position every 100ms to server
       const now = Date.now();
