@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useRef, useState, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { io, Socket } from "socket.io-client";
+import Pusher from "pusher-js";
 import { PowerMeterSystem } from "@/lib/game/powerMeterSystem";
 import { createMeterElement, hideMeter, showAccuracyFeedback } from "@/lib/game/powerMeterUI";
 import { BasketballPhysics, type CollisionType, type BallPhysicsResult } from "@/lib/game/basketballPhysics";
@@ -21,7 +21,8 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
   const rafRef = useRef<number>(0);
   const pnameRef = useRef<HTMLInputElement>(null);
   const btnStartRef = useRef<HTMLButtonElement>(null);
-  const socketRef = useRef<Socket | null>(null);
+  const pusherRef = useRef<any>(null);
+  const channelRef = useRef<any>(null);
   const remotePlayersRef = useRef<Map<string, any>>(new Map());
   const physicsRef = useRef<BasketballPhysics | null>(null);
   const [mounted, setMounted] = useState(false);
@@ -43,9 +44,17 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
     leaderboard: [] as any[], // ✅ MULTIPLAYER: Leaderboard
     currentTurn: 0, // ✅ MULTIPLAYER: Current turn index
   });
-  const playerIdRef = useRef<number>(0);
+  const playerIdRef = useRef<string>(
+    typeof window !== 'undefined'
+      ? (localStorage.getItem(`pusher_player_id_${gameRoomId}`) ||
+         (() => {
+           const id = `player_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+           localStorage.setItem(`pusher_player_id_${gameRoomId}`, id);
+           return id;
+         })())
+      : `player_${Math.random().toString(36).slice(2)}`
+  );
   const lastEmitTimeRef = useRef<number>(0);
-  const yourSocketIdRef = useRef<string>(''); // ✅ MULTIPLAYER: Your socket ID
 
   // Power Meter System refs and state
   const powerMeterRef = useRef<PowerMeterSystem | null>(null);
@@ -55,145 +64,132 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
 
   useEffect(() => { setMounted(true); }, []);
 
-  // Initialize Socket.IO connection
+  // Initialize Pusher connection
   useEffect(() => {
-    if (!mounted || socketRef.current) return;
+    if (!mounted || pusherRef.current) return;
 
-    const protocol = typeof window !== 'undefined' && window.location.protocol === 'https:' ? 'https' : 'http';
-    const host = typeof window !== 'undefined' ? window.location.host : 'localhost:3006';
-    const socketUrl = `${protocol}//${host}`;
+    console.log(`[Pusher] Initializing connection to game-${gameRoomId}`);
 
-    console.log(`[RucheekGameCanvas] Connecting to Socket.IO at ${socketUrl}`);
-
-    const socket = io(socketUrl, {
-      transports: ['websocket', 'polling'],
-      reconnection: true,
-      reconnectionDelay: 1000,
-      reconnectionDelayMax: 5000,
-      reconnectionAttempts: 5,
+    const pusherClient = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY!, {
+      cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER!,
     });
+    pusherRef.current = pusherClient;
 
-    socket.on('connect', () => {
-      console.log(`[RucheekGameCanvas] Connected: ${socket.id}`);
-      // Join game room
-      socket.emit('join_game', {
-        roomId: gameRoomId,
-        playerIndex: playerIdRef.current,
+    const channel = pusherClient.subscribe(`game-${gameRoomId}`);
+    channelRef.current = channel;
+
+    console.log(`[Pusher] Subscribed to game-${gameRoomId}`);
+
+    // Announce player join
+    fetch('/api/pusher/join', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        room: gameRoomId,
+        playerId: playerIdRef.current,
+        playerIndex: 0,
+        nickname: userName || 'Player',
         x: 680,
         y: 584,
-        nickname: userName || `Player ${playerIdRef.current}`,
-      });
-    });
+      }),
+    }).catch(() => {});
 
-    // ✅ MULTIPLAYER: Receive full room state on join
-    socket.on('room_state', (data: any) => {
-      console.log('[MULTIPLAYER] Received room state:', data);
-      yourSocketIdRef.current = data.yourSocketId;
-      const gs = gsRef.current;
-      gs.leaderboard = data.leaderboard;
-      gs.currentTurn = data.currentTurn;
-      gs.otherPlayers = data.players.filter((p: any) => p.socketId !== data.yourSocketId);
+    // ✅ MULTIPLAYER: Event - Another player joined
+    channel.bind('player-joined', (data: any) => {
+      if (data.playerId === playerIdRef.current) return;
+      console.log(`[Pusher] Player joined:`, data);
+
+      remotePlayersRef.current.set(data.playerId, {
+        socketId: data.playerId,
+        playerIndex: data.playerIndex,
+        x: data.x,
+        y: data.y,
+        status: 'alive',
+        nickname: data.nickname || 'Player',
+        name: data.nickname || 'Player',
+      });
+
+      gsRef.current.flashes.push({
+        text: `✅ ${data.nickname} присоединився!`,
+        x: 400,
+        y: 50,
+        color: '#88ff88',
+        alpha: 1,
+        dy: 0,
+      });
       forceUpdate(n => n + 1);
     });
 
-    // ✅ MULTIPLAYER: Real-time shot result broadcast
-    socket.on('shot_result', (data: any) => {
-      console.log('[MULTIPLAYER] Shot result:', data);
-      const gs = gsRef.current;
-      gs.flashes.push({
-        text: `⚽ ${data.nickname}: ${data.shotScore}pts (${data.accuracy.toFixed(0)}%)`,
+    // ✅ MULTIPLAYER: Event - Another player moved
+    channel.bind('player-move', (data: any) => {
+      if (data.playerId === playerIdRef.current) return;
+
+      const existingPlayer = remotePlayersRef.current.get(data.playerId);
+      remotePlayersRef.current.set(data.playerId, {
+        ...(existingPlayer || {}),
+        socketId: data.playerId,
+        x: data.x,
+        y: data.y,
+        name: data.name || 'Player',
+        status: 'alive',
+      });
+    });
+
+    // ✅ MULTIPLAYER: Event - Another player left
+    channel.bind('player-leave', (data: any) => {
+      console.log(`[Pusher] Player left:`, data.playerId);
+      remotePlayersRef.current.delete(data.playerId);
+      forceUpdate(n => n + 1);
+    });
+
+    // ✅ MULTIPLAYER: Event - Another player shot
+    channel.bind('shot-completed', (data: any) => {
+      if (data.playerId === playerIdRef.current) return;
+      console.log(`[Pusher] Shot completed:`, data);
+
+      gsRef.current.flashes.push({
+        text: `⚽ ${data.nickname}: ${data.shotScore}pts (${Math.round(data.accuracy)}%)`,
         x: 400,
         y: 150,
         color: '#ffdd44',
         alpha: 1,
         dy: 0,
       });
-      forceUpdate(n => n + 1);
-    });
 
-    // ✅ MULTIPLAYER: Leaderboard update
-    socket.on('leaderboard_update', (data: any) => {
-      console.log('[MULTIPLAYER] Leaderboard update:', data.leaderboard);
-      gsRef.current.leaderboard = data.leaderboard;
-      forceUpdate(n => n + 1);
-    });
-
-    // ✅ MULTIPLAYER: Next turn notification
-    socket.on('next_turn', (data: any) => {
-      console.log('[MULTIPLAYER] Next turn - Player:', data.nickname);
-      gsRef.current.currentTurn = data.currentPlayerIndex;
-      gsRef.current.flashes.push({
-        text: `🎯 Ход: ${data.nickname}`,
-        x: 400,
-        y: 300,
-        color: '#44ff44',
-        alpha: 1,
-        dy: 0,
-      });
-      forceUpdate(n => n + 1);
-    });
-
-    // Listen for remote player movements
-    socket.on('player_moved', (data: any) => {
-      console.log('[RucheekGameCanvas] Remote player moved:', data);
-      remotePlayersRef.current.set(data.socketId, {
-        socketId: data.socketId,
-        playerIndex: data.playerIndex,
-        x: data.x,
-        y: data.y,
-        status: data.status,
-        name: data.name || `Player ${data.playerIndex}`,
-      });
-      forceUpdate(n => n + 1);
-    });
-
-    // Listen for player joined
-    socket.on('player_joined', (data: any) => {
-      console.log('[RucheekGameCanvas] Remote player joined:', data);
-      if (data.socketId !== socket.id) {
-        remotePlayersRef.current.set(data.socketId, {
-          socketId: data.socketId,
-          playerIndex: data.playerIndex,
-          x: data.x,
-          y: data.y,
-          status: 'alive',
-          nickname: data.nickname || `Player ${data.playerIndex}`,
-        });
-        gsRef.current.flashes.push({
-          text: `✅ ${data.nickname} присоединився!`,
-          x: 400,
-          y: 50,
-          color: '#88ff88',
-          alpha: 1,
-          dy: 0,
+      // Update leaderboard
+      const lb = gsRef.current.leaderboard as any[];
+      const existing = lb.find((e: any) => e.playerId === data.playerId);
+      if (existing) {
+        existing.score = (existing.score || 0) + data.shotScore;
+      } else {
+        lb.push({
+          playerId: data.playerId,
+          nickname: data.nickname,
+          score: data.shotScore,
         });
       }
+      lb.sort((a: any, b: any) => b.score - a.score);
       forceUpdate(n => n + 1);
     });
 
-    // Listen for disconnections
-    socket.on('player_disconnected', (data: any) => {
-      console.log('[RucheekGameCanvas] Remote player disconnected:', data);
-      remotePlayersRef.current.delete(data.socketId);
-      forceUpdate(n => n + 1);
-    });
-
-    socket.on('disconnect', () => {
-      console.log('[RucheekGameCanvas] Disconnected from server');
-      remotePlayersRef.current.clear();
-    });
-
-    socket.on('error', (error: any) => {
-      console.error('[RucheekGameCanvas] Socket error:', error);
-    });
-
-    socketRef.current = socket;
-
+    // Cleanup on unmount
     return () => {
-      if (socketRef.current) {
-        socketRef.current.disconnect();
-        socketRef.current = null;
-      }
+      console.log(`[Pusher] Unsubscribing from game-${gameRoomId}`);
+      // Announce player leave
+      fetch('/api/pusher', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          room: gameRoomId,
+          playerId: playerIdRef.current,
+          action: 'leave',
+        }),
+      }).catch(() => {});
+
+      channel.unbind_all();
+      pusherClient.unsubscribe(`game-${gameRoomId}`);
+      pusherRef.current = null;
+      channelRef.current = null;
     };
   }, [mounted, gameRoomId, userName]);
 
@@ -1245,16 +1241,22 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       // DEBUG: Log scoring event
       console.log(`[SCORE] Player ${idx} (${p.name}) scored! Total: ${p.score}`);
 
-      // ✅ MULTIPLAYER: Emit shot completion to server
-      if (socketRef.current && idx === 0) {
+      // ✅ MULTIPLAYER: Emit shot completion to server via Pusher
+      if (idx === 0) {
         const accuracy = ss.powerMeterResult?.accuracy || 100;
-        socketRef.current.emit('shoot_completed', {
-          roomId: gameRoomId,
-          playerIndex: idx,
-          shotScore: 1,
-          accuracy: accuracy,
-          collisionType: 'swish', // Can be: swish, rattle, bank, etc
-        });
+        fetch('/api/pusher/shot', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            room: gameRoomId,
+            playerId: playerIdRef.current,
+            playerIndex: idx,
+            nickname: p.name || userName || 'Player',
+            shotScore: 1,
+            accuracy,
+            collisionType: 'swish',
+          }),
+        }).catch(() => {});
       }
 
       if (idx === gs.disputeP2 && gs.disputeP1 >= 0 && gs.disputeP1 < gs.players.length) {
@@ -1906,7 +1908,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         gs.leaderboard.slice(0, 6).forEach((entry: any, i: number) => {
           const y = boardY + 35*scaleY + i * 24*scaleY;
           const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i+1}.`;
-          const isCurrentPlayer = entry.socketId === yourSocketIdRef.current;
+          const isCurrentPlayer = entry.playerId === playerIdRef.current;
           const color = isCurrentPlayer ? '#44ff44' : '#ffffff';
 
           ctx.fillStyle = color;
@@ -2061,20 +2063,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       restoreGameState(gs, savedState);
     }
 
-    // Request game state from server on socket reconnect
-    if (socketRef.current) {
-      socketRef.current.on('connect', () => {
-        console.log('[PERSIST] Socket reconnected, requesting server state...');
-        socketRef.current?.emit('requestGameState', { roomId: gameRoomId });
-      });
-
-      socketRef.current.on('gameStateSync', (serverState: any) => {
-        if (serverState && serverState.state === 'playing') {
-          console.log('[PERSIST] Received game state from server');
-          restoreGameState(gs, serverState);
-        }
-      });
-    }
+    // Pusher doesn't require connection reconnect logic (pub/sub handles it)
 
     // Double-click tracking for instant ball grab
     let lastClickTime = 0;
@@ -2310,49 +2299,60 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
   const gs = gsRef.current;
 
   const emitPlayerPosition = useCallback(() => {
-    if (!socketRef.current?.connected || gs.players.length === 0) return;
+    if (gs.players.length === 0 || !gameRoomId) return;
     const myPlayer = gs.players[0];
     if (myPlayer) {
-      socketRef.current.emit('player_move', {
-        index: 0,
-        x: myPlayer.x,
-        y: myPlayer.y,
-        status: myPlayer.status || 'idle',
-        name: myPlayer.name,
-      });
+      fetch('/api/pusher', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          room: gameRoomId,
+          playerId: playerIdRef.current,
+          x: myPlayer.x,
+          y: myPlayer.y,
+          name: myPlayer.name,
+          score: myPlayer.score,
+        }),
+      }).catch(() => {});
     }
-  }, []);
+  }, [gameRoomId]);
 
-  // Emit full game state to server every 3 seconds for persistence
+  // Game state is persisted via localStorage (no server-side persistence needed)
   const emitGameStateToServer = useCallback(() => {
-    if (!socketRef.current?.connected || gs.state !== 'playing') return;
+    // Pusher-based approach: emit state-update if needed (optional)
+    if (gs.state !== 'playing' || !gameRoomId) return;
     try {
-      socketRef.current.emit('gameStateUpdate', {
-        roomId: gameRoomId,
-        state: {
-          state: gs.state,
-          players: gs.players.map((p: any) => ({
-            id: p.id,
-            name: p.name,
-            x: p.x,
-            y: p.y,
-            score: p.score,
-            kills: p.kills || 0,
-            status: p.status,
-            color: p.color,
-            rf: p.rf || 0,
-          })),
-          shootStates: gs.shootStates.map((ss: any) => ({
-            phase: ss.phase,
-            hasBall: ss.hasBall || false,
-            power: ss.power || 0,
-            aimAngle: ss.aimAngle || 0,
-          })),
-          round: gs.round || 0,
-          disputeP1: gs.disputeP1 || 0,
-          disputeP2: gs.disputeP2 || -1,
-        },
-      });
+      fetch('/api/pusher/state', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          room: gameRoomId,
+          playerId: playerIdRef.current,
+          state: {
+            state: gs.state,
+            players: gs.players.map((p: any) => ({
+              id: p.id,
+              name: p.name,
+              x: p.x,
+              y: p.y,
+              score: p.score,
+              kills: p.kills || 0,
+              status: p.status,
+              color: p.color,
+              rf: p.rf || 0,
+            })),
+            shootStates: gs.shootStates.map((ss: any) => ({
+              phase: ss.phase,
+              hasBall: ss.hasBall || false,
+              power: ss.power || 0,
+              aimAngle: ss.aimAngle || 0,
+            })),
+            round: gs.round || 0,
+            disputeP1: gs.disputeP1 || 0,
+            disputeP2: gs.disputeP2 || -1,
+          },
+        }),
+      }).catch(() => {});
     } catch (e) {
       console.error('[PERSIST] Failed to emit game state:', e);
     }
@@ -2383,12 +2383,6 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
     gs.disputeP1=0; gs.disputeP2=-1; gs.selectedMoveIdx=-1;
     // Clear persisted state when restarting
     localStorage.removeItem(`basketball_game_state_${gameRoomId}`);
-    if (socketRef.current?.connected) {
-      socketRef.current.emit('gameStateUpdate', {
-        roomId: gameRoomId,
-        state: { state: 'waiting', players: [], shootStates: [] }
-      });
-    }
     setPname(userName); forceUpdate(n => n+1);
   };
 
@@ -2411,12 +2405,6 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
     gs.selectedMoveIdx = -1;
     // Clear persisted state when exiting
     localStorage.removeItem(`basketball_game_state_${gameRoomId}`);
-    if (socketRef.current?.connected) {
-      socketRef.current.emit('gameStateUpdate', {
-        roomId: gameRoomId,
-        state: { state: 'waiting', players: [], shootStates: [] }
-      });
-    }
     setPname(userName);
     forceUpdate(n => n+1);
   };
