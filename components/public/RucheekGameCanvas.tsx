@@ -292,6 +292,83 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       return tolerance;
     }
 
+    // NEW: Calculate ideal power based on distance (0-200% scale)
+    function calculateIdealPowerByDistance(playerX: number, playerY: number): number {
+      const distToHoop = Math.hypot(HOOP_X - playerX, HOOP_Y - playerY);
+      const maxDist = Math.hypot(W, H);
+      const distFraction = distToHoop / maxDist;
+
+      let idealPower;
+      if (distFraction <= 0.3) {
+        // Close range: 20% → 50% power
+        idealPower = 30 + (distFraction / 0.3) * 20;
+      } else if (distFraction <= 0.6) {
+        // Mid range: 30-60% → 95-100% power
+        idealPower = 50 + ((distFraction - 0.3) / 0.3) * 50;
+      } else if (distFraction <= 0.85) {
+        // Three-point: 60-85% → 150% power
+        idealPower = 100 + ((distFraction - 0.6) / 0.25) * 50;
+      } else {
+        // Deep range: 85%+ → 190% power
+        idealPower = 150 + ((distFraction - 0.85) / 0.15) * 40;
+      }
+      return Math.max(30, Math.min(200, Math.round(idealPower)));
+    }
+
+    // NEW: Calculate green zone tolerance percentage based on distance
+    function calculateGreenZoneTolerance(distFraction: number): number {
+      if (distFraction <= 0.3) {
+        return 5; // Close: ±5%
+      } else if (distFraction <= 0.6) {
+        return 8; // Mid: ±8%
+      } else if (distFraction <= 0.85) {
+        return 7; // Three-point: ±7%
+      } else {
+        return 6; // Deep: ±6%
+      }
+    }
+
+    // NEW: Draw dynamic power meter with distance-based green zone
+    function drawDynamicPowerMeter(ctx: any, x: number, y: number, width: number, height: number, currentPower: number, idealPower: number, tolerance: number) {
+      const fillHeight = (currentPower / 200) * height;
+      const idealY = y + height - (idealPower / 200) * height;
+      const toleranceHeight = (tolerance * 2 / 100) * height;
+
+      // Background
+      ctx.fillStyle = 'rgba(0,0,0,0.85)';
+      ctx.fillRect(x, y, width, height);
+      ctx.strokeStyle = '#555';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(x, y, width, height);
+
+      // Green zone (dynamic position based on ideal power)
+      ctx.fillStyle = 'rgba(68,255,68,0.5)';
+      ctx.fillRect(x, idealY - toleranceHeight / 2, width, toleranceHeight);
+
+      // Current power fill
+      const clr = currentPower > 92 ? '#00ffaa' : currentPower > 85 ? '#44cc44' : currentPower > 55 ? '#ffcc00' : '#e05545';
+      ctx.fillStyle = clr;
+      ctx.fillRect(x, y + height - fillHeight, width, fillHeight);
+
+      // Current power indicator line
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.moveTo(x - 5, y + height - fillHeight);
+      ctx.lineTo(x + width + 5, y + height - fillHeight);
+      ctx.stroke();
+
+      // Ideal power line (dashed)
+      ctx.setLineDash([3, 3]);
+      ctx.strokeStyle = 'rgba(100,255,100,0.75)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(x - 3, idealY);
+      ctx.lineTo(x + width + 3, idealY);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
     function getShootingPhysicsForDistance(distToHoop: number) {
       const maxDist = Math.hypot(W, H);
       const distFraction = distToHoop / maxDist;
@@ -528,10 +605,14 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       const maxDist = Math.hypot(W, H);
       const distFraction = distToHoop / maxDist;
 
-      // Use precise distance-based ideal power calibration
-      const idealPwrPct = calculateIdealPowerByExactDistance(distToHoop);
-      const greenZoneTolerance = calculateGreenZoneBands(distToHoop);
+      // Use NEW dynamic distance-based ideal power calculation
+      const idealPwrPct = calculateIdealPowerByDistance(px, py);
+      const greenZoneTolerance = Math.round(calculateGreenZoneTolerance(distFraction) * 2);
       const inGreenZone = Math.abs(ss.power - idealPwrPct) <= greenZoneTolerance;
+
+      // Store for power bar visualization
+      ss.distFraction = distFraction;
+      ss.idealPowerForDistance = idealPwrPct;
 
       // Check angle acceptability (±3 degrees)
       const angleRange = getIdealAngleForDistance(distToHoop);
@@ -888,94 +969,33 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       ctx.fill();
     }
 
-    function drawPowerBar(p: any, pwr: number, matchPct: number) {
-      const bw = 22*scaleX, bh = 115*scaleY, bx = p.x + 16*scaleX, by = p.y - bh - 32*scaleY, fh = (pwr / 200) * bh;
+    function drawPowerBar(p: any, pwr: number, matchPct: number, ss: any) {
+      const bw = 22*scaleX, bh = 115*scaleY, bx = p.x + 16*scaleX, by = p.y - bh - 32*scaleY;
       const px = p.x - 15*scaleX, py = p.y - 55*scaleY;
       const distToHoop = Math.hypot(HOOP_X - px, HOOP_Y - py);
-      const physics = getShootingPhysicsForDistance(distToHoop);
 
-      // Background
-      ctx.fillStyle = 'rgba(0,0,0,0.85)';
-      ctx.fillRect(bx, by, bw, bh);
-      ctx.strokeStyle = '#555';
-      ctx.lineWidth = 1;
-      ctx.strokeRect(bx, by, bw, bh);
+      // Get dynamic ideal power and tolerance based on distance
+      const maxDist = Math.hypot(W, H);
+      const distFraction = distToHoop / maxDist;
+      const idealPower = calculateIdealPowerByDistance(px, py);
+      const tolerance = calculateGreenZoneTolerance(distFraction);
 
-      // Draw 5-zone system (with 200% scale adjustment)
-      const minY = by + bh - (physics.minPowerRequired / 200) * bh;
-      const idealY = by + bh - (physics.idealPower / 200) * bh;
-      const maxY = by + bh - (physics.maxPowerUseful / 200) * bh;
+      // Use new dynamic power meter drawer
+      drawDynamicPowerMeter(ctx, bx, by, bw, bh, pwr, idealPower, tolerance);
 
-      // Zone 1: RED - TOO LOW (0 to minPowerRequired)
-      ctx.fillStyle = 'rgba(200,60,60,0.3)';
-      ctx.fillRect(bx, minY, bw, bh - (minY - by));
-
-      // Zone 2: ORANGE - BELOW IDEAL (minPowerRequired to idealPower)
-      ctx.fillStyle = 'rgba(255,165,0,0.25)';
-      ctx.fillRect(bx, idealY, bw, minY - idealY);
-
-      // Zone 3: GREEN - IDEAL (idealPower ± tolerance)
-      const greenTolHeight = (physics.tolerance * 2 / 100) * bh;
-      ctx.fillStyle = 'rgba(68,255,68,0.4)';
-      ctx.fillRect(bx, idealY - greenTolHeight / 2, bw, greenTolHeight);
-
-      // Zone 4: BLUE - ABOVE IDEAL (maxPowerUseful to idealPower+tolerance)
-      ctx.fillStyle = 'rgba(100,150,255,0.25)';
-      ctx.fillRect(bx, maxY, bw, idealY - greenTolHeight / 2 - maxY);
-
-      // Zone 5: RED - TOO HIGH (maxPowerUseful to 100)
-      ctx.fillStyle = 'rgba(200,60,60,0.3)';
-      ctx.fillRect(bx, by, bw, maxY - by);
-
-      // Draw current power level (bright indicator)
+      // Power percentage label
       const clr = matchPct > 92 ? '#00ffaa' : matchPct > 85 ? '#44cc44' : matchPct > 55 ? '#ffcc00' : '#e05545';
-      ctx.fillStyle = clr;
-      ctx.fillRect(bx, by + bh - fh, bw, fh);
-
-      // Current power line
-      ctx.strokeStyle = '#fff';
-      ctx.lineWidth = 2.5;
-      ctx.beginPath();
-      ctx.moveTo(bx - 5*scaleX, by + bh - fh);
-      ctx.lineTo(bx + bw + 5*scaleX, by + bh - fh);
-      ctx.stroke();
-
-      // Draw ideal power line with label
-      ctx.setLineDash([3, 3]);
-      ctx.strokeStyle = 'rgba(100,255,100,0.75)';
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.moveTo(bx - 3*scaleX, idealY);
-      ctx.lineTo(bx + bw + 3*scaleX, idealY);
-      ctx.stroke();
-      ctx.setLineDash([]);
-
-      // Draw min/max power lines (faint)
-      ctx.strokeStyle = 'rgba(255,100,100,0.4)';
-      ctx.lineWidth = 1;
-      ctx.setLineDash([2, 2]);
-      ctx.beginPath();
-      ctx.moveTo(bx - 3*scaleX, minY);
-      ctx.lineTo(bx + bw + 3*scaleX, minY);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.moveTo(bx - 3*scaleX, maxY);
-      ctx.lineTo(bx + bw + 3*scaleX, maxY);
-      ctx.stroke();
-      ctx.setLineDash([]);
-
-      // Labels
       ctx.fillStyle = clr;
       ctx.font = `bold ${11*scaleX}px sans-serif`;
       ctx.textAlign = 'center';
       ctx.fillText(Math.round(pwr) + '%', bx + bw / 2, by - 7*scaleY);
 
-      ctx.fillStyle = 'rgba(100,255,100,0.9)';
+      // Distance indicator
+      ctx.fillStyle = 'rgba(150,200,255,0.8)';
       ctx.font = `${8*scaleX}px sans-serif`;
-      ctx.textAlign = 'left';
-      ctx.fillText('min', bx + bw + 3*scaleX, minY + 4*scaleY);
-      ctx.fillText('ideal', bx + bw + 3*scaleX, idealY + 4*scaleY);
-      ctx.fillText('max', bx + bw + 3*scaleX, maxY + 4*scaleY);
+      ctx.textAlign = 'center';
+      const distPercent = Math.round(distFraction * 100);
+      ctx.fillText(`${distPercent}% dist`, bx + bw / 2, by + bh + 12*scaleY);
     }
 
     function drawBasket() {
@@ -1108,7 +1128,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           const distToHoop = Math.hypot(HOOP_X - sx, HOOP_Y - sy);
           const maxDist = Math.hypot(W, H);
           ss_ideal_power = 50 + (distToHoop / maxDist) * 50;
-          drawPowerBar(p, ss.power, matchPct);
+          drawPowerBar(p, ss.power, matchPct, ss);
           if (matchPct > 92) {
             const pulse = 0.4 + 0.5 * Math.sin(Date.now() / 120);
             ctx.strokeStyle = `rgba(0,255,170,${pulse})`;
