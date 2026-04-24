@@ -2645,7 +2645,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       gs.disputeP2 = -1;
       gs.selectedMoveIdx = -1;
       // First player can shoot
-      setShowOrder([assignedOrder]);
+      showOrderRef.current = { [assignedOrder]: true };
     }
 
     setPname("");
