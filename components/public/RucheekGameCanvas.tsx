@@ -20,7 +20,6 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rafRef = useRef<number>(0);
   const pnameRef = useRef<HTMLInputElement>(null);
-  const btnStartRef = useRef<HTMLButtonElement>(null);
   const pusherRef = useRef<any>(null);
   const channelRef = useRef<any>(null);
   const remotePlayersRef = useRef<Map<string, any>>(new Map());
@@ -57,6 +56,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
   );
   const lastEmitTimeRef = useRef<number>(0);
   const lastFrameTimeRef = useRef<number>(0);
+  const blinkRef = useRef<{[key: number]: boolean}>({});
 
   // Power Meter System refs and state
   const powerMeterRef = useRef<PowerMeterSystem | null>(null);
@@ -1311,10 +1311,20 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       });
     }
 
+    function setBlinking(orderNumbers: number[]) {
+      blinkRef.current = {};
+      orderNumbers.forEach(n => { blinkRef.current[n] = true; });
+    }
+
     function handleScored(idx: number) {
       const p = gs.players[idx];
       p.score++;
       gs.shootStates[idx].inDanger = false;
+
+      // Update blinking: if player #1 scored, reset blinking (they go to end)
+      if (idx === 0) {
+        setBlinking([]);
+      }
 
       // FIX 4 + ETAP 7: ACCURACY DISPLAY with perfect release highlight
       const ss = gs.shootStates[idx];
@@ -1442,6 +1452,11 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       ss.runTarget = { x: Math.max(50*scaleX, Math.min(W - 30*scaleX, bx)), y: GY };
       ss.phase = 'auto_run';
       p.status = 'running';
+
+      // Update blinking: victim (player #1) and hunter (player #2) blink
+      const order1 = p.order || (idx + 1);
+      const nextPlayerOrder = order1 + 1;
+      setBlinking([order1, nextPlayerOrder]);
 
       // Очистка Matter.js physics engine
       if (physicsRef.current) {
@@ -1857,15 +1872,24 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           ctx.textAlign = 'center';
           ctx.fillText('💀×' + kills, p.x, p.y - 84*scaleY);
         }
-        const namePrefix = danger ? '🎯 ' : (isMine ? '👤 ' : '🔒 ');
-        ctx.fillStyle = danger ? 'rgba(255,110,110,0.95)' : isMine ? p.color : 'rgba(180,180,180,0.6)';
-        ctx.font = (danger ? 'bold ' : isMine ? 'bold ' : '') + `${11*scaleX}px sans-serif`;
-        ctx.textAlign = 'center';
-        ctx.fillText(namePrefix + (danger ? p.name : p.name), p.x, p.y - 73*scaleY);
-        ctx.fillStyle = danger ? '#ff5555' : '#ffdd00';
-        ctx.font = `bold ${11*scaleX}px sans-serif`;
-        ctx.textAlign = 'center';
-        ctx.fillText('🏀 ' + p.score, p.x, p.y - 61*scaleY);
+
+        // Display order number + name with blinking support
+        const orderNum = p.order || (i + 1);
+        const shouldBlink = blinkRef.current[orderNum];
+        const blinkVisible = shouldBlink ? (Math.floor(Date.now() / 400) % 2 === 0) : true;
+
+        if (blinkVisible) {
+          // Color: red for victim (#1 blinking), green for hunter (#2 blinking), white for waiting
+          let textColor = '#FFFFFF';
+          if (shouldBlink && orderNum === 1) textColor = '#FF4444';
+          else if (shouldBlink && orderNum === 2) textColor = '#44FF44';
+          else if (isMine) textColor = '#FFFF00';
+
+          ctx.fillStyle = textColor;
+          ctx.font = `bold ${14*scaleX}px Arial`;
+          ctx.textAlign = 'center';
+          ctx.fillText(orderNum + '  ' + p.name, p.x, p.y - 73*scaleY);
+        }
 
         if (i === gs.disputeP2 && ss.phase === null && gs.state === 'playing' && gs.players.length > 1) {
           const al = 0.7 + 0.3 * Math.sin(Date.now() / 200);
@@ -2555,36 +2579,30 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
     if (gs.players.length >= MAX_PLAYERS) { alert("Максимум 6 гравців!"); return; }
     const name = pname.trim() || `Гр.${gs.players.length+1}`;
     const idx = gs.players.length;
-    gs.players.push({ name, x: 680 + idx * 58, y: 584, score:0, kills:0, status:"idle", rf:0, color: PLAYER_COLORS[idx%6] });
+    const newPlayer = {
+      name,
+      order: idx + 1,
+      x: 680 + idx * 58,
+      y: 584,
+      score:0,
+      kills:0,
+      status:"idle",
+      rf:0,
+      color: PLAYER_COLORS[idx%6]
+    };
+    gs.players.push(newPlayer);
     gs.shootStates.push({ phase:null,aimAngle:-Math.PI*0.72,aimDir:1,power:0,powerDir:1,ball:null,lockedAngle:null,idealTraj:null,idealSpeed:10,runTarget:null,inDanger:false });
+
+    // Immediately set game to playing when first player is added
+    if (gs.players.length === 1) {
+      gs.state = "playing";
+      gs.flashes = [];
+      gs.disputeP1 = 0;
+      gs.disputeP2 = -1;
+      gs.selectedMoveIdx = -1;
+    }
+
     setPname("");
-    forceUpdate(n => n+1);
-  };
-
-  const handleStart = () => {
-    if (gs.players.length < 1) return;
-    gs.state = "playing";
-    gs.flashes = [];
-    gs.players.forEach((p:any) => { p.score=0; p.kills=0; p.status="idle"; p.rf=0; });
-    gs.shootStates = gs.players.map(() => ({ phase:null,aimAngle:-Math.PI*0.72,aimDir:1,power:0,powerDir:1,ball:null,lockedAngle:null,idealTraj:null,idealSpeed:10,runTarget:null,inDanger:false }));
-    gs.disputeP1=0; gs.disputeP2=-1; gs.selectedMoveIdx=-1;
-
-    // FIX #3: Broadcast all players when game starts
-    gs.players.forEach((p: any, idx: number) => {
-      fetch('/api/pusher/join', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          room: gameRoomId,
-          playerId: playerIdRef.current + `_${idx}`,
-          playerIndex: idx,
-          nickname: p.name,
-          x: p.x,
-          y: p.y,
-        }),
-      }).catch(() => {});
-    });
-
     forceUpdate(n => n+1);
   };
 
@@ -2661,7 +2679,6 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         <button onClick={handleDeleteLast} style={btnStyle("#ff6644", gs.state==="playing")}>🗑 Видалити</button>
         <button onClick={handleAddPlayer} style={btnStyle("#e06030", gs.players.length>=6)}>+ Додати</button>
         {gs.state === "playing" && <button onClick={handleExit} style={btnStyle("#ff2222")}>🚪 Вийти</button>}
-        <button ref={btnStartRef} onClick={handleStart} style={btnStyle("#27ae60", gs.players.length<1)} disabled={gs.players.length<1}>▶ Старт</button>
         <button onClick={handleRestart} style={btnStyle("#444")}>↺ Рестарт</button>
         <button onClick={() => setShowModal(true)} style={btnStyle("#1a4a8a")}>📖 Інструкція</button>
       </div>
@@ -2675,7 +2692,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
             maxHeight:"92vh", overflowY:"auto" }}>
             <h2 style={{color:"#ffdd00",fontSize:17,marginBottom:14,textAlign:"center"}}>🏀 РУЧЕЁК — Правила та Інструкція</h2>
             <p style={{marginBottom:12}}><b style={{color:"#e05545"}}>🎯 Мета:</b> Вибий усіх суперників! Останній гравець — переможець.</p>
-            <p style={{marginBottom:12}}><b style={{color:"#e05545"}}>👥 Учасники:</b> Від 1 до 6. Введи ім'я → «+ Додати» → «▶ Старт».</p>
+            <p style={{marginBottom:12}}><b style={{color:"#e05545"}}>👥 Учасники:</b> Від 1 до 6. Введи ім'я → «+ Додати». Гра починається відразу! Цифра над гравцем — очередність (1️⃣ має право кидати).</p>
             <p style={{marginBottom:8}}><b style={{color:"#e05545"}}>🖱️ Кидок — 3 кліки:</b></p>
             <ul style={{paddingLeft:16,fontSize:13,lineHeight:1.8,marginBottom:12}}>
               <li><b>Клік 1 по гравцю</b> — стрілка крутиться, червона траєкторія</li>
