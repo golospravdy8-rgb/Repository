@@ -72,7 +72,6 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
   useEffect(() => {
     if (!mounted || pusherRef.current) return;
 
-    console.log(`[Pusher] Initializing connection to game-${gameRoomId}`);
 
     const pusherClient = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY!, {
       cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER!,
@@ -82,12 +81,10 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
     const channel = pusherClient.subscribe(`game-${gameRoomId}`);
     channelRef.current = channel;
 
-    console.log(`[Pusher] Subscribed to game-${gameRoomId}`);
 
     // ✅ MULTIPLAYER: Event - Another player joined
     channel.bind('player-joined', (data: any) => {
       if (data.playerId === playerIdRef.current) return;
-      console.log(`[Pusher] Player joined:`, data);
 
       remotePlayersRef.current.set(data.playerId, {
         socketId: data.playerId,
@@ -117,7 +114,6 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
 
       // ETAP 8: Debug ball data reception
       if (data.ball) {
-        console.log(`[PUSHER player-move] Received ball data from ${data.name}: state=${data.ball.state}, x=${data.ball.x}, y=${data.ball.y}`);
       }
 
       const existingPlayer = remotePlayersRef.current.get(data.playerId);
@@ -134,7 +130,6 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
 
     // ✅ MULTIPLAYER: Event - Another player left
     channel.bind('player-leave', (data: any) => {
-      console.log(`[Pusher] Player left:`, data.playerId);
       remotePlayersRef.current.delete(data.playerId);
       forceUpdate(n => n + 1);
     });
@@ -142,7 +137,6 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
     // ✅ MULTIPLAYER: Event - Another player shot
     channel.bind('shot-completed', (data: any) => {
       if (data.playerId === playerIdRef.current) return;
-      console.log(`[Pusher] Shot completed:`, data);
 
       gsRef.current.flashes.push({
         text: `⚽ ${data.nickname}: ${data.shotScore}pts (${Math.round(data.accuracy)}%)`,
@@ -171,7 +165,6 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
 
     // Cleanup on unmount
     return () => {
-      console.log(`[Pusher] Unsubscribing from game-${gameRoomId}`);
       // Announce player leave
       fetch('/api/pusher', {
         method: 'POST',
@@ -255,7 +248,6 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
     // Initialize Power Meter System з правильним maxDistance
     if (!powerMeterRef.current) {
       powerMeterRef.current = new PowerMeterSystem(realMaxDistance);
-      console.log(`[CALIBRATION] maxDistance=${realMaxDistance.toFixed(0)}px (from P_START=${P_START.toFixed(0)}, Y=${P_START_Y.toFixed(0)} to HOOP=${HOOP_X.toFixed(0)}, ${HOOP_Y.toFixed(0)})`);
 
       // ТЕСТУВАННЯ: Перевіри зелену лінію для різних дистанцій
       const testCases = [
@@ -268,7 +260,6 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       testCases.forEach(tc => {
         const greenLine = powerMeterRef.current!.calculateGreenLinePosition(tc.dist);
         const ok = greenLine >= tc.expectMin;
-        console.log(`[GREEN LINE TEST] ${tc.name}: dist=${tc.dist.toFixed(0)}, line=${greenLine.toFixed(0)} (очіку ${tc.expectMin}+) ${ok ? '✅' : '❌'}`);
       });
     }
 
@@ -661,10 +652,8 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
 
     // AUTOTEST: Тестування зеленої лінії та гарантії
     function autoTest() {
-      console.log('\n=== АВТОТЕСТ ПОЧАТ ===');
 
       // BUG 3 FIX PHASE 2: Test green line positions at different distances
-      console.log('\n[TEST GREEN LINE] Перевірка позиції зеленої лінії на різних дистанціях:');
       const testCases = [
         { name: 'Дальній (макс)', dist: realMaxDistance, expected: 175 },
         { name: 'Середній', dist: realMaxDistance * 0.6, expected: 108 },
@@ -674,41 +663,35 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       testCases.forEach(tc => {
         const line = (tc.dist / realMaxDistance) * 180;
         const ok = Math.abs(line - tc.expected) < 20;
-        console.log(`[TEST] ${tc.name}: dist=${tc.dist.toFixed(0)} → greenLine=${line.toFixed(0)} (очіку ~${tc.expected}) ${ok ? '✅' : '❌ ПОМИЛКА'}`);
       });
 
       let greenLineHits = 0;
       let greenLineScored = 0;
 
       // Симулюємо 10 бросків з різною accuracy
-      console.log('\n[TEST GUARANTEE] Перевірка гарантованого попадання при accuracy >= 95%:');
       for (let i = 0; i < 10; i++) {
         const accuracy = i < 5 ? 100 : Math.floor(Math.random() * 60);
         const isGreen = accuracy >= 95;
 
         if (isGreen) {
           greenLineHits++;
-          console.log(`[ТЕСТ ${i + 1}] accuracy=${accuracy}% → ЗЕЛЕНА ЛІНІЯ → очікуємо ГОЛ ✅`);
         } else {
-          console.log(`[ТЕСТ ${i + 1}] accuracy=${accuracy}% → промах можливий ❌`);
         }
       }
 
-      console.log(`\n=== РЕЗУЛЬТАТ: зелених кліків=${greenLineHits}/10 ===\n`);
       return greenLineHits;
     }
 
     // Запусти autoTest при завантаженні
     if (typeof window !== 'undefined' && !gs.autoTestRun) {
-      console.log('[INIT] Запускаємо autoTest...');
       autoTest();
       gs.autoTestRun = true;
     }
 
     function stepBall(b: any, dt: number) {
-      console.log(`[DIAG-STEP] BALL UPDATE: x=${b.x.toFixed(0)}, y=${b.y.toFixed(0)}, state=${b.state}, vx=${b.vx.toFixed(2)}, vy=${b.vy.toFixed(2)}`);
+
       if (b.state !== 'flying') {
-        console.log(`[DIAG-STEP] SKIPPED: ball.state !== 'flying' (state=${b.state})`);
+
         return;
       }
       const prevX = b.x, prevY = b.y;
@@ -718,7 +701,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       b.x += b.vx * dt;
       b.y += b.vy * dt;
       b.rot += 0.08;
-      console.log(`[DIAG-STEP] AFTER PHYSICS: x=${b.x.toFixed(0)}, y=${b.y.toFixed(0)}, vy=${b.vy.toFixed(2)}`);
+
 
       // Guided-mode correction ONLY in last 5 frames
       if (b.isGuided) {
@@ -765,7 +748,6 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           gs.netShake = true;
           gs.netShakeEnd = Date.now() + 700;
           addFlash('🎯 SWISH!', HOOP_X, HOOP_Y - 52*scaleY, '#00ff00');
-          console.log('[COLLISION] Ball inside hoop, falling through - GOAL!');
           return;
         }
 
@@ -785,7 +767,6 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           gs.netShake = true;
           gs.netShakeEnd = Date.now() + 700;
           addFlash('🎯 SWISH!', HOOP_X, HOOP_Y - 52*scaleY, '#00ff00');
-          console.log('[COLLISION] Swish - clean shot!');
           return;
         }
 
@@ -811,7 +792,6 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
             gs.netShake = true;
             gs.netShakeEnd = Date.now() + 700;
             addFlash('🎯 FINALLY IN!', HOOP_X, HOOP_Y - 52*scaleY, '#00ff00');
-            console.log('[COLLISION] Rattle in - forced goal after 3 bounces');
             return;
           }
 
@@ -819,7 +799,6 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           addFlash('💥 Rattles In!', HOOP_X, HOOP_Y - 52*scaleY, '#ff9900');
           gs.netShake = true;
           gs.netShakeEnd = Date.now() + 700;
-          console.log(`[COLLISION] Rattle in - rim bounce #${b.rimBounceCount} detected`);
           // М'яч продовжує летіти, потім потрапить в обруч через magic pull
           b.outcome = 'direct';
         }
@@ -860,14 +839,12 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
               addFlash('🎯 IN!', HOOP_X, HOOP_Y - 52*scaleY, '#00ff00');
               gs.netShake = true;
               gs.netShakeEnd = Date.now() + 700;
-              console.log(`[COLLISION] Rim bounce #${b.rimBounceCount} - forced goal`);
               return;
             }
 
             addFlash('🔄 RATTLES IN! 🏀', HOOP_X, HOOP_Y - 52*scaleY, '#ff8800');
             gs.netShake = true;
             gs.netShakeEnd = Date.now() + 700;
-            console.log(`[COLLISION] Rim bounce #${b.rimBounceCount} SUCCESS → returns to hoop`);
             b.outcome = 'direct';
           } else {
             // 50% ПРОМАХ: Обычный отскок назад
@@ -882,9 +859,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
               b.vx = (Math.random() > 0.5 ? 1 : -1) * 3;
               b.vy = -2;
               b.rimBounceCount = 0;
-              console.log(`[COLLISION] Rim bounce #${b.rimBounceCount} - ejecting ball`);
             } else {
-              console.log(`[COLLISION] Rim bounce #${b.rimBounceCount} MISS → bounces back`);
             }
             b.outcome = 'miss_fly';
           }
@@ -936,7 +911,6 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         b.x = HOOP_X;
         b.y = HOOP_Y + 26*scaleY;
         addFlash('🎯 ГОЛ!', HOOP_X, HOOP_Y - 52*scaleY, '#44ff88');
-        console.log(`[SCORING] Shot type: ${b.outcome}`);
         return;
       }
 
@@ -972,7 +946,6 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           // Лічи відскоки
           b.bounceCount++;
 
-          console.log(`[BOUNCE] #${b.bounceCount}: vy=${b.vy.toFixed(1)}, vx=${b.vx.toFixed(1)}, rot_vel=${b.angularVelocity.toFixed(2)}`);
         } else if (b.bounceCount >= MAX_BOUNCES || Math.abs(b.vy) < MIN_BOUNCE_SPEED) {
           // Відскоки завершені або низька швидкість - м'яч зупинився
           b.y = GY;
@@ -980,23 +953,22 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           b.vy = 0;
           b.angularVelocity = 0;
           b.state = 'missed';
-          console.log(`[BOUNCE] Ball stopped after ${b.bounceCount} bounces`);
         }
       }
     }
 
     function launchBall(idx: number) {
-      console.log(`[DIAG-LAUNCH] START: idx=${idx}, gs.shootStates[${idx}]=${gs.shootStates[idx] ? 'EXISTS' : 'NULL'}`);
+
       const p = gs.players[idx];
       const ss = gs.shootStates[idx];
       const accuracy = ss.powerMeterResult?.accuracy || 0;
 
-      console.log(`[DIAG-LAUNCH] p=${p?.name}, accuracy=${accuracy}%`);
+
 
       // Стартовая позиция мяча — руки игрока
       const px = p.x;
       const py = p.y - 40 * scaleY;
-      console.log(`[DIAG-LAUNCH] px=${px.toFixed(0)}, py=${py.toFixed(0)}, HOOP_X=${HOOP_X.toFixed(0)}, HOOP_Y=${HOOP_Y.toFixed(0)}`);
+
 
       // Целевая точка (кольцо или со смещением если промах)
       let targetX = HOOP_X;
@@ -1008,7 +980,6 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         const missDir = Math.random() > 0.5 ? 1 : -1;
         targetX += missOffset * missDir;
         targetY += (Math.random() - 0.5) * missOffset * 0.4;
-        console.log(`[MISS OFFSET] accuracy=${accuracy}%, offset=${(missOffset * missDir).toFixed(0)}px`);
       }
 
       const dx = targetX - px;
@@ -1021,11 +992,10 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       const ballVx = dx / T;
       const ballVy = (dy - 0.5 * G * T * T - arcExtra) / T;
 
-      console.log(`[DIAG-LAUNCH] VELOCITY CALC: dx=${dx.toFixed(0)}, dy=${dy.toFixed(0)}, T=${T.toFixed(1)}, G=${G}, arcExtra=${arcExtra.toFixed(0)}`);
-      console.log(`[DIAG-LAUNCH] ballVx=${isNaN(ballVx) ? 'NaN' : ballVx.toFixed(2)}, ballVy=${isNaN(ballVy) ? 'NaN' : ballVy.toFixed(2)}`);
-      console.log(`[PARABOLA LAUNCH] dist=${dist.toFixed(0)}px, T=${T.toFixed(0)}frames, arcExtra=${arcExtra.toFixed(0)}px, vx=${ballVx.toFixed(1)}, vy=${ballVy.toFixed(1)}`);
 
-      console.log(`[DIAG-LAUNCH] CREATING ss.ball...`);
+
+
+
       ss.ball = {
         x: px, y: py,
         vx: ballVx, vy: ballVy,
@@ -1040,11 +1010,11 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         frameCount: 0,
         isGuided: accuracy >= 100,
       };
-      console.log(`[DIAG-LAUNCH] ss.ball CREATED: x=${ss.ball.x.toFixed(0)}, y=${ss.ball.y.toFixed(0)}, vx=${ss.ball.vx.toFixed(2)}, vy=${ss.ball.vy.toFixed(2)}`);
 
-      console.log(`[DIAG-LAUNCH] SETTING ss.phase='flying' (was: ${ss.phase})`);
+
+
       ss.phase = 'flying';
-      console.log(`[DIAG-LAUNCH] ss.phase NOW=${ss.phase}`);
+
       ss.lockedAngle = null;
       ss.idealTraj = null;
       p.status = 'shooting';
@@ -1173,7 +1143,6 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         else if (hitType === 'SWISH') netDuration = 100;
       }
       gs.netSwing = { type: hitType, startTime: Date.now(), duration: netDuration };
-      console.log(`[NET SWING] Type=${hitType}, Duration=${netDuration}ms`);
 
       gs.netShake = true;
       gs.netShakeEnd = Date.now() + 700;
@@ -1183,7 +1152,6 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       ss.idealTraj = null;
 
       // DEBUG: Log scoring event with distance, accuracy, and hit type
-      console.log(`[SCORE] Player ${idx} (${p.name}) ${hitType} hit from ${distMeters}m at ${Math.round(accuracy)}%! Total: ${p.score}`);
 
       // ✅ MULTIPLAYER: Emit shot completion to server via Pusher
       if (idx === 0) {
@@ -1239,9 +1207,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       }
       // Only end game if only 1 player left alive (all others eliminated)
       const aliveCount = gs.players.filter((p: any) => p.status !== 'eliminated').length;
-      console.log(`[GAME] Total players: ${gs.players.length}, Alive: ${aliveCount}, State: ${gs.state}`);
       if (aliveCount <= 1) {
-        console.log(`[GAME-OVER] Game finished! Winner: ${gs.players[0]?.name}`);
         gs.state = 'finished';
       }
     }
@@ -1267,7 +1233,6 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       const nextPlayerOrder = order1 + 1;
       setShowOrder([order1, nextPlayerOrder]);
 
-      console.log(`[MISS] Player ${idx} missed shot, chasing ball, pickup flags reset`);
     }
 
     function drawBball(cx: number, cy: number, r: number) {
@@ -1656,14 +1621,14 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         }
 
         if (ss.ball && ss.phase === 'flying') {
-          console.log(`[DIAG-DRAW] DRAWING BALL: phase=${ss.phase}, x=${ss.ball.x.toFixed(0)}, y=${ss.ball.y.toFixed(0)}`);
+
           ctx.save();
           ctx.translate(ss.ball.x, ss.ball.y);
           ctx.rotate(ss.ball.rot);
           drawBball(0, 0, 11*scaleX);
           ctx.restore();
         } else if (ss.ball) {
-          console.log(`[DIAG-DRAW] BALL EXISTS BUT NOT DRAWING: phase=${ss.phase}, state=${ss.ball.state}`);
+
         }
         if (ss.ball && ss.phase === 'auto_run') {
           ctx.save();
@@ -1798,18 +1763,15 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
 
         // ETAP 8: Draw remote player's ball (multiplayer sync) with debugging
         if (rp.ball) {
-          console.log(`[REMOTE BALL DEBUG] Player: ${rp.name}, ball exists: true, state: ${rp.ball.state}, x: ${rp.ball.x}, y: ${rp.ball.y}`);
         }
 
         if (rp.ball && (rp.ball.state === 'flying' || rp.ball.state === 'auto_run')) {
-          console.log(`[REMOTE BALL RENDER] Rendering ${rp.name} ball - state: ${rp.ball.state}`);
           ctx.save();
           ctx.translate(rp.ball.x, rp.ball.y);
           ctx.rotate(rp.ball.rot || 0);
           drawBball(0, 0, 11*scaleX);
           ctx.restore();
         } else if (rp.ball) {
-          console.log(`[REMOTE BALL] ${rp.name} ball exists but state not flying/auto_run: ${rp.ball.state}`);
         }
       });
 
@@ -2018,7 +1980,6 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         };
 
         localStorage.setItem(SAVE_KEY, JSON.stringify(saveData));
-        console.log('[PERSIST] Game state saved to localStorage');
       } catch (e) {
         console.error('[PERSIST] Failed to save:', e);
       }
@@ -2035,14 +1996,12 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         const age = Date.now() - data.timestamp;
         if (age > 30 * 60 * 1000) {
           localStorage.removeItem(SAVE_KEY);
-          console.log('[PERSIST] Saved state too old, discarded');
           return null;
         }
 
         // Only restore if it's the same room
         if (data.roomId !== gameRoomId) return null;
 
-        console.log(`[PERSIST] Restoring game state (${Math.round(age / 1000)}s ago)`);
         return data;
       } catch (e) {
         console.error('[PERSIST] Failed to load:', e);
@@ -2088,7 +2047,6 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         gs.flashes = [];
 
         addFlash('🔄 Гра відновлена!', W / 2, H / 2, '#00FFAA');
-        console.log('[PERSIST] Game successfully restored from localStorage');
         return true;
       } catch (e) {
         console.error('[PERSIST] Failed to restore:', e);
@@ -2153,7 +2111,6 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           // Reset marker for distance indicator
           markerPosRef.current = 0;
           markerDirRef.current = 1;
-          console.log(`[Click 2] Charging phase started, marker reset`);
         } else if (ss.phase === "charging") {
           // Compute zone from distance
           const px2 = p.x - 15*scaleX, py2 = p.y - 55*scaleY;
@@ -2166,10 +2123,9 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           const markerInZone = markerPosRef.current >= zoneMin && markerPosRef.current <= zoneMax;
           const accuracy = markerInZone ? 100 : Math.max(0, 100 - Math.abs(markerPosRef.current - zoneCenter) * 300);
           ss.powerMeterResult = { accuracy, meterHeight: markerPosRef.current * 200, greenLinePosition: zoneCenter * 200 };
-          console.log(`[Click 3] Accuracy=${accuracy}%, MarkerPos=${markerPosRef.current.toFixed(2)}, ZoneMin=${zoneMin.toFixed(2)}, ZoneMax=${zoneMax.toFixed(2)}`);
-          console.log(`[DIAG-CLICK3] BEFORE launchBall: ss.phase=${ss.phase}, ss.ball=${ss.ball ? 'EXISTS' : 'NULL'}`);
+
           launchBall(hitIdx);
-          console.log(`[DIAG-CLICK3] AFTER launchBall: ss.phase=${ss.phase}, ss.ball=${ss.ball ? 'EXISTS' : 'NULL'}, ball.vx=${ss.ball?.vx?.toFixed(2)}, ball.vy=${ss.ball?.vy?.toFixed(2)}`);
+
         }
       } else {
         // FEATURE 1: Double-click to instantly grab ball when chasing
@@ -2188,7 +2144,6 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
             ss.doubleClickPickup = false;
 
             addFlash("⚡ МЯЧ ПОДОБРАН!", p.x, p.y - 100*scaleY, "#ffdd44");
-            console.log(`[DOUBLE CLICK] Player ${gs.selectedMoveIdx} grabbed ball instantly, pickup flags reset`);
             return;
           }
         }
@@ -2198,16 +2153,13 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
 
           // BUG 1 FIX: Block movement during aiming or charging phase
           if (ss.phase === "aiming" || ss.phase === "charging") {
-            console.log(`[LMB MOVE] BLOCKED: Cannot move during shooting phase (${ss.phase})`);
             return; // Ignore click, don't move player
           }
 
           // DEBUG: Log why movement might not trigger
-          console.log(`[LMB MOVE] selectedIdx=${gs.selectedMoveIdx}, phase=${ss.phase}, status=${p.status}, eliminated=${p.status === 'eliminated'}`);
 
           // BLOCK movement during shooting phases (aiming/charging)
           if (ss.phase === "aiming" || ss.phase === "charging") {
-            console.log(`[LMB MOVE] BLOCKED: Player in shooting phase (${ss.phase}), movement disabled`);
             return;
           }
 
@@ -2222,9 +2174,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
             ss.runTarget = { x: Math.max(50*scaleX, Math.min(W - 30*scaleX, mx)), y: GY };
             ss.phase = "manual_run";
             p.status = "running";
-            console.log(`[LMB MOVE] Player ${gs.selectedMoveIdx} moving to (${mx.toFixed(0)}, ${my.toFixed(0)})`);
           } else {
-            console.log(`[LMB MOVE] BLOCKED: phase="${ss.phase}" not in allowed list or status="${p.status}" is eliminated`);
           }
         }
       }
@@ -2253,14 +2203,12 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           ss.lockedAngle = null;
           ss.idealTraj = null;
           addFlash("❌ СКАСОВАНО", p.x, p.y - 105*scaleY, "rgba(255,100,100,0.95)");
-          console.log(`[RMB CANCEL] Player ${hitIdx} cancelled charging phase`);
         } else if (ss.phase === "aiming") {
           // Aiming → reset to idle
           ss.phase = "idle";
           ss.lockedAngle = null;
           ss.idealTraj = null;
           addFlash("❌ СКАСОВАНО", p.x, p.y - 105*scaleY, "rgba(255,100,100,0.95)");
-          console.log(`[RMB CANCEL] Player ${hitIdx} cancelled aiming phase`);
         } else if (p.status !== "eliminated") {
           gs.selectedMoveIdx = hitIdx;
           addFlash("👆 вибрано", p.x, p.y - 95*scaleY, "rgba(255,220,80,0.95)");
@@ -2402,7 +2350,6 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         const playerIdx = orderList.findIndex((n: string) => n === name);
         if (playerIdx !== -1) {
           assignedOrder = playerIdx + 1;
-          console.log(`[ADD-PLAYER] Using saved party order: ${name} → order #${assignedOrder}`);
         }
       } catch (e) {
         console.warn('[ADD-PLAYER] Failed to parse saved order, using server order');
@@ -2419,7 +2366,6 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         });
         const data = await resp.json();
         assignedOrder = data.order;
-        console.log(`[ADD-PLAYER] Got global order: ${assignedOrder}`);
       } catch (e) {
         console.warn('[ADD-PLAYER] Failed to get order from server, using local:', assignedOrder);
       }
