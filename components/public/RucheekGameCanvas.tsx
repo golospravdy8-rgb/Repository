@@ -1324,7 +1324,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
 
       // Update blinking: if player #1 scored, reset blinking (they go to end)
       if (idx === 0) {
-        setBlinking([]);
+        blinkRef.current = {};
       }
 
       // FIX 4 + ETAP 7: ACCURACY DISPLAY with perfect release highlight
@@ -1457,7 +1457,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       // Update blinking: victim (player #1) and hunter (player #2) blink
       const order1 = p.order || (idx + 1);
       const nextPlayerOrder = order1 + 1;
-      setBlinking([order1, nextPlayerOrder]);
+      blinkRef.current = { [order1]: true, [nextPlayerOrder]: true };
 
       // Очистка Matter.js physics engine
       if (physicsRef.current) {
@@ -2638,7 +2638,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       gs.disputeP2 = -1;
       gs.selectedMoveIdx = -1;
       // First player's order starts blinking
-      setBlinking([assignedOrder]);
+      blinkRef.current = { [assignedOrder]: true };
     }
 
     setPname("");
