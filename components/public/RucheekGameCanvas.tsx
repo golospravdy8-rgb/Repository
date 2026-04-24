@@ -56,6 +56,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       : `player_${Math.random().toString(36).slice(2)}`
   );
   const lastEmitTimeRef = useRef<number>(0);
+  const lastFrameTimeRef = useRef<number>(0);
 
   // Power Meter System refs and state
   const powerMeterRef = useRef<PowerMeterSystem | null>(null);
@@ -696,22 +697,22 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       gs.autoTestRun = true;
     }
 
-    function stepBall(b: any) {
+    function stepBall(b: any, dt: number) {
       if (b.state !== 'flying') return;
       const prevX = b.x, prevY = b.y;
 
       // Воздушное сопротивление: теряет 0.5% скорости по X каждый кадр
-      b.vx *= 0.995;
+      b.vx *= Math.pow(0.995, dt);
 
-      b.vy += G;
-      b.x += b.vx;
-      b.y += b.vy;
+      b.vy += G * dt;
+      b.x += b.vx * dt;
+      b.y += b.vy * dt;
       // Обертання: використай динамічну angular velocity при відскоках, інакше константа
       if (b.angularVelocity !== undefined) {
-        b.rot += b.angularVelocity;
-        b.angularVelocity *= 0.98; // Зменш обертання при опорі
+        b.rot += b.angularVelocity * dt;
+        b.angularVelocity *= Math.pow(0.98, dt); // Зменш обертання при опорі
       } else {
-        b.rot += 0.14;
+        b.rot += 0.14 * dt;
       }
       if (b.x < 10) { b.x = 10; b.vx = Math.abs(b.vx) * 0.5; }
       if (b.x > W - 10) { b.x = W - 10; b.vx = -Math.abs(b.vx) * 0.5; }
@@ -725,8 +726,8 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           const onlyFalling = b.outcome === 'direct';
           if (!onlyFalling || (onlyFalling && b.vy > 0 && dist < 180)) {
             const pull = strength * (1 - Math.min(1, dist / 200));
-            b.vx += toHX / dist * pull * dist;
-            b.vy += toHY / dist * pull * dist;
+            b.vx += toHX / dist * pull * dist * dt;
+            b.vy += toHY / dist * pull * dist * dt;
           }
         }
       }
@@ -771,8 +772,8 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         // Коригуємо траєкторію якщо м'яч ще далеко від кільця
         if (distToHoop < HOOP_RADIUS * 4 && b.vy > 0) {
           const correction = 0.08;
-          b.vx += (HOOP_X - b.x) * correction;
-          b.vy += (HOOP_Y - b.y) * correction;
+          b.vx += (HOOP_X - b.x) * correction * dt;
+          b.vy += (HOOP_Y - b.y) * correction * dt;
           console.log(`[GUARANTEE TRAJECTORY] Correcting: dist=${distToHoop.toFixed(0)}, vx=${b.vx.toFixed(1)}, vy=${b.vy.toFixed(1)}`);
         }
 
@@ -1257,7 +1258,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       if (idx === gs.disputeP1 && gs.disputeP2 === -1 && gs.players.length > 1) gs.disputeP2 = 1;
     }
 
-    function update() {
+    function update(dt: number) {
       if (gs.state !== 'playing') return;
       for (let i = 0; i < gs.players.length; i++) {
         const p = gs.players[i], ss = gs.shootStates[i];
@@ -1265,7 +1266,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         if (ss.phase === 'aiming') {
           const sx = p.x - 15*scaleX;
           const behindBoard = sx < BOARD_FACE;
-          ss.aimAngle += 0.022 * ss.aimDir;
+          ss.aimAngle += 0.022 * ss.aimDir * dt;
           if (behindBoard) {
             if (ss.aimAngle >= -0.06) { ss.aimAngle = -0.06; ss.aimDir = -1; }
             if (ss.aimAngle <= -Math.PI * 0.5) { ss.aimAngle = -Math.PI * 0.5; ss.aimDir = 1; }
@@ -1275,12 +1276,12 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           }
         }
         if (ss.phase === 'charging') {
-          ss.power += 2.6 * ss.powerDir; // Doubled rate for 200% range
+          ss.power += 2.6 * ss.powerDir * dt; // Doubled rate for 200% range
           if (ss.power >= 200) { ss.power = 200; ss.powerDir = -1; }
           if (ss.power <= 0) { ss.power = 0; ss.powerDir = 1; }
         }
         if (ss.phase === 'flying' && ss.ball) {
-          stepBall(ss.ball);
+          stepBall(ss.ball, dt);
           if (ss.ball.state === 'scored') handleScored(i);
           else if (ss.ball.state === 'missed') handleMissed(i);
         }
@@ -1289,11 +1290,11 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           continue;
         }
         if (ss.phase === 'auto_run' || ss.phase === 'manual_run') {
-          p.rf++;
+          p.rf += dt;
           const t = ss.runTarget;
           if (!t) { ss.phase = ss.phase === 'auto_run' ? 'pickup_wait' : null; p.status = 'idle'; continue; }
           const dx = t.x - p.x;
-          if (Math.abs(dx) > 4) { p.x += Math.sign(dx) * 3.5; }
+          if (Math.abs(dx) > 4) { p.x += Math.sign(dx) * 3.5 * dt; }
           else {
             if (ss.phase === 'auto_run') { ss.phase = 'pickup_wait'; ss.ball = null; }
             else ss.phase = null;
@@ -1302,10 +1303,10 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         }
       }
       if (gs.netShake && Date.now() > gs.netShakeEnd) gs.netShake = false;
-      if (gs.netShake) gs.netShakeT += 0.4;
+      if (gs.netShake) gs.netShakeT += 0.4 * dt;
       gs.flashes = gs.flashes.filter((f: any) => {
-        f.dy -= 0.5;
-        f.alpha -= 0.011;
+        f.dy -= 0.5 * dt;
+        f.alpha -= 0.011 * dt;
         return f.alpha > 0;
       });
     }
@@ -1823,7 +1824,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           // ETAP 5: ENHANCED DRIBBLE BOUNCE ANIMATION - More realistic (12-15px, 120ms cycle)
           const dribbleTime = (Date.now() % 120) / 120;  // 0-1 cycle in 120ms
           const dribbleBounce = Math.sin(dribbleTime * Math.PI) * 13 * scaleY;  // 13px amplitude
-          ss.ball.rot = (ss.ball.rot || 0) + 0.05;  // Ball rotates during dribble
+          ss.ball.rot = (ss.ball.rot || 0) + 0.05 * dt;  // Ball rotates during dribble
           ctx.translate(ss.ball.x, ss.ball.y + dribbleBounce);
           ctx.rotate(ss.ball.rot);
           drawBball(0, 0, 11*scaleX);
@@ -2437,9 +2438,16 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
     // Track last server state emission for persistence
     let lastServerEmitTime = 0;
     const SERVER_EMIT_INTERVAL = 3000; // Send to server every 3 seconds
+    const FIXED_MS = 16.667;  // target 60 FPS baseline
 
-    function renderLoop() {
-      update();
+    function renderLoop(timestamp: number) {
+      if (lastFrameTimeRef.current === 0) lastFrameTimeRef.current = timestamp;
+      const rawDt = timestamp - lastFrameTimeRef.current;
+      lastFrameTimeRef.current = timestamp;
+      // Clamp: max 3 frames to prevent spiral-of-death on tab regain
+      const dt = Math.min(rawDt / FIXED_MS, 3);
+
+      update(dt);
       draw();
 
       // Emit player position every 100ms to server
@@ -2460,7 +2468,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
 
       rafRef.current = requestAnimationFrame(renderLoop);
     }
-    renderLoop();
+    renderLoop(0);
 
     return () => {
       cancelAnimationFrame(rafRef.current);
