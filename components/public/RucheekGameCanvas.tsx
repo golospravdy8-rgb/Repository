@@ -230,6 +230,10 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
     // Real gravity: 9.81 m/s² = 0.095 px/frame² at 35px=1m, 60fps
     // Гравітація: зменшена на 15% для красивішої параболи (0.12 * 0.85 = 0.102)
     const G = 0.102;
+    // Restitution coefficients for realistic bouncing
+    const RESTITUTION_RIM = 0.55;      // дужка — средний отскок
+    const RESTITUTION_BACKBOARD = 0.45; // щит — мягкий отскок
+    const RESTITUTION_FLOOR = 0.35;     // пол — гасит движение
 
     const POLE_X = 12*scaleX, ARM_X = 52*scaleX;
     const BOARD_X = 57*scaleX, BOARD_W = 10*scaleX;
@@ -361,17 +365,17 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       const dy = ball.y - HOOP_Y;
       const dist = Math.hypot(dx, dy);
 
-      if (dist === 0) return; // Уникнути ділення на нуль
+      if (dist === 0) return;
 
-      const nx = dx / dist; // Нормалізована вісь X
-      const ny = dy / dist; // Нормалізована вісь Y
+      const nx = dx / dist;
+      const ny = dy / dist;
 
-      // dot product для проекції швидкості на нормаль
+      // Реалистичный отскок с коэффициентом restitution
       const dot = ball.vx * nx + ball.vy * ny;
 
-      // Новий вектор швидкості (гасить рух вздовж нормалі на 40%)
-      ball.vx = ball.vx - 2 * dot * nx * 0.4;
-      ball.vy = ball.vy - 2 * dot * ny * 0.4;
+      // Зеркальное отражение + случайный компонент
+      ball.vx = -ball.vx * RESTITUTION_RIM + (Math.random() - 0.5) * 2;
+      ball.vy = -Math.abs(ball.vy) * RESTITUTION_RIM; // всегда отлетает вверх
     }
 
     function getHoopInsideDepth(ballX: number, ballY: number, hoopX: number, hoopY: number): number {
@@ -707,186 +711,34 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       if (b.state !== 'flying') return;
       const prevX = b.x, prevY = b.y;
 
-      // Воздушное сопротивление: теряет 0.5% скорости по X каждый кадр
-      b.vx *= Math.pow(0.995, dt);
+      // Pure parabolic physics: gravity + velocity
+      b.vy += G * 60 * dt;
+      b.x += b.vx * 60 * dt;
+      b.y += b.vy * 60 * dt;
+      b.rot += 0.08;
 
-      b.vy += G * dt;
-      b.x += b.vx * dt;
-      b.y += b.vy * dt;
-
-      // ⭐ FIX #3: GUIDED MODE — Correction in last 3 frames for guaranteed accuracy=100
-      if (b.isGuided && b.frameCount !== undefined) {
-        b.frameCount++;
-        const framesLeft = b.flightFrames - b.frameCount;
-        const isLastFrames = framesLeft <= 3 && framesLeft > 0;
-
-        if (isLastFrames) {
-          // Final correction: guide ball to exact target (hoop)
-          const dx = b.targetX - b.x;
-          const dy = b.targetY - b.y;
-          const dist = Math.hypot(dx, dy);
-
-          if (dist > 1) {
-            // Smooth correction factor (increases as we get closer to landing frame)
-            const correctionFactor = 0.15 / framesLeft; // 0.15 = 5% per frame for 3 frames
-            b.vx += (dx / dist) * correctionFactor * 300 * dt;
-            b.vy += (dy / dist) * correctionFactor * 300 * dt;
-            console.log(`[GUIDED CORRECTION] frame=${b.frameCount}/${b.flightFrames}, framesLeft=${framesLeft}, dist=${dist.toFixed(0)}, correction=${correctionFactor.toFixed(3)}`);
-          }
+      // Guided-mode correction ONLY in last 5 frames
+      if (b.isGuided) {
+        b.frameCount = (b.frameCount || 0) + 1;
+        const framesLeft = b.T - b.frameCount;
+        if (framesLeft > 0 && framesLeft <= 5) {
+          // Smooth correction toward target
+          b.x += (b.targetX - b.x) * (0.15 * (6 - framesLeft));
+          b.y += (b.targetY - b.y) * (0.15 * (6 - framesLeft));
         }
-      }
-
-      // Обертання: використай динамічну angular velocity при відскоках, інакше константа
-      if (b.angularVelocity !== undefined) {
-        b.rot += b.angularVelocity * dt;
-        b.angularVelocity *= Math.pow(0.98, dt); // Зменш обертання при опорі
-      } else {
-        b.rot += 0.14 * dt;
-      }
-      if (b.x < 10) { b.x = 10; b.vx = Math.abs(b.vx) * 0.5; }
-      if (b.x > W - 10) { b.x = W - 10; b.vx = -Math.abs(b.vx) * 0.5; }
-      if (b.y < 10) { b.y = 10; b.vy = Math.abs(b.vy) * 0.4; }
-
-      if (b.outcome === 'perfect_direct' || b.outcome === 'direct') {
-        const toHX = HOOP_X - b.x, toHY = HOOP_Y - b.y;
-        const dist = Math.hypot(toHX, toHY);
-        if (dist > 0) {
-          const strength = b.outcome === 'perfect_direct' ? 0.015 : 0.008;
-          const onlyFalling = b.outcome === 'direct';
-          if (!onlyFalling || (onlyFalling && b.vy > 0 && dist < 180)) {
-            const pull = strength * (1 - Math.min(1, dist / 200));
-            b.vx += toHX / dist * pull * dist * dt;
-            b.vy += toHY / dist * pull * dist * dt;
-          }
-        }
-      }
-
-      if (!b.boardHandled) {
-        const crossedFace = (prevX > BOARD_FACE && b.x <= BOARD_FACE) || (prevX >= BOARD_FACE && b.x < BOARD_FACE);
-        const nearFace = b.x <= BOARD_FACE + 12 && b.x >= BOARD_X - 4 && b.vx < 0;
-        if ((crossedFace || nearFace) && b.vx < 0) {
-          const hitY = prevY + (b.y - prevY) * Math.max(0, Math.min(1, (prevX - BOARD_FACE) / Math.max(0.001, prevX - b.x)));
-          if (hitY >= BOARD_TOP - 8 && hitY <= BOARD_BOT + 8) {
-            b.boardHandled = true;
-            b.x = BOARD_FACE + 2;
-            const hitRatio = Math.max(0, Math.min(1, (hitY - BOARD_TOP) / (BOARD_BOT - BOARD_TOP)));
-            const impactSpd = Math.hypot(b.vx, b.vy);
-            const goIn = Math.random() < 0.50;
-            if (goIn) {
-              addFlash('💥 ВІДБІЙ!', BOARD_X + 50*scaleX, BOARD_TOP - 32*scaleY, '#ff9900');
-              const toHX = HOOP_X - b.x, toHY = HOOP_Y - hitY;
-              const toHLen = Math.hypot(toHX, toHY);
-              const normHX = toHX / toHLen, normHY = toHY / toHLen;
-              const reflectVx = Math.abs(b.vx) * 0.65, reflectVy = b.vy * 0.80;
-              const blendToHoop = 0.80 - hitRatio * 0.40;
-              const physBlend = 1 - blendToHoop;
-              const finalSpd = impactSpd * 0.68;
-              b.vx = (normHX * blendToHoop + (reflectVx / impactSpd) * physBlend) * finalSpd + (Math.random() - 0.5) * 0.3;
-              b.vy = (normHY * blendToHoop + (reflectVy / impactSpd) * physBlend) * finalSpd + (Math.random() - 0.5) * 0.2;
-              b.outcome = 'direct';
-            } else {
-              addFlash('🔶 ВІДБІЙ→МИМО', BOARD_X + 50*scaleX, BOARD_TOP - 32*scaleY, '#ff6600');
-              b.vx = Math.abs(b.vx) * 0.60 * (0.9 + Math.random() * 0.2);
-              b.vy = b.vy * 0.50 + Math.random() * 0.5;
-              b.outcome = 'miss_fly';
-            }
-          }
-        }
-      }
-
-      // ⭐ FIX #4: MISS VARIATIONS — Realistic rim bounce and side miss scenarios
-      const distToHoop = Math.hypot(b.x - HOOP_X, b.y - HOOP_Y);
-
-      // For guided mode OR guaranteed score: guide to hoop
-      if (b.guaranteedScore && !b.scoredGoal) {
-        // Коригуємо траєкторію якщо м'яч ще далеко від кільця
-        if (distToHoop < HOOP_RADIUS * 4 && b.vy > 0) {
-          const correction = 0.08;
-          b.vx += (HOOP_X - b.x) * correction * dt;
-          b.vy += (HOOP_Y - b.y) * correction * dt;
-          console.log(`[GUARANTEE TRAJECTORY] Correcting: dist=${distToHoop.toFixed(0)}, vx=${b.vx.toFixed(1)}, vy=${b.vy.toFixed(1)}`);
-        }
-
-        // Перевіряємо чи м'яч вже в кільці
-        if (distToHoop < HOOP_RADIUS && b.vy > 0) {
+        // Scoring on reaching target
+        if (framesLeft <= 0 && !b.scoredGoal) {
           b.scoredGoal = true;
           b.state = 'scored';
-          b.outcome = 'swish';
-          b.vx = 0;
-          b.vy = 0;
-          b.x = HOOP_X;
-          b.y = HOOP_Y + 26*scaleY;
+          b.vx = 0; b.vy = 0;
+          b.x = HOOP_X; b.y = HOOP_Y + 26 * scaleY;
           gs.netShake = true;
           gs.netShakeEnd = Date.now() + 700;
-          addFlash('🎯 ГАРАНТОВАНИЙ SWISH!', HOOP_X, HOOP_Y - 52*scaleY, '#00ff00');
-          console.log('[GUARANTEED GOAL] Accuracy = 100% → automatic goal!');
+          addFlash('4.0 ПОТРАПИВ!', HOOP_X, HOOP_Y - 52 * scaleY, '#00ff00');
           return;
         }
       }
 
-      // For non-guided shots: implement miss variations based on distance from green zone
-      if (!b.isGuided && b.frameCount !== undefined && b.flightFrames !== undefined) {
-        // Calculate miss amount (how far marker was from green zone center)
-        // missAmount = 0 (dead center) to 1+ (far from zone)
-        const markerPos = markerPosRef.current;
-        const distRatio = Math.min(distToHoop / Math.hypot(W, H), 1);
-        const zoneCenter = 0.2 + distRatio * 0.5;
-        const missAmount = Math.abs(markerPos - zoneCenter);
-
-        // ⭐ FIX #4a: RIM BOUNCE (missAmount 0.08 = ~±20-35px offset)
-        if (missAmount < 0.08) {
-          const rimOffsetDir = Math.random() < 0.5 ? -1 : 1;
-          const rimOffsetMag = (20 + Math.random() * 15) * scaleX * rimOffsetDir;
-          b.vx += rimOffsetMag * 0.05;
-          // Ball will bounce off rim naturally through existing physics
-          console.log(`[MISS VARIATION] Rim Bounce: missAmount=${missAmount.toFixed(3)}, offset=${rimOffsetMag.toFixed(0)}px`);
-        }
-        // ⭐ FIX #4b: SIDE MISS (0.08 <= missAmount < 0.20 = ±40-100px offset)
-        else if (missAmount < 0.20) {
-          const sideOffsetDir = Math.random() < 0.5 ? -1 : 1;
-          const sideOffsetMag = (40 + Math.random() * 60) * scaleX * sideOffsetDir;
-          b.vx += sideOffsetMag * 0.08;
-          b.vy *= 0.85; // Slow down vertical component
-          console.log(`[MISS VARIATION] Side Miss: missAmount=${missAmount.toFixed(3)}, offset=${sideOffsetMag.toFixed(0)}px`);
-        }
-        // ⭐ FIX #4c: STRONG MISS (missAmount >= 0.20 = full random trajectory)
-        else {
-          const strongMissX = (Math.random() - 0.5) * 150 * scaleX;
-          const strongMissY = (Math.random() - 0.5) * 100 * scaleY;
-          b.vx += strongMissX * 0.1;
-          b.vy += strongMissY * 0.1;
-          console.log(`[MISS VARIATION] Strong Miss: missAmount=${missAmount.toFixed(3)}, randomOffset=(${strongMissX.toFixed(0)}, ${strongMissY.toFixed(0)})px`);
-        }
-      }
-
-      // ⭐ FIX #5: SCORING DETECTION FOR GUIDED MODE
-      // If guided shot reaches end of flight frames and is close to hoop: score
-      if (b.isGuided && b.frameCount !== undefined && b.flightFrames !== undefined) {
-        if (b.frameCount >= b.flightFrames) {
-          // Flight ended - check if we're in scoring range
-          if (distToHoop < HOOP_RADIUS * 2) {
-            // Close enough to hoop: check if we have lucky bounce condition
-            const luckyBounce = Math.random() < 0.70; // 70% chance to score when close
-            if (luckyBounce && !b.scoredGoal) {
-              b.scoredGoal = true;
-              b.state = 'scored';
-              b.outcome = 'direct';
-              b.vx = 0;
-              b.vy = 0;
-              b.x = HOOP_X;
-              b.y = HOOP_Y + 26*scaleY;
-              gs.netShake = true;
-              gs.netShakeEnd = Date.now() + 700;
-              addFlash('🎯 GUIDED SWISH!', HOOP_X, HOOP_Y - 52*scaleY, '#00ff00');
-              console.log('[GUIDED GOAL] Flight complete, close to hoop → SCORE!');
-              return;
-            }
-          }
-        }
-      }
-
-      // НОВА СИСТЕМА КОЛІЖІЙ: Реалістична фізика з 5 результатами
-      // Перевіря коліжію з обручем лише якщо м'яч ще не обробив результат
       if (!b.rimHandled && b.vy > 0) {
         // FIX: Check if ball is already INSIDE hoop and falling down
         // If so, skip rim collision and let it fall through naturally
@@ -1135,214 +987,54 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
     }
 
     function launchBall(idx: number) {
-      console.log(`[LAUNCH] Player ${idx} launching ball with power ${gs.shootStates[idx].power.toFixed(0)}%`);
       const p = gs.players[idx];
       const ss = gs.shootStates[idx];
-      const px = p.x - 15*scaleX;
-      const py = p.y - 55*scaleY;
-      let angle = ss.aimAngle;  // ETAP 7: Make angle mutable for perfect release lock
-
-      // Calculate distance-based physics with 200% power scale
-      const distToHoop = Math.hypot(HOOP_X - px, HOOP_Y - py);
-      const maxDist = Math.hypot(W, H);
-      const distFraction = distToHoop / maxDist;
-
-      // Use NEW dynamic distance-based ideal power calculation
-      const idealPwrPct = calculateIdealPowerByDistance(px, py);
-      const greenZoneTolerance = Math.round(calculateGreenZoneTolerance(distFraction) * 2);
-      const inGreenZone = Math.abs(ss.power - idealPwrPct) <= greenZoneTolerance;
-
-      // FIX 3: Distance-based power verification logging (140px = 1m, before any ball launch)
-      const distMeters = (distToHoop / 140).toFixed(2);
-      console.log(`[POWER ANALYSIS] Distance=${distMeters}m (${Math.round(distToHoop)}px), Ideal=${idealPwrPct}%, Actual=${ss.power}%, Tolerance=±${greenZoneTolerance}%, In Green=${inGreenZone}`);
-
-      // Store for power bar visualization
-      ss.distFraction = distFraction;
-      ss.idealPowerForDistance = idealPwrPct;
-
-      // Check angle acceptability (±3 degrees)
-      const angleRange = getIdealAngleForDistance(distToHoop);
-      const angleError = Math.abs(angle - angleRange.ideal);
-      const angleAcceptable = angleError <= (3 * Math.PI / 180);
-
-      // CRITICAL FIX: Convert power % directly to pixels-per-frame velocity
-      // Power meter 0-200% → ball velocity 5-16 m/s → pixels per frame
-      // Scaling: ~140 pixels = 1 meter of court distance (4.0x for accuracy multiplier compensation)
-      const speedInMS = calculateBallSpeedFromPower(ss.power);
-      const pixelsPerMeter = 35 * 4.0; // 140px/meter — КРОК 2: збільшено для компенсації accuracy
-      const framesPerSecond = 60; // Game loop runs at 60fps
-
-      // CRITICAL: Normalize velocity to frame rate
-      // speedPixelsPerSecond = speedInMS * pixelsPerMeter
-      // speedPixelsPerFrame = speedPixelsPerSecond / framesPerSecond
-      let curSpd = (speedInMS * pixelsPerMeter) / framesPerSecond;
-
-      // УЛУЧШЕНИЕ: Увеличение скорости мяча на 40% для более быстрого полёта
-      curSpd = curSpd * 1.4;
-
-      // КРОК 3: Перевірити accuracy multiplier та додати логування
-      console.log(
-        `[LAUNCH] speedInMS=${speedInMS.toFixed(2)}, pixelsPerMeter=${pixelsPerMeter.toFixed(0)}, ` +
-        `baseSpd=${curSpd.toFixed(1)}px/frame`
-      );
-
-      // КРОК 5: Застосовуємо accuracy multiplier з PowerMeter
-      if (ss.powerMeterResult) {
-        const accuracy = ss.powerMeterResult.accuracy;
-        const accuracyMultiplier = accuracy / 100;
-        curSpd = curSpd * accuracyMultiplier;
-        console.log(
-          `[SHOT] accuracy=${accuracy}%, multiplier=${accuracyMultiplier.toFixed(2)}, ` +
-          `curSpd=${curSpd.toFixed(1)}px/frame (was ${(curSpd / accuracyMultiplier).toFixed(1)})`
-        );
-      }
-
-      // GREEN LINE GUARANTEE: Clicking exactly on green line (accuracy >= 95%) = 100% score
-      let guaranteedScore = false;
-
-      // ✅ FIX 1 + ETAP 5: 6-TIER ACCURACY SUCCESS SYSTEM with probabilistic hit types
       const accuracy = ss.powerMeterResult?.accuracy || 0;
-      let hitTypeProb = { DIRECT: 0, ARC: 0, SWISH: 0 };  // Hit type probabilities
 
-      if (accuracy >= 95) {
-        guaranteedScore = true;
-        hitTypeProb = { DIRECT: 1.0, ARC: 0, SWISH: 0 };  // Always DIRECT
-        addFlash('✅ ТОЧНО НА ЛІНІЮ! (100%)', p.x, p.y - 115*scaleY, '#44ff88');
-        console.log(`[SHOOT] 🎯 accuracy=${accuracy}% >= 95% → 100% success (DIRECT GUARANTEED)`);
-      } else if (accuracy >= 85) {
-        guaranteedScore = Math.random() < 0.95;
-        hitTypeProb = { DIRECT: 0.70, ARC: 0.25, SWISH: 0.05 };  // 70% DIRECT, 25% ARC
-        addFlash('⭐ ВІДМІННИЙ БРОСОК! (95%)', p.x, p.y - 115*scaleY, '#88ff88');
-        console.log(`[SHOOT] accuracy=${accuracy}% >= 85% → 95% success (70% DIRECT)`);
-      } else if (accuracy >= 75) {
-        guaranteedScore = Math.random() < 0.80;
-        hitTypeProb = { DIRECT: 0.50, ARC: 0.30, SWISH: 0.20 };  // 50% DIRECT, 30% ARC
-        addFlash('🟢 ХОРОШИЙ БРОСОК! (80%)', p.x, p.y - 115*scaleY, '#ffff44');
-        console.log(`[SHOOT] accuracy=${accuracy}% >= 75% → 80% success (50% DIRECT)`);
-      } else if (accuracy >= 65) {
-        guaranteedScore = Math.random() < 0.60;
-        hitTypeProb = { DIRECT: 0.30, ARC: 0.30, SWISH: 0.40 };  // 30% DIRECT, 30% ARC
-        addFlash('🟡 НЕПОГАНИЙ БРОСОК (60%)', p.x, p.y - 115*scaleY, '#ffaa44');
-        console.log(`[SHOOT] accuracy=${accuracy}% >= 65% → 60% success (30% DIRECT)`);
-      } else if (accuracy >= 50) {
-        // ETAP 5 FIX: Minimum 50% success when accuracy 50-65%
-        guaranteedScore = Math.random() < 0.50;
-        hitTypeProb = { DIRECT: 0.20, ARC: 0.30, SWISH: 0.50 };  // 20% DIRECT, mostly SWISH
-        addFlash('🔴 СЛАБКИЙ БРОСОК (50%)', p.x, p.y - 115*scaleY, '#ff6644');
-        console.log(`[SHOOT] accuracy=${accuracy}% >= 50% → 50% success (MIN THRESHOLD)`);
-      } else {
-        guaranteedScore = false;
-        hitTypeProb = { DIRECT: 0, ARC: 0, SWISH: 0 };  // No hit chance
-        addFlash('❌ ДУЖЕ СЛАБКО! (0%)', p.x, p.y - 115*scaleY, '#ff3333');
-        console.log(`[SHOOT] accuracy=${accuracy}% < 50% → GUARANTEED MISS`);
-      }
+      // Стартовая позиция мяча — руки игрока
+      const px = p.x;
+      const py = p.y - 40 * scaleY;
 
-      // Select hit type based on probabilities
-      if (guaranteedScore) {
-        const rand = Math.random();
-        let cumProb = 0;
-        if (rand < (cumProb += hitTypeProb.DIRECT)) ss.hitType = 'DIRECT';
-        else if (rand < (cumProb += hitTypeProb.ARC)) ss.hitType = 'ARC';
-        else ss.hitType = 'SWISH';
-      } else {
-        ss.hitType = null;
-      }
+      // Целевая точка (кольцо или со смещением если промах)
+      let targetX = HOOP_X;
+      let targetY = HOOP_Y;
 
-      const pts = simTraj(px, py, angle, curSpd, 95);
-
-      let nearBoard = false;
-      for (const pt of pts) {
-        if (pt.x >= BOARD_X - 30 && pt.x <= BOARD_FACE + 30 && pt.y >= BOARD_TOP - 15 && pt.y <= BOARD_BOT + 15) {
-          nearBoard = true;
-          break;
-        }
-      }
-
-      let rimHit = false;
-      for (const pt of pts) {
-        const dRim = Math.hypot(pt.x - (HOOP_X + HOOP_R), pt.y - HOOP_Y);
-        const dRim2 = Math.hypot(pt.x - (HOOP_X - HOOP_R), pt.y - HOOP_Y);
-        if (dRim < 9 || dRim2 < 9) { rimHit = true; break; }
-      }
-
-      let outcome = 'miss';
-
-      // Scoring logic
-      if (guaranteedScore) {
-        outcome = 'direct';
-      } else if (inGreenZone) {
-        outcome = Math.random() < 0.85 ? 'direct' : (nearBoard ? 'board_out' : 'miss');
-      } else {
-        if (nearBoard) {
-          outcome = Math.random() < 0.50 ? 'board_in' : 'board_out';
-        } else if (rimHit) {
-          outcome = Math.random() < 0.35 ? 'rim_in' : 'rim_out';
-        } else {
-          outcome = 'miss';
-        }
-      }
-
-      // Add miss offset based on accuracy (0-100%)
-      // Accuracy 100 = direct hit, accuracy 0 = 150px offset
-      let targetHoopX = HOOP_X;
-      let targetHoopY = HOOP_Y;
-
+      // Для промаха — добавляем смещение
       if (accuracy < 100) {
-        const missOffset = (1 - accuracy / 100) * 150; // 0..150px deviation
-        const missAngle = Math.random() * Math.PI * 2; // random direction
-        targetHoopX += Math.cos(missAngle) * missOffset;
-        targetHoopY += Math.sin(missAngle) * missOffset;
-        console.log(`[MISS PHYSICS] accuracy=${accuracy}%, offset=${missOffset.toFixed(0)}px`);
+        const missOffset = (1 - accuracy / 100) * 140 * scaleX;
+        const missDir = Math.random() > 0.5 ? 1 : -1;
+        targetX += missOffset * missDir;
+        targetY += (Math.random() - 0.5) * missOffset * 0.4;
+        console.log(`[MISS OFFSET] accuracy=${accuracy}%, offset=${(missOffset * missDir).toFixed(0)}px`);
       }
 
-      // ⭐ FIX #2: REALISTIC BASKETBALL ARC TRAJECTORY
-      // Calculate parabolic arc based on distance to target
-      const dx = targetHoopX - px;
-      const dy = targetHoopY - py;
-      const distToTarget = Math.hypot(dx, dy);
+      const dx = targetX - px;
+      const dy = targetY - py;
+      const dist = Math.hypot(dx, dy);
 
-      // Calculate flight time based on distance (realistic basketball physics)
-      const flightFrames = Math.max(40, distToTarget * 0.12);
-      const T = flightFrames / 60; // Convert frames to seconds
+      const T = Math.max(45, Math.min(90, dist * 0.10));
+      const arcExtra = dist * 0.30;
 
-      // Arc height: 35% of horizontal distance + 60px base
-      const arcHeight = Math.abs(dx) * 0.45 + 60 * scaleY;
+      const ballVx = dx / T;
+      const ballVy = (dy - 0.5 * G * T * T - arcExtra) / T;
 
-      // Parabolic trajectory: solve for vx and vy such that ball lands at target
-      // Using: y = y0 + vy*T + 0.5*G*T^2
-      let ballVx = dx / T;
-      let ballVy = (dy - 0.5 * G * T * T) / T;
+      console.log(`[PARABOLA LAUNCH] dist=${dist.toFixed(0)}px, T=${T.toFixed(0)}frames, arcExtra=${arcExtra.toFixed(0)}px, vx=${ballVx.toFixed(1)}, vy=${ballVy.toFixed(1)}`);
 
-      // Adjust vy to account for arc (projectile motion correction)
-      // Add upward component to create arc then fall to target
-      ballVy -= arcHeight / T * 0.35; // Initial upward velocity for arc
-
-      console.log(`[ARC TRAJECTORY] dist=${distToTarget.toFixed(0)}px, flightFrames=${flightFrames.toFixed(0)}, arcHeight=${arcHeight.toFixed(0)}, vx=${ballVx.toFixed(1)}, vy=${ballVy.toFixed(1)}`);
-
-      // Store arc metadata for guided mode correction
-      const ballData: any = {
+      ss.ball = {
         x: px, y: py,
         vx: ballVx, vy: ballVy,
-        rot: 0, state: 'flying', outcome,
-        boardHandled: false, rimHandled: false, owner: idx,
-        guaranteedScore: guaranteedScore,
+        rot: 0, state: 'flying',
+        outcome: accuracy >= 100 ? 'direct' : 'miss',
+        guaranteedScore: accuracy >= 100,
         scoredGoal: false,
-        bounceCount: 0,
-        rimBounceCount: 0,
-        // ⭐ FIX #3: GUIDED MODE DATA
-        isGuided: guaranteedScore,
-        targetX: targetHoopX,
-        targetY: targetHoopY,
-        flightFrames: flightFrames,
-        frameCount: 0
+        boardHandled: false, rimHandled: false,
+        owner: idx,
+        bounceCount: 0, rimBounceCount: 0,
+        targetX, targetY, T,
+        frameCount: 0,
+        isGuided: accuracy >= 100,
       };
 
-      ss.ball = ballData;
-
-      // DEBUG: Log guarantee status
-      console.log(`[LAUNCH] accuracy=${ss.powerMeterResult?.accuracy || 'N/A'}, guaranteedScore=${guaranteedScore}`);
-
-      // Инициализация Matter.js для коллизий с обручем
       if (!physicsRef.current) {
         physicsRef.current = new BasketballPhysics(HOOP_X, HOOP_Y, HOOP_RADIUS, BALL_RADIUS, BOARD_X, BOARD_TOP);
       }
