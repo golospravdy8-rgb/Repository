@@ -708,7 +708,11 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
     }
 
     function stepBall(b: any, dt: number) {
-      if (b.state !== 'flying') return;
+      console.log(`[DIAG-STEP] BALL UPDATE: x=${b.x.toFixed(0)}, y=${b.y.toFixed(0)}, state=${b.state}, vx=${b.vx.toFixed(2)}, vy=${b.vy.toFixed(2)}`);
+      if (b.state !== 'flying') {
+        console.log(`[DIAG-STEP] SKIPPED: ball.state !== 'flying' (state=${b.state})`);
+        return;
+      }
       const prevX = b.x, prevY = b.y;
 
       // Pure parabolic physics: gravity + velocity
@@ -716,6 +720,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       b.x += b.vx * 60 * dt;
       b.y += b.vy * 60 * dt;
       b.rot += 0.08;
+      console.log(`[DIAG-STEP] AFTER PHYSICS: x=${b.x.toFixed(0)}, y=${b.y.toFixed(0)}, vy=${b.vy.toFixed(2)}`);
 
       // Guided-mode correction ONLY in last 5 frames
       if (b.isGuided) {
@@ -987,13 +992,17 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
     }
 
     function launchBall(idx: number) {
+      console.log(`[DIAG-LAUNCH] START: idx=${idx}, gs.shootStates[${idx}]=${gs.shootStates[idx] ? 'EXISTS' : 'NULL'}`);
       const p = gs.players[idx];
       const ss = gs.shootStates[idx];
       const accuracy = ss.powerMeterResult?.accuracy || 0;
 
+      console.log(`[DIAG-LAUNCH] p=${p?.name}, accuracy=${accuracy}%`);
+
       // Стартовая позиция мяча — руки игрока
       const px = p.x;
       const py = p.y - 40 * scaleY;
+      console.log(`[DIAG-LAUNCH] px=${px.toFixed(0)}, py=${py.toFixed(0)}, HOOP_X=${HOOP_X.toFixed(0)}, HOOP_Y=${HOOP_Y.toFixed(0)}`);
 
       // Целевая точка (кольцо или со смещением если промах)
       let targetX = HOOP_X;
@@ -1018,8 +1027,11 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       const ballVx = dx / T;
       const ballVy = (dy - 0.5 * G * T * T - arcExtra) / T;
 
+      console.log(`[DIAG-LAUNCH] VELOCITY CALC: dx=${dx.toFixed(0)}, dy=${dy.toFixed(0)}, T=${T.toFixed(1)}, G=${G}, arcExtra=${arcExtra.toFixed(0)}`);
+      console.log(`[DIAG-LAUNCH] ballVx=${isNaN(ballVx) ? 'NaN' : ballVx.toFixed(2)}, ballVy=${isNaN(ballVy) ? 'NaN' : ballVy.toFixed(2)}`);
       console.log(`[PARABOLA LAUNCH] dist=${dist.toFixed(0)}px, T=${T.toFixed(0)}frames, arcExtra=${arcExtra.toFixed(0)}px, vx=${ballVx.toFixed(1)}, vy=${ballVy.toFixed(1)}`);
 
+      console.log(`[DIAG-LAUNCH] CREATING ss.ball...`);
       ss.ball = {
         x: px, y: py,
         vx: ballVx, vy: ballVy,
@@ -1034,13 +1046,17 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         frameCount: 0,
         isGuided: accuracy >= 100,
       };
+      console.log(`[DIAG-LAUNCH] ss.ball CREATED: x=${ss.ball.x.toFixed(0)}, y=${ss.ball.y.toFixed(0)}, vx=${ss.ball.vx.toFixed(2)}, vy=${ss.ball.vy.toFixed(2)}`);
 
       if (!physicsRef.current) {
         physicsRef.current = new BasketballPhysics(HOOP_X, HOOP_Y, HOOP_RADIUS, BALL_RADIUS, BOARD_X, BOARD_TOP);
       }
       physicsRef.current.launchBall(px, py, ballVx, ballVy);
+      console.log(`[DIAG-LAUNCH] Physics engine launchBall called`);
 
+      console.log(`[DIAG-LAUNCH] SETTING ss.phase='flying' (was: ${ss.phase})`);
       ss.phase = 'flying';
+      console.log(`[DIAG-LAUNCH] ss.phase NOW=${ss.phase}`);
       ss.lockedAngle = null;
       ss.idealTraj = null;
       p.status = 'shooting';
@@ -1664,11 +1680,14 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         }
 
         if (ss.ball && ss.phase === 'flying') {
+          console.log(`[DIAG-DRAW] DRAWING BALL: phase=${ss.phase}, x=${ss.ball.x.toFixed(0)}, y=${ss.ball.y.toFixed(0)}`);
           ctx.save();
           ctx.translate(ss.ball.x, ss.ball.y);
           ctx.rotate(ss.ball.rot);
           drawBball(0, 0, 11*scaleX);
           ctx.restore();
+        } else if (ss.ball) {
+          console.log(`[DIAG-DRAW] BALL EXISTS BUT NOT DRAWING: phase=${ss.phase}, state=${ss.ball.state}`);
         }
         if (ss.ball && ss.phase === 'auto_run') {
           ctx.save();
@@ -2172,7 +2191,9 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           const accuracy = markerInZone ? 100 : Math.max(0, 100 - Math.abs(markerPosRef.current - zoneCenter) * 300);
           ss.powerMeterResult = { accuracy, meterHeight: markerPosRef.current * 200, greenLinePosition: zoneCenter * 200 };
           console.log(`[Click 3] Accuracy=${accuracy}%, MarkerPos=${markerPosRef.current.toFixed(2)}, ZoneMin=${zoneMin.toFixed(2)}, ZoneMax=${zoneMax.toFixed(2)}`);
+          console.log(`[DIAG-CLICK3] BEFORE launchBall: ss.phase=${ss.phase}, ss.ball=${ss.ball ? 'EXISTS' : 'NULL'}`);
           launchBall(hitIdx);
+          console.log(`[DIAG-CLICK3] AFTER launchBall: ss.phase=${ss.phase}, ss.ball=${ss.ball ? 'EXISTS' : 'NULL'}, ball.vx=${ss.ball?.vx?.toFixed(2)}, ball.vy=${ss.ball?.vy?.toFixed(2)}`);
         }
       } else {
         // FEATURE 1: Double-click to instantly grab ball when chasing
