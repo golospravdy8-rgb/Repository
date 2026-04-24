@@ -125,7 +125,7 @@ function HeaderInner({
           {!centered && (
             <nav className="flex items-center gap-0 flex-nowrap justify-end flex-1 min-w-0" style={{ marginLeft: "12px" }}>
               {visibleLinks.map((link) => {
-                const active = isActive(link.href);
+                const active = isActive(link.href) ?? false;
                 return (
                   <Link
                     key={link.href}
@@ -227,7 +227,7 @@ function HeaderInner({
         {menuOpen && !centered && (
           <div className="pb-4 border-t border-white/10 pt-3">
             {visibleLinks.map((link) => {
-              const active = isActive(link.href);
+              const active = isActive(link.href) ?? false;
               return (
                 <Link
                   key={link.href}
