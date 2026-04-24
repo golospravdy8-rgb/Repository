@@ -4,7 +4,6 @@ import { createPortal } from "react-dom";
 import Pusher from "pusher-js";
 import { PowerMeterSystem } from "@/lib/game/powerMeterSystem";
 import { createMeterElement, hideMeter, showAccuracyFeedback } from "@/lib/game/powerMeterUI";
-import { BasketballPhysics, type CollisionType, type BallPhysicsResult } from "@/lib/game/basketballPhysics";
 
 interface RucheekGameCanvasProps {
   isVisible: boolean;
@@ -23,7 +22,6 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
   const pusherRef = useRef<any>(null);
   const channelRef = useRef<any>(null);
   const remotePlayersRef = useRef<Map<string, any>>(new Map());
-  const physicsRef = useRef<BasketballPhysics | null>(null);
   const [mounted, setMounted] = useState(false);
   const [pname, setPname] = useState(userName);
   const [showModal, setShowModal] = useState(false);
@@ -771,13 +769,9 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           return;
         }
 
-        // Matter.js коліжія для реалістичної фізики обруча
+        // Коліжія для реалістичної фізики обруча
         let collisionType: string = 'none';
-        if (physicsRef.current) {
-          collisionType = physicsRef.current.checkCollision(b.x, b.y, b.vx, b.vy);
-        } else {
-          collisionType = checkHoopCollision(b);
-        }
+        collisionType = checkHoopCollision(b);
 
         if (collisionType === 'swish') {
           // SWISH: чистий пас - автоматично гол
@@ -1048,12 +1042,6 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       };
       console.log(`[DIAG-LAUNCH] ss.ball CREATED: x=${ss.ball.x.toFixed(0)}, y=${ss.ball.y.toFixed(0)}, vx=${ss.ball.vx.toFixed(2)}, vy=${ss.ball.vy.toFixed(2)}`);
 
-      if (!physicsRef.current) {
-        physicsRef.current = new BasketballPhysics(HOOP_X, HOOP_Y, HOOP_RADIUS, BALL_RADIUS, BOARD_X, BOARD_TOP);
-      }
-      physicsRef.current.launchBall(px, py, ballVx, ballVy);
-      console.log(`[DIAG-LAUNCH] Physics engine launchBall called`);
-
       console.log(`[DIAG-LAUNCH] SETTING ss.phase='flying' (was: ${ss.phase})`);
       ss.phase = 'flying';
       console.log(`[DIAG-LAUNCH] ss.phase NOW=${ss.phase}`);
@@ -1194,12 +1182,6 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       ss.lockedAngle = null;
       ss.idealTraj = null;
 
-      // Очистка Matter.js physics engine
-      if (physicsRef.current) {
-        physicsRef.current.destroy();
-        physicsRef.current = null;
-      }
-
       // DEBUG: Log scoring event with distance, accuracy, and hit type
       console.log(`[SCORE] Player ${idx} (${p.name}) ${hitType} hit from ${distMeters}m at ${Math.round(accuracy)}%! Total: ${p.score}`);
 
@@ -1284,12 +1266,6 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       const order1 = p.order || (idx + 1);
       const nextPlayerOrder = order1 + 1;
       setShowOrder([order1, nextPlayerOrder]);
-
-      // Очистка Matter.js physics engine
-      if (physicsRef.current) {
-        physicsRef.current.destroy();
-        physicsRef.current = null;
-      }
 
       console.log(`[MISS] Player ${idx} missed shot, chasing ball, pickup flags reset`);
     }
