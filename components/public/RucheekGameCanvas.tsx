@@ -1293,6 +1293,10 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           markerPosRef.current += markerDirRef.current * MARKER_SPEED * dt;
           if (markerPosRef.current >= 1) { markerPosRef.current = 1; markerDirRef.current = -1; }
           if (markerPosRef.current <= 0) { markerPosRef.current = 0; markerDirRef.current = 1; }
+          // Diagnostic log every 30 frames (2x per second at 60fps)
+          if (i === 0 && Math.floor(Date.now() / 500) !== Math.floor((Date.now() - 16) / 500)) {
+            console.log(`[CHARGING MARKER] Pos=${markerPosRef.current.toFixed(3)}, Speed=${MARKER_SPEED.toFixed(2)}, DistRatio=${distRatio.toFixed(2)}`);
+          }
         }
         if (ss.phase === 'flying' && ss.ball) {
           stepBall(ss.ball, dt);
@@ -1925,19 +1929,17 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         const orderNum = p.order || (i + 1);
         const canShoot = showOrderRef.current[orderNum] === true;
 
+        // Show order number (gold color for all players)
+        ctx.fillStyle = '#FFD700';
+        ctx.font = `bold ${17*scaleX}px Arial`;
+        ctx.textAlign = 'center';
+        ctx.fillText(String(orderNum), p.x, p.y - 76*scaleY);
+
         // Always display name (white for others, yellow for self)
         ctx.fillStyle = isMine ? '#FFFF00' : '#FFFFFF';
         ctx.font = `bold ${12*scaleX}px Arial`;
         ctx.textAlign = 'center';
         ctx.fillText(p.name, p.x, p.y - 62*scaleY);
-
-        // Show order number only when player can shoot (gold color)
-        if (canShoot) {
-          ctx.fillStyle = '#FFD700';
-          ctx.font = `bold ${17*scaleX}px Arial`;
-          ctx.textAlign = 'center';
-          ctx.fillText(String(orderNum), p.x, p.y - 76*scaleY);
-        }
 
         if (i === gs.disputeP2 && ss.phase === null && gs.state === 'playing' && gs.players.length > 1) {
           const al = 0.7 + 0.3 * Math.sin(Date.now() / 200);
