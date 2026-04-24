@@ -1327,7 +1327,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         // First player goes to end, second becomes new first
         // Show order only for new shooter (was #2, now #1) and potential hunter (was #3, now #2)
         if (gs.players.length > 1) {
-          const newOrders = gs.players.slice(1, 3).map(p => p.order).filter(Boolean);
+          const newOrders = gs.players.slice(1, 3).map((p: any) => p.order).filter(Boolean);
           setShowOrder(newOrders);
         } else {
           setShowOrder([]);
