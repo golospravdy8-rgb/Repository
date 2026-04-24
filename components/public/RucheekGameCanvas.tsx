@@ -81,20 +81,6 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
 
     console.log(`[Pusher] Subscribed to game-${gameRoomId}`);
 
-    // Announce player join
-    fetch('/api/pusher/join', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        room: gameRoomId,
-        playerId: playerIdRef.current,
-        playerIndex: 0,
-        nickname: userName || 'Player',
-        x: 680,
-        y: 584,
-      }),
-    }).catch(() => {});
-
     // ✅ MULTIPLAYER: Event - Another player joined
     channel.bind('player-joined', (data: any) => {
       if (data.playerId === playerIdRef.current) return;
@@ -2484,20 +2470,25 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
   const gs = gsRef.current;
 
   const emitPlayerPosition = useCallback(() => {
-    if (gs.players.length === 0 || !gameRoomId) return;
-    const myPlayer = gs.players[0];
-    if (myPlayer) {
-      const ball = gs.shootStates[0]?.ball;
+    if (gs.state !== 'playing' || gs.players.length === 0 || !gameRoomId) return;
+
+    // FIX #4: Send position for ALL players, not just first
+    gs.players.forEach((myPlayer, idx) => {
+      if (myPlayer.status === 'eliminated') return;
+
+      const ball = gs.shootStates[idx]?.ball;
+
       fetch('/api/pusher', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           room: gameRoomId,
-          playerId: playerIdRef.current,
+          playerId: playerIdRef.current + `_${idx}`,
           x: myPlayer.x,
           y: myPlayer.y,
           name: myPlayer.name,
           score: myPlayer.score,
+          status: myPlayer.status,
           ball: ball ? {
             x: ball.x,
             y: ball.y,
@@ -2508,7 +2499,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           } : null,
         }),
       }).catch(() => {});
-    }
+    });
   }, [gameRoomId]);
 
   // Game state is persisted via localStorage (no server-side persistence needed)
@@ -2556,7 +2547,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
     if (gs.players.length >= MAX_PLAYERS) { alert("Максимум 6 гравців!"); return; }
     const name = pname.trim() || `Гр.${gs.players.length+1}`;
     const idx = gs.players.length;
-    gs.players.push({ name, x: 680*(window.innerWidth/860)+idx*58*(window.innerWidth/860), y: 584*(window.innerHeight/624), score:0, kills:0, status:"idle", rf:0, color: PLAYER_COLORS[idx%6] });
+    gs.players.push({ name, x: 680 + idx * 58, y: 584, score:0, kills:0, status:"idle", rf:0, color: PLAYER_COLORS[idx%6] });
     gs.shootStates.push({ phase:null,aimAngle:-Math.PI*0.72,aimDir:1,power:0,powerDir:1,ball:null,lockedAngle:null,idealTraj:null,idealSpeed:10,runTarget:null,inDanger:false });
     setPname("");
     forceUpdate(n => n+1);
@@ -2569,6 +2560,23 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
     gs.players.forEach((p:any) => { p.score=0; p.kills=0; p.status="idle"; p.rf=0; });
     gs.shootStates = gs.players.map(() => ({ phase:null,aimAngle:-Math.PI*0.72,aimDir:1,power:0,powerDir:1,ball:null,lockedAngle:null,idealTraj:null,idealSpeed:10,runTarget:null,inDanger:false }));
     gs.disputeP1=0; gs.disputeP2=-1; gs.selectedMoveIdx=-1;
+
+    // FIX #3: Broadcast all players when game starts
+    gs.players.forEach((p, idx) => {
+      fetch('/api/pusher/join', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          room: gameRoomId,
+          playerId: playerIdRef.current + `_${idx}`,
+          playerIndex: idx,
+          nickname: p.name,
+          x: p.x,
+          y: p.y,
+        }),
+      }).catch(() => {});
+    });
+
     forceUpdate(n => n+1);
   };
 
