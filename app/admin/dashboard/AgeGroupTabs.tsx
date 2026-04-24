@@ -5,10 +5,10 @@ import { useRouter, useSearchParams } from "next/navigation";
 export default function AgeGroupTabs() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const ag = searchParams.get("ag") === "older" ? "older" : "younger";
+  const ag = searchParams?.get("ag") === "older" ? "older" : "younger";
 
   function switchAg(group: "younger" | "older") {
-    const params = new URLSearchParams(searchParams.toString());
+    const params = new URLSearchParams(searchParams?.toString() ?? "");
     params.set("ag", group);
     router.push(`/admin/dashboard?${params.toString()}`);
   }

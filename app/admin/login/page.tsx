@@ -30,7 +30,7 @@ function AdminLoginForm() {
       });
       const data = await res.json();
       if (data.ok) {
-        const redirectTo = searchParams.get("redirect");
+        const redirectTo = searchParams?.get("redirect");
         window.location.href = redirectTo && redirectTo.startsWith("/") ? redirectTo : "/admin/dashboard";
       } else {
         setError(data.error || "Невірний email або пароль");
