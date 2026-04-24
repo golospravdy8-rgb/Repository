@@ -1731,7 +1731,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       ctx.restore();
     }
 
-    function draw() {
+    function draw(dt: number) {
       ctx.clearRect(0, 0, W, H);
       ctx.globalAlpha = 0.25;
       ctx.strokeStyle = '#fff';
@@ -2448,7 +2448,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       const dt = Math.min(rawDt / FIXED_MS, 3);
 
       update(dt);
-      draw();
+      draw(dt);
 
       // Emit player position every 100ms to server
       const now = Date.now();
@@ -2481,7 +2481,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
     if (gs.state !== 'playing' || gs.players.length === 0 || !gameRoomId) return;
 
     // FIX #4: Send position for ALL players, not just first
-    gs.players.forEach((myPlayer, idx) => {
+    gs.players.forEach((myPlayer: any, idx: number) => {
       if (myPlayer.status === 'eliminated') return;
 
       const ball = gs.shootStates[idx]?.ball;
@@ -2570,7 +2570,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
     gs.disputeP1=0; gs.disputeP2=-1; gs.selectedMoveIdx=-1;
 
     // FIX #3: Broadcast all players when game starts
-    gs.players.forEach((p, idx) => {
+    gs.players.forEach((p: any, idx: number) => {
       fetch('/api/pusher/join', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
