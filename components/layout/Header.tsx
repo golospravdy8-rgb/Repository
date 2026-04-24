@@ -56,7 +56,7 @@ function HeaderInner({
   }
 
   const isActive = (href: string) =>
-    pathname === href || pathname.startsWith(href + "/");
+    pathname === href || pathname?.startsWith(href + "/");
 
   const getActiveLinkStyle = (active: boolean) => {
     if (!active) return { color: headerTextColor };
