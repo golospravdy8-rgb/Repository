@@ -1016,7 +1016,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       const dist = Math.hypot(dx, dy);
 
       const T = Math.max(45, Math.min(90, dist * 0.10));
-      const arcExtra = dist * 0.30;
+      const arcExtra = dist * 0.45;
 
       const ballVx = dx / T;
       const ballVy = (dy - 0.5 * G * T * T - arcExtra) / T;
@@ -1077,8 +1077,8 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           const maxDist = Math.hypot(W, H);
           const distRatio = Math.min(distToHoop / maxDist, 1);
 
-          // Speed depends on distance: 0.30 (close, easy) to 0.50 (far, hard)
-          const MARKER_SPEED = 0.30 + distRatio * 0.20;
+          // Speed depends on distance: 0.65 (close, easy) to 1.10 (far, hard)
+          const MARKER_SPEED = 0.65 + distRatio * 0.45;
 
           // Use FIXED dt = 1/60 second per frame (not real delta), ensures consistent arcade pace
           const FIXED_DT = 1 / 60;
