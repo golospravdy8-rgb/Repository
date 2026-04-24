@@ -56,7 +56,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
   );
   const lastEmitTimeRef = useRef<number>(0);
   const lastFrameTimeRef = useRef<number>(0);
-  const blinkRef = useRef<{[key: number]: boolean}>({});
+  const showOrderRef = useRef<{[key: number]: boolean}>({});
 
   // Power Meter System refs and state
   const powerMeterRef = useRef<PowerMeterSystem | null>(null);
@@ -1312,9 +1312,9 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       });
     }
 
-    function setBlinking(orderNumbers: number[]) {
-      blinkRef.current = {};
-      orderNumbers.forEach(n => { blinkRef.current[n] = true; });
+    function setShowOrder(orderNumbers: number[]) {
+      showOrderRef.current = {};
+      orderNumbers.forEach(n => { showOrderRef.current[n] = true; });
     }
 
     function handleScored(idx: number) {
@@ -1322,9 +1322,16 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       p.score++;
       gs.shootStates[idx].inDanger = false;
 
-      // Update blinking: if player #1 scored, reset blinking (they go to end)
+      // Update turn order: if player #1 scored, they go to end
       if (idx === 0) {
-        blinkRef.current = {};
+        // First player goes to end, second becomes new first
+        // Show order only for new shooter (was #2, now #1) and potential hunter (was #3, now #2)
+        if (gs.players.length > 1) {
+          const newOrders = gs.players.slice(1, 3).map(p => p.order).filter(Boolean);
+          setShowOrder(newOrders);
+        } else {
+          setShowOrder([]);
+        }
       }
 
       // FIX 4 + ETAP 7: ACCURACY DISPLAY with perfect release highlight
@@ -1454,10 +1461,10 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       ss.phase = 'auto_run';
       p.status = 'running';
 
-      // Update blinking: victim (player #1) and hunter (player #2) blink
+      // Update order display: show order for current shooter and next player
       const order1 = p.order || (idx + 1);
       const nextPlayerOrder = order1 + 1;
-      blinkRef.current = { [order1]: true, [nextPlayerOrder]: true };
+      setShowOrder([order1, nextPlayerOrder]);
 
       // Очистка Matter.js physics engine
       if (physicsRef.current) {
@@ -1874,22 +1881,22 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           ctx.fillText('💀×' + kills, p.x, p.y - 84*scaleY);
         }
 
-        // Display order number + name with blinking support
+        // Display order number + name
         const orderNum = p.order || (i + 1);
-        const shouldBlink = blinkRef.current[orderNum];
-        const blinkVisible = shouldBlink ? (Math.floor(Date.now() / 400) % 2 === 0) : true;
+        const canShoot = showOrderRef.current[orderNum] === true;
 
-        if (blinkVisible) {
-          // Color: red for victim (#1 blinking), green for hunter (#2 blinking), white for waiting
-          let textColor = '#FFFFFF';
-          if (shouldBlink && orderNum === 1) textColor = '#FF4444';
-          else if (shouldBlink && orderNum === 2) textColor = '#44FF44';
-          else if (isMine) textColor = '#FFFF00';
+        // Always display name (white for others, yellow for self)
+        ctx.fillStyle = isMine ? '#FFFF00' : '#FFFFFF';
+        ctx.font = `bold ${12*scaleX}px Arial`;
+        ctx.textAlign = 'center';
+        ctx.fillText(p.name, p.x, p.y - 62*scaleY);
 
-          ctx.fillStyle = textColor;
-          ctx.font = `bold ${14*scaleX}px Arial`;
+        // Show order number only when player can shoot (gold color)
+        if (canShoot) {
+          ctx.fillStyle = '#FFD700';
+          ctx.font = `bold ${17*scaleX}px Arial`;
           ctx.textAlign = 'center';
-          ctx.fillText(orderNum + '  ' + p.name, p.x, p.y - 73*scaleY);
+          ctx.fillText(String(orderNum), p.x, p.y - 76*scaleY);
         }
 
         if (i === gs.disputeP2 && ss.phase === null && gs.state === 'playing' && gs.players.length > 1) {
@@ -2637,8 +2644,8 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       gs.disputeP1 = 0;
       gs.disputeP2 = -1;
       gs.selectedMoveIdx = -1;
-      // First player's order starts blinking
-      blinkRef.current = { [assignedOrder]: true };
+      // First player can shoot
+      setShowOrder([assignedOrder]);
     }
 
     setPname("");
