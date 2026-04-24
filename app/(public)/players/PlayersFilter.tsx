@@ -28,7 +28,7 @@ export default function PlayersFilter({
     const params = new URLSearchParams();
     if (newTeam) params.set("team", newTeam);
     if (newPosition) params.set("position", newPosition);
-    const ag = searchParams.get("ag");
+    const ag = searchParams?.get("ag");
     if (ag) params.set("ag", ag);
     const qs = params.toString();
     startTransition(() => {
