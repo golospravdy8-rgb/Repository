@@ -1197,6 +1197,19 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         }
       }
 
+      // Add miss offset based on accuracy (0-100%)
+      // Accuracy 100 = direct hit, accuracy 0 = 150px offset
+      let targetHoopX = HOOP_X;
+      let targetHoopY = HOOP_Y;
+
+      if (accuracy < 100) {
+        const missOffset = (1 - accuracy / 100) * 150; // 0..150px deviation
+        const missAngle = Math.random() * Math.PI * 2; // random direction
+        targetHoopX += Math.cos(missAngle) * missOffset;
+        targetHoopY += Math.sin(missAngle) * missOffset;
+        console.log(`[MISS PHYSICS] accuracy=${accuracy}%, offset=${missOffset.toFixed(0)}px`);
+      }
+
       let ballVx = Math.cos(angle) * curSpd;
       let ballVy = Math.sin(angle) * curSpd;
 
@@ -1210,30 +1223,30 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         ballVx = Math.cos(angle) * curSpd;
         ballVy = Math.sin(angle) * curSpd;
 
-        // Apply 85% correction toward hoop (nearly direct path, still realistic arc)
-        const toHoopX = HOOP_X - px;
-        const toHoopY = HOOP_Y - py;
-        const hoopDist = Math.sqrt(toHoopX * toHoopX + toHoopY * toHoopY);
-        if (hoopDist > 0) {
-          const targetVx = (toHoopX / hoopDist) * curSpd;
-          const targetVy = (toHoopY / hoopDist) * curSpd;
+        // Apply 85% correction toward target (hoop or offset if accuracy < 100)
+        const toTargetX = targetHoopX - px;
+        const toTargetY = targetHoopY - py;
+        const targetDist = Math.sqrt(toTargetX * toTargetX + toTargetY * toTargetY);
+        if (targetDist > 0) {
+          const targetVx = (toTargetX / targetDist) * curSpd;
+          const targetVy = (toTargetY / targetDist) * curSpd;
           const correction = 0.85;  // 85% correction = nearly perfect trajectory
           ballVx = ballVx * (1 - correction) + targetVx * correction;
           ballVy = ballVy * (1 - correction) + targetVy * correction;
-          console.log(`[PERFECT RELEASE] 🎯 accuracy=${accuracy}% → 85% correction + angle lock (GUARANTEED HIT)`);
+          console.log(`[PERFECT RELEASE] 🎯 accuracy=${accuracy}% → 85% correction + angle lock`);
         }
       } else if (accuracy >= 85) {
-        // Excellent: medium correction (25% toward hoop)
-        const toHoopX = HOOP_X - px;
-        const toHoopY = HOOP_Y - py;
-        const hoopDist = Math.sqrt(toHoopX * toHoopX + toHoopY * toHoopY);
-        if (hoopDist > 0) {
-          const targetVx = (toHoopX / hoopDist) * curSpd;
-          const targetVy = (toHoopY / hoopDist) * curSpd;
+        // Excellent: medium correction (25% toward target)
+        const toTargetX = targetHoopX - px;
+        const toTargetY = targetHoopY - py;
+        const targetDist = Math.sqrt(toTargetX * toTargetX + toTargetY * toTargetY);
+        if (targetDist > 0) {
+          const targetVx = (toTargetX / targetDist) * curSpd;
+          const targetVy = (toTargetY / targetDist) * curSpd;
           const correction = 0.25;  // 25% correction for high accuracy
           ballVx = ballVx * (1 - correction) + targetVx * correction;
           ballVy = ballVy * (1 - correction) + targetVy * correction;
-          console.log(`[TRAJECTORY] accuracy=${accuracy}% >= 85% → medium correction (25% toward hoop)`);
+          console.log(`[TRAJECTORY] accuracy=${accuracy}% >= 85% → medium correction (25% toward target)`);
         }
       }
 
@@ -1287,16 +1300,17 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           if (ss.power <= 0) { ss.power = 0; ss.powerDir = 1; }
           // Oscillate distance indicator marker with arcade-style difficulty
           const distToHoop = Math.hypot(HOOP_X - (p.x - 15*scaleX), HOOP_Y - (p.y - 55*scaleY));
-          const maxDist = 800; // pixels
+          const maxDist = Math.hypot(W, H);
           const distRatio = Math.min(distToHoop / maxDist, 1);
-          const MARKER_SPEED = 0.35 + distRatio * 0.25; // 0.35..0.60 units per second, based on distance
-          markerPosRef.current += markerDirRef.current * MARKER_SPEED * dt;
+
+          // Speed depends on distance: 0.30 (close, easy) to 0.50 (far, hard)
+          const MARKER_SPEED = 0.30 + distRatio * 0.20;
+
+          // Use FIXED dt = 1/60 second per frame (not real delta), ensures consistent arcade pace
+          const FIXED_DT = 1 / 60;
+          markerPosRef.current += markerDirRef.current * MARKER_SPEED * FIXED_DT;
           if (markerPosRef.current >= 1) { markerPosRef.current = 1; markerDirRef.current = -1; }
           if (markerPosRef.current <= 0) { markerPosRef.current = 0; markerDirRef.current = 1; }
-          // Diagnostic log every 30 frames (2x per second at 60fps)
-          if (i === 0 && Math.floor(Date.now() / 500) !== Math.floor((Date.now() - 16) / 500)) {
-            console.log(`[CHARGING MARKER] Pos=${markerPosRef.current.toFixed(3)}, Speed=${MARKER_SPEED.toFixed(2)}, DistRatio=${distRatio.toFixed(2)}`);
-          }
         }
         if (ss.phase === 'flying' && ss.ball) {
           stepBall(ss.ball, dt);
@@ -1927,19 +1941,30 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
 
         // Display order number + name
         const orderNum = p.order || (i + 1);
-        const canShoot = showOrderRef.current[orderNum] === true;
+        const isActive = (i === gs.disputeP1 || i === gs.disputeP2) && gs.state === 'playing';
 
-        // Show order number (gold color for all players)
-        ctx.fillStyle = '#FFD700';
-        ctx.font = `bold ${17*scaleX}px Arial`;
+        // Show order number - blink if active, static if not
+        if (isActive) {
+          // Blinking for active players
+          const pulse = 0.5 + 0.5 * Math.sin(Date.now() / 200);
+          ctx.globalAlpha = pulse;
+          ctx.fillStyle = '#FFD700';
+          ctx.font = `bold ${22*scaleX}px Arial`;
+        } else {
+          // Static for waiting players
+          ctx.globalAlpha = 0.6;
+          ctx.fillStyle = '#AAAAAA';
+          ctx.font = `bold ${18*scaleX}px Arial`;
+        }
         ctx.textAlign = 'center';
-        ctx.fillText(String(orderNum), p.x, p.y - 76*scaleY);
+        ctx.fillText(String(orderNum), p.x, p.y - 75*scaleY);
+        ctx.globalAlpha = 1;
 
         // Always display name (white for others, yellow for self)
         ctx.fillStyle = isMine ? '#FFFF00' : '#FFFFFF';
-        ctx.font = `bold ${12*scaleX}px Arial`;
+        ctx.font = `bold ${11*scaleX}px Arial`;
         ctx.textAlign = 'center';
-        ctx.fillText(p.name, p.x, p.y - 62*scaleY);
+        ctx.fillText(p.name, p.x, p.y - 60*scaleY);
 
         if (i === gs.disputeP2 && ss.phase === null && gs.state === 'playing' && gs.players.length > 1) {
           const al = 0.7 + 0.3 * Math.sin(Date.now() / 200);
