@@ -714,9 +714,9 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       const prevX = b.x, prevY = b.y;
 
       // Pure parabolic physics: gravity + velocity
-      b.vy += G * 60 * dt;
-      b.x += b.vx * 60 * dt;
-      b.y += b.vy * 60 * dt;
+      b.vy += G * dt;
+      b.x += b.vx * dt;
+      b.y += b.vy * dt;
       b.rot += 0.08;
       console.log(`[DIAG-STEP] AFTER PHYSICS: x=${b.x.toFixed(0)}, y=${b.y.toFixed(0)}, vy=${b.vy.toFixed(2)}`);
 
