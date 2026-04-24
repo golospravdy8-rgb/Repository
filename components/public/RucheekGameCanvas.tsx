@@ -90,6 +90,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       remotePlayersRef.current.set(data.playerId, {
         socketId: data.playerId,
         playerIndex: data.playerIndex,
+        order: data.order,  // Preserve global order from server
         x: data.x,
         y: data.y,
         status: 'alive',
@@ -2575,15 +2576,31 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
     }
   }, [gameRoomId]);
 
-  const handleAddPlayer = () => {
+  const handleAddPlayer = async () => {
     if (gs.players.length >= MAX_PLAYERS) { alert("Максимум 6 гравців!"); return; }
     const name = pname.trim() || `Гр.${gs.players.length+1}`;
     const idx = gs.players.length;
+
+    // Get global order from server (synchronize across all devices)
+    let assignedOrder = idx + 1;  // Fallback
+    try {
+      const resp = await fetch('/api/pusher/get-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ gameRoomId })
+      });
+      const data = await resp.json();
+      assignedOrder = data.order;
+      console.log(`[ADD-PLAYER] Got global order: ${assignedOrder}`);
+    } catch (e) {
+      console.warn('[ADD-PLAYER] Failed to get order from server, using local:', assignedOrder);
+    }
+
     const newPlayer = {
       name,
-      order: idx + 1,
+      order: assignedOrder,
       x: 680 + idx * 58,
-      y: 584,
+      y: 584,  // Base constant (will be scaled in render with GY_ORIG)
       score:0,
       kills:0,
       status:"idle",
@@ -2593,6 +2610,26 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
     gs.players.push(newPlayer);
     gs.shootStates.push({ phase:null,aimAngle:-Math.PI*0.72,aimDir:1,power:0,powerDir:1,ball:null,lockedAngle:null,idealTraj:null,idealSpeed:10,runTarget:null,inDanger:false });
 
+    // Broadcast this player to all other clients with global order
+    try {
+      await fetch('/api/pusher/join', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          room: gameRoomId,
+          playerId: playerIdRef.current,
+          playerIndex: idx,
+          nickname: name,
+          order: assignedOrder,  // Send global order to others
+          x: newPlayer.x,
+          y: newPlayer.y,
+          color: newPlayer.color,
+        })
+      });
+    } catch (e) {
+      console.warn('[ADD-PLAYER] Failed to broadcast join:', e);
+    }
+
     // Immediately set game to playing when first player is added
     if (gs.players.length === 1) {
       gs.state = "playing";
@@ -2600,6 +2637,8 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       gs.disputeP1 = 0;
       gs.disputeP2 = -1;
       gs.selectedMoveIdx = -1;
+      // First player's order starts blinking
+      setBlinking([assignedOrder]);
     }
 
     setPname("");
