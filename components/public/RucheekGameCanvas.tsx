@@ -57,6 +57,10 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
   const lastEmitTimeRef = useRef<number>(0);
   const lastFrameTimeRef = useRef<number>(0);
   const showOrderRef = useRef<{[key: number]: boolean}>({});
+  const groundYRef = useRef<number>(584);
+  const eliminationOrderRef = useRef<string[]>([]);
+  const markerPosRef = useRef<number>(0);
+  const markerDirRef = useRef<number>(1);
 
   // Power Meter System refs and state
   const powerMeterRef = useRef<PowerMeterSystem | null>(null);
@@ -222,6 +226,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
     const W = canvas.width;
     const H = canvas.height;
     const GY = GY_ORIG * scaleY;
+    groundYRef.current = GY;
     // Real gravity: 9.81 m/s² = 0.095 px/frame² at 35px=1m, 60fps
     // Гравітація: зменшена на 15% для красивішої параболи (0.12 * 0.85 = 0.102)
     const G = 0.102;
@@ -1280,6 +1285,11 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           ss.power += 2.6 * ss.powerDir * dt; // Doubled rate for 200% range
           if (ss.power >= 200) { ss.power = 200; ss.powerDir = -1; }
           if (ss.power <= 0) { ss.power = 0; ss.powerDir = 1; }
+          // Oscillate distance indicator marker
+          const MARKER_SPEED = 0.8;
+          markerPosRef.current += markerDirRef.current * MARKER_SPEED * dt;
+          if (markerPosRef.current >= 1) { markerPosRef.current = 1; markerDirRef.current = -1; }
+          if (markerPosRef.current <= 0) { markerPosRef.current = 0; markerDirRef.current = 1; }
         }
         if (ss.phase === 'flying' && ss.ball) {
           stepBall(ss.ball, dt);
@@ -1412,6 +1422,8 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           if (gs.players[idx]) gs.players[idx].kills = (gs.players[idx].kills || 0) + 1;
           setTimeout(() => {
             const idx2 = gs.disputeP1;
+            const eliminatedName = gs.players[idx2]?.name;
+            if (eliminatedName) eliminationOrderRef.current.push(eliminatedName);
             if (idx2 < gs.players.length) { gs.players.splice(idx2, 1); gs.shootStates.splice(idx2, 1); }
             gs.disputeP1 = 0;
             gs.disputeP2 = -1;
@@ -1820,7 +1832,32 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           const distToHoop = Math.hypot(HOOP_X - sx, HOOP_Y - sy);
           const maxDist = Math.hypot(W, H);
           ss_ideal_power = 50 + (distToHoop / maxDist) * 50;
-          drawPowerBar(p, ss.power, matchPct, ss);
+
+          // Draw distance indicator bar with green zone and oscillating marker
+          const bx2 = p.x + 30*scaleX, barTop = p.y - 80*scaleY, barW = 14*scaleX, barH = 80*scaleY;
+          const distRatio2 = Math.min(distToHoop / maxDist, 1);
+          const zoneCenter2 = 0.2 + distRatio2 * 0.5;
+          const zoneSize2 = 0.12;
+          const zoneMin2 = zoneCenter2 - zoneSize2 / 2;
+          const zoneMax2 = zoneCenter2 + zoneSize2 / 2;
+
+          // Background bar
+          ctx.fillStyle = '#222';
+          ctx.fillRect(bx2, barTop, barW, barH);
+          // Green success zone
+          ctx.fillStyle = '#00FF44';
+          ctx.fillRect(bx2, barTop + zoneMin2 * barH, barW, zoneSize2 * barH);
+          // Marker (white line)
+          const markerY2 = barTop + markerPosRef.current * barH;
+          ctx.fillStyle = '#FFFFFF';
+          ctx.fillRect(bx2 - 2*scaleX, markerY2 - 2, barW + 4*scaleX, 4);
+          // Distance label (in meters)
+          ctx.fillStyle = '#FFFF00';
+          ctx.font = `${11*scaleX}px Arial`;
+          ctx.textAlign = 'center';
+          const distMeters = (distToHoop / 140).toFixed(1);
+          ctx.fillText(distMeters + 'm', bx2 + barW/2, barTop - 5*scaleY);
+
           if (matchPct > 92) {
             const pulse = 0.4 + 0.5 * Math.sin(Date.now() / 120);
             ctx.strokeStyle = `rgba(0,255,170,${pulse})`;
@@ -2315,49 +2352,23 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           ss.phase = "charging";
           ss.power = 0;
           ss.powerDir = 1;
-
-          // КРОК 1: Додаємо PowerMeter при першому клику
-          if (powerMeterRef.current) {
-            const currentDist = distToHoop;
-            const greenLine = powerMeterRef.current.calculateGreenLinePosition(currentDist);
-            powerMeterRef.current.setGreenLinePosition(greenLine);
-            setGreenLinePosition(greenLine);
-
-            const meter = createMeterElement(greenLine);
-            meterElementRef.current = meter;
-            setMeterVisible(true);
-
-            powerMeterRef.current.startMeterAnimation();
-
-            console.log(
-              `[FirstClick] currentDistance=${currentDist.toFixed(0)}px, greenLinePosition=${greenLine.toFixed(0)}px`
-            );
-          }
+          // Reset marker for distance indicator
+          markerPosRef.current = 0;
+          markerDirRef.current = 1;
+          console.log(`[Click 2] Charging phase started, marker reset`);
         } else if (ss.phase === "charging") {
-          // КРОК 4: При другому клику обраховуємо accuracy
-          if (powerMeterRef.current) {
-            const meterHeight = powerMeterRef.current.getMeterCurrentHeight();
-            const px = p.x - 15*scaleX;
-            const py = p.y - 55*scaleY;
-            const currentDist = Math.hypot(HOOP_X - px, HOOP_Y - py);
-
-            const accuracy = powerMeterRef.current.calculateAccuracy(meterHeight, greenLinePosition);
-            ss.powerMeterResult = { accuracy, meterHeight, greenLinePosition };
-
-            showAccuracyFeedback(accuracy, p.x, p.y - 130*scaleY);
-
-            powerMeterRef.current.stopMeterAnimation();
-            if (meterElementRef.current) {
-              hideMeter(meterElementRef.current);
-            }
-            setMeterVisible(false);
-
-            // DIAGNOSTIC: Enhanced logging for accuracy
-            const isGreen = accuracy >= 95;
-            console.log(
-              `[SecondClick] accuracy=${accuracy}% (${isGreen ? 'ЗЕЛЕНА ЛІНІЯ ✅' : 'мало'}) | meterHeight=${meterHeight.toFixed(0)}px, greenLine=${greenLinePosition.toFixed(0)}px, diff=${Math.abs(meterHeight - greenLinePosition).toFixed(0)}px`
-            );
-          }
+          // Compute zone from distance
+          const px2 = p.x - 15*scaleX, py2 = p.y - 55*scaleY;
+          const distToHoop2 = Math.hypot(HOOP_X - px2, HOOP_Y - py2);
+          const distRatio = Math.min(distToHoop2 / Math.hypot(W, H), 1);
+          const zoneCenter = 0.2 + distRatio * 0.5; // 0.2..0.7
+          const zoneSize = 0.12;
+          const zoneMin = zoneCenter - zoneSize / 2;
+          const zoneMax = zoneCenter + zoneSize / 2;
+          const markerInZone = markerPosRef.current >= zoneMin && markerPosRef.current <= zoneMax;
+          const accuracy = markerInZone ? 100 : Math.max(0, 100 - Math.abs(markerPosRef.current - zoneCenter) * 300);
+          ss.powerMeterResult = { accuracy, meterHeight: markerPosRef.current * 200, greenLinePosition: zoneCenter * 200 };
+          console.log(`[Click 3] Accuracy=${accuracy}%, MarkerPos=${markerPosRef.current.toFixed(2)}, ZoneMin=${zoneMin.toFixed(2)}, ZoneMax=${zoneMax.toFixed(2)}`);
           launchBall(hitIdx);
         }
       } else {
@@ -2435,23 +2446,16 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         const p = gs.players[hitIdx], ss = gs.shootStates[hitIdx];
         // FEATURE 2: RMB cancels shot phases (aiming or charging) and keeps player active
         if (ss.phase === "charging") {
-          // Charging → reset to idle, clear meter
+          // Charging → reset to idle
           ss.phase = "idle";
           ss.power = 0;
           ss.powerDir = 1;
           ss.lockedAngle = null;
           ss.idealTraj = null;
-          if (powerMeterRef.current) {
-            powerMeterRef.current.stopMeterAnimation();
-          }
-          if (meterElementRef.current) {
-            hideMeter(meterElementRef.current);
-          }
-          setMeterVisible(false);
           addFlash("❌ СКАСОВАНО", p.x, p.y - 105*scaleY, "rgba(255,100,100,0.95)");
           console.log(`[RMB CANCEL] Player ${hitIdx} cancelled charging phase`);
         } else if (ss.phase === "aiming") {
-          // Aiming → reset to idle (same as charging but meter wasn't visible)
+          // Aiming → reset to idle
           ss.phase = "idle";
           ss.lockedAngle = null;
           ss.idealTraj = null;
@@ -2588,26 +2592,44 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
     const name = pname.trim() || `Гр.${gs.players.length+1}`;
     const idx = gs.players.length;
 
-    // Get global order from server (synchronize across all devices)
+    // Check if saved party order exists for this player
+    const savedOrder = localStorage.getItem('rucheyok_next_order');
     let assignedOrder = idx + 1;  // Fallback
-    try {
-      const resp = await fetch('/api/pusher/get-order', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ gameRoomId })
-      });
-      const data = await resp.json();
-      assignedOrder = data.order;
-      console.log(`[ADD-PLAYER] Got global order: ${assignedOrder}`);
-    } catch (e) {
-      console.warn('[ADD-PLAYER] Failed to get order from server, using local:', assignedOrder);
+
+    if (savedOrder) {
+      try {
+        const orderList: string[] = JSON.parse(savedOrder);
+        const playerIdx = orderList.findIndex((n: string) => n === name);
+        if (playerIdx !== -1) {
+          assignedOrder = playerIdx + 1;
+          console.log(`[ADD-PLAYER] Using saved party order: ${name} → order #${assignedOrder}`);
+        }
+      } catch (e) {
+        console.warn('[ADD-PLAYER] Failed to parse saved order, using server order');
+      }
+    }
+
+    // If no saved order or not found in list, get global order from server
+    if (!savedOrder) {
+      try {
+        const resp = await fetch('/api/pusher/get-order', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ gameRoomId })
+        });
+        const data = await resp.json();
+        assignedOrder = data.order;
+        console.log(`[ADD-PLAYER] Got global order: ${assignedOrder}`);
+      } catch (e) {
+        console.warn('[ADD-PLAYER] Failed to get order from server, using local:', assignedOrder);
+      }
     }
 
     const newPlayer = {
       name,
       order: assignedOrder,
       x: 680 + idx * 58,
-      y: 584,  // Base constant (will be scaled in render with GY_ORIG)
+      y: groundYRef.current,
       score:0,
       kills:0,
       status:"idle",
@@ -2653,6 +2675,13 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
   };
 
   const handleRestart = () => {
+    // Save elimination order for next game
+    const nextGameOrder: string[] = [...eliminationOrderRef.current];
+    const survivor = gs.players.find((p: any) => p.status !== 'eliminated');
+    if (survivor) nextGameOrder.push(survivor.name);
+    localStorage.setItem('rucheyok_next_order', JSON.stringify(nextGameOrder));
+    eliminationOrderRef.current = [];
+
     gs.state="waiting"; gs.players=[]; gs.shootStates=[]; gs.flashes=[];
     gs.disputeP1=0; gs.disputeP2=-1; gs.selectedMoveIdx=-1;
     // Clear persisted state when restarting
