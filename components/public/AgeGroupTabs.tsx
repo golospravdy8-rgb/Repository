@@ -10,10 +10,10 @@ export default function AgeGroupTabs({ variant = "light" }: AgeGroupTabsProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const ag = searchParams.get("ag") === "older" ? "older" : "younger";
+  const ag = searchParams?.get("ag") === "older" ? "older" : "younger";
 
   const switchTo = (group: "younger" | "older") => {
-    const params = new URLSearchParams(searchParams.toString());
+    const params = new URLSearchParams(searchParams?.toString() ?? "");
     params.set("ag", group);
     router.push(`${pathname}?${params.toString()}`);
   };

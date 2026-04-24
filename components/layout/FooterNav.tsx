@@ -14,7 +14,7 @@ const NAV_LINKS = [
 
 function FooterNavLinks({ textColor }: { textColor: string }) {
   const searchParams = useSearchParams();
-  const ag = searchParams.get('ag') === 'older' ? 'older' : 'younger';
+  const ag = searchParams?.get('ag') === 'older' ? 'older' : 'younger';
 
   return (
     <ul className="space-y-1.5 text-sm" style={{ color: textColor }}>

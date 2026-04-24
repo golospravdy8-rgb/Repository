@@ -6,12 +6,12 @@ export default function AgeGroupSwitcher({ orangeColor }: { orangeColor: string 
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const ag = (searchParams.get("ag") === "older" ? "older" : "younger") as "younger" | "older";
+  const ag = (searchParams?.get("ag") === "older" ? "older" : "younger") as "younger" | "older";
 
   function handleSwitch(group: "younger" | "older") {
     if (group === ag) return;
     if (typeof window !== "undefined") localStorage.setItem("ageGroup", group);
-    const params = new URLSearchParams(searchParams.toString());
+    const params = new URLSearchParams(searchParams?.toString() ?? "");
     params.set("ag", group);
     router.push(`${pathname}?${params.toString()}`, { scroll: false });
   }

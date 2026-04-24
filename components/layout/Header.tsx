@@ -46,7 +46,7 @@ function HeaderInner({
 }: HeaderProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const ag = searchParams.get("ag") || "younger";
+  const ag = searchParams?.get("ag") || "younger";
   const [menuOpen, setMenuOpen] = useState(false);
 
   const visibleLinks = navItems.filter((n) => n.visible !== false);
