@@ -1285,8 +1285,11 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           ss.power += 2.6 * ss.powerDir * dt; // Doubled rate for 200% range
           if (ss.power >= 200) { ss.power = 200; ss.powerDir = -1; }
           if (ss.power <= 0) { ss.power = 0; ss.powerDir = 1; }
-          // Oscillate distance indicator marker
-          const MARKER_SPEED = 0.8;
+          // Oscillate distance indicator marker with arcade-style difficulty
+          const distToHoop = Math.hypot(HOOP_X - (p.x - 15*scaleX), HOOP_Y - (p.y - 55*scaleY));
+          const maxDist = 800; // pixels
+          const distRatio = Math.min(distToHoop / maxDist, 1);
+          const MARKER_SPEED = 0.35 + distRatio * 0.25; // 0.35..0.60 units per second, based on distance
           markerPosRef.current += markerDirRef.current * MARKER_SPEED * dt;
           if (markerPosRef.current >= 1) { markerPosRef.current = 1; markerDirRef.current = -1; }
           if (markerPosRef.current <= 0) { markerPosRef.current = 0; markerDirRef.current = 1; }
@@ -1947,6 +1950,9 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
 
       // Draw remote players from Socket.IO
       remotePlayersRef.current.forEach((rp: any) => {
+        // Skip local player to avoid rendering duplicate
+        if (rp.playerId === playerIdRef.current) return;
+
         const rpx = rp.x;
         const rpy = rp.y;
         const rpColor = '#80cbc4'; // Cyan for remote players
