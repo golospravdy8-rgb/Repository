@@ -2134,8 +2134,12 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
 
       // Draw remote players from Socket.IO
       remotePlayersRef.current.forEach((rp: any, rpKey: string) => {
-        // Skip local player to avoid rendering duplicate (use Map key, not object field)
+        // Skip local player: check both exact ID and base ID (without sub-ID suffix)
         if (rpKey === playerIdRef.current) return;
+
+        // Also skip if this is a sub-ID of local player (e.g., "abc123_0" when local is "abc123")
+        const baseId = rpKey.split('_').slice(0, -1).join('_');
+        if (baseId === playerIdRef.current) return;
 
         const rpx = rp.x;
         const rpy = rp.y;
