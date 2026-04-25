@@ -248,6 +248,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
     const H = canvas.height;
     const GY = GY_ORIG * scaleY;
     groundYRef.current = GY;
+    console.log('DEBUG: GY_ORIG:', GY_ORIG, 'scaleY:', scaleY.toFixed(3), 'GY:', Math.round(GY), 'groundYRef:', Math.round(groundYRef.current));
     // Real gravity: 9.81 m/s² = 0.095 px/frame² at 35px=1m, 60fps
     // Гравітація: зменшена на 15% для красивішої параболи (0.12 * 0.85 = 0.102)
     const G = 0.102;
@@ -2676,6 +2677,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       rf:0,
       color: PLAYER_COLORS[idx%6]
     };
+    console.log('NEW PLAYER:', name, 'y:', Math.round(newPlayer.y), 'groundYRef:', Math.round(groundYRef.current));
     gs.players.push(newPlayer);
     gs.shootStates.push({ phase:null,aimAngle:-Math.PI*0.72,aimDir:1,power:0,powerDir:1,ball:null,lockedAngle:null,idealTraj:null,idealSpeed:10,runTarget:null,inDanger:false,greenZonePos:0.5,powerMeterResult:null,accuracy:0 });
 
