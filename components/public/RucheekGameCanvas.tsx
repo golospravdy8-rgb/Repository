@@ -1516,6 +1516,111 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       ctx.stroke();
     }
 
+    // Sprite sheet constants
+    const SPRITE_POSES = {
+      width: 540, // 4 frames × 135px each
+      height: 280,
+      frameWidth: 135,
+      frameHeight: 280,
+      frames: {
+        idle: 0,      // Ready position
+        prep: 1,      // Preparation (1st click)
+        release: 2,   // Release (2nd click)
+        recover: 3    // Return to ready
+      }
+    };
+
+    const SPRITE_DRIBBLE = {
+      width: 1460, // 5+ frames for dribbling
+      height: 405,
+      frameWidth: 292,
+      frameHeight: 405,
+      frames: 5 // 5 dribbling frames
+    };
+
+    // Load sprites (once)
+    let spritePoses: HTMLImageElement | null = null;
+    let spriteDribble: HTMLImageElement | null = null;
+
+    const loadSprites = () => {
+      if (!spritePoses) {
+        spritePoses = new Image();
+        spritePoses.src = '/player-poses.png';
+      }
+      if (!spriteDribble) {
+        spriteDribble = new Image();
+        spriteDribble.src = '/player-dribble.png';
+      }
+    };
+
+    // Get current animation frame based on game state
+    function getAnimationFrame(pose: string, now: number): { img: HTMLImageElement | null, frameIndex: number } {
+      if (pose === 'prep') {
+        return { img: spritePoses, frameIndex: SPRITE_POSES.frames.prep };
+      } else if (pose === 'release') {
+        return { img: spritePoses, frameIndex: SPRITE_POSES.frames.release };
+      } else if (pose === 'recover') {
+        return { img: spritePoses, frameIndex: SPRITE_POSES.frames.recover };
+      } else {
+        // Default: cycle through dribbling frames
+        const frameIndex = Math.floor((now / 150) % SPRITE_DRIBBLE.frames);
+        return { img: spriteDribble, frameIndex };
+      }
+    }
+
+    // Draw player from sprite sheet
+    function drawPlayerSprite(x: number, y: number, pose: string, danger: boolean, playerColor: string) {
+      loadSprites();
+      const now = Date.now();
+      const { img, frameIndex } = getAnimationFrame(pose, now);
+
+      if (!img || !img.complete) return; // Fallback if sprite not loaded yet
+
+      ctx.save();
+
+      // Red glow if in danger
+      if (danger) {
+        const t = (Date.now() / 300) % 1;
+        ctx.globalAlpha = 0.3 + 0.2 * Math.sin(t * Math.PI * 2);
+        ctx.fillStyle = 'rgba(255, 50, 50, 0.3)';
+        ctx.beginPath();
+        ctx.arc(x, y - 60 * scaleY, 80 * scaleX, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+      }
+
+      // Determine which sprite and frame to draw
+      if (img === spritePoses) {
+        // Draw from poses sprite sheet
+        const srcX = frameIndex * SPRITE_POSES.frameWidth;
+        const srcY = 0;
+        const drawWidth = SPRITE_POSES.frameWidth * scaleX;
+        const drawHeight = SPRITE_POSES.frameHeight * scaleY;
+        ctx.drawImage(
+          img,
+          srcX, srcY,
+          SPRITE_POSES.frameWidth, SPRITE_POSES.frameHeight,
+          x - drawWidth / 2, y - drawHeight + 10 * scaleY,
+          drawWidth, drawHeight
+        );
+      } else if (img === spriteDribble) {
+        // Draw from dribbling sprite sheet
+        const srcX = frameIndex * SPRITE_DRIBBLE.frameWidth;
+        const srcY = 0;
+        const drawWidth = SPRITE_DRIBBLE.frameWidth * scaleX;
+        const drawHeight = SPRITE_DRIBBLE.frameHeight * scaleY;
+        ctx.drawImage(
+          img,
+          srcX, srcY,
+          SPRITE_DRIBBLE.frameWidth, SPRITE_DRIBBLE.frameHeight,
+          x - drawWidth / 2, y - drawHeight + 10 * scaleY,
+          drawWidth, drawHeight
+        );
+      }
+
+      ctx.restore();
+    }
+
     function drawStick(x: number, y: number, pose: string, rf: number, danger: boolean, playerColor: string) {
       ctx.save();
       let sc = playerColor || '#e05545';
@@ -1940,10 +2045,26 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           ctx.fillText('← КЛІКНИ → кидок', p.x, p.y - 90*scaleY);
         }
 
+        // Determine pose based on shooting phase
         let pose = 'idle';
-        if (p.status === 'running') pose = 'run';
-        else if (p.status === 'shooting') pose = 'shoot';
-        drawStick(p.x, p.y, pose, p.rf, danger, p.color);
+        if (ss.phase === 'aiming') {
+          pose = 'prep'; // First click - preparation
+        } else if (ss.phase === 'charging') {
+          pose = 'prep'; // Still preparing while charging
+        } else if (ss.phase === 'flying') {
+          pose = 'release'; // Ball released
+        } else if (p.status === 'running') {
+          pose = 'run'; // Running without ball
+        } else if (p.status === 'shooting') {
+          pose = 'recover'; // Recovering after shot
+        }
+
+        // Try sprite first, fallback to stick figure if sprites not loaded
+        if (spritePoses && spriteDribble) {
+          drawPlayerSprite(p.x, p.y, pose, danger, p.color);
+        } else {
+          drawStick(p.x, p.y, pose, p.rf, danger, p.color);
+        }
 
         const kills = p.kills || 0;
         const isMine = i === 0;
