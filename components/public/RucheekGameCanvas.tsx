@@ -300,6 +300,23 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
     const MIN_BALL_SPEED = 5.0;
     const MAX_BALL_SPEED = 16.0;
 
+    // Rim & Backboard physics constants
+    const RIM_BOUNCINESS = 0.82;      // Ball retains 82% velocity after rim collision
+    const RIM_FRICTION = 0.25;        // Rim friction slows tangential motion
+    const RIM_THICKNESS = 4 * scaleX; // Rim collision thickness
+    const BOARD_BOUNCINESS = 0.66;    // Backboard retains 66% velocity
+    const BOARD_FRICTION = 0.38;      // Backboard friction reduces velocity
+
+    // Rim geometry
+    const rimFront = { x: HOOP_X + HOOP_RADIUS, y: HOOP_Y };
+    const rimBack = { x: HOOP_X - HOOP_RADIUS, y: HOOP_Y };
+
+    // Scoring gates
+    const topGateY = HOOP_Y - 12 * scaleY;
+    const topGateWidth = HOOP_RADIUS * 2.08;
+    const bottomGateY = HOOP_Y + 22 * scaleY;
+    const bottomGateWidth = HOOP_RADIUS * 1.82;
+
     function calculateBallSpeedFromPower(powerPercent: number): number {
       // Power scale: 0-200% → Speed: 5-16 m/s
       const clampedPower = Math.max(0, Math.min(200, powerPercent));
@@ -793,6 +810,64 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       gs.autoTestRun = true;
     }
 
+    // Handle rim collision with realistic bounce physics
+    function handleRimCollision(b: any, rimPoint: any): boolean {
+      const dist = Math.hypot(b.x - rimPoint.x, b.y - rimPoint.y);
+      if (dist >= BALL_RADIUS + RIM_THICKNESS) return false;
+
+      // Normal vector from rim to ball
+      const nx = (b.x - rimPoint.x) / dist;
+      const ny = (b.y - rimPoint.y) / dist;
+
+      // Reflect velocity along normal (impulse response)
+      const dotProduct = b.vx * nx + b.vy * ny;
+      b.vx = (b.vx - 2 * dotProduct * nx) * RIM_BOUNCINESS;
+      b.vy = (b.vy - 2 * dotProduct * ny) * RIM_BOUNCINESS;
+
+      // Apply rim friction to tangential velocity
+      b.vx *= (1 - RIM_FRICTION);
+      b.vy *= (1 - RIM_FRICTION);
+
+      // Push ball out of rim
+      const pushDist = BALL_RADIUS + RIM_THICKNESS - dist + 1;
+      b.x += nx * pushDist;
+      b.y += ny * pushDist;
+
+      return true;
+    }
+
+    // Handle backboard collision
+    function handleBackboardCollision(b: any): boolean {
+      if (b.x - BALL_RADIUS > BOARD_X || b.y < BOARD_TOP || b.y > BOARD_BOT) return false;
+
+      // Ball hit the backboard face
+      b.x = BOARD_X + BALL_RADIUS;
+      b.vx = Math.abs(b.vx) * BOARD_BOUNCINESS; // Bounce away from board
+      b.vy *= (1 - BOARD_FRICTION); // Reduce vertical velocity
+
+      return true;
+    }
+
+    // Check scoring gates
+    function checkScoringGates(b: any): boolean {
+      // Top gate: ball enters from above
+      if (Math.abs(b.x - HOOP_X) < topGateWidth / 2 &&
+          Math.abs(b.y - topGateY) < 6 &&
+          b.vy > 0) {
+        b.passedTopGate = true;
+        return false;
+      }
+
+      // Bottom gate: ball exits downward (only if passed top gate)
+      if (b.passedTopGate &&
+          Math.abs(b.x - HOOP_X) < bottomGateWidth / 2 &&
+          b.y > bottomGateY) {
+        return true; // GOAL!
+      }
+
+      return false;
+    }
+
     function stepBall(b: any, dt: number) {
       if (b.state !== 'flying') return;
 
@@ -806,6 +881,29 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       b.x += b.vx * dt;
       b.y += b.vy * dt;
       b.rot += 0.08;
+
+      // ───────── RIM & BACKBOARD COLLISIONS ─────────
+      // Check rim collisions (both front and back)
+      handleRimCollision(b, rimFront);
+      handleRimCollision(b, rimBack);
+
+      // Check backboard collision
+      handleBackboardCollision(b);
+
+      // ───────── GATE-BASED SCORING ─────────
+      // Check if ball passes through scoring gates
+      if (checkScoringGates(b)) {
+        b.scoredGoal = true;
+        b.state = 'scored';
+        b.vx = 0;
+        b.vy = 0;
+        b.x = HOOP_X;
+        b.y = HOOP_Y + 26 * scaleY;
+        gs.netShake = true;
+        gs.netShakeEnd = Date.now() + 700;
+        addFlash('🎯 GATE GOAL!', HOOP_X, HOOP_Y - 52 * scaleY, '#00ff00');
+        return;
+      }
 
       // Magnet removed — ball flies pure parabola, no artificial attraction to hoop
 
@@ -1158,6 +1256,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         rimBounceCount: 0,
         frameCount: 0,
         isGuided: (ss.accuracy || 0) >= 92,
+        passedTopGate: false,  // Gate-based scoring system
       };
 
 
