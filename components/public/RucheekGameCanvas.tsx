@@ -587,23 +587,28 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       return Math.max(0.05, Math.min(0.95, markerPos));
     }
 
-    // Self-test: verify ideal marker reaches hoop for 5 distances
+    // Self-test: verify ideal marker reaches hoop for various player positions
     if (!(window as any).__sweetSpotTested) {
       (window as any).__sweetSpotTested = true;
-      const testAngleDeg = 72;
-      [100, 200, 300, 400, 500].forEach(dist => {
-        const testPx = HOOP_X + dist, testPy = GY;
-        const idealPos = calculateIdealMarkerPos(testPx, testPy, HOOP_X, HOOP_Y, testAngleDeg);
+      const testAngleDeg = 72; // Default aim angle in degrees
+      const testPositions = [
+        { px: P_START, py: P_START_Y, name: 'Default' },
+        { px: P_START - P_STEP, py: P_START_Y, name: 'Player 2' },
+        { px: P_START - 2 * P_STEP, py: P_START_Y, name: 'Player 3' }
+      ];
+      testPositions.forEach(pos => {
+        const idealPos = calculateIdealMarkerPos(pos.px, pos.py, HOOP_X, HOOP_Y, testAngleDeg);
         const shotPower = idealPos * 200;
+        const dist = Math.hypot(HOOP_X - pos.px, HOOP_Y - pos.py);
         const baseSpeed = 10 + (dist / 500) * 8;
         const pm = 0.3 + (shotPower / 200) * 1.7;
         const launchSpeed = baseSpeed * pm;
         const ar = testAngleDeg * Math.PI / 180;
         const vx0 = -Math.cos(ar) * launchSpeed;
         const vy0 = -Math.sin(ar) * launchSpeed;
-        let bx = testPx, by = testPy, vx = vx0, vy = vy0;
+        let bx = pos.px, by = pos.py, vx = vx0, vy = vy0;
         let closestDist = Infinity;
-        for (let f = 0; f < 300; f++) {
+        for (let f = 0; f < 500; f++) {
           vy += G;
           bx += vx; by += vy;
           const d = Math.hypot(bx - HOOP_X, by - HOOP_Y);
@@ -611,7 +616,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           if (bx < HOOP_X - 50) break;
         }
         const status = closestDist < 30 ? '✅' : '❌';
-        console.log(`dist=${dist}px idealPos=${idealPos.toFixed(3)} closest=${closestDist.toFixed(1)}px ${status}`);
+        console.log(`${pos.name}: idealPos=${idealPos.toFixed(3)} (power=${(idealPos*200).toFixed(0)}%) closest=${closestDist.toFixed(1)}px ${status}`);
       });
     }
 
