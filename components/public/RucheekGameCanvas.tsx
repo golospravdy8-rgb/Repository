@@ -1708,10 +1708,12 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           ctx.fillStyle = '#222';
           ctx.fillRect(bx2, barTop, barW, barH);
           // Green success zone
+          // FIXED: Invert Y position so close shots have low zone (bottom), far shots have high zone (top)
           ctx.fillStyle = '#00FF44';
-          ctx.fillRect(bx2, barTop + zoneMin2 * barH, barW, zoneSize2 * barH);
+          ctx.fillRect(bx2, barTop + (1 - zoneMax2) * barH, barW, zoneSize2 * barH);
           // Marker (white line) - updated by updateOscillator
-          const markerY2 = barTop + markerPosRef.current * barH;
+          // FIXED: Invert Y position so bottom = min power (0), top = max power (1)
+          const markerY2 = barTop + (1 - markerPosRef.current) * barH;
           ctx.fillStyle = '#FFFFFF';
           ctx.fillRect(bx2 - 2*scaleX, markerY2 - 2, barW + 4*scaleX, 4);
           // Distance label (in meters)
