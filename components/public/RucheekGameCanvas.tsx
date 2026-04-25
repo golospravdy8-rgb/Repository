@@ -121,15 +121,22 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
     const handlePlayerJoined = (data: any) => {
       // Skip local player (bare ID or any sub-ID like "_0", "_1")
       if (data.playerId === playerIdRef.current ||
-          data.playerId.startsWith(playerIdRef.current + '_')) return;
+          data.playerId.startsWith(playerIdRef.current + '_')) {
+        return;
+      }
 
       // Extract base player ID (remove sub-ID suffix like "_0", "_1")
-      const baseId = data.playerId.split('_').slice(0, -1).join('_');
+      const baseId = data.playerId.includes('_')
+        ? data.playerId.split('_').slice(0, -1).join('_')
+        : data.playerId;
 
       // Skip if this is a local player's sub-ID that slipped through
-      if (baseId === playerIdRef.current) return;
+      if (baseId === playerIdRef.current) {
+        return;
+      }
 
-      remotePlayersRef.current.set(data.playerId, {
+      // Use baseId as key to prevent duplicate entries with different sub-IDs
+      remotePlayersRef.current.set(baseId, {
         socketId: data.playerId,
         basePlayerId: baseId,
         playerIndex: data.playerIndex,
@@ -156,14 +163,17 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       if (data.playerId === playerIdRef.current ||
           data.playerId.startsWith(playerIdRef.current + '_')) return;
 
-      const baseId = data.playerId.split('_').slice(0, -1).join('_');
+      const baseId = data.playerId.includes('_')
+        ? data.playerId.split('_').slice(0, -1).join('_')
+        : data.playerId;
       if (baseId === playerIdRef.current) return;
 
       if (data.ball) {
       }
 
-      const existingPlayer = remotePlayersRef.current.get(data.playerId);
-      remotePlayersRef.current.set(data.playerId, {
+      const existingPlayer = remotePlayersRef.current.get(baseId);
+      // Use baseId as key to prevent duplicate entries with different sub-IDs
+      remotePlayersRef.current.set(baseId, {
         ...(existingPlayer || {}),
         socketId: data.playerId,
         basePlayerId: baseId,
@@ -2138,12 +2148,8 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
 
       // Draw remote players from Socket.IO
       remotePlayersRef.current.forEach((rp: any, rpKey: string) => {
-        // Skip local player: check both exact ID and base ID (without sub-ID suffix)
+        // rpKey is now always baseId, so simple check is enough
         if (rpKey === playerIdRef.current) return;
-
-        // Also skip if this is a sub-ID of local player (e.g., "abc123_0" when local is "abc123")
-        const baseId = rpKey.split('_').slice(0, -1).join('_');
-        if (baseId === playerIdRef.current) return;
 
         const rpx = rp.x;
         const rpy = rp.y;
