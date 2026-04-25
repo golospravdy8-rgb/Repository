@@ -100,8 +100,15 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       if (data.playerId === playerIdRef.current ||
           data.playerId.startsWith(playerIdRef.current + '_')) return;
 
+      // Extract base player ID (remove sub-ID suffix like "_0", "_1")
+      const baseId = data.playerId.split('_').slice(0, -1).join('_');
+
+      // Skip if this is a local player's sub-ID that slipped through
+      if (baseId === playerIdRef.current) return;
+
       remotePlayersRef.current.set(data.playerId, {
         socketId: data.playerId,
+        basePlayerId: baseId,
         playerIndex: data.playerIndex,
         order: data.order,  // Preserve global order from server
         x: data.x,
@@ -128,6 +135,12 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       if (data.playerId === playerIdRef.current ||
           data.playerId.startsWith(playerIdRef.current + '_')) return;
 
+      // Extract base player ID (remove sub-ID suffix like "_0", "_1")
+      const baseId = data.playerId.split('_').slice(0, -1).join('_');
+
+      // Skip if this is a local player's sub-ID that slipped through
+      if (baseId === playerIdRef.current) return;
+
       // ETAP 8: Debug ball data reception
       if (data.ball) {
       }
@@ -136,6 +149,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       remotePlayersRef.current.set(data.playerId, {
         ...(existingPlayer || {}),
         socketId: data.playerId,
+        basePlayerId: baseId,
         x: data.x,
         y: data.y,
         name: data.name || 'Player',
