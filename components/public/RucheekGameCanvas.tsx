@@ -560,6 +560,61 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       ctx.setLineDash([]);
     }
 
+    function calculateIdealMarkerPos(
+      px: number, py: number,
+      hx: number, hy: number,
+      angleDeg: number
+    ): number {
+      const angleRad = Math.abs(angleDeg) * Math.PI / 180;
+      const dx = hx - px;
+      const dy = hy - py;
+      const distToHoop = Math.hypot(dx, dy);
+      const cosA = Math.cos(angleRad);
+      const sinA = Math.sin(angleRad);
+      const absDx = Math.abs(dx);
+      const absDy = Math.abs(dy);
+      const hoopAbove = hy < py;
+      const denom = hoopAbove
+        ? (absDy + absDx * (sinA / cosA))
+        : (absDx * (sinA / cosA) - absDy);
+      if (denom <= 0) return 0.5;
+      const v0sq = (G * absDx * absDx) / (2 * cosA * cosA * denom);
+      if (v0sq <= 0) return 0.5;
+      const v0 = Math.sqrt(v0sq);
+      const baseSpeed = 10 + (distToHoop / 500) * 8;
+      const powerMultiplier = v0 / baseSpeed;
+      const markerPos = (powerMultiplier - 0.3) / 1.7;
+      return Math.max(0.05, Math.min(0.95, markerPos));
+    }
+
+    // Self-test: verify ideal marker reaches hoop for 5 distances
+    if (!(window as any).__sweetSpotTested) {
+      (window as any).__sweetSpotTested = true;
+      const testAngleDeg = 72;
+      [100, 200, 300, 400, 500].forEach(dist => {
+        const testPx = HOOP_X + dist, testPy = GY;
+        const idealPos = calculateIdealMarkerPos(testPx, testPy, HOOP_X, HOOP_Y, testAngleDeg);
+        const shotPower = idealPos * 200;
+        const baseSpeed = 10 + (dist / 500) * 8;
+        const pm = 0.3 + (shotPower / 200) * 1.7;
+        const launchSpeed = baseSpeed * pm;
+        const ar = testAngleDeg * Math.PI / 180;
+        const vx0 = -Math.cos(ar) * launchSpeed;
+        const vy0 = -Math.sin(ar) * launchSpeed;
+        let bx = testPx, by = testPy, vx = vx0, vy = vy0;
+        let closestDist = Infinity;
+        for (let f = 0; f < 300; f++) {
+          vy += G;
+          bx += vx; by += vy;
+          const d = Math.hypot(bx - HOOP_X, by - HOOP_Y);
+          if (d < closestDist) closestDist = d;
+          if (bx < HOOP_X - 50) break;
+        }
+        const status = closestDist < 30 ? '✅' : '❌';
+        console.log(`dist=${dist}px idealPos=${idealPos.toFixed(3)} closest=${closestDist.toFixed(1)}px ${status}`);
+      });
+    }
+
     function getShootingPhysicsForDistance(distToHoop: number) {
       const maxDist = Math.hypot(W, H);
       const distFraction = distToHoop / maxDist;
@@ -2221,8 +2276,9 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           ss.phase = "charging";
           ss.power = 0;
           ss.powerDir = 1;
-          // Calculate green zone position for distance meter using actual max distance
-          ss.greenZonePos = calculateGreenZonePosition(distToHoop, 0, realMaxDistance);
+          // Calculate green zone position using physics-based kinematic equations
+          const angleDeg = Math.abs((ss.lockedAngle || -Math.PI * 0.72) * 180 / Math.PI);
+          ss.greenZonePos = calculateIdealMarkerPos(px, py, HOOP_X, HOOP_Y, angleDeg);
           // Reset marker for distance indicator
           markerPosRef.current = 0;
           markerDirRef.current = 1;
