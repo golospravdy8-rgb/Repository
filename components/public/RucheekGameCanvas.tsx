@@ -733,26 +733,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       b.y += b.vy * dt;
       b.rot += 0.08;
 
-      // ── CONSTRAINED MAGNET TO HOOP
-      // Magnet fires ONLY when: ball is falling, above hoop level, and within 150px
-      // This prevents "magnet from below" bug where ball flies up after passing hoop
-      if ((b.outcome === 'perfect_direct' || b.outcome === 'direct') && b.vy > 0) {
-        const toHX = HOOP_X - b.x, toHY = HOOP_Y - b.y;
-        const dist = Math.hypot(toHX, toHY);
-
-        // Only pull if ball is above or at hoop level (prevent upward pull)
-        if (dist > 0 && toHY >= 0 && dist < 150) {
-          const accuracyFactor = (b.accuracy || 0) / 100;
-          const strength = b.outcome === 'perfect_direct'
-            ? 0.015 * (1 + accuracyFactor * 0.5)
-            : 0.008 * (1 + accuracyFactor * 0.3);
-
-          // Reduced pull strength and distance falloff to prevent aggressive attraction
-          const pull = strength * 0.6 * (1 - Math.min(1, dist / 150));
-          b.vx += (toHX / dist) * pull * dist;
-          b.vy += (toHY / dist) * pull * dist;
-        }
-      }
+      // Magnet removed — ball flies pure parabola, no artificial attraction to hoop
 
       // Guided-mode correction ONLY in last 5 frames
       if (b.isGuided) {
@@ -776,10 +757,10 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         }
       }
 
-      // ── SCORING CHECK (from original logic)
-      // If ball is close to hoop and outcome allows → scored
+      // ── SCORING CHECK — PURE PHYSICS (no outcome gate)
+      // Ball passes through hoop from above → goal
       const d = Math.hypot(b.x - HOOP_X, b.y - HOOP_Y);
-      if (d < 32 && (b.outcome === 'direct' || b.outcome === 'perfect_direct') && b.vy > 0) {
+      if (d < 22 && b.vy > 0 && b.y >= HOOP_Y - 8 && b.y <= HOOP_Y + 14) {
         b.state = 'scored';
         b.vx = 0;
         b.vy = 0;
@@ -867,8 +848,8 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           addFlash('💥 Rattles In!', HOOP_X, HOOP_Y - 52*scaleY, '#ff9900');
           gs.netShake = true;
           gs.netShakeEnd = Date.now() + 700;
-          // М'яч продовжує летіти, потім потрапить в обруч через magic pull
-          b.outcome = 'direct';
+          // Ball bounces and continues flying; scoring now purely physics-based
+          b.outcome = 'rattleIn';
         }
 
         if (collisionType === 'rimOut') {
@@ -913,7 +894,8 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
             addFlash('🔄 RATTLES IN! 🏀', HOOP_X, HOOP_Y - 52*scaleY, '#ff8800');
             gs.netShake = true;
             gs.netShakeEnd = Date.now() + 700;
-            b.outcome = 'direct';
+            // Ball bounces back toward hoop; final score depends on physics
+            b.outcome = 'rimOut';
           } else {
             // 50% ПРОМАХ: Обычный отскок назад
             b.vx *= -0.55;
