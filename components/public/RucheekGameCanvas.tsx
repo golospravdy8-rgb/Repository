@@ -216,6 +216,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
     // Cleanup on unmount or dependency change
     return () => {
       // Announce player leave
+      const socketId = pusherRef.current?.connection?.socket_id;
       fetch('/api/pusher', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -223,6 +224,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           room: gameRoomId,
           playerId: playerIdRef.current,
           action: 'leave',
+          socket_id: socketId,
         }),
       }).catch(() => {});
 
@@ -1439,6 +1441,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
 
       // ✅ MULTIPLAYER: Emit shot completion to server via Pusher
       if (idx === 0) {
+        const socketId = pusherRef.current?.connection?.socket_id;
         fetch('/api/pusher/shot', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -1450,6 +1453,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
             shotScore: 1,
             accuracy,
             collisionType: 'swish',
+            socket_id: socketId,
           }),
         }).catch(() => {});
       }
@@ -2708,6 +2712,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
 
       const ball = gs.shootStates[idx]?.ball;
 
+      const socketId = pusherRef.current?.connection?.socket_id;
       fetch('/api/pusher', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -2727,6 +2732,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
             rot: ball.rot,
             state: ball.state
           } : null,
+          socket_id: socketId,
         }),
       }).catch(() => {});
     });
@@ -2737,12 +2743,14 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
     // Pusher-based approach: emit state-update if needed (optional)
     if (gs.state !== 'playing' || !gameRoomId) return;
     try {
+      const socketId = pusherRef.current?.connection?.socket_id;
       fetch('/api/pusher/state', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           room: gameRoomId,
           playerId: playerIdRef.current,
+          socket_id: socketId,
           state: {
             state: gs.state,
             players: gs.players.map((p: any) => ({
@@ -2826,6 +2834,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
 
     // Broadcast this player to all other clients with global order
     try {
+      const socketId = pusherRef.current?.connection?.socket_id;
       await fetch('/api/pusher/join', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -2838,6 +2847,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           x: newPlayer.x,
           y: newPlayer.y,
           color: newPlayer.color,
+          socket_id: socketId,  // Prevent Pusher echo
         })
       });
     } catch (e) {

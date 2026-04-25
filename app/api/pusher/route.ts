@@ -3,11 +3,13 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(req: NextRequest) {
   try {
-    const { room, playerId, x, y, name, score, action, ball } = await req.json();
+    const { room, playerId, x, y, name, score, action, ball, socket_id } = await req.json();
     console.log('[Pusher API] Received:', { room, playerId, action, hasBall: !!ball });
 
     if (action === 'leave') {
-      await pusherServer.trigger(`game-${room}`, 'player-leave', { playerId });
+      await pusherServer.trigger(`game-${room}`, 'player-leave', { playerId }, {
+        socket_id,  // Prevent Pusher echo to sender
+      });
       console.log('[Pusher API] Player left:', playerId);
       return NextResponse.json({ ok: true });
     }
@@ -21,6 +23,8 @@ export async function POST(req: NextRequest) {
       score: score || 0,
       ball: ball || null,  // ETAP 8: Broadcast ball state to other players
       timestamp: Date.now(),
+    }, {
+      socket_id,  // Prevent Pusher echo to sender
     });
 
     if (ball) {

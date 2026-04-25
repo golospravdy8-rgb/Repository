@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(req: NextRequest) {
   try {
-    const { room, playerId, playerIndex, nickname, shotScore, accuracy, collisionType } = await req.json();
+    const { room, playerId, playerIndex, nickname, shotScore, accuracy, collisionType, socket_id } = await req.json();
 
     console.log('[Pusher Shot] Player shot:', { room, playerId, nickname, shotScore });
 
@@ -15,6 +15,8 @@ export async function POST(req: NextRequest) {
       accuracy,
       collisionType,
       timestamp: Date.now(),
+    }, {
+      socket_id,  // Prevent Pusher echo to sender
     });
 
     console.log('[Pusher Shot] Broadcast sent successfully');
