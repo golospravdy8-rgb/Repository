@@ -4,6 +4,18 @@ import { createPortal } from "react-dom";
 import Pusher from "pusher-js";
 import { PowerMeterSystem } from "@/lib/game/powerMeterSystem";
 import { createMeterElement, hideMeter, showAccuracyFeedback } from "@/lib/game/powerMeterUI";
+import {
+  computeLaunchVelocity,
+  stepPhysics,
+  computeRimCollision,
+  computeBackboardCollision,
+  computeFloorBounce,
+  simulateTrajectory,
+  PHYSICS_CONSTANTS,
+  calculateGreenZonePosition,
+  updateOscillator,
+  calculateAccuracy,
+} from "./basketball-physics-engine";
 
 interface RucheekGameCanvasProps {
   isVisible: boolean;
@@ -286,13 +298,18 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       // М'яч мусить летіти вниз для розпізнавання коліжій
       if (ball.vy <= 0) return 'miss';
 
+      // Гарантований гол при 100% точності
+      if (ball.guaranteedScore && dist < 80 * scaleX) {
+        return 'swish';
+      }
+
       // Розрахуй кут входу м'яча в обруч (в градусах)
       const entryAngle = Math.atan2(ball.vy, ball.vx) * (180 / Math.PI);
 
-      // NET_ZONE = 10px (HOOP_RADIUS 22 - BALL_RADIUS 12)
-      const NET_ZONE = HOOP_RADIUS - BALL_RADIUS;
+      // NET_ZONE = 35px (increased from 10px to allow guaranteed scores at accuracy >= 95)
+      const NET_ZONE = 35 * scaleX;
 
-      // SWISH: чистий пас через центр сітки (dist < 10px)
+      // SWISH: чистий пас через центр сітки (dist < 35px with high accuracy)
       if (dist < NET_ZONE) {
         return 'swish';
       }
@@ -464,9 +481,8 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
     }
 
     // NEW: Calculate ideal power based on distance (0-200% scale)
-    function calculateIdealPowerByDistance(playerX: number, playerY: number): number {
+    function calculateIdealPowerByDistance(playerX: number, playerY: number, maxDist: number = realMaxDistance): number {
       const distToHoop = Math.hypot(HOOP_X - playerX, HOOP_Y - playerY);
-      const maxDist = Math.hypot(W, H);
       const distFraction = distToHoop / maxDist;
 
       let idealPower;
@@ -641,7 +657,18 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
     function findIdealSpeedForAngle(sx: number, sy: number, angle: number) {
       let bestSpd = 10, bestD = 1e9;
       for (let spd = 4; spd <= 16; spd += 0.12) {
-        const pts = simTraj(sx, sy, angle, spd, 95);
+        const launchParams = {
+          angle,
+          power: Math.min(200, spd * 20),
+          accuracy: 85,
+          distToHoop: Math.hypot(HOOP_X - sx, HOOP_Y - sy),
+          playerX: sx,
+          playerY: sy,
+          hoopX: HOOP_X,
+          hoopY: HOOP_Y,
+          scaleX: 1,
+        };
+        const pts = simulateTrajectory(launchParams);
         for (const pt of pts) {
           const d = Math.hypot(pt.x - HOOP_X, pt.y - HOOP_Y);
           if (d < bestD && pt.y < GY) { bestD = d; bestSpd = spd; }
@@ -689,19 +716,34 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
     }
 
     function stepBall(b: any, dt: number) {
+      if (b.state !== 'flying') return;
 
-      if (b.state !== 'flying') {
-
-        return;
-      }
       const prevX = b.x, prevY = b.y;
 
-      // Pure parabolic physics: gravity + velocity
+      // Pure parabolic physics: gravity + velocity + drag
       b.vy += G * dt;
+      const spd = Math.hypot(b.vx, b.vy);
+      b.vx -= b.vx * 0.0018 * spd;  // Drag effect
+      b.vy -= b.vy * 0.0018 * spd;  // Drag effect
       b.x += b.vx * dt;
       b.y += b.vy * dt;
       b.rot += 0.08;
 
+      // ── MAGNET TO HOOP (from original logic)
+      // perfect_direct = always pulls, direct = pulls only when falling
+      if (b.outcome === 'perfect_direct' || b.outcome === 'direct') {
+        const toHX = HOOP_X - b.x, toHY = HOOP_Y - b.y;
+        const dist = Math.hypot(toHX, toHY);
+        if (dist > 0) {
+          const strength = b.outcome === 'perfect_direct' ? 0.015 : 0.008;
+          const onlyFalling = b.outcome === 'direct';
+          if (!onlyFalling || (onlyFalling && b.vy > 0 && dist < 180)) {
+            const pull = strength * (1 - Math.min(1, dist / 200));
+            b.vx += (toHX / dist) * pull * dist;
+            b.vy += (toHY / dist) * pull * dist;
+          }
+        }
+      }
 
       // Guided-mode correction ONLY in last 5 frames
       if (b.isGuided) {
@@ -723,6 +765,30 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           addFlash('4.0 ПОТРАПИВ!', HOOP_X, HOOP_Y - 52 * scaleY, '#00ff00');
           return;
         }
+      }
+
+      // ── SCORING CHECK (from original logic)
+      // If ball is close to hoop and outcome allows → scored
+      const d = Math.hypot(b.x - HOOP_X, b.y - HOOP_Y);
+      if (d < 32 && (b.outcome === 'direct' || b.outcome === 'perfect_direct') && b.vy > 0) {
+        b.state = 'scored';
+        b.vx = 0;
+        b.vy = 0;
+        b.x = HOOP_X;
+        b.y = HOOP_Y + 26 * scaleY;
+        gs.netShake = true;
+        gs.netShakeEnd = Date.now() + 700;
+        addFlash('🎯 ПОТРАПИВ!', HOOP_X, HOOP_Y - 52 * scaleY, '#00ff00');
+        return;
+      }
+
+      // Підлога → missed
+      if (b.y >= GY) {
+        b.y = GY;
+        b.state = 'missed';
+        b.vx = 0;
+        b.vy = 0;
+        return;
       }
 
       if (!b.rimHandled && b.vy > 0) {
@@ -901,19 +967,6 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         }
       }
 
-      // Fallback: traditional hoop distance check для direct/perfect/bankshot outcomes
-      const d = Math.hypot(b.x - HOOP_X, b.y - HOOP_Y);
-      if (d < 32 && (b.outcome === 'direct' || b.outcome === 'perfect_direct' || b.outcome === 'bankShot') && b.vy > 0 && !b.scoredGoal) {
-        b.scoredGoal = true;
-        b.state = 'scored';
-        b.vx = 0;
-        b.vy = 0;
-        b.x = HOOP_X;
-        b.y = HOOP_Y + 26*scaleY;
-        addFlash('🎯 ГОЛ!', HOOP_X, HOOP_Y - 52*scaleY, '#44ff88');
-        return;
-      }
-
       // РЕАЛІСТИЧНИЙ ВІДСКІК ВІД ПІДЛОГИ з фізикою обертання
       const BOUNCE_RESTITUTION = 0.6;
       const FLOOR_FRICTION = 0.75;
@@ -958,57 +1011,72 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
     }
 
     function launchBall(idx: number) {
-
       const p = gs.players[idx];
       const ss = gs.shootStates[idx];
-      const accuracy = ss.powerMeterResult?.accuracy || 0;
-
-
-
-      // Стартовая позиция мяча — руки игрока
       const px = p.x;
       const py = p.y - 40 * scaleY;
 
+      // Calculate distance to hoop for physics calculation
+      const distToHoop = Math.hypot(HOOP_X - px, HOOP_Y - py);
 
-      // Целевая точка (кольцо или со смещением если промах)
-      let targetX = HOOP_X;
-      let targetY = HOOP_Y;
+      // Use physics engine for realistic launch velocity
+      const launchParams = {
+        angle: ss.lockedAngle,
+        power: ss.power,
+        accuracy: ss.accuracy || 0,
+        distToHoop,
+        playerX: px,
+        playerY: py,
+        hoopX: HOOP_X,
+        hoopY: HOOP_Y,
+        scaleX: scaleX,
+      };
 
-      // Для промаха — добавляем смещение
-      if (accuracy < 100) {
-        const missOffset = (1 - accuracy / 100) * 140 * scaleX;
-        const missDir = Math.random() > 0.5 ? 1 : -1;
-        targetX += missOffset * missDir;
-        targetY += (Math.random() - 0.5) * missOffset * 0.4;
+      // Get realistic launch velocity from physics engine
+      const { vx, vy, spin } = computeLaunchVelocity(launchParams);
+
+      // ── OUTCOME DETERMINATION (from original logic)
+      // Calculate matchPct using OLD simTraj() for consistency with idealTraj
+      const curSpdOrig = 5 + (ss.power / 100) * 11;
+      const pts = simTraj(px, py, ss.lockedAngle || launchParams.angle, curSpdOrig, 95);
+      const idealEnd = ss.idealTraj ? ss.idealTraj[ss.idealTraj.length - 1] : { x: HOOP_X, y: HOOP_Y };
+      const curEnd = pts[pts.length - 1];
+      const endDiff = Math.hypot(curEnd.x - idealEnd.x, curEnd.y - idealEnd.y);
+      const spdDiff = Math.abs(curSpdOrig - (ss.idealSpeed || 10));
+      const matchPct = Math.max(0, Math.min(100, 100 - spdDiff * 13 - endDiff * 0.3));
+
+      // Определяем outcome на основе matchPct
+      let outcome = 'miss';
+      if (matchPct >= 92) {
+        outcome = 'perfect_direct';
+      } else {
+        const directChance = Math.max(0, Math.min(0.82, (matchPct - 8) / 100));
+        if (Math.random() < directChance) {
+          outcome = 'direct';
+        } else {
+          outcome = 'miss';
+        }
       }
 
-      const dx = targetX - px;
-      const dy = targetY - py;
-      const dist = Math.hypot(dx, dy);
-
-      const T = Math.max(45, Math.min(90, dist * 0.10));
-      const arcExtra = dist * 0.45;
-
-      const ballVx = dx / T;
-      const ballVy = (dy - 0.5 * G * T * T - arcExtra) / T;
-
-
-
-
-
       ss.ball = {
-        x: px, y: py,
-        vx: ballVx, vy: ballVy,
-        rot: 0, state: 'flying',
-        outcome: accuracy >= 100 ? 'direct' : 'miss',
-        guaranteedScore: accuracy >= 100,
+        x: px,
+        y: py,
+        vx,
+        vy,
+        rot: 0,
+        spin,
+        drag: PHYSICS_CONSTANTS.DRAG_COEFFICIENT,
+        state: 'flying',
+        outcome,
+        matchPct,
         scoredGoal: false,
-        boardHandled: false, rimHandled: false,
+        boardHandled: false,
+        rimHandled: false,
         owner: idx,
-        bounceCount: 0, rimBounceCount: 0,
-        targetX, targetY, T,
+        bounceCount: 0,
+        rimBounceCount: 0,
         frameCount: 0,
-        isGuided: accuracy >= 100,
+        isGuided: (ss.accuracy || 0) >= 92,
       };
 
 
@@ -1047,10 +1115,8 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           const maxDist = Math.hypot(W, H);
           const distRatio = Math.min(distToHoop / maxDist, 1);
 
-          // Speed depends on distance: 0.65 (close, easy) to 1.10 (far, hard)
+          // Oscillate distance indicator marker with arcade-style difficulty (old logic)
           const MARKER_SPEED = 0.65 + distRatio * 0.45;
-
-          // Use FIXED dt = 1/60 second per frame (not real delta), ensures consistent arcade pace
           const FIXED_DT = 1 / 60;
           markerPosRef.current += markerDirRef.current * MARKER_SPEED * FIXED_DT;
           if (markerPosRef.current >= 1) { markerPosRef.current = 1; markerDirRef.current = -1; }
@@ -1324,13 +1390,15 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         ctx.moveTo(x, y - 35*scaleY);
         ctx.lineTo(x + 13*scaleX, y - 25*scaleY);
         ctx.stroke();
+        // Add walk cycle leg animation
+        const walkCycle = Math.sin(Date.now() / 150) * 0.4;
         ctx.beginPath();
         ctx.moveTo(x, y - 18*scaleY);
-        ctx.lineTo(x - 11*scaleX, y);
+        ctx.lineTo(x - 11*scaleX + walkCycle * 5*scaleX, y);
         ctx.stroke();
         ctx.beginPath();
         ctx.moveTo(x, y - 18*scaleY);
-        ctx.lineTo(x + 11*scaleX, y);
+        ctx.lineTo(x + 11*scaleX - walkCycle * 5*scaleX, y);
         ctx.stroke();
       } else {
         ctx.beginPath();
@@ -1351,13 +1419,15 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         drawBball(x + 24*scaleX, y - 12*scaleY, 10*scaleX);
         ctx.strokeStyle = sc;
         ctx.lineWidth = 2.5;
+        // Add walk cycle leg animation
+        const walkCycleIdle = Math.sin(Date.now() / 150) * 0.4;
         ctx.beginPath();
         ctx.moveTo(x, y - 18*scaleY);
-        ctx.lineTo(x - 10*scaleX, y);
+        ctx.lineTo(x - 10*scaleX + walkCycleIdle * 4*scaleX, y);
         ctx.stroke();
         ctx.beginPath();
         ctx.moveTo(x, y - 18*scaleY);
-        ctx.lineTo(x + 10*scaleX, y);
+        ctx.lineTo(x + 10*scaleX - walkCycleIdle * 4*scaleX, y);
         ctx.stroke();
       }
       ctx.restore();
@@ -1401,9 +1471,8 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       const distToHoop = Math.hypot(HOOP_X - px, HOOP_Y - py);
 
       // Get dynamic ideal power and tolerance based on distance
-      const maxDist = Math.hypot(W, H);
-      const distFraction = distToHoop / maxDist;
-      const idealPower = calculateIdealPowerByDistance(px, py);
+      const distFraction = distToHoop / realMaxDistance;
+      const idealPower = calculateIdealPowerByDistance(px, py, realMaxDistance);
       const tolerance = calculateGreenZoneTolerance(distFraction);
 
       // Use new dynamic power meter drawer
@@ -1557,7 +1626,18 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         }
 
         if (ss.phase === 'aiming') {
-          const pts = simTraj(sx, sy, ss.aimAngle, 10, 95);
+          const launchParams = {
+            angle: ss.aimAngle,
+            power: Math.min(200, 10 * 20),
+            accuracy: 85,
+            distToHoop: Math.hypot(HOOP_X - sx, HOOP_Y - sy),
+            playerX: sx,
+            playerY: sy,
+            hoopX: HOOP_X,
+            hoopY: HOOP_Y,
+            scaleX: scaleX,
+          };
+          const pts = simulateTrajectory(launchParams);
           drawTrajPts(pts, 'rgba(220,80,60,0.45)', [5, 5]);
           drawAimArrow(p.x, p.y, ss.aimAngle);
         }
@@ -1565,7 +1645,18 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         if (ss.phase === 'charging') {
           if (ss.idealTraj) drawTrajPts(ss.idealTraj, 'rgba(255,230,0,0.75)', [6, 5], 1.9);
           const curSpd = 5 + (ss.power / 100) * 11;
-          const pts = simTraj(sx, sy, ss.aimAngle, curSpd, 95);
+          const launchParams = {
+            angle: ss.aimAngle,
+            power: Math.min(200, curSpd * 20),
+            accuracy: 85,
+            distToHoop: Math.hypot(HOOP_X - sx, HOOP_Y - sy),
+            playerX: sx,
+            playerY: sy,
+            hoopX: HOOP_X,
+            hoopY: HOOP_Y,
+            scaleX: scaleX,
+          };
+          const pts = simulateTrajectory(launchParams);
           const idealEnd = ss.idealTraj ? ss.idealTraj[ss.idealTraj.length - 1] : { x: HOOP_X, y: HOOP_Y };
           const curEnd = pts[pts.length - 1];
           const endDiff = Math.hypot(curEnd.x - idealEnd.x, curEnd.y - idealEnd.y);
@@ -1581,10 +1672,9 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           const maxDist = Math.hypot(W, H);
           ss_ideal_power = 50 + (distToHoop / maxDist) * 50;
 
-          // Draw distance indicator bar with green zone and oscillating marker
+          // Draw distance indicator bar with green zone and oscillating marker (using physics engine)
           const bx2 = p.x + 30*scaleX, barTop = p.y - 80*scaleY, barW = 14*scaleX, barH = 80*scaleY;
-          const distRatio2 = Math.min(distToHoop / maxDist, 1);
-          const zoneCenter2 = 0.2 + distRatio2 * 0.5;
+          const zoneCenter2 = ss.greenZonePos || 0.5;
           const zoneSize2 = 0.12;
           const zoneMin2 = zoneCenter2 - zoneSize2 / 2;
           const zoneMax2 = zoneCenter2 + zoneSize2 / 2;
@@ -1595,7 +1685,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           // Green success zone
           ctx.fillStyle = '#00FF44';
           ctx.fillRect(bx2, barTop + zoneMin2 * barH, barW, zoneSize2 * barH);
-          // Marker (white line)
+          // Marker (white line) - updated by updateOscillator
           const markerY2 = barTop + markerPosRef.current * barH;
           ctx.fillStyle = '#FFFFFF';
           ctx.fillRect(bx2 - 2*scaleX, markerY2 - 2, barW + 4*scaleX, 4);
@@ -1691,10 +1781,13 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         ctx.globalAlpha = 1;
 
         // Always display name (white for others, yellow for self)
-        ctx.fillStyle = isMine ? '#FFFF00' : '#FFFFFF';
-        ctx.font = `bold ${11*scaleX}px Arial`;
-        ctx.textAlign = 'center';
-        ctx.fillText(p.name, p.x, p.y - 60*scaleY);
+        // Guard against ghost duplicate rendering
+        if (p.name && p.name.trim()) {
+          ctx.fillStyle = isMine ? '#FFFF00' : '#FFFFFF';
+          ctx.font = `bold ${11*scaleX}px Arial`;
+          ctx.textAlign = 'center';
+          ctx.fillText(p.name, p.x, p.y - 60*scaleY);
+        }
 
         if (i === gs.disputeP2 && ss.phase === null && gs.state === 'playing' && gs.players.length > 1) {
           const al = 0.7 + 0.3 * Math.sin(Date.now() / 200);
@@ -2104,25 +2197,31 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           const distToHoop = Math.hypot(HOOP_X - px, HOOP_Y - py);
           const maxDist = Math.hypot(W, H);
           ss_ideal_power = 50 + (distToHoop / maxDist) * 50;
-          ss.idealTraj = simTraj(px, py, ss.lockedAngle, idealSpd, 95);
+          const launchParams = {
+            angle: ss.lockedAngle,
+            power: Math.min(200, idealSpd * 20),
+            accuracy: 85,
+            distToHoop,
+            playerX: px,
+            playerY: py,
+            hoopX: HOOP_X,
+            hoopY: HOOP_Y,
+            scaleX: scaleX,
+          };
+          ss.idealTraj = simulateTrajectory(launchParams);
           ss.phase = "charging";
           ss.power = 0;
           ss.powerDir = 1;
+          // Calculate green zone position for distance meter using actual max distance
+          ss.greenZonePos = calculateGreenZonePosition(distToHoop, 0, realMaxDistance);
           // Reset marker for distance indicator
           markerPosRef.current = 0;
           markerDirRef.current = 1;
         } else if (ss.phase === "charging") {
-          // Compute zone from distance
-          const px2 = p.x - 15*scaleX, py2 = p.y - 55*scaleY;
-          const distToHoop2 = Math.hypot(HOOP_X - px2, HOOP_Y - py2);
-          const distRatio = Math.min(distToHoop2 / Math.hypot(W, H), 1);
-          const zoneCenter = 0.2 + distRatio * 0.5; // 0.2..0.7
-          const zoneSize = 0.12;
-          const zoneMin = zoneCenter - zoneSize / 2;
-          const zoneMax = zoneCenter + zoneSize / 2;
-          const markerInZone = markerPosRef.current >= zoneMin && markerPosRef.current <= zoneMax;
-          const accuracy = markerInZone ? 100 : Math.max(0, 100 - Math.abs(markerPosRef.current - zoneCenter) * 300);
-          ss.powerMeterResult = { accuracy, meterHeight: markerPosRef.current * 200, greenLinePosition: zoneCenter * 200 };
+          // Calculate accuracy using physics engine function
+          ss.greenZonePos = ss.greenZonePos || 0.5;
+          ss.accuracy = calculateAccuracy(markerPosRef.current, ss.greenZonePos, 0.12);
+          ss.powerMeterResult = { accuracy: ss.accuracy, meterHeight: markerPosRef.current * 200, greenLinePosition: ss.greenZonePos * 200 };
 
           launchBall(hitIdx);
 
@@ -2383,7 +2482,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       color: PLAYER_COLORS[idx%6]
     };
     gs.players.push(newPlayer);
-    gs.shootStates.push({ phase:null,aimAngle:-Math.PI*0.72,aimDir:1,power:0,powerDir:1,ball:null,lockedAngle:null,idealTraj:null,idealSpeed:10,runTarget:null,inDanger:false });
+    gs.shootStates.push({ phase:null,aimAngle:-Math.PI*0.72,aimDir:1,power:0,powerDir:1,ball:null,lockedAngle:null,idealTraj:null,idealSpeed:10,runTarget:null,inDanger:false,greenZonePos:0.5,powerMeterResult:null,accuracy:0 });
 
     // Broadcast this player to all other clients with global order
     try {
