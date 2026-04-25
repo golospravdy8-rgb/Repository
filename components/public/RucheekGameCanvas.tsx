@@ -1524,67 +1524,93 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         const r = Math.floor(220 + 35 * Math.sin(t * Math.PI * 2));
         sc = `rgb(${r},40,40)`;
       }
-      ctx.strokeStyle = sc;
-      ctx.fillStyle = sc;
-      ctx.lineWidth = 2.5;
+
+      const now = Date.now();
+      const skinColor = '#D4A373';
+      const shirtColor = sc;
+      const walkcycle = Math.sin(now / 150) * 0.4;
+
+      // Draw head with face
+      ctx.fillStyle = skinColor;
+      ctx.beginPath();
+      ctx.arc(x, y - 50*scaleY, 8*scaleX, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Eyes
+      ctx.fillStyle = 'white';
+      ctx.beginPath();
+      ctx.arc(x - 3*scaleX, y - 52*scaleY, 2*scaleX, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(x + 3*scaleX, y - 52*scaleY, 2*scaleX, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Pupils
+      ctx.fillStyle = 'black';
+      ctx.beginPath();
+      ctx.arc(x - 3*scaleX, y - 52*scaleY, 1*scaleX, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(x + 3*scaleX, y - 52*scaleY, 1*scaleX, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Draw torso (shirt + shorts)
+      ctx.fillStyle = shirtColor;
+      ctx.fillRect(x - 12*scaleX, y - 30*scaleY, 24*scaleX, 25*scaleY);
+
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(x - 12*scaleX, y - 5*scaleY, 24*scaleX, 15*scaleY);
+
+      ctx.strokeStyle = skinColor;
+      ctx.lineWidth = 4*scaleX;
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
 
       if (pose === 'run') {
-        const leg = Math.sin(rf * 0.65) * 17, lean = -5;
+        const leg = Math.sin(rf * 0.65) * 17;
+        const lean = -5;
+
+        // Left leg (swinging)
         ctx.beginPath();
-        ctx.arc(x + lean, y - 54*scaleY, 10*scaleX, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.beginPath();
-        ctx.moveTo(x + lean, y - 43*scaleY);
-        ctx.lineTo(x + lean - 2*scaleX, y - 18*scaleY);
+        ctx.moveTo(x - 6*scaleX, y + 10*scaleY);
+        ctx.lineTo(x - 6*scaleX - leg*scaleX, y + 30*scaleY);
         ctx.stroke();
+
+        // Right leg (swinging opposite)
         ctx.beginPath();
-        ctx.moveTo(x + lean, y - 35*scaleY);
-        ctx.lineTo(x + lean - 18*scaleX, y - 25*scaleY);
+        ctx.moveTo(x + 6*scaleX, y + 10*scaleY);
+        ctx.lineTo(x + 6*scaleX + leg*scaleX, y + 30*scaleY);
         ctx.stroke();
+
+        // Left arm (swinging with legs)
         ctx.beginPath();
-        ctx.moveTo(x + lean, y - 35*scaleY);
-        ctx.lineTo(x + lean + 15*scaleX, y - 25*scaleY);
+        ctx.moveTo(x - 12*scaleX, y - 20*scaleY);
+        ctx.lineTo(x - 25*scaleX, y - 15*scaleY - leg*scaleX);
         ctx.stroke();
+
+        // Right arm (swinging opposite)
         ctx.beginPath();
-        ctx.moveTo(x + lean - 2*scaleX, y - 18*scaleY);
-        ctx.lineTo(x + lean - 2*scaleX + leg, y);
+        ctx.moveTo(x + 12*scaleX, y - 20*scaleY);
+        ctx.lineTo(x + 25*scaleX, y - 15*scaleY + leg*scaleX);
         ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(x + lean - 2*scaleX, y - 18*scaleY);
-        ctx.lineTo(x + lean - 2*scaleX - leg, y);
-        ctx.stroke();
-        ctx.globalAlpha = 0.35;
-        ctx.lineWidth = 1.1;
-        for (let k = 0; k < 3; k++) {
-          ctx.beginPath();
-          ctx.moveTo(x + lean + 17*scaleX + k * 4*scaleX, y - 38*scaleY + k * 7*scaleY);
-          ctx.lineTo(x + lean + 28*scaleX + k * 4*scaleX, y - 38*scaleY + k * 7*scaleY);
-          ctx.stroke();
-        }
-        ctx.globalAlpha = 1;
       } else if (pose === 'shoot') {
-        ctx.beginPath();
-        ctx.arc(x, y - 54*scaleY, 10*scaleX, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.beginPath();
-        ctx.moveTo(x, y - 43*scaleY);
-        ctx.lineTo(x, y - 18*scaleY);
-        ctx.stroke();
+        const walkCycle = Math.sin(now / 150) * 0.4;
+
+        // Shooting arm raised
+        ctx.strokeStyle = skinColor;
+        ctx.lineWidth = 4*scaleX;
         ctx.beginPath();
         ctx.moveTo(x, y - 35*scaleY);
-        ctx.lineTo(x - 25*scaleX, y - 43*scaleY);
+        ctx.lineTo(x + 13*scaleX, y - 43*scaleY);
         ctx.stroke();
-        drawBball(x - 33*scaleX, y - 46*scaleY, 9*scaleX);
-        ctx.strokeStyle = sc;
-        ctx.lineWidth = 2.5;
+
+        // Other arm
         ctx.beginPath();
         ctx.moveTo(x, y - 35*scaleY);
-        ctx.lineTo(x + 13*scaleX, y - 25*scaleY);
+        ctx.lineTo(x - 25*scaleX, y - 30*scaleY);
         ctx.stroke();
-        // Add walk cycle leg animation
-        const walkCycle = Math.sin(Date.now() / 150) * 0.4;
+
+        // Legs with walk cycle
         ctx.beginPath();
         ctx.moveTo(x, y - 18*scaleY);
         ctx.lineTo(x - 11*scaleX + walkCycle * 5*scaleX, y);
@@ -1594,26 +1620,28 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         ctx.lineTo(x + 11*scaleX - walkCycle * 5*scaleX, y);
         ctx.stroke();
       } else {
+        // IDLE pose with ball
+        const walkCycleIdle = Math.sin(now / 150) * 0.4;
+
+        // Left arm (free)
         ctx.beginPath();
-        ctx.arc(x, y - 54*scaleY, 10*scaleX, 0, Math.PI * 2);
+        ctx.moveTo(x - 12*scaleX, y - 20*scaleY);
+        ctx.lineTo(x - 25*scaleX, y - 15*scaleY - walkCycleIdle * 4*scaleX);
+        ctx.stroke();
+
+        // Right arm (holding ball)
+        ctx.beginPath();
+        ctx.moveTo(x + 12*scaleX, y - 20*scaleY);
+        ctx.lineTo(x + 25*scaleX, y - 12*scaleY + walkCycleIdle * 3*scaleX);
+        ctx.stroke();
+
+        // Hand (kist)
+        ctx.fillStyle = skinColor;
+        ctx.beginPath();
+        ctx.arc(x + 25*scaleX, y - 12*scaleY + walkCycleIdle * 3*scaleX, 4*scaleX, 0, Math.PI * 2);
         ctx.fill();
-        ctx.beginPath();
-        ctx.moveTo(x, y - 43*scaleY);
-        ctx.lineTo(x, y - 18*scaleY);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(x, y - 37*scaleY);
-        ctx.lineTo(x + 17*scaleX, y - 22*scaleY);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(x, y - 37*scaleY);
-        ctx.lineTo(x - 12*scaleX, y - 26*scaleY);
-        ctx.stroke();
-        drawBball(x + 24*scaleX, y - 12*scaleY, 10*scaleX);
-        ctx.strokeStyle = sc;
-        ctx.lineWidth = 2.5;
-        // Add walk cycle leg animation
-        const walkCycleIdle = Math.sin(Date.now() / 150) * 0.4;
+
+        // Legs idle
         ctx.beginPath();
         ctx.moveTo(x, y - 18*scaleY);
         ctx.lineTo(x - 10*scaleX + walkCycleIdle * 4*scaleX, y);
@@ -1622,7 +1650,11 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         ctx.moveTo(x, y - 18*scaleY);
         ctx.lineTo(x + 10*scaleX - walkCycleIdle * 4*scaleX, y);
         ctx.stroke();
+
+        // Ball in hand (now drawn more realistically)
+        drawBball(x + 24*scaleX, y - 12*scaleY, 10*scaleX);
       }
+
       ctx.restore();
     }
 
