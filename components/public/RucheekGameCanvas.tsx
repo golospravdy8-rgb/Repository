@@ -729,13 +729,18 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       b.y += b.vy * dt;
       b.rot += 0.08;
 
-      // ── MAGNET TO HOOP (from original logic)
-      // perfect_direct = always pulls, direct = pulls only when falling
+      // ── MAGNET TO HOOP with accuracy-based strength
+      // Higher accuracy → stronger pull to hoop
       if (b.outcome === 'perfect_direct' || b.outcome === 'direct') {
         const toHX = HOOP_X - b.x, toHY = HOOP_Y - b.y;
         const dist = Math.hypot(toHX, toHY);
         if (dist > 0) {
-          const strength = b.outcome === 'perfect_direct' ? 0.015 : 0.008;
+          // Scale magnet strength by accuracy (0-100%)
+          const accuracyFactor = (b.accuracy || 0) / 100;
+          const strength = b.outcome === 'perfect_direct'
+            ? 0.015 * (1 + accuracyFactor * 0.5)  // 0.015 - 0.0225 depending on accuracy
+            : 0.008 * (1 + accuracyFactor * 0.3); // 0.008 - 0.0104 depending on accuracy
+
           const onlyFalling = b.outcome === 'direct';
           if (!onlyFalling || (onlyFalling && b.vy > 0 && dist < 180)) {
             const pull = strength * (1 - Math.min(1, dist / 200));
@@ -1010,7 +1015,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       }
     }
 
-    function launchBall(idx: number) {
+    function launchBall(idx: number, shotCursorPos: number = 0.5) {
       const p = gs.players[idx];
       const ss = gs.shootStates[idx];
       const px = p.x;
@@ -1020,9 +1025,12 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       const distToHoop = Math.hypot(HOOP_X - px, HOOP_Y - py);
 
       // Use physics engine for realistic launch velocity
+      // Power is determined by cursor position (shotCursorPos is 0-1 normalized)
+      const shotPower = shotCursorPos * 200; // Convert to 0-200% scale
+
       const launchParams = {
         angle: ss.lockedAngle,
-        power: ss.power,
+        power: shotPower,
         accuracy: ss.accuracy || 0,
         distToHoop,
         playerX: px,
@@ -1035,27 +1043,46 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       // Get realistic launch velocity from physics engine
       const { vx, vy, spin } = computeLaunchVelocity(launchParams);
 
-      // ── OUTCOME DETERMINATION (from original logic)
-      // Calculate matchPct using OLD simTraj() for consistency with idealTraj
-      const curSpdOrig = 5 + (ss.power / 100) * 11;
-      const pts = simTraj(px, py, ss.lockedAngle || launchParams.angle, curSpdOrig, 95);
-      const idealEnd = ss.idealTraj ? ss.idealTraj[ss.idealTraj.length - 1] : { x: HOOP_X, y: HOOP_Y };
-      const curEnd = pts[pts.length - 1];
-      const endDiff = Math.hypot(curEnd.x - idealEnd.x, curEnd.y - idealEnd.y);
-      const spdDiff = Math.abs(curSpdOrig - (ss.idealSpeed || 10));
-      const matchPct = Math.max(0, Math.min(100, 100 - spdDiff * 13 - endDiff * 0.3));
+      // ── OUTCOME DETERMINATION based on Sweet Spot accuracy
+      // Use accuracy from cursor position relative to Sweet Spot to determine shot success
+      const accuracy = ss.accuracy || 0;
 
-      // Определяем outcome на основе matchPct
+      // Outcome probabilities based on accuracy to Sweet Spot:
+      // accuracy >= 85% → guaranteed score
+      // accuracy >= 70% → likely score with rim bounce
+      // accuracy >= 50% → possible score
+      // accuracy < 50% → likely miss
       let outcome = 'miss';
-      if (matchPct >= 92) {
+      let matchPct = accuracy;
+
+      if (accuracy >= 85) {
+        // Perfect or near-perfect accuracy → direct swish/score
         outcome = 'perfect_direct';
-      } else {
-        const directChance = Math.max(0, Math.min(0.82, (matchPct - 8) / 100));
-        if (Math.random() < directChance) {
+        matchPct = 95 + Math.random() * 5;
+      } else if (accuracy >= 70) {
+        // Good accuracy → likely direct score
+        const scoreChance = 0.75 + (accuracy - 70) / 30 * 0.15;
+        if (Math.random() < scoreChance) {
           outcome = 'direct';
+          matchPct = 75 + Math.random() * 15;
         } else {
           outcome = 'miss';
+          matchPct = accuracy;
         }
+      } else if (accuracy >= 50) {
+        // Moderate accuracy → possible score
+        const scoreChance = 0.40 + (accuracy - 50) / 20 * 0.35;
+        if (Math.random() < scoreChance) {
+          outcome = 'direct';
+          matchPct = 50 + Math.random() * 20;
+        } else {
+          outcome = 'miss';
+          matchPct = accuracy;
+        }
+      } else {
+        // Low accuracy → mostly miss
+        outcome = 'miss';
+        matchPct = accuracy;
       }
 
       ss.ball = {
@@ -1069,6 +1096,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         state: 'flying',
         outcome,
         matchPct,
+        accuracy: ss.accuracy || 0,
         scoredGoal: false,
         boardHandled: false,
         rimHandled: false,
@@ -2223,7 +2251,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           ss.accuracy = calculateAccuracy(markerPosRef.current, ss.greenZonePos, 0.12);
           ss.powerMeterResult = { accuracy: ss.accuracy, meterHeight: markerPosRef.current * 200, greenLinePosition: ss.greenZonePos * 200 };
 
-          launchBall(hitIdx);
+          launchBall(hitIdx, markerPosRef.current);
 
         }
       } else {
