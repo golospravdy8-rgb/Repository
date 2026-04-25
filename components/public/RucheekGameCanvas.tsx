@@ -916,33 +916,32 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           b.x += (b.targetX - b.x) * (0.15 * (6 - framesLeft));
           b.y += (b.targetY - b.y) * (0.15 * (6 - framesLeft));
         }
-        // Scoring on reaching target
-        if (framesLeft <= 0 && !b.scoredGoal) {
-          b.scoredGoal = true;
-          b.state = 'scored';
-          b.vx = 0; b.vy = 0;
-          b.x = HOOP_X; b.y = HOOP_Y + 26 * scaleY;
-          gs.netShake = true;
-          gs.netShakeEnd = Date.now() + 700;
-          addFlash('4.0 ПОТРАПИВ!', HOOP_X, HOOP_Y - 52 * scaleY, '#00ff00');
-          return;
-        }
+        // DISABLED: Old guided-mode scoring override — gate system handles all scoring
+        // if (framesLeft <= 0 && !b.scoredGoal) {
+        //   b.scoredGoal = true;
+        //   b.state = 'scored';
+        //   b.vx = 0; b.vy = 0;
+        //   b.x = HOOP_X; b.y = HOOP_Y + 26 * scaleY;
+        //   gs.netShake = true;
+        //   gs.netShakeEnd = Date.now() + 700;
+        //   addFlash('4.0 ПОТРАПИВ!', HOOP_X, HOOP_Y - 52 * scaleY, '#00ff00');
+        //   return;
+        // }
       }
 
-      // ── SCORING CHECK — PURE PHYSICS (no outcome gate)
-      // Ball passes through hoop from above → goal
-      const d = Math.hypot(b.x - HOOP_X, b.y - HOOP_Y);
-      if (d < 22 && b.vy > 0 && b.y >= HOOP_Y - 8 && b.y <= HOOP_Y + 14) {
-        b.state = 'scored';
-        b.vx = 0;
-        b.vy = 0;
-        b.x = HOOP_X;
-        b.y = HOOP_Y + 26 * scaleY;
-        gs.netShake = true;
-        gs.netShakeEnd = Date.now() + 700;
-        addFlash('🎯 ПОТРАПИВ!', HOOP_X, HOOP_Y - 52 * scaleY, '#00ff00');
-        return;
-      }
+      // ── DISABLED: Old distance-based scoring — gate system is only scoring method
+      // const d = Math.hypot(b.x - HOOP_X, b.y - HOOP_Y);
+      // if (d < 22 && b.vy > 0 && b.y >= HOOP_Y - 8 && b.y <= HOOP_Y + 14) {
+      //   b.state = 'scored';
+      //   b.vx = 0;
+      //   b.vy = 0;
+      //   b.x = HOOP_X;
+      //   b.y = HOOP_Y + 26 * scaleY;
+      //   gs.netShake = true;
+      //   gs.netShakeEnd = Date.now() + 700;
+      //   addFlash('🎯 ПОТРАПИВ!', HOOP_X, HOOP_Y - 52 * scaleY, '#00ff00');
+      //   return;
+      // }
 
       // Floor contact is handled below (L~1000+), not here — removed early hard-stop to allow bouncing
 
@@ -957,39 +956,39 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           b.y >= HOOP_Y &&
           b.vy > 0;
 
-        if (ballInsideHoop && !b.scoredGoal) {
-          // Ball is inside hoop and falling → auto-score
-          b.scoredGoal = true;
-          b.state = 'scored';
-          b.outcome = 'direct';
-          b.vx = 0;
-          b.vy = 0;
-          b.x = HOOP_X;
-          b.y = HOOP_Y + 26*scaleY;
-          gs.netShake = true;
-          gs.netShakeEnd = Date.now() + 700;
-          addFlash('🎯 SWISH!', HOOP_X, HOOP_Y - 52*scaleY, '#00ff00');
-          return;
-        }
+        // DISABLED: Old ball-inside-hoop auto-score — gate system handles all scoring
+        // if (ballInsideHoop && !b.scoredGoal) {
+        //   b.scoredGoal = true;
+        //   b.state = 'scored';
+        //   b.outcome = 'direct';
+        //   b.vx = 0;
+        //   b.vy = 0;
+        //   b.x = HOOP_X;
+        //   b.y = HOOP_Y + 26*scaleY;
+        //   gs.netShake = true;
+        //   gs.netShakeEnd = Date.now() + 700;
+        //   addFlash('🎯 SWISH!', HOOP_X, HOOP_Y - 52*scaleY, '#00ff00');
+        //   return;
+        // }
 
         // Коліжія для реалістичної фізики обруча
         let collisionType: string = 'none';
         collisionType = checkHoopCollision(b);
 
-        if (collisionType === 'swish') {
-          // SWISH: чистий пас - автоматично гол
-          b.scoredGoal = true;
-          b.state = 'scored';
-          b.outcome = 'swish';
-          b.vx = 0;
-          b.vy = 0;
-          b.x = HOOP_X;
-          b.y = HOOP_Y + 26*scaleY;
-          gs.netShake = true;
-          gs.netShakeEnd = Date.now() + 700;
-          addFlash('🎯 SWISH!', HOOP_X, HOOP_Y - 52*scaleY, '#00ff00');
-          return;
-        }
+        // DISABLED: Old swish detection auto-score — gate system handles all scoring
+        // if (collisionType === 'swish') {
+        //   b.scoredGoal = true;
+        //   b.state = 'scored';
+        //   b.outcome = 'swish';
+        //   b.vx = 0;
+        //   b.vy = 0;
+        //   b.x = HOOP_X;
+        //   b.y = HOOP_Y + 26*scaleY;
+        //   gs.netShake = true;
+        //   gs.netShakeEnd = Date.now() + 700;
+        //   addFlash('🎯 SWISH!', HOOP_X, HOOP_Y - 52*scaleY, '#00ff00');
+        //   return;
+        // }
 
         if (collisionType === 'rattleIn') {
           // RATTLE_IN: дотик обіду + відскік + в сітку
@@ -1000,21 +999,20 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           if (b.rimBounceCount === undefined) b.rimBounceCount = 0;
           b.rimBounceCount++;
 
-          // If too many rim bounces, force result
-          if (b.rimBounceCount >= 3) {
-            // After 3+ bounces, force into hoop
-            b.scoredGoal = true;
-            b.state = 'scored';
-            b.outcome = 'direct';
-            b.vx = 0;
-            b.vy = 0;
-            b.x = HOOP_X;
-            b.y = HOOP_Y + 26*scaleY;
-            gs.netShake = true;
-            gs.netShakeEnd = Date.now() + 700;
-            addFlash('🎯 FINALLY IN!', HOOP_X, HOOP_Y - 52*scaleY, '#00ff00');
-            return;
-          }
+          // DISABLED: Old forced score on 3+ bounces — gate system handles all scoring
+          // if (b.rimBounceCount >= 3) {
+          //   b.scoredGoal = true;
+          //   b.state = 'scored';
+          //   b.outcome = 'direct';
+          //   b.vx = 0;
+          //   b.vy = 0;
+          //   b.x = HOOP_X;
+          //   b.y = HOOP_Y + 26*scaleY;
+          //   gs.netShake = true;
+          //   gs.netShakeEnd = Date.now() + 700;
+          //   addFlash('🎯 FINALLY IN!', HOOP_X, HOOP_Y - 52*scaleY, '#00ff00');
+          //   return;
+          // }
 
           applyRimBounce(b);
           addFlash('💥 Rattles In!', HOOP_X, HOOP_Y - 52*scaleY, '#ff9900');
@@ -1048,20 +1046,20 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
             b.vy = (dy / dist) * bounceSpeed;
             b.guaranteedScore = true;
 
-            // After 3+ bounces, just score directly
-            if (b.rimBounceCount >= 3) {
-              b.scoredGoal = true;
-              b.state = 'scored';
-              b.outcome = 'direct';
-              b.vx = 0;
-              b.vy = 0;
-              b.x = HOOP_X;
-              b.y = HOOP_Y + 26*scaleY;
-              addFlash('🎯 IN!', HOOP_X, HOOP_Y - 52*scaleY, '#00ff00');
-              gs.netShake = true;
-              gs.netShakeEnd = Date.now() + 700;
-              return;
-            }
+            // DISABLED: Old forced score on 3+ bounces — gate system handles all scoring
+            // if (b.rimBounceCount >= 3) {
+            //   b.scoredGoal = true;
+            //   b.state = 'scored';
+            //   b.outcome = 'direct';
+            //   b.vx = 0;
+            //   b.vy = 0;
+            //   b.x = HOOP_X;
+            //   b.y = HOOP_Y + 26*scaleY;
+            //   addFlash('🎯 IN!', HOOP_X, HOOP_Y - 52*scaleY, '#00ff00');
+            //   gs.netShake = true;
+            //   gs.netShakeEnd = Date.now() + 700;
+            //   return;
+            // }
 
             addFlash('🔄 RATTLES IN! 🏀', HOOP_X, HOOP_Y - 52*scaleY, '#ff8800');
             gs.netShake = true;
