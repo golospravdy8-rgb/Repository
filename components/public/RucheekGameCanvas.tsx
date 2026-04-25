@@ -130,6 +130,8 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         ? data.playerId.split('_').slice(0, -1).join('_')
         : data.playerId;
 
+      console.log('[JOIN] playerId:', data.playerId, '→ baseId:', baseId);
+
       // Skip if this is a local player's sub-ID that slipped through
       if (baseId === playerIdRef.current) {
         return;
@@ -147,6 +149,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         nickname: data.nickname || 'Player',
         name: data.nickname || 'Player',
       });
+      console.log('[MAP KEYS after JOIN]', Array.from(remotePlayersRef.current.keys()));
 
       gsRef.current.flashes.push({
         text: `✅ ${data.nickname} присоединився!`,
@@ -168,6 +171,8 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         : data.playerId;
       if (baseId === playerIdRef.current) return;
 
+      console.log('[MOVE] playerId:', data.playerId, '→ baseId:', baseId);
+
       if (data.ball) {
       }
 
@@ -183,6 +188,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         status: 'alive',
         ball: data.ball || null,
       });
+      console.log('[MAP KEYS after MOVE]', Array.from(remotePlayersRef.current.keys()));
     };
 
     const handlePlayerLeave = (data: any) => {
@@ -2156,6 +2162,16 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       remotePlayersRef.current.forEach((rp: any, rpKey: string) => {
         // rpKey is now always baseId, so simple check is enough
         if (rpKey === playerIdRef.current) return;
+
+        // CRITICAL FIX: Skip if this player is already in gs.players (local player)
+        // This prevents rendering the same player twice (once from gs.players, once from remotePlayersRef)
+        const isLocalPlayer = gs.players.some((p: any) => {
+          // Check if player name matches (since we don't have playerId in gs.players)
+          return p.name === rp.name || p.name === rp.nickname;
+        });
+        if (isLocalPlayer) {
+          return;
+        }
 
         const rpx = rp.x;
         const rpy = rp.y;
