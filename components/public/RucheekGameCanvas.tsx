@@ -186,7 +186,13 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
     };
 
     const handlePlayerLeave = (data: any) => {
-      remotePlayersRef.current.delete(data.playerId);
+      // Extract base player ID to match the key used in remotePlayersRef
+      const baseId = data.playerId.includes('_')
+        ? data.playerId.split('_').slice(0, -1).join('_')
+        : data.playerId;
+
+      // Delete by baseId, not data.playerId (which may have sub-ID suffix)
+      remotePlayersRef.current.delete(baseId);
       forceUpdate(n => n + 1);
     };
 
