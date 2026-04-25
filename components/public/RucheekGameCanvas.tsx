@@ -72,6 +72,10 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
   const markerPosRef = useRef<number>(0);
   const markerDirRef = useRef<number>(1);
 
+  // Player sprite sheets
+  const spritePosesRef = useRef<HTMLImageElement | null>(null);
+  const spriteDribbleRef = useRef<HTMLImageElement | null>(null);
+
   // Power Meter System refs and state
   const powerMeterRef = useRef<PowerMeterSystem | null>(null);
   const meterElementRef = useRef<HTMLDivElement | null>(null);
@@ -79,6 +83,27 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
   const [greenLinePosition, setGreenLinePosition] = useState(180);
 
   useEffect(() => { setMounted(true); }, []);
+
+  // Load player sprites
+  useEffect(() => {
+    const img1 = new Image();
+    img1.onload = () => {
+      console.log('✅ player-poses.png loaded successfully');
+      spritePosesRef.current = img1;
+    };
+    img1.onerror = () => console.log('❌ player-poses.png FAILED to load');
+    img1.src = '/player-poses.png';
+
+    const img2 = new Image();
+    img2.onload = () => {
+      console.log('✅ player-dribble.png loaded successfully');
+      spriteDribbleRef.current = img2;
+    };
+    img2.onerror = () => console.log('❌ player-dribble.png FAILED to load');
+    img2.src = '/player-dribble.png';
+
+    console.log('🔄 Loading sprites... check console for result');
+  }, []);
 
   // Initialize Pusher connection
   useEffect(() => {
@@ -1538,23 +1563,11 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       frames: 5 // 5 dribbling frames
     };
 
-    // Load sprites (once)
-    let spritePoses: HTMLImageElement | null = null;
-    let spriteDribble: HTMLImageElement | null = null;
-
-    const loadSprites = () => {
-      if (!spritePoses) {
-        spritePoses = new Image();
-        spritePoses.src = '/player-poses.png';
-      }
-      if (!spriteDribble) {
-        spriteDribble = new Image();
-        spriteDribble.src = '/player-dribble.png';
-      }
-    };
-
     // Get current animation frame based on game state
     function getAnimationFrame(pose: string, now: number): { img: HTMLImageElement | null, frameIndex: number } {
+      const spritePoses = spritePosesRef.current;
+      const spriteDribble = spriteDribbleRef.current;
+
       if (pose === 'prep') {
         return { img: spritePoses, frameIndex: SPRITE_POSES.frames.prep };
       } else if (pose === 'release') {
@@ -1570,11 +1583,13 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
 
     // Draw player from sprite sheet
     function drawPlayerSprite(x: number, y: number, pose: string, danger: boolean, playerColor: string) {
-      loadSprites();
       const now = Date.now();
       const { img, frameIndex } = getAnimationFrame(pose, now);
 
-      if (!img || !img.complete) return; // Fallback if sprite not loaded yet
+      // Check if sprite is loaded properly
+      if (!img || !img.complete || img.naturalWidth === 0) {
+        return; // Fallback if sprite not loaded yet
+      }
 
       ctx.save();
 
@@ -1590,7 +1605,10 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       }
 
       // Determine which sprite and frame to draw
-      if (img === spritePoses) {
+      const spritePoses = spritePosesRef.current;
+      const spriteDribble = spriteDribbleRef.current;
+
+      if (img === spritePoses && spritePoses) {
         // Draw from poses sprite sheet
         const srcX = frameIndex * SPRITE_POSES.frameWidth;
         const srcY = 0;
@@ -1603,7 +1621,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           x - drawWidth / 2, y - drawHeight + 10 * scaleY,
           drawWidth, drawHeight
         );
-      } else if (img === spriteDribble) {
+      } else if (img === spriteDribble && spriteDribble) {
         // Draw from dribbling sprite sheet
         const srcX = frameIndex * SPRITE_DRIBBLE.frameWidth;
         const srcY = 0;
@@ -2059,8 +2077,8 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           pose = 'recover'; // Recovering after shot
         }
 
-        // Try sprite first, fallback to stick figure if sprites not loaded
-        if (spritePoses && spriteDribble) {
+        // Try sprite first (if loaded), fallback to stick figure
+        if (spritePosesRef.current?.complete && spriteDribbleRef.current?.complete) {
           drawPlayerSprite(p.x, p.y, pose, danger, p.color);
         } else {
           drawStick(p.x, p.y, pose, p.rf, danger, p.color);
