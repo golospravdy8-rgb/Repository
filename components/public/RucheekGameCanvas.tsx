@@ -96,7 +96,9 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
 
     // ✅ MULTIPLAYER: Event - Another player joined
     channel.bind('player-joined', (data: any) => {
-      if (data.playerId === playerIdRef.current) return;
+      // Skip local player (bare ID or any sub-ID like "_0", "_1")
+      if (data.playerId === playerIdRef.current ||
+          data.playerId.startsWith(playerIdRef.current + '_')) return;
 
       remotePlayersRef.current.set(data.playerId, {
         socketId: data.playerId,
@@ -122,7 +124,9 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
 
     // ✅ MULTIPLAYER: Event - Another player moved
     channel.bind('player-move', (data: any) => {
-      if (data.playerId === playerIdRef.current) return;
+      // Skip local player (bare ID or any sub-ID like "_0", "_1")
+      if (data.playerId === playerIdRef.current ||
+          data.playerId.startsWith(playerIdRef.current + '_')) return;
 
       // ETAP 8: Debug ball data reception
       if (data.ball) {
@@ -729,24 +733,24 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       b.y += b.vy * dt;
       b.rot += 0.08;
 
-      // ── MAGNET TO HOOP with accuracy-based strength
-      // Higher accuracy → stronger pull to hoop
-      if (b.outcome === 'perfect_direct' || b.outcome === 'direct') {
+      // ── CONSTRAINED MAGNET TO HOOP
+      // Magnet fires ONLY when: ball is falling, above hoop level, and within 150px
+      // This prevents "magnet from below" bug where ball flies up after passing hoop
+      if ((b.outcome === 'perfect_direct' || b.outcome === 'direct') && b.vy > 0) {
         const toHX = HOOP_X - b.x, toHY = HOOP_Y - b.y;
         const dist = Math.hypot(toHX, toHY);
-        if (dist > 0) {
-          // Scale magnet strength by accuracy (0-100%)
+
+        // Only pull if ball is above or at hoop level (prevent upward pull)
+        if (dist > 0 && toHY >= 0 && dist < 150) {
           const accuracyFactor = (b.accuracy || 0) / 100;
           const strength = b.outcome === 'perfect_direct'
-            ? 0.015 * (1 + accuracyFactor * 0.5)  // 0.015 - 0.0225 depending on accuracy
-            : 0.008 * (1 + accuracyFactor * 0.3); // 0.008 - 0.0104 depending on accuracy
+            ? 0.015 * (1 + accuracyFactor * 0.5)
+            : 0.008 * (1 + accuracyFactor * 0.3);
 
-          const onlyFalling = b.outcome === 'direct';
-          if (!onlyFalling || (onlyFalling && b.vy > 0 && dist < 180)) {
-            const pull = strength * (1 - Math.min(1, dist / 200));
-            b.vx += (toHX / dist) * pull * dist;
-            b.vy += (toHY / dist) * pull * dist;
-          }
+          // Reduced pull strength and distance falloff to prevent aggressive attraction
+          const pull = strength * 0.6 * (1 - Math.min(1, dist / 150));
+          b.vx += (toHX / dist) * pull * dist;
+          b.vy += (toHY / dist) * pull * dist;
         }
       }
 
@@ -787,14 +791,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         return;
       }
 
-      // Підлога → missed
-      if (b.y >= GY) {
-        b.y = GY;
-        b.state = 'missed';
-        b.vx = 0;
-        b.vy = 0;
-        return;
-      }
+      // Floor contact is handled below (L~1000+), not here — removed early hard-stop to allow bouncing
 
       if (!b.rimHandled && b.vy > 0) {
         // FIX: Check if ball is already INSIDE hoop and falling down
@@ -1827,9 +1824,9 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       }
 
       // Draw remote players from Socket.IO
-      remotePlayersRef.current.forEach((rp: any) => {
-        // Skip local player to avoid rendering duplicate
-        if (rp.playerId === playerIdRef.current) return;
+      remotePlayersRef.current.forEach((rp: any, rpKey: string) => {
+        // Skip local player to avoid rendering duplicate (use Map key, not object field)
+        if (rpKey === playerIdRef.current) return;
 
         const rpx = rp.x;
         const rpy = rp.y;
