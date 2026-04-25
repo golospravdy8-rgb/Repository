@@ -850,10 +850,22 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
 
     // Check scoring gates
     function checkScoringGates(b: any): boolean {
+      // DEBUG LOG
+      console.log('GATE CHECK:',
+        'ball:', Math.round(b.x), Math.round(b.y),
+        'hoop:', Math.round(HOOP_X), Math.round(HOOP_Y),
+        'vy:', b.vy.toFixed(2),
+        'passedTop:', b.passedTopGate,
+        'topGateY:', Math.round(topGateY),
+        'topGateWidth:', topGateWidth?.toFixed(1),
+        'HOOP_RADIUS:', HOOP_RADIUS
+      );
+
       // Top gate: ball enters from above
       if (Math.abs(b.x - HOOP_X) < topGateWidth / 2 &&
           Math.abs(b.y - topGateY) < 6 &&
           b.vy > 0) {
+        console.log('TOP GATE TRIGGERED');
         b.passedTopGate = true;
         return false;
       }
@@ -862,6 +874,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       if (b.passedTopGate &&
           Math.abs(b.x - HOOP_X) < bottomGateWidth / 2 &&
           b.y > bottomGateY) {
+        console.log('BOTTOM GATE TRIGGERED - GOAL!');
         return true; // GOAL!
       }
 
@@ -893,6 +906,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       // ───────── GATE-BASED SCORING ─────────
       // Check if ball passes through scoring gates
       if (checkScoringGates(b)) {
+        console.log('GATE GOAL SCORED - ball pos:', Math.round(b.x), Math.round(b.y));
         b.scoredGoal = true;
         b.state = 'scored';
         b.vx = 0;

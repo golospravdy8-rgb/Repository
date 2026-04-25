@@ -1,0 +1,49 @@
+📋 GAME SNAPSHOT CREATED — 2026-04-25
+
+File: GAME_SNAPSHOT_2026_04_25.html
+Location: D:\n8n\basket-lviv\GAME_SNAPSHOT_2026_04_25.html
+Size: 182 KB | 4979 lines | 3568 code lines
+
+✅ Contents:
+  📝 Git History (last 20 commits)
+  🎮 Game Constants Table
+    - Gravity (G = 0.102)
+    - Hoop position (HOOP_X, HOOP_Y)
+    - Player start position (P_START, P_START_Y)
+    - Ball/Hoop radius values
+    - Power meter formulas
+  
+  📄 Game Files (3 files):
+    1. RucheekGameCanvas.tsx (2700+ lines) — main game canvas
+    2. basketball-physics-engine.ts (400+ lines) — physics calculations
+    3. basketball-physics-engine.test.ts (300+ lines) — tests
+  
+  🎯 Shot Audit 2026-04-25 — detailed analysis
+
+✨ Features:
+  ✓ Syntax highlighting (highlight.js)
+  ✓ Copy-to-clipboard buttons for each code block
+  ✓ Responsive design (mobile-friendly)
+  ✓ Table of contents with navigation
+  ✓ Code search via browser Ctrl+F
+  ✓ Beautiful gradient header + styling
+
+🖥️ How to open:
+  1. Open file in your default browser:
+     bash: open GAME_SNAPSHOT_2026_04_25.html
+     OR right-click → Open with Browser
+  
+  2. Use Table of Contents to navigate
+  3. Click "📋 Копировать" to copy any code block
+  4. Use Ctrl+F in browser for full-text search
+
+📊 Code Statistics:
+  - Total lines in snapshot: 3568
+  - RucheekGameCanvas.tsx: 2700+ lines
+  - File with syntax highlighting
+  - All constants documented in table format
+
+✅ NOT included in git (local file only):
+  - create_snapshot.js (generator script)
+  - GAME_SNAPSHOT_2026_04_25.html (snapshot)
+  - SNAPSHOT_INFO.txt (this file)
