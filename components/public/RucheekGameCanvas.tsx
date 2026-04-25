@@ -109,7 +109,6 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
   useEffect(() => {
     if (!mounted || pusherRef.current) return;
 
-
     const pusherClient = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY!, {
       cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER!,
     });
@@ -118,9 +117,8 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
     const channel = pusherClient.subscribe(`game-${gameRoomId}`);
     channelRef.current = channel;
 
-
-    // ✅ MULTIPLAYER: Event - Another player joined
-    channel.bind('player-joined', (data: any) => {
+    // Define handlers as named functions so we can unbind them
+    const handlePlayerJoined = (data: any) => {
       // Skip local player (bare ID or any sub-ID like "_0", "_1")
       if (data.playerId === playerIdRef.current ||
           data.playerId.startsWith(playerIdRef.current + '_')) return;
@@ -135,7 +133,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         socketId: data.playerId,
         basePlayerId: baseId,
         playerIndex: data.playerIndex,
-        order: data.order,  // Preserve global order from server
+        order: data.order,
         x: data.x,
         y: data.y,
         status: 'alive',
@@ -152,21 +150,15 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         dy: 0,
       });
       forceUpdate(n => n + 1);
-    });
+    };
 
-    // ✅ MULTIPLAYER: Event - Another player moved
-    channel.bind('player-move', (data: any) => {
-      // Skip local player (bare ID or any sub-ID like "_0", "_1")
+    const handlePlayerMove = (data: any) => {
       if (data.playerId === playerIdRef.current ||
           data.playerId.startsWith(playerIdRef.current + '_')) return;
 
-      // Extract base player ID (remove sub-ID suffix like "_0", "_1")
       const baseId = data.playerId.split('_').slice(0, -1).join('_');
-
-      // Skip if this is a local player's sub-ID that slipped through
       if (baseId === playerIdRef.current) return;
 
-      // ETAP 8: Debug ball data reception
       if (data.ball) {
       }
 
@@ -181,16 +173,14 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         status: 'alive',
         ball: data.ball || null,
       });
-    });
+    };
 
-    // ✅ MULTIPLAYER: Event - Another player left
-    channel.bind('player-leave', (data: any) => {
+    const handlePlayerLeave = (data: any) => {
       remotePlayersRef.current.delete(data.playerId);
       forceUpdate(n => n + 1);
-    });
+    };
 
-    // ✅ MULTIPLAYER: Event - Another player shot
-    channel.bind('shot-completed', (data: any) => {
+    const handleShotCompleted = (data: any) => {
       if (data.playerId === playerIdRef.current) return;
 
       gsRef.current.flashes.push({
@@ -202,7 +192,6 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         dy: 0,
       });
 
-      // Update leaderboard
       const lb = gsRef.current.leaderboard as any[];
       const existing = lb.find((e: any) => e.playerId === data.playerId);
       if (existing) {
@@ -216,9 +205,15 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       }
       lb.sort((a: any, b: any) => b.score - a.score);
       forceUpdate(n => n + 1);
-    });
+    };
 
-    // Cleanup on unmount
+    // Bind handlers
+    channel.bind('player-joined', handlePlayerJoined);
+    channel.bind('player-move', handlePlayerMove);
+    channel.bind('player-leave', handlePlayerLeave);
+    channel.bind('shot-completed', handleShotCompleted);
+
+    // Cleanup on unmount or dependency change
     return () => {
       // Announce player leave
       fetch('/api/pusher', {
@@ -231,12 +226,17 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         }),
       }).catch(() => {});
 
-      channel.unbind_all();
+      // Unbind specific handlers (not unbind_all, to avoid issues)
+      channel.unbind('player-joined', handlePlayerJoined);
+      channel.unbind('player-move', handlePlayerMove);
+      channel.unbind('player-leave', handlePlayerLeave);
+      channel.unbind('shot-completed', handleShotCompleted);
+
       pusherClient.unsubscribe(`game-${gameRoomId}`);
       pusherRef.current = null;
       channelRef.current = null;
     };
-  }, [mounted, gameRoomId, userName]);
+  }, [mounted, gameRoomId]);
 
   useEffect(() => {
     if (!mounted || !canvasRef.current) return;
