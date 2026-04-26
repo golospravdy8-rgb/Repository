@@ -2863,6 +2863,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
     };
     console.log('NEW PLAYER:', name, 'y:', Math.round(newPlayer.y), 'groundYRef:', Math.round(groundYRef.current));
     gs.players.push(newPlayer);
+    setTimeout(() => { remotePlayersRef.current.clear(); }, 1000);
     gs.shootStates.push({ phase:null,aimAngle:-Math.PI*0.72,aimDir:1,power:0,powerDir:1,ball:null,lockedAngle:null,idealTraj:null,idealSpeed:10,runTarget:null,inDanger:false,greenZonePos:0.5,powerMeterResult:null,accuracy:0 });
 
     // Broadcast this player to all other clients with global order
