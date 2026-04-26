@@ -818,17 +818,6 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           b.x += (b.targetX - b.x) * (0.15 * (6 - framesLeft));
           b.y += (b.targetY - b.y) * (0.15 * (6 - framesLeft));
         }
-        // Scoring on reaching target
-        if (framesLeft <= 0 && !b.scoredGoal) {
-          b.scoredGoal = true;
-          b.state = 'scored';
-          b.vx = 0; b.vy = 0;
-          b.x = HOOP_X; b.y = HOOP_Y + 26 * scaleY;
-          gs.netShake = true;
-          gs.netShakeEnd = Date.now() + 700;
-          addFlash('4.0 ПОТРАПИВ!', HOOP_X, HOOP_Y - 52 * scaleY, '#00ff00');
-          return;
-        }
       }
 
       // ── SCORING CHECK — PURE PHYSICS (no outcome gate)
