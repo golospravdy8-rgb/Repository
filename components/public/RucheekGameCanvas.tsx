@@ -72,10 +72,6 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
   const markerPosRef = useRef<number>(0);
   const markerDirRef = useRef<number>(1);
 
-  // Player sprite sheets
-  const spritePosesRef = useRef<HTMLImageElement | null>(null);
-  const spriteDribbleRef = useRef<HTMLImageElement | null>(null);
-
   // Power Meter System refs and state
   const powerMeterRef = useRef<PowerMeterSystem | null>(null);
   const meterElementRef = useRef<HTMLDivElement | null>(null);
@@ -83,27 +79,6 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
   const [greenLinePosition, setGreenLinePosition] = useState(180);
 
   useEffect(() => { setMounted(true); }, []);
-
-  // Load player sprites
-  useEffect(() => {
-    const img1 = new Image();
-    img1.onload = () => {
-      console.log('✅ player-poses.png loaded successfully');
-      spritePosesRef.current = img1;
-    };
-    img1.onerror = () => console.log('❌ player-poses.png FAILED to load');
-    img1.src = '/player-poses.png';
-
-    const img2 = new Image();
-    img2.onload = () => {
-      console.log('✅ player-dribble.png loaded successfully');
-      spriteDribbleRef.current = img2;
-    };
-    img2.onerror = () => console.log('❌ player-dribble.png FAILED to load');
-    img2.src = '/player-dribble.png';
-
-    console.log('🔄 Loading sprites... check console for result');
-  }, []);
 
   // Initialize Pusher connection
   useEffect(() => {
@@ -273,7 +248,6 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
     const H = canvas.height;
     const GY = GY_ORIG * scaleY;
     groundYRef.current = GY;
-    console.log('DEBUG: GY_ORIG:', GY_ORIG, 'scaleY:', scaleY.toFixed(3), 'GY:', Math.round(GY), 'groundYRef:', Math.round(groundYRef.current));
     // Real gravity: 9.81 m/s² = 0.095 px/frame² at 35px=1m, 60fps
     // Гравітація: зменшена на 15% для красивішої параболи (0.12 * 0.85 = 0.102)
     const G = 0.102;
@@ -325,23 +299,6 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
     const HOOP_DEPTH = 15 * scaleY;
     const MIN_BALL_SPEED = 5.0;
     const MAX_BALL_SPEED = 16.0;
-
-    // Rim & Backboard physics constants
-    const RIM_BOUNCINESS = 0.82;      // Ball retains 82% velocity after rim collision
-    const RIM_FRICTION = 0.25;        // Rim friction slows tangential motion
-    const RIM_THICKNESS = 4 * scaleX; // Rim collision thickness
-    const BOARD_BOUNCINESS = 0.66;    // Backboard retains 66% velocity
-    const BOARD_FRICTION = 0.38;      // Backboard friction reduces velocity
-
-    // Rim geometry
-    const rimFront = { x: HOOP_X + HOOP_RADIUS, y: HOOP_Y };
-    const rimBack = { x: HOOP_X - HOOP_RADIUS, y: HOOP_Y };
-
-    // Scoring gates
-    const topGateY = HOOP_Y - 12 * scaleY;
-    const topGateWidth = HOOP_RADIUS * 2.08;
-    const bottomGateY = HOOP_Y + 22 * scaleY;
-    const bottomGateWidth = HOOP_RADIUS * 1.82;
 
     function calculateBallSpeedFromPower(powerPercent: number): number {
       // Power scale: 0-200% → Speed: 5-16 m/s
@@ -836,77 +793,6 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       gs.autoTestRun = true;
     }
 
-    // Handle rim collision with realistic bounce physics
-    function handleRimCollision(b: any, rimPoint: any): boolean {
-      const dist = Math.hypot(b.x - rimPoint.x, b.y - rimPoint.y);
-      if (dist >= BALL_RADIUS + RIM_THICKNESS) return false;
-
-      // Normal vector from rim to ball
-      const nx = (b.x - rimPoint.x) / dist;
-      const ny = (b.y - rimPoint.y) / dist;
-
-      // Reflect velocity along normal (impulse response)
-      const dotProduct = b.vx * nx + b.vy * ny;
-      b.vx = (b.vx - 2 * dotProduct * nx) * RIM_BOUNCINESS;
-      b.vy = (b.vy - 2 * dotProduct * ny) * RIM_BOUNCINESS;
-
-      // Apply rim friction to tangential velocity
-      b.vx *= (1 - RIM_FRICTION);
-      b.vy *= (1 - RIM_FRICTION);
-
-      // Push ball out of rim
-      const pushDist = BALL_RADIUS + RIM_THICKNESS - dist + 1;
-      b.x += nx * pushDist;
-      b.y += ny * pushDist;
-
-      return true;
-    }
-
-    // Handle backboard collision
-    function handleBackboardCollision(b: any): boolean {
-      if (b.x - BALL_RADIUS > BOARD_X || b.y < BOARD_TOP || b.y > BOARD_BOT) return false;
-
-      // Ball hit the backboard face
-      b.x = BOARD_X + BALL_RADIUS;
-      b.vx = Math.abs(b.vx) * BOARD_BOUNCINESS; // Bounce away from board
-      b.vy *= (1 - BOARD_FRICTION); // Reduce vertical velocity
-
-      return true;
-    }
-
-    // Check scoring gates
-    function checkScoringGates(b: any): boolean {
-      // DEBUG LOG
-      console.log('GATE CHECK:',
-        'ball:', Math.round(b.x), Math.round(b.y),
-        'hoop:', Math.round(HOOP_X), Math.round(HOOP_Y),
-        'vy:', b.vy.toFixed(2),
-        'passedTop:', b.passedTopGate,
-        'topGateY:', Math.round(topGateY),
-        'topGateWidth:', topGateWidth?.toFixed(1),
-        'HOOP_RADIUS:', HOOP_RADIUS
-      );
-
-      // Top gate: ball enters from above
-      if (Math.abs(b.x - HOOP_X) < topGateWidth / 2 &&
-          Math.abs(b.y - topGateY) < 6 &&
-          b.vy > 0) {
-        console.log('TOP GATE TRIGGERED');
-        b.passedTopGate = true;
-        return false;
-      }
-
-      // Bottom gate: ball exits downward (only if passed top gate)
-      if (b.passedTopGate &&
-          Math.abs(b.x - HOOP_X) < bottomGateWidth / 2 &&
-          b.y > bottomGateY) {
-        console.log('BOTTOM GATE TRIGGERED - GOAL!');
-        return true; // GOAL!
-      }
-
-      return false;
-    }
-
     function stepBall(b: any, dt: number) {
       if (b.state !== 'flying') return;
 
@@ -921,30 +807,6 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       b.y += b.vy * dt;
       b.rot += 0.08;
 
-      // ───────── RIM & BACKBOARD COLLISIONS ─────────
-      // Check rim collisions (both front and back)
-      handleRimCollision(b, rimFront);
-      handleRimCollision(b, rimBack);
-
-      // Check backboard collision
-      handleBackboardCollision(b);
-
-      // ───────── GATE-BASED SCORING ─────────
-      // Check if ball passes through scoring gates
-      if (checkScoringGates(b)) {
-        console.log('GATE GOAL SCORED - ball pos:', Math.round(b.x), Math.round(b.y));
-        b.scoredGoal = true;
-        b.state = 'scored';
-        b.vx = 0;
-        b.vy = 0;
-        b.x = HOOP_X;
-        b.y = HOOP_Y + 26 * scaleY;
-        gs.netShake = true;
-        gs.netShakeEnd = Date.now() + 700;
-        addFlash('🎯 GATE GOAL!', HOOP_X, HOOP_Y - 52 * scaleY, '#00ff00');
-        return;
-      }
-
       // Magnet removed — ball flies pure parabola, no artificial attraction to hoop
 
       // Guided-mode correction ONLY in last 5 frames
@@ -956,32 +818,33 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           b.x += (b.targetX - b.x) * (0.15 * (6 - framesLeft));
           b.y += (b.targetY - b.y) * (0.15 * (6 - framesLeft));
         }
-        // DISABLED: Old guided-mode scoring override — gate system handles all scoring
-        // if (framesLeft <= 0 && !b.scoredGoal) {
-        //   b.scoredGoal = true;
-        //   b.state = 'scored';
-        //   b.vx = 0; b.vy = 0;
-        //   b.x = HOOP_X; b.y = HOOP_Y + 26 * scaleY;
-        //   gs.netShake = true;
-        //   gs.netShakeEnd = Date.now() + 700;
-        //   addFlash('4.0 ПОТРАПИВ!', HOOP_X, HOOP_Y - 52 * scaleY, '#00ff00');
-        //   return;
-        // }
+        // Scoring on reaching target
+        if (framesLeft <= 0 && !b.scoredGoal) {
+          b.scoredGoal = true;
+          b.state = 'scored';
+          b.vx = 0; b.vy = 0;
+          b.x = HOOP_X; b.y = HOOP_Y + 26 * scaleY;
+          gs.netShake = true;
+          gs.netShakeEnd = Date.now() + 700;
+          addFlash('4.0 ПОТРАПИВ!', HOOP_X, HOOP_Y - 52 * scaleY, '#00ff00');
+          return;
+        }
       }
 
-      // ── DISABLED: Old distance-based scoring — gate system is only scoring method
-      // const d = Math.hypot(b.x - HOOP_X, b.y - HOOP_Y);
-      // if (d < 22 && b.vy > 0 && b.y >= HOOP_Y - 8 && b.y <= HOOP_Y + 14) {
-      //   b.state = 'scored';
-      //   b.vx = 0;
-      //   b.vy = 0;
-      //   b.x = HOOP_X;
-      //   b.y = HOOP_Y + 26 * scaleY;
-      //   gs.netShake = true;
-      //   gs.netShakeEnd = Date.now() + 700;
-      //   addFlash('🎯 ПОТРАПИВ!', HOOP_X, HOOP_Y - 52 * scaleY, '#00ff00');
-      //   return;
-      // }
+      // ── SCORING CHECK — PURE PHYSICS (no outcome gate)
+      // Ball passes through hoop from above → goal
+      const d = Math.hypot(b.x - HOOP_X, b.y - HOOP_Y);
+      if (d < 22 && b.vy > 0 && b.y >= HOOP_Y - 8 && b.y <= HOOP_Y + 14) {
+        b.state = 'scored';
+        b.vx = 0;
+        b.vy = 0;
+        b.x = HOOP_X;
+        b.y = HOOP_Y + 26 * scaleY;
+        gs.netShake = true;
+        gs.netShakeEnd = Date.now() + 700;
+        addFlash('🎯 ПОТРАПИВ!', HOOP_X, HOOP_Y - 52 * scaleY, '#00ff00');
+        return;
+      }
 
       // Floor contact is handled below (L~1000+), not here — removed early hard-stop to allow bouncing
 
@@ -996,39 +859,39 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           b.y >= HOOP_Y &&
           b.vy > 0;
 
-        // DISABLED: Old ball-inside-hoop auto-score — gate system handles all scoring
-        // if (ballInsideHoop && !b.scoredGoal) {
-        //   b.scoredGoal = true;
-        //   b.state = 'scored';
-        //   b.outcome = 'direct';
-        //   b.vx = 0;
-        //   b.vy = 0;
-        //   b.x = HOOP_X;
-        //   b.y = HOOP_Y + 26*scaleY;
-        //   gs.netShake = true;
-        //   gs.netShakeEnd = Date.now() + 700;
-        //   addFlash('🎯 SWISH!', HOOP_X, HOOP_Y - 52*scaleY, '#00ff00');
-        //   return;
-        // }
+        if (ballInsideHoop && !b.scoredGoal) {
+          // Ball is inside hoop and falling → auto-score
+          b.scoredGoal = true;
+          b.state = 'scored';
+          b.outcome = 'direct';
+          b.vx = 0;
+          b.vy = 0;
+          b.x = HOOP_X;
+          b.y = HOOP_Y + 26*scaleY;
+          gs.netShake = true;
+          gs.netShakeEnd = Date.now() + 700;
+          addFlash('🎯 SWISH!', HOOP_X, HOOP_Y - 52*scaleY, '#00ff00');
+          return;
+        }
 
         // Коліжія для реалістичної фізики обруча
         let collisionType: string = 'none';
         collisionType = checkHoopCollision(b);
 
-        // DISABLED: Old swish detection auto-score — gate system handles all scoring
-        // if (collisionType === 'swish') {
-        //   b.scoredGoal = true;
-        //   b.state = 'scored';
-        //   b.outcome = 'swish';
-        //   b.vx = 0;
-        //   b.vy = 0;
-        //   b.x = HOOP_X;
-        //   b.y = HOOP_Y + 26*scaleY;
-        //   gs.netShake = true;
-        //   gs.netShakeEnd = Date.now() + 700;
-        //   addFlash('🎯 SWISH!', HOOP_X, HOOP_Y - 52*scaleY, '#00ff00');
-        //   return;
-        // }
+        if (collisionType === 'swish') {
+          // SWISH: чистий пас - автоматично гол
+          b.scoredGoal = true;
+          b.state = 'scored';
+          b.outcome = 'swish';
+          b.vx = 0;
+          b.vy = 0;
+          b.x = HOOP_X;
+          b.y = HOOP_Y + 26*scaleY;
+          gs.netShake = true;
+          gs.netShakeEnd = Date.now() + 700;
+          addFlash('🎯 SWISH!', HOOP_X, HOOP_Y - 52*scaleY, '#00ff00');
+          return;
+        }
 
         if (collisionType === 'rattleIn') {
           // RATTLE_IN: дотик обіду + відскік + в сітку
@@ -1039,20 +902,21 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           if (b.rimBounceCount === undefined) b.rimBounceCount = 0;
           b.rimBounceCount++;
 
-          // DISABLED: Old forced score on 3+ bounces — gate system handles all scoring
-          // if (b.rimBounceCount >= 3) {
-          //   b.scoredGoal = true;
-          //   b.state = 'scored';
-          //   b.outcome = 'direct';
-          //   b.vx = 0;
-          //   b.vy = 0;
-          //   b.x = HOOP_X;
-          //   b.y = HOOP_Y + 26*scaleY;
-          //   gs.netShake = true;
-          //   gs.netShakeEnd = Date.now() + 700;
-          //   addFlash('🎯 FINALLY IN!', HOOP_X, HOOP_Y - 52*scaleY, '#00ff00');
-          //   return;
-          // }
+          // If too many rim bounces, force result
+          if (b.rimBounceCount >= 3) {
+            // After 3+ bounces, force into hoop
+            b.scoredGoal = true;
+            b.state = 'scored';
+            b.outcome = 'direct';
+            b.vx = 0;
+            b.vy = 0;
+            b.x = HOOP_X;
+            b.y = HOOP_Y + 26*scaleY;
+            gs.netShake = true;
+            gs.netShakeEnd = Date.now() + 700;
+            addFlash('🎯 FINALLY IN!', HOOP_X, HOOP_Y - 52*scaleY, '#00ff00');
+            return;
+          }
 
           applyRimBounce(b);
           addFlash('💥 Rattles In!', HOOP_X, HOOP_Y - 52*scaleY, '#ff9900');
@@ -1086,20 +950,20 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
             b.vy = (dy / dist) * bounceSpeed;
             b.guaranteedScore = true;
 
-            // DISABLED: Old forced score on 3+ bounces — gate system handles all scoring
-            // if (b.rimBounceCount >= 3) {
-            //   b.scoredGoal = true;
-            //   b.state = 'scored';
-            //   b.outcome = 'direct';
-            //   b.vx = 0;
-            //   b.vy = 0;
-            //   b.x = HOOP_X;
-            //   b.y = HOOP_Y + 26*scaleY;
-            //   addFlash('🎯 IN!', HOOP_X, HOOP_Y - 52*scaleY, '#00ff00');
-            //   gs.netShake = true;
-            //   gs.netShakeEnd = Date.now() + 700;
-            //   return;
-            // }
+            // After 3+ bounces, just score directly
+            if (b.rimBounceCount >= 3) {
+              b.scoredGoal = true;
+              b.state = 'scored';
+              b.outcome = 'direct';
+              b.vx = 0;
+              b.vy = 0;
+              b.x = HOOP_X;
+              b.y = HOOP_Y + 26*scaleY;
+              addFlash('🎯 IN!', HOOP_X, HOOP_Y - 52*scaleY, '#00ff00');
+              gs.netShake = true;
+              gs.netShakeEnd = Date.now() + 700;
+              return;
+            }
 
             addFlash('🔄 RATTLES IN! 🏀', HOOP_X, HOOP_Y - 52*scaleY, '#ff8800');
             gs.netShake = true;
@@ -1294,7 +1158,6 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         rimBounceCount: 0,
         frameCount: 0,
         isGuided: (ss.accuracy || 0) >= 92,
-        passedTopGate: false,  // Gate-based scoring system
       };
 
 
@@ -1539,104 +1402,6 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       ctx.moveTo(cx - r, cy);
       ctx.lineTo(cx + r, cy);
       ctx.stroke();
-    }
-
-    // Sprite sheet constants
-    const SPRITE_POSES = {
-      width: 540, // 4 frames × 135px each
-      height: 280,
-      frameWidth: 135,
-      frameHeight: 280,
-      frames: {
-        idle: 0,      // Ready position
-        prep: 1,      // Preparation (1st click)
-        release: 2,   // Release (2nd click)
-        recover: 3    // Return to ready
-      }
-    };
-
-    const SPRITE_DRIBBLE = {
-      width: 1460, // 5+ frames for dribbling
-      height: 405,
-      frameWidth: 292,
-      frameHeight: 405,
-      frames: 5 // 5 dribbling frames
-    };
-
-    // Get current animation frame based on game state
-    function getAnimationFrame(pose: string, now: number): { img: HTMLImageElement | null, frameIndex: number } {
-      const spritePoses = spritePosesRef.current;
-      const spriteDribble = spriteDribbleRef.current;
-
-      if (pose === 'prep') {
-        return { img: spritePoses, frameIndex: SPRITE_POSES.frames.prep };
-      } else if (pose === 'release') {
-        return { img: spritePoses, frameIndex: SPRITE_POSES.frames.release };
-      } else if (pose === 'recover') {
-        return { img: spritePoses, frameIndex: SPRITE_POSES.frames.recover };
-      } else {
-        // Default: cycle through dribbling frames
-        const frameIndex = Math.floor((now / 150) % SPRITE_DRIBBLE.frames);
-        return { img: spriteDribble, frameIndex };
-      }
-    }
-
-    // Draw player from sprite sheet
-    function drawPlayerSprite(x: number, y: number, pose: string, danger: boolean, playerColor: string) {
-      const now = Date.now();
-      const { img, frameIndex } = getAnimationFrame(pose, now);
-
-      // Check if sprite is loaded properly
-      if (!img || !img.complete || img.naturalWidth === 0) {
-        return; // Fallback if sprite not loaded yet
-      }
-
-      ctx.save();
-
-      // Red glow if in danger
-      if (danger) {
-        const t = (Date.now() / 300) % 1;
-        ctx.globalAlpha = 0.3 + 0.2 * Math.sin(t * Math.PI * 2);
-        ctx.fillStyle = 'rgba(255, 50, 50, 0.3)';
-        ctx.beginPath();
-        ctx.arc(x, y - 60 * scaleY, 80 * scaleX, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.globalAlpha = 1;
-      }
-
-      // Determine which sprite and frame to draw
-      const spritePoses = spritePosesRef.current;
-      const spriteDribble = spriteDribbleRef.current;
-
-      if (img === spritePoses && spritePoses) {
-        // Draw from poses sprite sheet
-        const srcX = frameIndex * SPRITE_POSES.frameWidth;
-        const srcY = 0;
-        const drawWidth = SPRITE_POSES.frameWidth * scaleX;
-        const drawHeight = SPRITE_POSES.frameHeight * scaleY;
-        ctx.drawImage(
-          img,
-          srcX, srcY,
-          SPRITE_POSES.frameWidth, SPRITE_POSES.frameHeight,
-          x - drawWidth / 2, y - drawHeight + 10 * scaleY,
-          drawWidth, drawHeight
-        );
-      } else if (img === spriteDribble && spriteDribble) {
-        // Draw from dribbling sprite sheet
-        const srcX = frameIndex * SPRITE_DRIBBLE.frameWidth;
-        const srcY = 0;
-        const drawWidth = SPRITE_DRIBBLE.frameWidth * scaleX;
-        const drawHeight = SPRITE_DRIBBLE.frameHeight * scaleY;
-        ctx.drawImage(
-          img,
-          srcX, srcY,
-          SPRITE_DRIBBLE.frameWidth, SPRITE_DRIBBLE.frameHeight,
-          x - drawWidth / 2, y - drawHeight + 10 * scaleY,
-          drawWidth, drawHeight
-        );
-      }
-
-      ctx.restore();
     }
 
     function drawStick(x: number, y: number, pose: string, rf: number, danger: boolean, playerColor: string) {
@@ -2063,26 +1828,10 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           ctx.fillText('← КЛІКНИ → кидок', p.x, p.y - 90*scaleY);
         }
 
-        // Determine pose based on shooting phase
         let pose = 'idle';
-        if (ss.phase === 'aiming') {
-          pose = 'prep'; // First click - preparation
-        } else if (ss.phase === 'charging') {
-          pose = 'prep'; // Still preparing while charging
-        } else if (ss.phase === 'flying') {
-          pose = 'release'; // Ball released
-        } else if (p.status === 'running') {
-          pose = 'run'; // Running without ball
-        } else if (p.status === 'shooting') {
-          pose = 'recover'; // Recovering after shot
-        }
-
-        // Try sprite first (if loaded), fallback to stick figure
-        if (spritePosesRef.current?.complete && spriteDribbleRef.current?.complete) {
-          drawPlayerSprite(p.x, p.y, pose, danger, p.color);
-        } else {
-          drawStick(p.x, p.y, pose, p.rf, danger, p.color);
-        }
+        if (p.status === 'running') pose = 'run';
+        else if (p.status === 'shooting') pose = 'shoot';
+        drawStick(p.x, p.y, pose, p.rf, danger, p.color);
 
         const kills = p.kills || 0;
         const isMine = i === 0;
@@ -2134,12 +1883,8 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
 
       // Draw remote players from Socket.IO
       remotePlayersRef.current.forEach((rp: any, rpKey: string) => {
-        // Skip local player: check both exact ID and base ID (without sub-ID suffix)
+        // Skip local player to avoid rendering duplicate (use Map key, not object field)
         if (rpKey === playerIdRef.current) return;
-
-        // Also skip if this is a sub-ID of local player (e.g., "abc123_0" when local is "abc123")
-        const baseId = rpKey.split('_').slice(0, -1).join('_');
-        if (baseId === playerIdRef.current) return;
 
         const rpx = rp.x;
         const rpy = rp.y;
@@ -2820,7 +2565,6 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       rf:0,
       color: PLAYER_COLORS[idx%6]
     };
-    console.log('NEW PLAYER:', name, 'y:', Math.round(newPlayer.y), 'groundYRef:', Math.round(groundYRef.current));
     gs.players.push(newPlayer);
     gs.shootStates.push({ phase:null,aimAngle:-Math.PI*0.72,aimDir:1,power:0,powerDir:1,ball:null,lockedAngle:null,idealTraj:null,idealSpeed:10,runTarget:null,inDanger:false,greenZonePos:0.5,powerMeterResult:null,accuracy:0 });
 
