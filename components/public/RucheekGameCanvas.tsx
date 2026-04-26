@@ -106,6 +106,13 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       // Skip if this is a local player's sub-ID that slipped through
       if (baseId === playerIdRef.current) return;
 
+      // Delete all sub-ID entries of this player if they exist (prevent duplicates)
+      remotePlayersRef.current.forEach((_, key) => {
+        if (key.startsWith(data.playerId + '_')) {
+          remotePlayersRef.current.delete(key);
+        }
+      });
+
       remotePlayersRef.current.set(data.playerId, {
         socketId: data.playerId,
         basePlayerId: baseId,
@@ -140,6 +147,12 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
 
       // Skip if this is a local player's sub-ID that slipped through
       if (baseId === playerIdRef.current) return;
+
+      // Delete base ID entry if it exists (prevent duplicates when base-ID and sub-ID coexist)
+      const baseId2 = data.playerId.split('_').slice(0, -1).join('_');
+      if (baseId2 && remotePlayersRef.current.has(baseId2)) {
+        remotePlayersRef.current.delete(baseId2);
+      }
 
       // ETAP 8: Debug ball data reception
       if (data.ball) {
