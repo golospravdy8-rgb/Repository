@@ -384,22 +384,35 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
 
     // Застосування реалістичного відскоку від обіду
     function applyRimBounce(ball: any): void {
-      // Нормаль від центра обруча до м'яча
       const dx = ball.x - HOOP_X;
       const dy = ball.y - HOOP_Y;
       const dist = Math.hypot(dx, dy);
-
       if (dist === 0) return;
 
+      // 16-segment angle
+      const angleDeg = ((Math.atan2(dy, dx) * 180 / Math.PI) + 360) % 360;
+
+      // Bounce by zone (Unity params: base 0.82)
+      let bounce = 0.55; // sides default
+      if (angleDeg >= 135 && angleDeg < 225) bounce = 0.40; // front (player side)
+      else if (angleDeg >= 315 || angleDeg < 45) bounce = 0.60; // back
+
+      // Track contacts
+      if (ball.rimContacts === undefined) ball.rimContacts = 0;
+      ball.rimContacts++;
+
+      // Reflect: v' = (v - 2*(v·n)*n) * bounce
       const nx = dx / dist;
       const ny = dy / dist;
-
-      // Реалистичный отскок с коэффициентом restitution
       const dot = ball.vx * nx + ball.vy * ny;
+      ball.vx = (ball.vx - 2 * dot * nx) * bounce;
+      ball.vy = (ball.vy - 2 * dot * ny) * bounce;
 
-      // Зеркальное отражение + случайный компонент
-      ball.vx = -ball.vx * RESTITUTION_RIM + (Math.random() - 0.5) * 2;
-      ball.vy = -Math.abs(ball.vy) * RESTITUTION_RIM; // всегда отлетает вверх
+      // Friction (Unity: 0.25) — slows movement along the rim
+      const tangentX = -ny, tangentY = nx;
+      const tangentVel = ball.vx * tangentX + ball.vy * tangentY;
+      ball.vx -= tangentVel * tangentX * 0.25;
+      ball.vy -= tangentVel * tangentY * 0.25;
     }
 
     function getHoopInsideDepth(ballX: number, ballY: number, hoopX: number, hoopY: number): number {
@@ -824,6 +837,19 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       // Ball passes through hoop from above → goal
       const d = Math.hypot(b.x - HOOP_X, b.y - HOOP_Y);
       if (d < 22 && b.vy > 0 && b.y >= HOOP_Y - 8 && b.y <= HOOP_Y + 14) {
+        // Determine outcome based on physics before scoring
+        const rimContacts = b.rimContacts || 0;
+        if (rimContacts === 0) {
+          b.outcome = 'swish';
+        } else if (rimContacts >= 1 && rimContacts <= 2) {
+          b.outcome = 'rattleIn';
+        } else {
+          b.outcome = 'direct';
+        }
+        if (b.hitBackboard && rimContacts === 0) {
+          b.outcome = 'bankShot';
+        }
+
         b.state = 'scored';
         b.vx = 0;
         b.vy = 0;
@@ -987,6 +1013,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           const hitY = prevY + (b.y - prevY) * Math.max(0, Math.min(1, (prevX - BOARD_FACE) / Math.max(0.001, prevX - b.x)));
           if (hitY >= BOARD_TOP - 8 && hitY <= BOARD_BOT + 8) {
             b.boardHandled = true;
+            b.hitBackboard = true;
             b.x = BOARD_FACE + 2;
             const hitRatio = Math.max(0, Math.min(1, (hitY - BOARD_TOP) / (BOARD_BOT - BOARD_TOP)));
             const impactSpd = Math.hypot(b.vx, b.vy);
@@ -1055,6 +1082,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           b.state = 'missed';
         }
       }
+
     }
 
     function launchBall(idx: number, shotCursorPos: number = 0.5) {
@@ -1146,7 +1174,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         bounceCount: 0,
         rimBounceCount: 0,
         frameCount: 0,
-        isGuided: (ss.accuracy || 0) >= 92,
+        isGuided: false,
       };
 
 
