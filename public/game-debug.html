@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Basketball Physics Debug</title>
+  <style>
+    body { margin: 0; padding: 0; background: #1a1a2e; overflow: hidden; }
+    canvas { display: block; width: 100vw; height: 100vh; }
+    #logs { position: fixed; bottom: 0; left: 0; width: 100%; height: 200px; background: #0f0f1e; color: #00ff00; font-family: monospace; overflow-y: auto; font-size: 11px; padding: 5px; box-sizing: border-box; border-top: 2px solid #00ff00; }
+  </style>
+</head>
+<body>
+  <canvas id="gameCanvas"></canvas>
+  <div id="logs"></div>
+  <script>
+    const logsDiv = document.getElementById('logs');
+    const originalLog = console.log;
+    
+    console.log = function(...args) {
+      const text = args.map(a => typeof a === 'string' ? a : JSON.stringify(a)).join(' ');
+      if (text.includes('RIM HIT') || text.includes('GOAL')) {
+        const line = document.createElement('div');
+        line.textContent = text;
+        logsDiv.appendChild(line);
+        logsDiv.scrollTop = logsDiv.scrollHeight;
+      }
+      originalLog.apply(console, args);
+    };
+  </script>
+  <script src="/_next/static/chunks/main-app.js"></script>
+</body>
+</html>

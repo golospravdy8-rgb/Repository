@@ -890,9 +890,13 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           const hasBackspin = spin < -0.03;
           const rnd = Math.random();
 
+          let outcome = 'unknown';
+          const rimHitLog = `RIM HIT: front=${isFront}, angle=${entryAngle.toFixed(1)}°, speed=${speed.toFixed(2)}, spin=${spin.toFixed(3)}, contacts=${b.rimContacts}`;
+
           if (isFront) {
             if (entryAngle >= 40 && entryAngle <= 65 && speed >= 2 && speed <= 6) {
               // СЦЕНАРІЙ 6: Передня→задня→всередину (18% реальний)
+              outcome = 'front_mid_in';
               b.vx = -Math.abs(b.vx) * 0.35;
               b.vy =  Math.abs(b.vy) * 0.42;
               addFlash('💥', HOOP_X, HOOP_Y - 30*scaleY, '#ff9900');
@@ -900,15 +904,18 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
               // СЦЕНАРІЙ 3/4: Крутий кут — підскок вгору
               if (hasBackspin && rnd < 0.65) {
                 // Бекспін повертає м'яч в кільце (65% при бекспін)
+                outcome = 'front_steep_backspin';
                 b.vy = -speed * 0.35;
                 b.vx = (HOOP_X - b.x) * 0.08;
               } else {
+                outcome = 'front_steep_bounce';
                 b.vy = -speed * 0.45;
                 b.vx *= 0.25;
               }
               addFlash('💥', HOOP_X, HOOP_Y - 30*scaleY, '#ff9900');
             } else {
               // СЦЕНАРІЙ 8: Пологий → відскок назад (недоліт)
+              outcome = 'front_shallow_out';
               b.vx = (b.vx > 0 ? 1 : -1) * speed * 0.55;
               b.vy = -Math.abs(b.vy) * 0.28;
               addFlash('💢', HOOP_X, HOOP_Y - 30*scaleY, '#ff4444');
@@ -916,21 +923,25 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           } else {
             if (entryAngle > 55) {
               // СЦЕНАРІЙ 9: Задня крутий → притягується до центру (перекид)
+              outcome = 'back_steep_in';
               b.vx = (HOOP_X - b.x) * 0.14;
               b.vy =  Math.abs(b.vy) * 0.52;
               addFlash('💥', HOOP_X, HOOP_Y - 30*scaleY, '#ff9900');
             } else if (entryAngle > 30) {
               // Середній кут задньої — може зайти або вилетіти
               if (rnd < 0.45) {
+                outcome = 'back_mid_in_50';
                 b.vx = (HOOP_X - b.x) * 0.10;
                 b.vy =  Math.abs(b.vy) * 0.45;
               } else {
+                outcome = 'back_mid_out_50';
                 b.vx = Math.abs(b.vx) * 0.5;
                 b.vy = -Math.abs(b.vy) * 0.2;
               }
               addFlash('💥', HOOP_X, HOOP_Y - 30*scaleY, '#ffaa00');
             } else {
               // СЦЕНАРІЙ 10: Задня пологий → перелет вперед
+              outcome = 'back_shallow_out';
               b.vx = Math.abs(b.vx) * 0.55;
               b.vy = -Math.abs(b.vy) * 0.22;
               addFlash('💢', HOOP_X, HOOP_Y - 30*scaleY, '#ff4444');
@@ -944,11 +955,13 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
             if (s2 < 3.5 && centerDist < HOOP_R * 0.8) {
               if (rnd < 0.6) {
                 // 60% — залетає (rim roll in)
+                outcome = 'rimroll_in_60';
                 b.vx = (HOOP_X - b.x) * 0.18;
                 b.vy = Math.abs(b.vy) + 2.8;
                 addFlash('🔄', HOOP_X, HOOP_Y - 30*scaleY, '#00ff88');
               } else {
                 // 40% — вилітає (rim roll out)
+                outcome = 'rimroll_out_40';
                 b.vx = (b.x > HOOP_X ? 1 : -1) * 2.5;
                 b.vy = -1.5;
                 addFlash('😬', HOOP_X, HOOP_Y - 30*scaleY, '#ff4444');
@@ -958,9 +971,12 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
 
           // СЦЕНАРІЙ 17: Бекспін — засмоктує в кільце після будь-якого торкання
           if (hasBackspin) {
+            outcome += '_with_backspin';
             b.vy += Math.abs(spin) * 0.6;
             b.vx *= 0.65;
           }
+
+          console.log(`${rimHitLog}, outcome=${outcome}`);
 
           break; // одне торкання за кадр
         }
@@ -976,6 +992,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           if (inNetZone) {
             const rimC = b.rimContacts || 0;
             b.outcome = rimC === 0 ? 'swish' : rimC <= 2 ? 'rattleIn' : 'direct';
+            console.log(`GOAL: contacts=${rimC}, outcome=${b.outcome}`);
             b.scoredGoal = true;
             b.state = 'scored';
             b.vx = 0;
