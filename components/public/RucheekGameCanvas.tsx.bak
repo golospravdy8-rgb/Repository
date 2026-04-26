@@ -2166,13 +2166,13 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
 
         // CRITICAL FIX: Skip if this player is already in gs.players (local player)
         // This prevents rendering the same player twice (once from gs.players, once from remotePlayersRef)
-        // Check by playerId instead of name (more reliable)
-        const isLocalPlayer = rpKey === playerIdRef.current ||
-          rpKey.startsWith(playerIdRef.current + '_');
+        const isLocalPlayer = gs.players.some((p: any) => {
+          // Check if player name matches (since we don't have playerId in gs.players)
+          return p.name === rp.name || p.name === rp.nickname;
+        });
         if (isLocalPlayer) {
           return;
         }
-
 
         const rpx = rp.x;
         const rpy = rp.y;
@@ -2742,10 +2742,6 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       const ball = gs.shootStates[idx]?.ball;
 
       const socketId = pusherRef.current?.connection?.socket_id;
-      if (!socketId) {
-        console.warn('[Game] Socket not ready yet, skipping broadcast to prevent echo');
-        return;
-      }
       fetch('/api/pusher', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -2868,37 +2864,6 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
     // Broadcast this player to all other clients with global order
     try {
       const socketId = pusherRef.current?.connection?.socket_id;
-
-      if (!socketId) {
-        console.warn('[ADD-PLAYER] Socket not ready, retrying in 300ms');
-        setTimeout(() => {
-          try {
-            const retrySocketId = pusherRef.current?.connection?.socket_id;
-            if (!retrySocketId) {
-              console.warn('[ADD-PLAYER] Socket still not ready after retry');
-              return;
-            }
-            fetch('/api/pusher/join', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                room: gameRoomId,
-                playerId: playerIdRef.current,
-                playerIndex: idx,
-                nickname: name,
-                order: assignedOrder,
-                x: newPlayer.x,
-                y: newPlayer.y,
-                color: newPlayer.color,
-                socket_id: retrySocketId,
-              })
-            }).catch(e => console.warn('[ADD-PLAYER] Retry failed:', e));
-          } catch (e) {
-            console.warn('[ADD-PLAYER] Retry error:', e);
-          }
-        }, 300);
-        return;
-      }
       await fetch('/api/pusher/join', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
