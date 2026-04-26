@@ -2160,6 +2160,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
 
       // Draw remote players from Socket.IO
       remotePlayersRef.current.forEach((rp: any, rpKey: string) => {
+        if (rp.status !== 'alive') return;
         // rpKey is now always baseId, so simple check is enough
         if (rpKey === playerIdRef.current) return;
 
