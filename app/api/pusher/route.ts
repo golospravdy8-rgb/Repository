@@ -4,7 +4,11 @@ import { NextRequest, NextResponse } from 'next/server';
 export async function POST(req: NextRequest) {
   try {
     const { room, playerId, x, y, name, score, action, ball, socket_id } = await req.json();
-    console.log('[Pusher API] Received:', { room, playerId, action, hasBall: !!ball });
+    
+    if (!socket_id) {
+      console.warn('[Pusher API] ⚠️ socket_id is missing! Will cause echo to sender');
+    }
+    console.log('[Pusher API] Received:', { room, playerId, action, socket_id, hasBall: !!ball });
 
     if (action === 'leave') {
       await pusherServer.trigger(`game-${room}`, 'player-leave', { playerId }, {

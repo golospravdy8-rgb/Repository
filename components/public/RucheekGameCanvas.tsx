@@ -2742,6 +2742,10 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       const ball = gs.shootStates[idx]?.ball;
 
       const socketId = pusherRef.current?.connection?.socket_id;
+      if (!socketId) {
+        console.warn('[Game] Socket not ready yet, skipping broadcast to prevent echo');
+        return;
+      }
       fetch('/api/pusher', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
