@@ -312,38 +312,22 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       const dx = ball.x - HOOP_X;
       const dy = ball.y - HOOP_Y;
       const dist = Math.hypot(dx, dy);
+      const contacts = ball.rimContacts || 0;
 
-      // М'яч мусить летіти вниз для розпізнавання коліжій
       if (ball.vy <= 0) return 'miss';
 
-      // Гарантований гол при 100% точності
-      if (ball.guaranteedScore && dist < 80 * scaleX) {
-        return 'swish';
-      }
+      if (ball.guaranteedScore && dist < 80 * scaleX) return 'swish';
 
-      // Розрахуй кут входу м'яча в обруч (в градусах)
-      const entryAngle = Math.atan2(ball.vy, ball.vx) * (180 / Math.PI);
-
-      // NET_ZONE = 35px (increased from 10px to allow guaranteed scores at accuracy >= 95)
+      const entryAngle = Math.atan2(ball.vy, ball.vx) * 180 / Math.PI;
       const NET_ZONE = 35 * scaleX;
 
-      // SWISH: чистий пас через центр сітки (dist < 35px with high accuracy)
-      if (dist < NET_ZONE) {
-        return 'swish';
-      }
+      if (dist < NET_ZONE && contacts === 0) return 'swish';
 
-      // RATTLE_IN: дотик обіду + крутий кут (близько вертикального падіння < -30°)
-      if (dist < HOOP_RADIUS && entryAngle < -30) {
-        return 'rattleIn';
-      }
+      if (contacts >= 1 && dist < HOOP_RADIUS + BALL_RADIUS && entryAngle < -25) return 'rattleIn';
 
-      // RIM_OUT: дотик обіду + пологий кут (> -30°)
-      if (dist < HOOP_RADIUS + BALL_RADIUS && entryAngle >= -30) {
-        return 'rimOut';
-      }
+      if (dist < HOOP_RADIUS && entryAngle < -35) return 'rattleIn';
 
-      // BANK_SHOT: дотик щитка (обробляється окремо в stepBall)
-      // Тут просто пропускаємо, обробка в rimHandled логіці
+      if (dist < HOOP_RADIUS + BALL_RADIUS) return 'rimOut';
 
       return 'miss';
     }
@@ -384,22 +368,70 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
 
     // Застосування реалістичного відскоку від обіду
     function applyRimBounce(ball: any): void {
-      // Нормаль від центра обруча до м'яча
-      const dx = ball.x - HOOP_X;
-      const dy = ball.y - HOOP_Y;
-      const dist = Math.hypot(dx, dy);
+      if (ball.rimContacts === undefined) ball.rimContacts = 0;
 
-      if (dist === 0) return;
+      const frontRim = { x: HOOP_X + HOOP_R, y: HOOP_Y };
+      const backRim  = { x: HOOP_X - HOOP_R, y: HOOP_Y };
+      const tubeR = HOOP_R * 0.22;
 
+      const dFront = Math.hypot(ball.x - frontRim.x, ball.y - frontRim.y);
+      const dBack  = Math.hypot(ball.x - backRim.x,  ball.y - backRim.y);
+      const rim    = dFront < dBack ? frontRim : backRim;
+      const isFront = dFront < dBack;
+
+      const dx = ball.x - rim.x;
+      const dy = ball.y - rim.y;
+      const dist = Math.hypot(dx, dy) || 1;
       const nx = dx / dist;
       const ny = dy / dist;
 
-      // Реалистичный отскок с коэффициентом restitution
-      const dot = ball.vx * nx + ball.vy * ny;
+      ball.x = rim.x + nx * (BALL_RADIUS + tubeR + 1);
+      ball.y = rim.y + ny * (BALL_RADIUS + tubeR + 1);
 
-      // Зеркальное отражение + случайный компонент
-      ball.vx = -ball.vx * RESTITUTION_RIM + (Math.random() - 0.5) * 2;
-      ball.vy = -Math.abs(ball.vy) * RESTITUTION_RIM; // всегда отлетает вверх
+      const dot = ball.vx * nx + ball.vy * ny;
+      const tx = ball.vx - dot * nx;
+      const ty = ball.vy - dot * ny;
+      ball.vx = -dot * 0.25 * nx + tx * 0.82;
+      ball.vy = -dot * 0.25 * ny + ty * 0.82;
+
+      const speed = Math.hypot(ball.vx, ball.vy);
+      const entryAngle = Math.atan2(Math.abs(ball.vy), Math.abs(ball.vx)) * 180 / Math.PI;
+
+      ball.rimContacts++;
+
+      if (isFront) {
+        if (entryAngle >= 40 && entryAngle <= 70 && speed >= 2 && speed <= 7) {
+          ball.vx = -Math.abs(ball.vx) * 0.35;
+          ball.vy =  Math.abs(ball.vy) * 0.45;
+        } else if (entryAngle > 70) {
+          ball.vy = -speed * 0.4;
+          ball.vx *= 0.3;
+        } else {
+          ball.vx = (ball.vx > 0 ? 1 : -1) * speed * 0.5;
+          ball.vy = -Math.abs(ball.vy) * 0.3;
+        }
+      } else {
+        if (entryAngle > 55) {
+          ball.vx = (HOOP_X - ball.x) * 0.12;
+          ball.vy =  Math.abs(ball.vy) * 0.55;
+        } else {
+          ball.vx = Math.abs(ball.vx) * 0.55;
+          ball.vy = -Math.abs(ball.vy) * 0.25;
+        }
+      }
+
+      if (ball.rimContacts >= 2) {
+        const s2 = Math.hypot(ball.vx, ball.vy);
+        if (s2 < 3.5 && Math.abs(ball.x - HOOP_X) < HOOP_R * 0.8) {
+          ball.vx = (HOOP_X - ball.x) * 0.18;
+          ball.vy = Math.abs(ball.vy) + 2.8;
+        }
+      }
+
+      if (ball.spin && ball.spin < -0.03) {
+        ball.vy += Math.abs(ball.spin) * 0.6;
+        ball.vx *= 0.65;
+      }
     }
 
     function getHoopInsideDepth(ballX: number, ballY: number, hoopX: number, hoopY: number): number {
@@ -820,161 +852,147 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         }
       }
 
-      // ── SCORING CHECK — PURE PHYSICS (no outcome gate)
-      // Ball passes through hoop from above → goal
-      const d = Math.hypot(b.x - HOOP_X, b.y - HOOP_Y);
-      if (d < 22 && b.vy > 0 && b.y >= HOOP_Y - 8 && b.y <= HOOP_Y + 14) {
-        b.state = 'scored';
-        b.vx = 0;
-        b.vy = 0;
-        b.x = HOOP_X;
-        b.y = HOOP_Y + 26 * scaleY;
-        gs.netShake = true;
-        gs.netShakeEnd = Date.now() + 700;
-        addFlash('🎯 ПОТРАПИВ!', HOOP_X, HOOP_Y - 52 * scaleY, '#00ff00');
-        return;
-      }
+      // ═══════════════════════════════════════
+      // РЕАЛІСТИЧНА ФІЗИКА КІЛЬЦЯ
+      // Кожен кадр перевіряємо зіткнення з дужками
+      // ═══════════════════════════════════════
+      {
+        const FRONT_RIM = { x: HOOP_X + HOOP_R, y: HOOP_Y };
+        const BACK_RIM  = { x: HOOP_X - HOOP_R, y: HOOP_Y };
+        const TUBE_R = HOOP_R * 0.22;
 
-      // Floor contact is handled below (L~1000+), not here — removed early hard-stop to allow bouncing
+        for (const rim of [FRONT_RIM, BACK_RIM]) {
+          const isFront = rim === FRONT_RIM;
+          const rdx = b.x - rim.x;
+          const rdy = b.y - rim.y;
+          const rdist = Math.hypot(rdx, rdy);
+          if (rdist >= BALL_RADIUS + TUBE_R || rdist === 0) continue;
 
-      if (!b.rimHandled && b.vy > 0) {
-        // FIX: Check if ball is already INSIDE hoop and falling down
-        // If so, skip rim collision and let it fall through naturally
-        const hoopLeftX = HOOP_X - HOOP_RADIUS;
-        const hoopRightX = HOOP_X + HOOP_RADIUS;
-        const ballInsideHoop =
-          b.x > hoopLeftX + BALL_RADIUS &&
-          b.x < hoopRightX - BALL_RADIUS &&
-          b.y >= HOOP_Y &&
-          b.vy > 0;
+          if (b.rimContacts === undefined) b.rimContacts = 0;
+          b.rimContacts++;
 
-        if (ballInsideHoop && !b.scoredGoal) {
-          // Ball is inside hoop and falling → auto-score
-          b.scoredGoal = true;
-          b.state = 'scored';
-          b.outcome = 'direct';
-          b.vx = 0;
-          b.vy = 0;
-          b.x = HOOP_X;
-          b.y = HOOP_Y + 26*scaleY;
-          gs.netShake = true;
-          gs.netShakeEnd = Date.now() + 700;
-          addFlash('🎯 SWISH!', HOOP_X, HOOP_Y - 52*scaleY, '#00ff00');
-          return;
+          // Виштовхнути м'яч від дужки
+          const nx = rdx / rdist;
+          const ny = rdy / rdist;
+          b.x = rim.x + nx * (BALL_RADIUS + TUBE_R + 1);
+          b.y = rim.y + ny * (BALL_RADIUS + TUBE_R + 1);
+
+          // Базовий відскок
+          const dot = b.vx * nx + b.vy * ny;
+          const tx = b.vx - dot * nx;
+          const ty = b.vy - dot * ny;
+          b.vx = -dot * 0.25 * nx + tx * 0.82;
+          b.vy = -dot * 0.25 * ny + ty * 0.82;
+
+          const speed = Math.hypot(b.vx, b.vy);
+          const entryAngle = Math.atan2(Math.abs(b.vy), Math.abs(b.vx)) * 180 / Math.PI;
+          const spin = b.spin || 0;
+          const hasBackspin = spin < -0.03;
+          const rnd = Math.random();
+
+          if (isFront) {
+            if (entryAngle >= 40 && entryAngle <= 65 && speed >= 2 && speed <= 6) {
+              // СЦЕНАРІЙ 6: Передня→задня→всередину (18% реальний)
+              b.vx = -Math.abs(b.vx) * 0.35;
+              b.vy =  Math.abs(b.vy) * 0.42;
+              addFlash('💥', HOOP_X, HOOP_Y - 30*scaleY, '#ff9900');
+            } else if (entryAngle > 70) {
+              // СЦЕНАРІЙ 3/4: Крутий кут — підскок вгору
+              if (hasBackspin && rnd < 0.65) {
+                // Бекспін повертає м'яч в кільце (65% при бекспін)
+                b.vy = -speed * 0.35;
+                b.vx = (HOOP_X - b.x) * 0.08;
+              } else {
+                b.vy = -speed * 0.45;
+                b.vx *= 0.25;
+              }
+              addFlash('💥', HOOP_X, HOOP_Y - 30*scaleY, '#ff9900');
+            } else {
+              // СЦЕНАРІЙ 8: Пологий → відскок назад (недоліт)
+              b.vx = (b.vx > 0 ? 1 : -1) * speed * 0.55;
+              b.vy = -Math.abs(b.vy) * 0.28;
+              addFlash('💢', HOOP_X, HOOP_Y - 30*scaleY, '#ff4444');
+            }
+          } else {
+            if (entryAngle > 55) {
+              // СЦЕНАРІЙ 9: Задня крутий → притягується до центру (перекид)
+              b.vx = (HOOP_X - b.x) * 0.14;
+              b.vy =  Math.abs(b.vy) * 0.52;
+              addFlash('💥', HOOP_X, HOOP_Y - 30*scaleY, '#ff9900');
+            } else if (entryAngle > 30) {
+              // Середній кут задньої — може зайти або вилетіти
+              if (rnd < 0.45) {
+                b.vx = (HOOP_X - b.x) * 0.10;
+                b.vy =  Math.abs(b.vy) * 0.45;
+              } else {
+                b.vx = Math.abs(b.vx) * 0.5;
+                b.vy = -Math.abs(b.vy) * 0.2;
+              }
+              addFlash('💥', HOOP_X, HOOP_Y - 30*scaleY, '#ffaa00');
+            } else {
+              // СЦЕНАРІЙ 10: Задня пологий → перелет вперед
+              b.vx = Math.abs(b.vx) * 0.55;
+              b.vy = -Math.abs(b.vy) * 0.22;
+              addFlash('💢', HOOP_X, HOOP_Y - 30*scaleY, '#ff4444');
+            }
+          }
+
+          // СЦЕНАРІЙ 4/11: Rim roll — повільний м'яч біля центру скочується
+          if (b.rimContacts >= 2) {
+            const s2 = Math.hypot(b.vx, b.vy);
+            const centerDist = Math.abs(b.x - HOOP_X);
+            if (s2 < 3.5 && centerDist < HOOP_R * 0.8) {
+              if (rnd < 0.6) {
+                // 60% — залетає (rim roll in)
+                b.vx = (HOOP_X - b.x) * 0.18;
+                b.vy = Math.abs(b.vy) + 2.8;
+                addFlash('🔄', HOOP_X, HOOP_Y - 30*scaleY, '#00ff88');
+              } else {
+                // 40% — вилітає (rim roll out)
+                b.vx = (b.x > HOOP_X ? 1 : -1) * 2.5;
+                b.vy = -1.5;
+                addFlash('😬', HOOP_X, HOOP_Y - 30*scaleY, '#ff4444');
+              }
+            }
+          }
+
+          // СЦЕНАРІЙ 17: Бекспін — засмоктує в кільце після будь-якого торкання
+          if (hasBackspin) {
+            b.vy += Math.abs(spin) * 0.6;
+            b.vx *= 0.65;
+          }
+
+          break; // одне торкання за кадр
         }
 
-        // Коліжія для реалістичної фізики обруча
-        let collisionType: string = 'none';
-        collisionType = checkHoopCollision(b);
+        // ── ПЕРЕВІРКА ГОЛУ — м'яч пройшов крізь кільце зверху вниз ──
+        if (b.vy > 0 && !b.scoredGoal) {
+          const distC = Math.hypot(b.x - HOOP_X, b.y - HOOP_Y);
+          const inNetZone =
+            distC < HOOP_RADIUS - BALL_RADIUS * 0.3 &&
+            b.y >= HOOP_Y - 4 * scaleY &&
+            b.y <= HOOP_Y + 20 * scaleY;
 
-        if (collisionType === 'swish') {
-          // SWISH: чистий пас - автоматично гол
-          b.scoredGoal = true;
-          b.state = 'scored';
-          b.outcome = 'swish';
-          b.vx = 0;
-          b.vy = 0;
-          b.x = HOOP_X;
-          b.y = HOOP_Y + 26*scaleY;
-          gs.netShake = true;
-          gs.netShakeEnd = Date.now() + 700;
-          addFlash('🎯 SWISH!', HOOP_X, HOOP_Y - 52*scaleY, '#00ff00');
-          return;
-        }
-
-        if (collisionType === 'rattleIn') {
-          // RATTLE_IN: дотик обіду + відскік + в сітку
-          b.rimHandled = true;
-          b.outcome = 'rattleIn';
-
-          // Init rim bounce counter to prevent infinite spinning
-          if (b.rimBounceCount === undefined) b.rimBounceCount = 0;
-          b.rimBounceCount++;
-
-          // If too many rim bounces, force result
-          if (b.rimBounceCount >= 3) {
-            // After 3+ bounces, force into hoop
+          if (inNetZone) {
+            const rimC = b.rimContacts || 0;
+            b.outcome = rimC === 0 ? 'swish' : rimC <= 2 ? 'rattleIn' : 'direct';
             b.scoredGoal = true;
             b.state = 'scored';
-            b.outcome = 'direct';
             b.vx = 0;
             b.vy = 0;
             b.x = HOOP_X;
-            b.y = HOOP_Y + 26*scaleY;
+            b.y = HOOP_Y + 26 * scaleY;
             gs.netShake = true;
             gs.netShakeEnd = Date.now() + 700;
-            addFlash('🎯 FINALLY IN!', HOOP_X, HOOP_Y - 52*scaleY, '#00ff00');
+            gs.netSwing = {
+              type: rimC === 0 ? 'SWISH' : 'DIRECT',
+              startTime: Date.now(),
+              duration: rimC === 0 ? 100 : 200
+            };
+            const msg = rimC === 0 ? '🎯 SWISH!' : rimC <= 2 ? '💥 Rattles In!' : '🎯 IN!';
+            const clr = rimC === 0 ? '#00ff00' : '#ff9900';
+            addFlash(msg, HOOP_X, HOOP_Y - 52 * scaleY, clr);
             return;
-          }
-
-          applyRimBounce(b);
-          addFlash('💥 Rattles In!', HOOP_X, HOOP_Y - 52*scaleY, '#ff9900');
-          gs.netShake = true;
-          gs.netShakeEnd = Date.now() + 700;
-          // Ball bounces and continues flying; scoring now purely physics-based
-          b.outcome = 'rattleIn';
-        }
-
-        if (collisionType === 'rimOut') {
-          // RIM_OUT: дотик обіду + 50/50 повернення або повернення в кільце
-          b.rimHandled = true;
-          b.outcome = 'rimOut';
-
-          // Init rim bounce counter
-          if (b.rimBounceCount === undefined) b.rimBounceCount = 0;
-          b.rimBounceCount++;
-
-          applyRimBounce(b);
-
-          // 50/50: половину м'яч летить назад, половину повертається в кільце
-          const bounceBackToHoop = Math.random() < 0.5;
-
-          if (bounceBackToHoop) {
-            // 50% УСПІХ: М'яч повертається в кільце після відскоку від дужки
-            const dx = HOOP_X - b.x;
-            const dy = HOOP_Y - b.y;
-            const dist = Math.hypot(dx, dy);
-            const bounceSpeed = Math.hypot(b.vx, b.vy) * 0.6;
-            b.vx = (dx / dist) * bounceSpeed;
-            b.vy = (dy / dist) * bounceSpeed;
-            b.guaranteedScore = true;
-
-            // After 3+ bounces, just score directly
-            if (b.rimBounceCount >= 3) {
-              b.scoredGoal = true;
-              b.state = 'scored';
-              b.outcome = 'direct';
-              b.vx = 0;
-              b.vy = 0;
-              b.x = HOOP_X;
-              b.y = HOOP_Y + 26*scaleY;
-              addFlash('🎯 IN!', HOOP_X, HOOP_Y - 52*scaleY, '#00ff00');
-              gs.netShake = true;
-              gs.netShakeEnd = Date.now() + 700;
-              return;
-            }
-
-            addFlash('🔄 RATTLES IN! 🏀', HOOP_X, HOOP_Y - 52*scaleY, '#ff8800');
-            gs.netShake = true;
-            gs.netShakeEnd = Date.now() + 700;
-            // Ball bounces back toward hoop; final score depends on physics
-            b.outcome = 'rimOut';
-          } else {
-            // 50% ПРОМАХ: Обычный отскок назад
-            b.vx *= -0.55;
-            b.vy = -Math.abs(b.vy) * 0.65;
-            addFlash('💢 RIM!', HOOP_X, HOOP_Y - 52*scaleY, '#ff0000');
-            gs.netShake = true;
-            gs.netShakeEnd = Date.now() + 500;
-
-            // After 3 failed bounces, eject the ball
-            if (b.rimBounceCount >= 3) {
-              b.vx = (Math.random() > 0.5 ? 1 : -1) * 3;
-              b.vy = -2;
-              b.rimBounceCount = 0;
-            } else {
-            }
-            b.outcome = 'miss_fly';
           }
         }
       }
@@ -987,6 +1005,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           const hitY = prevY + (b.y - prevY) * Math.max(0, Math.min(1, (prevX - BOARD_FACE) / Math.max(0.001, prevX - b.x)));
           if (hitY >= BOARD_TOP - 8 && hitY <= BOARD_BOT + 8) {
             b.boardHandled = true;
+            b.hitBackboard = true;
             b.x = BOARD_FACE + 2;
             const hitRatio = Math.max(0, Math.min(1, (hitY - BOARD_TOP) / (BOARD_BOT - BOARD_TOP)));
             const impactSpd = Math.hypot(b.vx, b.vy);
@@ -1055,6 +1074,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           b.state = 'missed';
         }
       }
+
     }
 
     function launchBall(idx: number, shotCursorPos: number = 0.5) {
@@ -1146,7 +1166,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         bounceCount: 0,
         rimBounceCount: 0,
         frameCount: 0,
-        isGuided: (ss.accuracy || 0) >= 92,
+        isGuided: false,
       };
 
 
@@ -1598,6 +1618,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       ctx.stroke();
       ctx.lineWidth = 1*scaleX;
       ctx.globalAlpha = 0.65;
+      ctx.strokeStyle = 'rgba(255,255,255,0.85)';
 
       // ETAP 5: Calculate net swing displacement based on hit type
       let netSwing = 0;
