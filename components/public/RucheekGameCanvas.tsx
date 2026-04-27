@@ -195,7 +195,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         x: data.x,
         y: data.y,
         name: data.name || 'Player',
-        status: 'alive',
+        status: data.status || 'alive',  // ✅ МУЛЬТИПЛЕЕР: Используем статус из события, fallback на 'alive'
         ball: data.ball || null,
       });
       console.log('[PUSHER] Stored remote player:', { key: data.playerId, x: data.x, y: data.y, name: data.name });
@@ -2085,7 +2085,8 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
 
         if (normalizedRpKey === normalizedLocal) return;
 
-        if (rp.status !== 'alive') return;
+        // ✅ МУЛЬТИПЛЕЕР: Показывать игрока если он не выбыт (может быть в статусе shooting/running/idle)
+        if (rp.status === 'eliminated') return;
         const isLocalPlayer = gs.players.some((p: any) => p.name === rp.name || p.name === rp.nickname);
         if (isLocalPlayer) return;
 
