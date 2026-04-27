@@ -1237,11 +1237,14 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       p.hasThrown = true;
       p.hasActiveRight = false; // Текущий теряет право
 
-      // Найти следующего игрока (теперь исключённые удалены из массива, поэтому просто берём следующего)
+      // Найти следующего живого игрока
       let nextIdx = (idx + 1) % gs.players.length;
+      while (gs.players[nextIdx].isEliminated && nextIdx !== idx) {
+        nextIdx = (nextIdx + 1) % gs.players.length;
+      }
 
-      // Если найден следующий игрок → дать ему право
-      if (nextIdx !== idx && gs.players[nextIdx]) {
+      // Если найден живой игрок → дать ему право
+      if (nextIdx !== idx && !gs.players[nextIdx].isEliminated) {
         gs.players[nextIdx].hasActiveRight = true;
       }
 
@@ -1393,16 +1396,6 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
 
         const prevPlayer = prevIdx !== -1 ? gs.players[prevIdx] : null;
 
-        console.log('[SCORED] Shooter:', p.name, 'idx:', idx, 'hasThrown:', p.hasThrown);
-        console.log('[SCORED] All players BEFORE elimination:', gs.players.map((pl: any) => ({
-          name: pl.name,
-          hasThrown: pl.hasThrown,
-          hasActiveRight: pl.hasActiveRight,
-          playerNumber: pl.playerNumber
-        })));
-        console.log('[SCORED] prevIdx:', prevIdx, 'prevPlayer:', prevPlayer?.name, 'prevThrown:', prevPlayer?.hasThrown);
-        console.log('[SCORED] Condition check: prevPlayer exists?', !!prevPlayer, 'hasThrown===true?', prevPlayer?.hasThrown === true);
-
         // ПРОВЕРКА: выбивать только если предыдущий выпустил мяч
         if (prevPlayer && prevPlayer.hasThrown === true) {
           // 💥 ВЫБИВАНИЕ: предыдущий бросил но не попал → ИСЧЕЗАЕТ
@@ -1412,14 +1405,11 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           eliminationOrderRef.current.push(prevPlayer.name);
 
           // Удалить из массива
-          console.log('[ELIMINATE] Before splice:', gs.players.length, 'players. Removing prevIdx:', prevIdx);
           gs.players.splice(prevIdx, 1);
           gs.shootStates.splice(prevIdx, 1);
-          console.log('[ELIMINATE] After splice:', gs.players.length, 'players. All players:', gs.players.map((pl: any) => pl.name));
 
           // Пересчитать idx текущего игрока после splice
           const newShooterIdx = gs.players.findIndex((pl: any) => pl === p);
-          console.log('[ELIMINATE] Shooter new index:', newShooterIdx, 'shooter:', p.name);
 
           // Проверить победу ДО перемещения в хвост
           if (gs.players.length === 1) {
@@ -1536,7 +1526,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           gs.disputeP2 = -1;
 
           // 🏀 RUCHEEK: NEW FIRST PLAYER (idx=0) GETS ACTIVE RIGHT
-          if (gs.players.length > 0) {
+          if (gs.players.length > 0 && !gs.players[0].isEliminated) {
             gs.players[0].hasActiveRight = true;
           }
 
