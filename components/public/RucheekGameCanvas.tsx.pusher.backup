@@ -1,8 +1,7 @@
 "use client";
 import { useEffect, useRef, useState, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { Client } from "colyseus.js";
-import { GameStateSchema } from "@/lib/colyseus/schemas.shared";
+import Pusher from "pusher-js";
 import { PowerMeterSystem } from "@/lib/game/powerMeterSystem";
 import { createMeterElement, hideMeter, showAccuracyFeedback } from "@/lib/game/powerMeterUI";
 import {
@@ -65,9 +64,8 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rafRef = useRef<number>(0);
   const pnameRef = useRef<HTMLInputElement>(null);
-  const colysusClientRef = useRef<any>(null);
-  const roomRef = useRef<any>(null);
-  const syncIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const pusherRef = useRef<any>(null);
+  const channelRef = useRef<any>(null);
   const remotePlayersRef = useRef<Map<string, any>>(new Map());
   const [mounted, setMounted] = useState(false);
   const [pname, setPname] = useState(userName);
@@ -117,165 +115,192 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
 
   useEffect(() => { setMounted(true); }, []);
 
-  // Initialize Colyseus connection
+  // Initialize Pusher connection
   useEffect(() => {
-    if (!mounted || roomRef.current) {
-      console.log('[🔴 DEBUG] Skipping Colyseus init:', { mounted, alreadyInit: !!roomRef.current });
+    if (!mounted || pusherRef.current) {
+      console.log('[🔴 DEBUG] Skipping Pusher init:', { mounted, alreadyInit: !!pusherRef.current });
       return;
     }
 
-    console.log('[🔴 DEBUG] Initializing Colyseus with gameRoomId:', gameRoomId);
+    console.log('[🔴 DEBUG] Initializing Pusher with gameRoomId:', gameRoomId);
+    console.log('[🔴 DEBUG] Pusher env:', {
+      KEY: process.env.NEXT_PUBLIC_PUSHER_KEY?.substring(0, 10),
+      CLUSTER: process.env.NEXT_PUBLIC_PUSHER_CLUSTER
+    });
 
-    let client: any;
-    let room: any;
+    let channel: any;
+    let pusherClient: any;
     try {
-      // Для production используем NEXT_PUBLIC_COLYSEUS_URL (Railway), иначе текущий хост
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const host = window.location.host;
-      const colysuesUrl = process.env.NEXT_PUBLIC_COLYSEUS_URL || `${protocol}//${host}`;
-      const isProduction = process.env.NEXT_PUBLIC_COLYSEUS_URL !== undefined;
-      console.log(`[🔴 DEBUG] Connecting to Colyseus (${isProduction ? 'PRODUCTION' : 'LOCAL'}):`, colysuesUrl);
-      client = new Client(colysuesUrl);
-      colysusClientRef.current = client;
-
-      client.joinOrCreate('basketball', {
-        nickname: userName || 'Player',
-        playerId: playerIdRef.current,
-        x: 480,
-        y: 584,
-        color: PLAYER_COLORS[Math.floor(Math.random() * PLAYER_COLORS.length)],
-      }).then((joinedRoom: any) => {
-        console.log('[🔴 DEBUG] Colyseus room joined:', joinedRoom.sessionId);
-        room = joinedRoom;
-        roomRef.current = room;
-        // 🔥 КРИТИЧНО: обновить playerIdRef на настоящий Colyseus sessionId
-        playerIdRef.current = room.sessionId;
-        console.log('[🔴 DEBUG] Updated playerIdRef to:', playerIdRef.current);
-
-        // ✅ MULTIPLAYER: Sync remote players from room state
-        // Colyseus 0.16 syncs state automatically - we just need to poll and render
-        syncIntervalRef.current = setInterval(() => {
-          if (!room || !room.state || !room.state.players) {
-            if (syncIntervalRef.current && !room) clearInterval(syncIntervalRef.current);
-            return;
-          }
-
-          const stateChanged = false;
-
-          // Sync all players from room state
-          room.state.players.forEach((player: any, key: string) => {
-            if (key === room.sessionId) return; // Skip self
-
-            const existingPlayer = remotePlayersRef.current.get(key);
-
-            // 🏀 RUCHEEK: Get fixed position from playerIndex, not from server x/y
-            const positionIndex = Math.min(player.playerIndex || 0, QUEUE_POSITIONS.length - 1);
-            const queuePos = QUEUE_POSITIONS[positionIndex];
-            const posX = queuePos.x;
-            const posY = groundYRef.current; // Uses scaled ground Y
-
-            const newPlayer = {
-              socketId: key,
-              basePlayerId: key,
-              playerIndex: player.playerIndex || 0,
-              order: player.playerIndex || 0,
-              x: posX,
-              y: posY,
-              status: player.status || 'alive',
-              nickname: player.nickname || 'Player',
-              name: player.nickname || 'Player',
-            };
-
-            // Check if player is new or changed
-            if (!existingPlayer || existingPlayer.x !== player.x || existingPlayer.y !== player.y) {
-              if (!existingPlayer) {
-                console.log('[🟢 COLYSEUS] New player:', { key, nickname: player.nickname });
-                gsRef.current.flashes.push({
-                  text: `✅ ${player.nickname} присоединився!`,
-                  x: 400,
-                  y: 50,
-                  color: '#88ff88',
-                  alpha: 1,
-                  dy: 0,
-                });
-              }
-              remotePlayersRef.current.set(key, newPlayer);
-            }
-          });
-
-          // Remove players that left
-          remotePlayersRef.current.forEach((_, key) => {
-            if (!room.state.players.has(key)) {
-              console.log('[🟢 COLYSEUS] Player left:', key);
-              remotePlayersRef.current.delete(key);
-            }
-          });
-
-          if (remotePlayersRef.current.size > 0) {
-            forceUpdate(n => n + 1);
-          }
-        }, 50); // 50ms sync interval for 20fps multiplayer updates
-
-        // ✅ MULTIPLAYER: Event - Another player shot
-        room.onMessage('shotResult', (data: any) => {
-          if (data.playerId === playerIdRef.current) return;
-
-          gsRef.current.flashes.push({
-            text: `⚽ ${data.nickname}: ${data.shotScore}pts (${Math.round(data.accuracy)}%)`,
-            x: 400,
-            y: 150,
-            color: '#ffdd44',
-            alpha: 1,
-            dy: 0,
-          });
-
-          // Update leaderboard
-          const lb = gsRef.current.leaderboard as any[];
-          const existing = lb.find((e: any) => e.playerId === data.playerId);
-          if (existing) {
-            existing.score = (existing.score || 0) + data.shotScore;
-          } else {
-            lb.push({
-              playerId: data.playerId,
-              nickname: data.nickname,
-              score: data.shotScore,
-            });
-          }
-          lb.sort((a: any, b: any) => b.score - a.score);
-          forceUpdate(n => n + 1);
-        });
-
-        // ✅ MULTIPLAYER: Listen to ball state changes
-        room.state.ball.onChange(() => {
-          const ball = room.state.ball;
-          gsRef.current.remoteBall = {
-            x: ball.x,
-            y: ball.y,
-            vx: ball.vx,
-            vy: ball.vy,
-            state: ball.state,
-            rotation: ball.rotation,
-          };
-        });
-      }).catch((err: any) => {
-        console.error('[🔴 ERROR] Colyseus join failed:', err);
+      pusherClient = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY!, {
+        cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER!,
       });
+      console.log('[🔴 DEBUG] Pusher client created successfully');
+      pusherRef.current = pusherClient;
+
+      const channelName = `game-${gameRoomId}`;
+      console.log('[🔴 DEBUG] Subscribing to channel:', channelName);
+      channel = pusherClient.subscribe(channelName);
+      console.log('[🔴 DEBUG] Channel subscribed successfully');
+      channelRef.current = channel;
     } catch (e) {
-      console.error('[🔴 ERROR] Colyseus initialization failed:', e);
+      console.error('[🔴 ERROR] Pusher initialization failed:', e);
       return;
     }
+
+    // ✅ MULTIPLAYER: Event - Another player joined
+    channel.bind('player-joined', (data: any) => {
+      console.log('[🟢 PUSHER] player-joined EVENT:', {
+        playerId: data.playerId,
+        nickname: data.nickname,
+        x: data.x,
+        y: data.y
+      });
+
+      // ✅ GHOST FIX: Нормализуем оба ID перед сравнением (удаляем Pusher суфиксы)
+      const normalizedIncoming = normalizePlayerId(data.playerId);
+      const normalizedLocal = normalizePlayerId(playerIdRef.current);
+
+      if (normalizedIncoming === normalizedLocal) {
+        console.log('[🟢 PUSHER] Skipping local player join event');
+        return;
+      }
+
+      // ✅ GHOST FIX: Удаляем старые записи этого же игрока (по нормализованному ID)
+      const normalizedIncomingClean = normalizePlayerId(data.playerId);
+      remotePlayersRef.current.forEach((_, key) => {
+        const normalizedKey = normalizePlayerId(key);
+        if (normalizedKey === normalizedIncomingClean) {
+          remotePlayersRef.current.delete(key);
+        }
+      });
+
+      remotePlayersRef.current.set(data.playerId, {
+        socketId: data.playerId,
+        basePlayerId: normalizedIncomingClean,
+        playerIndex: data.playerIndex,
+        order: data.order,  // Preserve global order from server
+        x: data.x,
+        y: data.y,
+        status: 'alive',
+        nickname: data.nickname || 'Player',
+        name: data.nickname || 'Player',
+      });
+
+      gsRef.current.flashes.push({
+        text: `✅ ${data.nickname} присоединився!`,
+        x: 400,
+        y: 50,
+        color: '#88ff88',
+        alpha: 1,
+        dy: 0,
+      });
+      forceUpdate(n => n + 1);
+    });
+
+    // ✅ MULTIPLAYER: Event - Another player moved
+    channel.bind('player-move', (data: any) => {
+      // ✅ GHOST FIX: Нормализуем оба ID перед сравнением (удаляем Pusher суфиксы)
+      const normalizedIncoming = normalizePlayerId(data.playerId);
+      const normalizedLocal = normalizePlayerId(playerIdRef.current);
+
+      console.log('[🟢 PUSHER] player-move EVENT RECEIVED:', {
+        playerId: data.playerId,
+        normalized: normalizedIncoming,
+        status: data.status,
+        x: data.x,
+        y: data.y,
+        name: data.name,
+        isLocal: normalizedIncoming === normalizedLocal
+      });
+
+      if (normalizedIncoming === normalizedLocal) {
+        console.log('[🟢 PUSHER] Skipping local player event');
+        return;
+      }
+
+      // ✅ GHOST FIX: Удаляем старые записи этого же игрока (по нормализованному ID)
+      remotePlayersRef.current.forEach((_, key) => {
+        const normalizedKey = normalizePlayerId(key);
+        if (normalizedKey === normalizedIncoming) {
+          remotePlayersRef.current.delete(key);
+        }
+      });
+
+      const existingPlayer = remotePlayersRef.current.get(data.playerId);
+      const newPlayer = {
+        ...(existingPlayer || {}),
+        socketId: data.playerId,
+        basePlayerId: normalizedIncoming,
+        x: data.x,
+        y: data.y,
+        name: data.name || 'Player',
+        status: data.status || 'alive',  // ✅ МУЛЬТИПЛЕЕР: Используем статус из события, fallback на 'alive'
+        ball: data.ball || null,
+      };
+      remotePlayersRef.current.set(data.playerId, newPlayer);
+      console.log('[👁️ RENDER] Stored remote player:', {
+        key: data.playerId,
+        status: newPlayer.status,
+        x: data.x,
+        y: data.y,
+        name: data.name,
+        mapSize: remotePlayersRef.current.size
+      });
+    });
+
+    // ✅ MULTIPLAYER: Event - Another player left
+    channel.bind('player-leave', (data: any) => {
+      remotePlayersRef.current.delete(data.playerId);
+      forceUpdate(n => n + 1);
+    });
+
+    // ✅ MULTIPLAYER: Event - Another player shot
+    channel.bind('shot-completed', (data: any) => {
+      if (data.playerId === playerIdRef.current) return;
+
+      gsRef.current.flashes.push({
+        text: `⚽ ${data.nickname}: ${data.shotScore}pts (${Math.round(data.accuracy)}%)`,
+        x: 400,
+        y: 150,
+        color: '#ffdd44',
+        alpha: 1,
+        dy: 0,
+      });
+
+      // Update leaderboard
+      const lb = gsRef.current.leaderboard as any[];
+      const existing = lb.find((e: any) => e.playerId === data.playerId);
+      if (existing) {
+        existing.score = (existing.score || 0) + data.shotScore;
+      } else {
+        lb.push({
+          playerId: data.playerId,
+          nickname: data.nickname,
+          score: data.shotScore,
+        });
+      }
+      lb.sort((a: any, b: any) => b.score - a.score);
+      forceUpdate(n => n + 1);
+    });
 
     // Cleanup on unmount
     return () => {
-      if (syncIntervalRef.current) {
-        clearInterval(syncIntervalRef.current);
-        syncIntervalRef.current = null;
-      }
-      if (room) {
-        room.leave().catch(() => {});
-      }
-      colysusClientRef.current = null;
-      roomRef.current = null;
+      // Announce player leave
+      fetch('/api/pusher', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          room: gameRoomId,
+          playerId: playerIdRef.current,
+          action: 'leave',
+          socket_id: playerIdRef.current,  // ✅ МУЛЬТИПЛЕЕР: Передаём socket_id для предотвращения эхо-событий
+        }),
+      }).catch(() => {});
+
+      channel.unbind_all();
+      pusherClient.unsubscribe(`game-${gameRoomId}`);
+      pusherRef.current = null;
+      channelRef.current = null;
     };
   }, [mounted, gameRoomId, userName]);
 
@@ -1505,16 +1530,22 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
 
       // DEBUG: Log scoring event with distance, accuracy, and hit type
 
-      // ✅ MULTIPLAYER: Emit shot completion to server via Colyseus
-      if (idx === 0 && roomRef.current) {
-        roomRef.current.send('shoot', {
-          playerId: playerIdRef.current,
-          playerIndex: idx,
-          nickname: p.name || userName || 'Player',
-          shotScore: 1,
-          accuracy,
-          collisionType: 'swish',
-        });
+      // ✅ MULTIPLAYER: Emit shot completion to server via Pusher
+      if (idx === 0) {
+        fetch('/api/pusher/shot', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            room: gameRoomId,
+            playerId: playerIdRef.current,
+            playerIndex: idx,
+            nickname: p.name || userName || 'Player',
+            shotScore: 1,
+            accuracy,
+            collisionType: 'swish',
+            socket_id: playerIdRef.current,  // ✅ МУЛЬТИПЛЕЕР: Передаём socket_id для предотвращения эхо-событий
+          }),
+        }).catch(() => {});
       }
 
       if (idx === gs.disputeP2 && gs.disputeP1 >= 0 && gs.disputeP1 < gs.players.length) {
@@ -2093,10 +2124,13 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         }
       }
 
-      // Draw remote players from Colyseus
+      // Draw remote players from Socket.IO
       remotePlayersRef.current.forEach((rp: any, rpKey: string) => {
-        // 🔥 Для Colyseus: прямое сравнение sessionId
-        if (rpKey === playerIdRef.current) {
+        // ✅ GHOST FIX: Нормализуем оба ID перед сравнением в рендеринге
+        const normalizedRpKey = normalizePlayerId(rpKey);
+        const normalizedLocal = normalizePlayerId(playerIdRef.current);
+
+        if (normalizedRpKey === normalizedLocal) {
           console.log('[🔴 DEBUG] Skipping self in render:', { key: rpKey, status: rp.status });
           return;
         }
@@ -2678,13 +2712,18 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
 
       const ball = gs.shootStates[idx]?.ball;
 
-      if (roomRef.current) {
-        roomRef.current.send('move', {
+      fetch('/api/pusher', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          room: gameRoomId,
+          playerId: playerIdRef.current + `_${idx}`,  // добавляем _${idx} суффикс для различия нескольких игроков от одного клиента
           x: myPlayer.x,
           y: myPlayer.y,
           name: myPlayer.name,
           score: myPlayer.score,
           status: myPlayer.status,
+          socket_id: playerIdRef.current,  // ✅ МУЛЬТИПЛЕЕР: Передаём socket_id для предотвращения эхо-событий
           ball: ball ? {
             x: ball.x,
             y: ball.y,
@@ -2693,15 +2732,50 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
             rot: ball.rot,
             state: ball.state
           } : null,
-        });
-      }
+        }),
+      }).catch(() => {});
     });
   }, [gameRoomId]);
 
   // Game state is persisted via localStorage (no server-side persistence needed)
   const emitGameStateToServer = useCallback(() => {
-    // Colyseus: game state is synced via room.send('move')
-    if (gs.state !== 'playing' || !gameRoomId || !roomRef.current) return;
+    // Pusher-based approach: emit state-update if needed (optional)
+    if (gs.state !== 'playing' || !gameRoomId) return;
+    try {
+      fetch('/api/pusher/state', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          room: gameRoomId,
+          playerId: playerIdRef.current,
+          state: {
+            state: gs.state,
+            players: gs.players.map((p: any) => ({
+              id: p.id,
+              name: p.name,
+              x: p.x,
+              y: p.y,
+              score: p.score,
+              kills: p.kills || 0,
+              status: p.status,
+              color: p.color,
+              rf: p.rf || 0,
+            })),
+            shootStates: gs.shootStates.map((ss: any) => ({
+              phase: ss.phase,
+              hasBall: ss.hasBall || false,
+              power: ss.power || 0,
+              aimAngle: ss.aimAngle || 0,
+            })),
+            round: gs.round || 0,
+            disputeP1: gs.disputeP1 || 0,
+            disputeP2: gs.disputeP2 || -1,
+          },
+        }),
+      }).catch(() => {});
+    } catch (e) {
+      console.error('[PERSIST] Failed to emit game state:', e);
+    }
   }, [gameRoomId]);
 
   const handleAddPlayer = async () => {
@@ -2710,11 +2784,16 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
 
     // 🏀 RUCHEEK: Get global order from server (ensures correct position across browsers)
     let assignedOrder = gs.players.length + 1;  // Fallback
-    // Colyseus: server maintains order via room state
-    if (roomRef.current && roomRef.current.state && roomRef.current.state.players) {
-      assignedOrder = roomRef.current.state.players.size + 1;
-    } else {
-      assignedOrder = gs.players.length + 1;
+    try {
+      const resp = await fetch('/api/pusher/get-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ gameRoomId })
+      });
+      const data = await resp.json();
+      assignedOrder = data.order;
+    } catch (e) {
+      console.warn('[ADD-PLAYER] Failed to get order from server:', e);
     }
 
     // 🏀 RUCHEEK: 6 PERMANENT POSITIONS
@@ -2743,16 +2822,25 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
     gs.players.push(newPlayer);
     gs.shootStates.push({ phase:null,aimAngle:-Math.PI*0.72,aimDir:1,power:0,powerDir:1,ball:null,lockedAngle:null,idealTraj:null,idealSpeed:10,runTarget:null,inDanger:false,greenZonePos:0.5,powerMeterResult:null,accuracy:0 });
 
-    // Broadcast to other clients via Colyseus
-    if (roomRef.current) {
-      roomRef.current.send('ready', {
-        playerIndex: positionIndex,
-        nickname: name,
-        order: playerNumber,
-        x: newPlayer.x,
-        y: newPlayer.y,
-        color: newPlayer.color,
+    // Broadcast this player to all other clients with global order
+    try {
+      await fetch('/api/pusher/join', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          room: gameRoomId,
+          playerId: playerIdRef.current,
+          playerIndex: positionIndex,
+          nickname: name,
+          order: playerNumber,  // Send position number
+          x: newPlayer.x,
+          y: newPlayer.y,
+          color: newPlayer.color,
+          socket_id: playerIdRef.current,  // ✅ МУЛЬТИПЛЕЕР: Передаём socket_id для предотвращения эхо-событий
+        })
       });
+    } catch (e) {
+      console.warn('[ADD-PLAYER] Failed to broadcast join:', e);
     }
 
     // Immediately set game to playing when first player is added
@@ -2771,8 +2859,16 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
   };
 
   const handleRestart = async () => {
-    // 🏀 RUCHEEK: Server resets order automatically on Colyseus
-    // No client-side reset needed
+    // 🏀 RUCHEEK: Reset global order counter on server for new game
+    try {
+      await fetch('/api/pusher/reset-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ gameRoomId })
+      });
+    } catch (e) {
+      console.warn('[RESTART] Failed to reset order counter:', e);
+    }
 
     // 🏀 RUCHEEK: Переформирование номеров по порядку выбывания
     const nextGameOrder: string[] = [...eliminationOrderRef.current];
@@ -2808,8 +2904,18 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
     gs.players.pop();
     gs.shootStates.pop();
 
-    // 🏀 RUCHEEK: Server resets order automatically on Colyseus
-    // No client-side reset needed
+    // 🏀 RUCHEEK: Reset order counter when last player leaves
+    if (gs.players.length === 0) {
+      try {
+        await fetch('/api/pusher/reset-order', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ gameRoomId })
+        });
+      } catch (e) {
+        console.warn('[DELETE-LAST] Failed to reset order counter:', e);
+      }
+    }
 
     forceUpdate(n => n+1);
   };
@@ -2825,8 +2931,17 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
     gs.selectedMoveIdx = -1;
     // Clear persisted state when exiting
     localStorage.removeItem(`basketball_game_state_${gameRoomId}`);
-    // 🏀 RUCHEEK: Server resets order automatically on Colyseus
-    // No client-side reset needed
+
+    // 🏀 RUCHEEK: Reset order counter when exiting game
+    try {
+      await fetch('/api/pusher/reset-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ gameRoomId })
+      });
+    } catch (e) {
+      console.warn('[EXIT] Failed to reset order counter:', e);
+    }
 
     setPname(userName);
     forceUpdate(n => n+1);

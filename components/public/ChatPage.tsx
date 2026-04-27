@@ -2800,7 +2800,7 @@ export default function ChatPage() {
         </div>
       </div>
 
-      {/* ── РУЧЕЁК Game Canvas (прозрачный overlay поверх всієї сторінки) ────── */}
+      {/* ── РУЧЕЁК Game Canvas ────── */}
       <RucheekGameCanvas
         isVisible={showRucheekGame && activeRoom === "general"}
         userName={user ? `${user.firstName} ${user.lastName}` : "Гравець"}

@@ -94,32 +94,33 @@ if (isWindows) {
 
 // Small delay to ensure ports are fully released
 setTimeout(() => {
-  console.log("🚀 Starting Next.js development server...\n");
+  console.log("🚀 Starting unified Next.js + Colyseus development server...\n");
   console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
   console.log("📍 Main App  → http://localhost:3006");
+  console.log("📡 WebSocket → ws://localhost:3006");
   console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
 
-  const dev = spawn("npx", ["next", "dev", "-p", "3006"], {
+  // Start unified Next.js + Colyseus server (port 3006)
+  console.log("▶ Starting Next.js + Colyseus server...");
+  const server = spawn("npx", ["tsx", "watch", "server.ts"], {
     stdio: "inherit",
     shell: isWindows,
     cwd: path.resolve(__dirname, ".."),
   });
 
-  dev.on("error", (error) => {
-    console.error("❌ Error starting dev server:", error.message);
+  server.on("error", (error) => {
+    console.error("❌ Error starting server:", error.message);
     process.exit(1);
-  });
-
-  dev.on("exit", (code) => {
-    if (code !== 0 && code !== null) {
-      process.exit(code);
-    }
   });
 
   // Graceful shutdown on Ctrl+C
   process.on("SIGINT", () => {
-    console.log("\n\n🛑 Shutting down development server...");
-    dev.kill();
+    console.log("\n\n🛑 Shutting down server...");
+    server.kill();
     process.exit(0);
+  });
+
+  process.on("exit", () => {
+    server.kill();
   });
 }, 500);
