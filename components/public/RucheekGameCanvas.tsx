@@ -2790,15 +2790,29 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
     setPname(userName); forceUpdate(n => n+1);
   };
 
-  const handleDeleteLast = () => {
+  const handleDeleteLast = async () => {
     if (gs.state === "playing") { alert("❌ Не можна видалити гравця під час гри!"); return; }
     if (gs.players.length <= 1) { alert("❌ Потрібно щонайменше 1 гравець для видалення!"); return; }
     gs.players.pop();
     gs.shootStates.pop();
+
+    // 🏀 RUCHEEK: Reset order counter when last player leaves
+    if (gs.players.length === 0) {
+      try {
+        await fetch('/api/pusher/reset-order', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ gameRoomId })
+        });
+      } catch (e) {
+        console.warn('[DELETE-LAST] Failed to reset order counter:', e);
+      }
+    }
+
     forceUpdate(n => n+1);
   };
 
-  const handleExit = () => {
+  const handleExit = async () => {
     if (!confirm("Вихід з гри? Усі гравці будуть видалені!")) return;
     gs.state = "waiting";
     gs.players = [];
@@ -2809,6 +2823,18 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
     gs.selectedMoveIdx = -1;
     // Clear persisted state when exiting
     localStorage.removeItem(`basketball_game_state_${gameRoomId}`);
+
+    // 🏀 RUCHEEK: Reset order counter when exiting game
+    try {
+      await fetch('/api/pusher/reset-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ gameRoomId })
+      });
+    } catch (e) {
+      console.warn('[EXIT] Failed to reset order counter:', e);
+    }
+
     setPname(userName);
     forceUpdate(n => n+1);
   };
