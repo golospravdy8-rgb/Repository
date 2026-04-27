@@ -27,17 +27,6 @@ interface RucheekGameCanvasProps {
 const PLAYER_COLORS = ["#4fc3f7","#81c784","#ffb74d","#f06292","#ce93d8","#80cbc4"];
 const MAX_PLAYERS = 6;
 
-// 🏀 RUCHEEK: Fixed queue positions (in original 860x624 coordinates)
-// Players spawn at these positions based on their order (playerNumber = index + 1)
-const QUEUE_POSITIONS = [
-  { x: 560, y: 584 },  // №1 — head of queue (closer to hoop)
-  { x: 620, y: 584 },  // №2
-  { x: 680, y: 584 },  // №3
-  { x: 740, y: 584 },  // №4
-  { x: 800, y: 584 },  // №5
-  { x: 860, y: 584 },  // №6 — tail of queue
-];
-
 // ✅ GHOST FIX (4-та линия защиты): Нормализация playerId
 // Удаляет Pusher суфиксы (_sub_X, _session_Y) для корректного сравнения
 function normalizePlayerId(id: string): string {
@@ -96,6 +85,8 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
   const lastFrameTimeRef = useRef<number>(0);
   const showOrderRef = useRef<{[key: number]: boolean}>({});
   const groundYRef = useRef<number>(584);
+  const pStartRef = useRef<number>(0);  // 🏀 RUCHEEK: Starting X position for queue
+  const pStepRef = useRef<number>(0);   // 🏀 RUCHEEK: Gap between players in queue
   const eliminationOrderRef = useRef<string[]>([]);
   const markerPosRef = useRef<number>(0);
   const markerDirRef = useRef<number>(1);
@@ -296,6 +287,9 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
     const HOOP_X = 110*scaleX, HOOP_Y = 307*scaleY;
     const HOOP_R = 27*scaleX;
     const P_START = W * 0.65, P_STEP = W * 0.07;
+    // 🏀 RUCHEEK: Save position params to refs for use in handleAddPlayer
+    pStartRef.current = P_START;
+    pStepRef.current = P_STEP;
     const P_START_Y = 584 * scaleY;
 
     const gs = gsRef.current;
@@ -1471,23 +1465,20 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       if (idx === 0) {
         const w = gs.players.shift(), sw = gs.shootStates.shift();
         if (w && sw) {
+          const tailX = P_START + gs.players.length * P_STEP;
           w.status = 'running';
           sw.phase = 'manual_run';
+          sw.runTarget = { x: tailX, y: GY };
           sw.inDanger = false;
           gs.players.push(w);
           gs.shootStates.push(sw);
           gs.disputeP1 = 0;
           gs.disputeP2 = -1;
-          // 🏀 RUCHEEK: Update positions based on new order in queue (fixed positions)
+          // 🏀 RUCHEEK: Update playerNumber based on new position in queue
           gs.players.forEach((p2: any, i: number) => {
-            const pos = QUEUE_POSITIONS[Math.min(i, QUEUE_POSITIONS.length - 1)];
-            p2.x = pos.x;
-            p2.y = pos.y;
+            p2.x = P_START + i * P_STEP;
             p2.playerNumber = i + 1;  // Update number based on new position
           });
-          // Update run target to last position's X
-          const lastPos = QUEUE_POSITIONS[Math.min(gs.players.length - 1, QUEUE_POSITIONS.length - 1)];
-          sw.runTarget = { x: lastPos.x, y: GY };
         }
       }
       // Only end game if only 1 player left alive (all others eliminated)
@@ -2686,17 +2677,21 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       console.warn('[ADD-PLAYER] Failed to get order from server, using local:', assignedOrder);
     }
 
-    // 🏀 RUCHEEK: Use fixed queue positions from QUEUE_POSITIONS array
-    // playerNumber = assignedOrder (1-6)
-    const playerNumber = assignedOrder;
-    const positionIndex = Math.min(assignedOrder - 1, QUEUE_POSITIONS.length - 1);
-    const queuePos = QUEUE_POSITIONS[positionIndex];
+    // 🏀 RUCHEEK: playerNumber and spawnX use GLOBAL ORDER (assignedOrder), not local idx
+    // queuePosition is 0-based index (order 1 -> position 0, order 2 -> position 1, etc)
+    const queuePosition = assignedOrder - 1;
+    const playerNumber = assignedOrder;  // 1-6: номер в очереди от сервера
+
+    // Physical position in queue = P_START + queuePosition * P_STEP
+    const spawnX = pStartRef.current > 0
+      ? pStartRef.current + queuePosition * pStepRef.current
+      : 680 + queuePosition * 110;
 
     const newPlayer = {
       name,
       order: assignedOrder,
-      x: queuePos.x,
-      y: queuePos.y,
+      x: spawnX,
+      y: groundYRef.current,
       score:0,
       kills:0,
       status:"idle",
