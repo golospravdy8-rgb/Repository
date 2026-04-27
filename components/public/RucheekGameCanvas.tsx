@@ -85,6 +85,8 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
   const lastFrameTimeRef = useRef<number>(0);
   const showOrderRef = useRef<{[key: number]: boolean}>({});
   const groundYRef = useRef<number>(584);
+  const pStartRef = useRef<number>(0);  // 🏀 RUCHEEK: Starting X position for queue
+  const pStepRef = useRef<number>(0);   // 🏀 RUCHEEK: Gap between players in queue
   const eliminationOrderRef = useRef<string[]>([]);
   const markerPosRef = useRef<number>(0);
   const markerDirRef = useRef<number>(1);
@@ -285,6 +287,9 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
     const HOOP_X = 110*scaleX, HOOP_Y = 307*scaleY;
     const HOOP_R = 27*scaleX;
     const P_START = W * 0.65, P_STEP = W * 0.07;
+    // 🏀 RUCHEEK: Save position params to refs for use in handleAddPlayer
+    pStartRef.current = P_START;
+    pStepRef.current = P_STEP;
     const P_START_Y = 584 * scaleY;
 
     const gs = gsRef.current;
@@ -1469,7 +1474,11 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           gs.shootStates.push(sw);
           gs.disputeP1 = 0;
           gs.disputeP2 = -1;
-          gs.players.forEach((p2: any, i: number) => { p2.x = P_START + i * P_STEP; });
+          // 🏀 RUCHEEK: Update playerNumber based on new position in queue
+          gs.players.forEach((p2: any, i: number) => {
+            p2.x = P_START + i * P_STEP;
+            p2.playerNumber = i + 1;  // Update number based on new position
+          });
         }
       }
       // Only end game if only 1 player left alive (all others eliminated)
@@ -2652,28 +2661,14 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
     const name = pname.trim() || `Гр.${gs.players.length+1}`;
     const idx = gs.players.length;
 
-    // 🏀 RUCHEEK: Определить playerNumber на основе порядка выбывания из прошлой игры
-    const savedOrder = localStorage.getItem('rucheyok_next_order');
-    let assignedOrder = idx + 1;  // Fallback
-    let playerNumber = idx + 1;   // playerNumber (1-6) определяет очередность в "Ручейке"
+    // 🏀 RUCHEEK: playerNumber = position in queue = idx + 1 ALWAYS
+    // (NO reassignment from localStorage for queue position)
+    const playerNumber = idx + 1;   // 1-6: порядок в очереди (физический)
 
-    if (savedOrder) {
-      try {
-        const orderList: string[] = JSON.parse(savedOrder);
-        const playerIdx = orderList.findIndex((n: string) => n === name);
-        if (playerIdx !== -1) {
-          // Игрок найден в списке выбывших → его новый номер = позиция в списке выбывших
-          // Первый выбыл → номер 1, второй выбыл → номер 2, итд
-          assignedOrder = playerIdx + 1;
-          playerNumber = playerIdx + 1;  // ← КЛЮЧЕВО: playerNumber соответствует порядку выбывания
-        }
-      } catch (e) {
-        console.warn('[ADD-PLAYER] Failed to parse saved order, using server order');
-      }
-    }
+    let assignedOrder = idx + 1;  // Fallback for global server order
 
     // If no saved order or not found in list, get global order from server
-    if (!savedOrder) {
+    if (!localStorage.getItem('rucheyok_next_order')) {
       try {
         const resp = await fetch('/api/pusher/get-order', {
           method: 'POST',
@@ -2687,10 +2682,13 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       }
     }
 
+    // 🏀 RUCHEEK: Physical position in queue = P_START + idx * P_STEP
+    const spawnX = pStartRef.current > 0 ? pStartRef.current + idx * pStepRef.current : 680 + idx * 110;
+
     const newPlayer = {
       name,
       order: assignedOrder,
-      x: 680 + idx * 58,
+      x: spawnX,
       y: groundYRef.current,
       score:0,
       kills:0,
