@@ -117,20 +117,35 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
 
   // Initialize Pusher connection
   useEffect(() => {
-    if (!mounted || pusherRef.current) return;
+    if (!mounted || pusherRef.current) {
+      console.log('[🔴 DEBUG] Skipping Pusher init:', { mounted, alreadyInit: !!pusherRef.current });
+      return;
+    }
 
     console.log('[🔴 DEBUG] Initializing Pusher with gameRoomId:', gameRoomId);
-
-    const pusherClient = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY!, {
-      cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER!,
+    console.log('[🔴 DEBUG] Pusher env:', {
+      KEY: process.env.NEXT_PUBLIC_PUSHER_KEY?.substring(0, 10),
+      CLUSTER: process.env.NEXT_PUBLIC_PUSHER_CLUSTER
     });
-    pusherRef.current = pusherClient;
 
-    const channelName = `game-${gameRoomId}`;
-    console.log('[🔴 DEBUG] Subscribing to channel:', channelName);
-    const channel = pusherClient.subscribe(channelName);
-    channelRef.current = channel;
+    let channel: any;
+    let pusherClient: any;
+    try {
+      pusherClient = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY!, {
+        cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER!,
+      });
+      console.log('[🔴 DEBUG] Pusher client created successfully');
+      pusherRef.current = pusherClient;
 
+      const channelName = `game-${gameRoomId}`;
+      console.log('[🔴 DEBUG] Subscribing to channel:', channelName);
+      channel = pusherClient.subscribe(channelName);
+      console.log('[🔴 DEBUG] Channel subscribed successfully');
+      channelRef.current = channel;
+    } catch (e) {
+      console.error('[🔴 ERROR] Pusher initialization failed:', e);
+      return;
+    }
 
     // ✅ MULTIPLAYER: Event - Another player joined
     channel.bind('player-joined', (data: any) => {
