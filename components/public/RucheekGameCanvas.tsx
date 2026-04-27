@@ -1522,7 +1522,14 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         }
       }
 
-      if (idx === 0) {
+      // 🏀 RUCHEEK: Check if first player needs shift/push
+      // NOTE: After elimination splice, idx might point to a different position!
+      // We need to check if current shooter is now at index 0 after splice
+      const firstPlayerIdx = gs.players.findIndex((pl: any) => pl === p);
+
+      if (firstPlayerIdx === 0 && idx !== 0) {
+        // After elimination, shooter became first player → needs shift/push
+        console.log('[SHIFT/PUSH] After elimination, shooter at idx 0. Players:', gs.players.map((pl: any) => pl.name));
         const w = gs.players.shift(), sw = gs.shootStates.shift();
         if (w && sw) {
           w.status = 'running';
@@ -1534,10 +1541,45 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           gs.shootStates.push(sw);
           gs.disputeP1 = 0;
           gs.disputeP2 = -1;
+          console.log('[SHIFT/PUSH] After shift/push:', gs.players.map((pl: any) => pl.name));
 
           // 🏀 RUCHEEK: NEW FIRST PLAYER (idx=0) GETS ACTIVE RIGHT
           if (gs.players.length > 0) {
             gs.players[0].hasActiveRight = true;
+            console.log('[SHIFT/PUSH] New first player:', gs.players[0].name, 'hasActiveRight=true');
+          }
+
+          // 🏀 RUCHEEK: Update ONLY positions, NOT playerNumber (playerNumber is permanent!)
+          gs.players.forEach((p2: any, i: number) => {
+            const pos = QUEUE_POSITIONS[i];
+            p2.x = pos.x;
+            p2.y = GY;  // ✅ USE REAL GROUND Y
+            // 🏀 ВАЖНО: playerNumber НИКОГДА не меняется! Это постоянный номер игрока
+          });
+          // Update run target to new last player position
+          const lastPos = QUEUE_POSITIONS[Math.min(gs.players.length - 1, QUEUE_POSITIONS.length - 1)];
+          sw.runTarget = { x: lastPos.x, y: GY };
+        }
+      } else if (idx === 0) {
+        // Original case: first player at idx 0 scores
+        console.log('[SHIFT/PUSH] First player (original idx=0) going to tail. Players:', gs.players.map((pl: any) => pl.name));
+        const w = gs.players.shift(), sw = gs.shootStates.shift();
+        if (w && sw) {
+          w.status = 'running';
+          w.hasThrown = false;  // 🏀 RUCHEEK: Reset hasThrown when player goes to tail
+          w.hasActiveRight = false;  // Clear active right (will be set by next player)
+          sw.phase = 'manual_run';
+          sw.inDanger = false;
+          gs.players.push(w);
+          gs.shootStates.push(sw);
+          gs.disputeP1 = 0;
+          gs.disputeP2 = -1;
+          console.log('[SHIFT/PUSH] After shift/push:', gs.players.map((pl: any) => pl.name));
+
+          // 🏀 RUCHEEK: NEW FIRST PLAYER (idx=0) GETS ACTIVE RIGHT
+          if (gs.players.length > 0) {
+            gs.players[0].hasActiveRight = true;
+            console.log('[SHIFT/PUSH] New first player:', gs.players[0].name, 'hasActiveRight=true');
           }
 
           // 🏀 RUCHEEK: Update ONLY positions, NOT playerNumber (playerNumber is permanent!)
