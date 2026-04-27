@@ -40,20 +40,24 @@ const QUEUE_POSITIONS = [
 ];
 
 // ✅ GHOST FIX (4-та линия защиты): Нормализация playerId
-// Удаляет Pusher суфиксы (_sub_X, _session_Y) для корректного сравнения
+// Удаляет Pusher суфиксы (_sub_X, _session_Y, _idx) для корректного сравнения
 function normalizePlayerId(id: string): string {
   // Сначала удаляем известные Pusher суфиксы
   const withoutSub = id.split('_sub_')[0];
   const withoutSession = withoutSub.split('_session_')[0];
 
+  // Удаляем суффикс _${idx} (добавляется в emitPlayerPosition, строка 2655)
+  // Паттерн: "baseid_0", "baseid_1" и т.д.
+  const withoutIdx = withoutSession.replace(/_(\d+)$/, '');
+
   // Если в ID 4+ части и 3-я часть НЕ число (timestamp) → это суффикс
-  const parts = withoutSession.split('_');
+  const parts = withoutIdx.split('_');
   if (parts.length >= 4 && parts[2] && !parts[2].match(/^\d+$/)) {
     // Формат: player_timestamp_randomString_suffix → берем первые 3 части
     return parts.slice(0, 3).join('_');
   }
 
-  return withoutSession;
+  return withoutIdx;
 }
 
 export default function RucheekGameCanvas({ isVisible, userName = "", userPhone = "", gameRoomId = "general" }: RucheekGameCanvasProps) {
@@ -171,6 +175,8 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       const normalizedIncoming = normalizePlayerId(data.playerId);
       const normalizedLocal = normalizePlayerId(playerIdRef.current);
 
+      console.log('[PUSHER] player-move:', { incoming: data.playerId, normalized: normalizedIncoming, local: playerIdRef.current, isLocal: normalizedIncoming === normalizedLocal });
+
       if (normalizedIncoming === normalizedLocal) return;
 
       // ✅ GHOST FIX: Удаляем старые записи этого же игрока (по нормализованному ID)
@@ -192,6 +198,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         status: 'alive',
         ball: data.ball || null,
       });
+      console.log('[PUSHER] Stored remote player:', { key: data.playerId, x: data.x, y: data.y, name: data.name });
     });
 
     // ✅ MULTIPLAYER: Event - Another player left
@@ -239,6 +246,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           room: gameRoomId,
           playerId: playerIdRef.current,
           action: 'leave',
+          socket_id: playerIdRef.current,  // ✅ МУЛЬТИПЛЕЕР: Передаём socket_id для предотвращения эхо-событий
         }),
       }).catch(() => {});
 
@@ -1488,6 +1496,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
             shotScore: 1,
             accuracy,
             collisionType: 'swish',
+            socket_id: playerIdRef.current,  // ✅ МУЛЬТИПЛЕЕР: Передаём socket_id для предотвращения эхо-событий
           }),
         }).catch(() => {});
       }
@@ -2652,12 +2661,13 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           room: gameRoomId,
-          playerId: playerIdRef.current + `_${idx}`,
+          playerId: playerIdRef.current + `_${idx}`,  // добавляем _${idx} суффикс для различия нескольких игроков от одного клиента
           x: myPlayer.x,
           y: myPlayer.y,
           name: myPlayer.name,
           score: myPlayer.score,
           status: myPlayer.status,
+          socket_id: playerIdRef.current,  // ✅ МУЛЬТИПЛЕЕР: Передаём socket_id для предотвращения эхо-событий
           ball: ball ? {
             x: ball.x,
             y: ball.y,
@@ -2770,6 +2780,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           x: newPlayer.x,
           y: newPlayer.y,
           color: newPlayer.color,
+          socket_id: playerIdRef.current,  // ✅ МУЛЬТИПЛЕЕР: Передаём socket_id для предотвращения эхо-событий
         })
       });
     } catch (e) {
