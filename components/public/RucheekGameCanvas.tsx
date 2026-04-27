@@ -2661,29 +2661,31 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
     const name = pname.trim() || `Гр.${gs.players.length+1}`;
     const idx = gs.players.length;
 
-    // 🏀 RUCHEEK: playerNumber = position in queue = idx + 1 ALWAYS
-    // (NO reassignment from localStorage for queue position)
-    const playerNumber = idx + 1;   // 1-6: порядок в очереди (физический)
-
     let assignedOrder = idx + 1;  // Fallback for global server order
 
-    // If no saved order or not found in list, get global order from server
-    if (!localStorage.getItem('rucheyok_next_order')) {
-      try {
-        const resp = await fetch('/api/pusher/get-order', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ gameRoomId })
-        });
-        const data = await resp.json();
-        assignedOrder = data.order;
-      } catch (e) {
-        console.warn('[ADD-PLAYER] Failed to get order from server, using local:', assignedOrder);
-      }
+    // 🏀 RUCHEEK: Get global order from server (ALWAYS, not just when no savedOrder)
+    // This ensures each player gets correct position across all browsers
+    try {
+      const resp = await fetch('/api/pusher/get-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ gameRoomId })
+      });
+      const data = await resp.json();
+      assignedOrder = data.order;
+    } catch (e) {
+      console.warn('[ADD-PLAYER] Failed to get order from server, using local:', assignedOrder);
     }
 
-    // 🏀 RUCHEEK: Physical position in queue = P_START + idx * P_STEP
-    const spawnX = pStartRef.current > 0 ? pStartRef.current + idx * pStepRef.current : 680 + idx * 110;
+    // 🏀 RUCHEEK: playerNumber and spawnX use GLOBAL ORDER (assignedOrder), not local idx
+    // queuePosition is 0-based index (order 1 -> position 0, order 2 -> position 1, etc)
+    const queuePosition = assignedOrder - 1;
+    const playerNumber = assignedOrder;  // 1-6: номер в очереди от сервера
+
+    // Physical position in queue = P_START + queuePosition * P_STEP
+    const spawnX = pStartRef.current > 0
+      ? pStartRef.current + queuePosition * pStepRef.current
+      : 680 + queuePosition * 110;
 
     const newPlayer = {
       name,
@@ -2694,10 +2696,10 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       kills:0,
       status:"idle",
       rf:0,
-      color: PLAYER_COLORS[idx%6],
+      color: PLAYER_COLORS[assignedOrder%6],  // Use assignedOrder for color too
       // 🏀 RUCHEEK GAME FIELDS
-      playerNumber: playerNumber,         // 1-6: порядковый номер игрока (определен выше)
-      hasActiveRight: idx === 0,          // TRUE только для первого игрока (имеет право бросать)
+      playerNumber: playerNumber,         // 1-6: порядок в очереди от сервера
+      hasActiveRight: assignedOrder === 1,  // TRUE только для первого в глобальном порядке (order=1)
       hasThrown: false,                   // TRUE когда игрок выпустил мяч
       isEliminated: false,                // TRUE когда игрок выбит
       goalCount: 0,                       // Количество голов в этой игре
@@ -2740,7 +2742,18 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
     forceUpdate(n => n+1);
   };
 
-  const handleRestart = () => {
+  const handleRestart = async () => {
+    // 🏀 RUCHEEK: Reset global order counter on server for new game
+    try {
+      await fetch('/api/pusher/reset-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ gameRoomId })
+      });
+    } catch (e) {
+      console.warn('[RESTART] Failed to reset order counter:', e);
+    }
+
     // 🏀 RUCHEEK: Переформирование номеров по порядку выбывания
     const nextGameOrder: string[] = [...eliminationOrderRef.current];
     const survivor = gs.players.find((p: any) => !p.isEliminated && p.status !== 'eliminated');

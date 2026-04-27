@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { getNextOrder } from '../../../lib/gameOrderCounter';
+import { resetOrder } from '../../../lib/gameOrderCounter';
 
 export default async function handler(
   req: NextApiRequest,
@@ -15,10 +15,10 @@ export default async function handler(
     return res.status(400).json({ error: 'gameRoomId required' });
   }
 
-  // Get next order from shared counter
-  const assignedOrder = getNextOrder(gameRoomId);
+  // Reset the counter for this room
+  resetOrder(gameRoomId);
 
-  console.log(`[GET-ORDER] Room=${gameRoomId}, Assigned order=${assignedOrder}`);
+  console.log(`[RESET-ORDER] Room=${gameRoomId}, Counter reset to 0`);
 
-  res.status(200).json({ order: assignedOrder });
+  res.status(200).json({ message: 'Order counter reset', gameRoomId });
 }
