@@ -1,50 +1,25 @@
-# ====== STAGE 1: Build ======
-FROM node:20-alpine AS builder
+FROM node:20-alpine
+
 WORKDIR /app
 
-# Копіюємо package files і prisma схему
+# Copy package files
 COPY package*.json ./
-COPY prisma ./prisma/
 
-RUN npm ci --legacy-peer-deps
+# Install dependencies
+RUN npm ci
 
-COPY . .
+# Copy source files
+COPY server.ts ./
+COPY lib/colyseus ./lib/colyseus
+COPY tsconfig.json ./
+COPY .tsx.config.cjs ./
 
-# Генеруємо Prisma client і білдимо Next.js
-RUN npx prisma generate
-RUN NODE_OPTIONS="--max-old-space-size=1024" npm run build
+# Expose port
+EXPOSE 8080
 
-# ====== STAGE 2: Run ======
-FROM node:20-alpine AS runner
-WORKDIR /app
+# Set environment
+ENV NODE_ENV=production
+ENV PORT=8080
 
-# Встановлюємо OpenSSL для Prisma engine
-RUN apk add --no-cache openssl
-
-# Безпека: запускаємо НЕ від root
-RUN addgroup -S appgroup && adduser -S appuser -G appgroup
-
-# Копіюємо standalone build
-COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/.next/static ./.next/static
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/prisma ./prisma
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
-
-# Копіюємо prisma CLI для migrate deploy
-COPY --from=builder /app/node_modules/.bin/prisma ./node_modules/.bin/prisma
-COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
-COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
-
-# Скрипт запуску з міграцією
-COPY --from=builder /app/start.sh ./start.sh
-RUN chmod +x ./start.sh && chown -R appuser:appgroup /app
-
-USER appuser
-
-EXPOSE 3000
-
-HEALTHCHECK --interval=15s --timeout=10s --retries=5 --start-period=60s \
-  CMD wget -qO- http://127.0.0.1:3000/api/health || exit 1
-
-CMD ["./start.sh"]
+# Start server
+CMD ["npx", "tsx", "server.ts"]
