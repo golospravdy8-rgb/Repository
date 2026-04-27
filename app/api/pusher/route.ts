@@ -3,8 +3,8 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(req: NextRequest) {
   try {
-    const { room, playerId, x, y, name, score, action, ball, socket_id } = await req.json();
-    
+    const { room, playerId, x, y, name, score, action, ball, socket_id, status } = await req.json();
+
     if (!socket_id) {
       console.warn('[Pusher API] ⚠️ socket_id is missing! Will cause echo to sender');
     }
@@ -19,12 +19,14 @@ export async function POST(req: NextRequest) {
     }
 
     // ETAP 8: Include ball data in player-move broadcast
+    // 🔴 КРИТИЧНО: Добавляем status в событие (иначе удаленный игрок не отображается)
     await pusherServer.trigger(`game-${room}`, 'player-move', {
       playerId,
       x,
       y,
       name,
       score: score || 0,
+      status: status || 'alive',  // ✅ МУЛЬТИПЛЕЕР: Отправляем status (shooting/running/idle/alive)
       ball: ball || null,  // ETAP 8: Broadcast ball state to other players
       timestamp: Date.now(),
     }, {
