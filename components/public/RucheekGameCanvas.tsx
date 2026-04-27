@@ -1215,6 +1215,22 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       ss.lockedAngle = null;
       ss.idealTraj = null;
       p.status = 'shooting';
+
+      // 🏀 RUCHEEK: Текущий игрок выпустил мяч → передать право СЛЕДУЮЩЕМУ
+      p.hasThrown = true;
+      p.hasActiveRight = false; // Текущий теряет право
+
+      // Найти следующего живого игрока
+      let nextIdx = (idx + 1) % gs.players.length;
+      while (gs.players[nextIdx].isEliminated && nextIdx !== idx) {
+        nextIdx = (nextIdx + 1) % gs.players.length;
+      }
+
+      // Если найден живой игрок → дать ему право
+      if (nextIdx !== idx && !gs.players[nextIdx].isEliminated) {
+        gs.players[nextIdx].hasActiveRight = true;
+      }
+
       if (idx === gs.disputeP1 && gs.disputeP2 === -1 && gs.players.length > 1) gs.disputeP2 = 1;
     }
 
@@ -1345,6 +1361,62 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       ss.ball = null;
       ss.lockedAngle = null;
       ss.idealTraj = null;
+
+      // 🏀 RUCHEEK GAME: КЛЮЧЕВАЯ ЛОГИКА ВЫБИВАНИЯ
+      // Если текущий игрок имеет право бросать (hasActiveRight=true)
+      // и забивает, то предыдущий игрок (который выпустил мяч но не забил) → ВЫБЫВАЕТ
+      if (p.hasActiveRight === true) {
+        // Найти предыдущего живого игрока (который выпустил мяч)
+        let prevIdx = (idx - 1 + gs.players.length) % gs.players.length;
+        while (gs.players[prevIdx]?.isEliminated && prevIdx !== idx) {
+          prevIdx = (prevIdx - 1 + gs.players.length) % gs.players.length;
+        }
+
+        const prevPlayer = gs.players[prevIdx];
+        // Если предыдущий выпустил мяч И текущий забил раньше → предыдущий ВЫБЫВАЕТ
+        if (prevPlayer && prevPlayer.hasThrown === true && prevIdx !== idx) {
+          prevPlayer.isEliminated = true;
+          p.goalCount = (p.goalCount || 0) + 1;
+
+          addFlash(`⚡ ВИСЕЛИЦЯ ${prevPlayer.name}!`, prevPlayer.x, prevPlayer.y - 100*scaleY, '#ff6666');
+
+          // Запомнить порядок выбывания
+          eliminationOrderRef.current.push(prevPlayer.name);
+
+          // Передать право СЛЕДУЮЩЕМУ игроку в цепи
+          let nextIdx = (idx + 1) % gs.players.length;
+          while (gs.players[nextIdx]?.isEliminated && nextIdx !== idx) {
+            nextIdx = (nextIdx + 1) % gs.players.length;
+          }
+
+          p.hasActiveRight = false;
+          if (nextIdx !== idx && !gs.players[nextIdx].isEliminated) {
+            gs.players[nextIdx].hasActiveRight = true;
+          }
+
+          // Проверить завершение игры
+          const aliveCount = gs.players.filter((pl: any) => !pl.isEliminated).length;
+          if (aliveCount <= 1) {
+            // ИГРА ЗАВЕРШЕНА - НАЙТИ ПОБЕДИТЕЛЯ
+            const winner = gs.players.find((pl: any) => !pl.isEliminated);
+            if (winner) {
+              gs.state = 'finished';
+              // Дать +10 HP победителю
+              fetch('/api/players/add-hp', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  playerId: winner.id || winner.name, // Используем name как fallback
+                  hp: 10,
+                  reason: 'Rucheek game win',
+                }),
+              }).catch(() => {});
+
+              addFlash(`🏆 ПЕРЕМОЖЕЦЬ: ${winner.name} +10 HP!`, HOOP_X, HOOP_Y - 200*scaleY, '#ffff00');
+            }
+          }
+        }
+      }
 
       // DEBUG: Log scoring event with distance, accuracy, and hit type
 
@@ -1892,8 +1964,9 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         }
 
         // Display order number + name
-        const orderNum = p.order || (i + 1);
-        const isActive = (i === gs.disputeP1 || i === gs.disputeP2) && gs.state === 'playing';
+        const orderNum = p.playerNumber || p.order || (i + 1);
+        // 🏀 RUCHEEK: Мигает номер только если игрок имеет право бросать (hasActiveRight=true)
+        const isActive = (p.hasActiveRight === true) && gs.state === 'playing';
 
         // Show order number - blink if active, static if not
         if (isActive) {
@@ -2579,16 +2652,20 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
     const name = pname.trim() || `Гр.${gs.players.length+1}`;
     const idx = gs.players.length;
 
-    // Check if saved party order exists for this player
+    // 🏀 RUCHEEK: Определить playerNumber на основе порядка выбывания из прошлой игры
     const savedOrder = localStorage.getItem('rucheyok_next_order');
     let assignedOrder = idx + 1;  // Fallback
+    let playerNumber = idx + 1;   // playerNumber (1-6) определяет очередность в "Ручейке"
 
     if (savedOrder) {
       try {
         const orderList: string[] = JSON.parse(savedOrder);
         const playerIdx = orderList.findIndex((n: string) => n === name);
         if (playerIdx !== -1) {
+          // Игрок найден в списке выбывших → его новый номер = позиция в списке выбывших
+          // Первый выбыл → номер 1, второй выбыл → номер 2, итд
           assignedOrder = playerIdx + 1;
+          playerNumber = playerIdx + 1;  // ← КЛЮЧЕВО: playerNumber соответствует порядку выбывания
         }
       } catch (e) {
         console.warn('[ADD-PLAYER] Failed to parse saved order, using server order');
@@ -2619,7 +2696,13 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       kills:0,
       status:"idle",
       rf:0,
-      color: PLAYER_COLORS[idx%6]
+      color: PLAYER_COLORS[idx%6],
+      // 🏀 RUCHEEK GAME FIELDS
+      playerNumber: playerNumber,         // 1-6: порядковый номер игрока (определен выше)
+      hasActiveRight: idx === 0,          // TRUE только для первого игрока (имеет право бросать)
+      hasThrown: false,                   // TRUE когда игрок выпустил мяч
+      isEliminated: false,                // TRUE когда игрок выбит
+      goalCount: 0,                       // Количество голов в этой игре
     };
     gs.players.push(newPlayer);
     gs.shootStates.push({ phase:null,aimAngle:-Math.PI*0.72,aimDir:1,power:0,powerDir:1,ball:null,lockedAngle:null,idealTraj:null,idealSpeed:10,runTarget:null,inDanger:false,greenZonePos:0.5,powerMeterResult:null,accuracy:0 });
@@ -2660,11 +2743,25 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
   };
 
   const handleRestart = () => {
-    // Save elimination order for next game
+    // 🏀 RUCHEEK: Переформирование номеров по порядку выбывания
     const nextGameOrder: string[] = [...eliminationOrderRef.current];
-    const survivor = gs.players.find((p: any) => p.status !== 'eliminated');
-    if (survivor) nextGameOrder.push(survivor.name);
-    localStorage.setItem('rucheyok_next_order', JSON.stringify(nextGameOrder));
+    const survivor = gs.players.find((p: any) => !p.isEliminated && p.status !== 'eliminated');
+
+    if (survivor) {
+      nextGameOrder.push(survivor.name);
+
+      // Создать сокращенный список: кто выбыл в каком порядке → новый номер
+      // eliminationOrderRef.current = [name1, name2, name3, ...]
+      // Следующая игра: name1 → номер 1, name2 → номер 2, ..., survivor → последний номер
+
+      // СОХРАНИТЬ ПОРЯДОК для следующей игры
+      localStorage.setItem('rucheyok_next_order', JSON.stringify(nextGameOrder));
+
+      // Дополнительно: сохранить что game finished successfully
+      localStorage.setItem('rucheyok_game_finished', 'true');
+      localStorage.setItem('rucheyok_elimination_order', JSON.stringify(eliminationOrderRef.current));
+    }
+
     eliminationOrderRef.current = [];
 
     gs.state="waiting"; gs.players=[]; gs.shootStates=[]; gs.flashes=[];

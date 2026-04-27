@@ -45,6 +45,7 @@ model Player {
   position         String?
   teamId           Int
   photoUrl         String?
+  hp               Int                   @default(0)  // 🏀 RUCHEEK: Health points from game wins
   boxScores        BoxScore[]
   gameEvents       GameEvent[]
   substitutions    GameSubstitution[]
