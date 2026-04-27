@@ -1,0 +1,416 @@
+{
+  "project_name": "Basketball Lviv - Full-Stack Next.js Application",
+  "description": "Multi-feature sports platform with real-time multiplayer basketball game (Rucheek), chat, leaderboards, shop, and admin panel",
+  "version": "0.1.0",
+  "last_updated": "2026-04-27",
+  "tech_stack": {
+    "frontend": {
+      "framework": "Next.js 14.2.35",
+      "language": "TypeScript 5",
+      "ui_library": "React 18",
+      "styling": "Tailwind CSS 3.4.1",
+      "components": "shadcn/ui",
+      "state_management": "TanStack React Query 5.28.0"
+    },
+    "backend": {
+      "runtime": "Node.js",
+      "framework": "Next.js 14 API Routes",
+      "orm": "Prisma 5.22.0",
+      "validation": "Zod 4.3.6"
+    },
+    "database": {
+      "primary": "PostgreSQL via Neon (neondb)",
+      "orm": "Prisma ORM",
+      "migrations": "Prisma Migrate",
+      "backup": "Custom scripts"
+    },
+    "authentication": {
+      "auth_framework": "NextAuth.js 5.0.0-beta.30",
+      "adapter": "@auth/prisma-adapter 2.11.1",
+      "methods": [
+        "Credentials (admin panel)",
+        "OAuth2 (optional)"
+      ]
+    },
+    "real_time": {
+      "websocket": "Pusher.js 8.5.0 (client)",
+      "pusher_server": "Pusher 5.3.3 (server)",
+      "cluster": "eu",
+      "app_id": "2145178"
+    },
+    "external_services": {
+      "database_host": "Neon (neon.tech) - PostgreSQL pooled & unpooled",
+      "file_storage": "Vercel Blob (@vercel/blob 0.23.0)",
+      "supabase": {
+        "url": "https://dzsvgyetmdgykmujmxuu.supabase.co",
+        "api_key": "sb_publishable_086iusJsMoX5QOr6FxqKFA_WBM1LMdB",
+        "status": "Integrated but not primary DB"
+      },
+      "payment": "Monobank (JAR_ID: 6Wm6ypKDNBz7vZ8E3kPq4m)",
+      "messaging": "Telegram Bot (Token & Channel configured)"
+    },
+    "deployment": {
+      "platform": "Vercel",
+      "production_url": "https://basketball.lviv.ua",
+      "vercel_url": "https://basket-lviv-q6bn6yayi-golospravdy8-9774s-projects.vercel.app",
+      "project_id": "prj_9IAYJR9IRotcL0sxv1FfTRl6Hr8a"
+    }
+  },
+  "critical_game_files": [
+    {
+      "file": "components/public/RucheekGameCanvas.tsx",
+      "size": "~3500 lines",
+      "purpose": "Main game canvas component - handles all Rucheek game logic",
+      "features": [
+        "Game state management",
+        "Player queue system (6 permanent positions)",
+        "Turn order & elimination logic",
+        "Basketball physics simulation",
+        "Pusher real-time synchronization",
+        "HP reward system",
+        "Game persistence (localStorage)"
+      ],
+      "critical_functions": [
+        "handleAddPlayer()",
+        "handleScored()",
+        "launchBall()",
+        "handleRestart()",
+        "emitPlayerPosition()",
+        "render()"
+      ],
+      "dependencies": [
+        "basketball-physics-engine.ts",
+        "powerMeterSystem.ts",
+        "powerMeterUI.ts",
+        "Pusher client"
+      ]
+    },
+    {
+      "file": "components/public/basketball-physics-engine.ts",
+      "size": "~1200 lines",
+      "purpose": "Physics engine for basketball simulation",
+      "features": [
+        "Ball trajectory simulation",
+        "Rim collision detection (16-segment)",
+        "Backboard physics with restitution",
+        "Floor bounce mechanics",
+        "5-outcome collision system (swish, rattle, rim-out, bank, miss)",
+        "Gravity & velocity calculations",
+        "Green zone calculation for accuracy feedback"
+      ],
+      "key_exports": [
+        "computeLaunchVelocity()",
+        "stepPhysics()",
+        "simulateTrajectory()",
+        "computeRimCollision()",
+        "computeBackboardCollision()",
+        "computeFloorBounce()",
+        "calculateAccuracy()"
+      ]
+    }
+  ],
+  "project_structure": {
+    "app/": "Next.js App Router",
+    "app/api/": "Backend API routes (108 routes total)",
+    "app/admin/": "Admin panel (protected by NextAuth)",
+    "app/(public)/": "Public pages (homepage, chat, etc)",
+    "components/": "React components",
+    "components/public/": "Game & public UI components",
+    "components/admin/": "Admin-only components",
+    "lib/": "Utility & helper functions",
+    "lib/prisma.ts": "Prisma singleton client",
+    "lib/auth.ts": "NextAuth configuration",
+    "lib/gameOrderCounter.ts": "Game order counter (deprecated - now uses DB)",
+    "lib/game/": "Game physics & UI systems",
+    "actions/": "Server Actions (React 19)",
+    "prisma/": "Database schema & migrations",
+    "public/": "Static assets",
+    "pages/api/pusher/": "Pusher webhook routes (get-order, reset-order, join, shot, etc)",
+    "middleware.ts": "NextAuth middleware for protected routes"
+  },
+  "database_schema_highlights": {
+    "Player": {
+      "fields": [
+        "id (Int, PK)",
+        "name (String)",
+        "age_category (String)",
+        "order (Int)",
+        "hp (Int) - NEW: Rucheek HP points",
+        "vip_expires_at (DateTime)",
+        "stats (BoxScore relation)"
+      ],
+      "relations": [
+        "BoxScore[]",
+        "Achievement[]",
+        "VipRequest[]"
+      ]
+    },
+    "SiteSettings": {
+      "fields": [
+        "id (Int, PK)",
+        "key (String, @unique)",
+        "value (String)",
+        "updatedAt (DateTime)"
+      ],
+      "usage": "Key-value storage for game order counter (game_order_<roomId>)"
+    },
+    "Game": {
+      "fields": [
+        "id (Int, PK)",
+        "team1_id (Int)",
+        "team2_id (Int)",
+        "score1 (Int)",
+        "score2 (Int)",
+        "date (DateTime)",
+        "season (String)"
+      ]
+    }
+  },
+  "api_endpoints_by_category": {
+    "game": [
+      "POST /api/pusher/get-order - Get next order (persistent counter in SiteSettings)",
+      "POST /api/pusher/reset-order - Reset counter on game restart/exit",
+      "POST /api/pusher/join - Broadcast player join",
+      "POST /api/pusher/route - Sync player position & ball state",
+      "POST /api/pusher/shot - Broadcast shot completion",
+      "POST /api/players/add-hp - Award HP to winner"
+    ],
+    "chat": [
+      "GET/POST /api/chat - Chat messages & rooms",
+      "POST /api/chat/mvp-vote - MVP voting system",
+      "GET /api/chat/leaderboard - Real-time leaderboard",
+      "POST /api/chat/messages - Send messages",
+      "POST /api/chat/active-poll - Polling system"
+    ],
+    "admin": [
+      "POST /api/admin/login - Admin authentication",
+      "POST /api/admin/stats/update - Update player stats",
+      "POST /api/admin/standings/reset - Reset standings",
+      "POST /api/admin/vip-activate - Activate VIP",
+      "GET /api/admin/check - System health check"
+    ],
+    "shop": [
+      "GET /api/shop/products - Product listing",
+      "POST /api/shop/orders - Process orders",
+      "GET /api/shop/products-chat - Products for chat shop"
+    ],
+    "media": [
+      "POST /api/blob/upload - Vercel Blob upload",
+      "POST /api/gallery/upload-token - Gallery image upload",
+      "GET /api/videos - Video listings"
+    ],
+    "integration": [
+      "GET /api/tv-matches - TV match schedule",
+      "GET /api/nba-schedule - NBA schedule",
+      "GET /api/news - News feed",
+      "GET /api/standings - League standings"
+    ]
+  },
+  "pusher_events": {
+    "client_to_server": [
+      "player-joined: New player joins game",
+      "player-move: Player position/ball state update",
+      "player-leave: Player exits game",
+      "shot-completed: Goal scored"
+    ],
+    "sync_mechanism": {
+      "frequency": "Every frame render (~60fps for positions)",
+      "data_synced": [
+        "Player x, y coordinates",
+        "Player status (idle, running, shooting, eliminated)",
+        "Ball trajectory (x, y, vx, vy, rotation)",
+        "Score updates",
+        "Join/leave events"
+      ],
+      "NOT_synced": [
+        "hasActiveRight (turn rights) - LOCAL ONLY",
+        "hasThrown (local game state) - LOCAL ONLY",
+        "isEliminated status for remote players - IMPLEMENTED for sync"
+      ]
+    }
+  },
+  "key_dependencies": {
+    "core": [
+      "next@14.2.35",
+      "react@18",
+      "typescript@5",
+      "@prisma/client@5.22.0",
+      "prisma@5.22.0"
+    ],
+    "realtime": [
+      "pusher-js@8.5.0",
+      "pusher@5.3.3",
+      "socket.io@4.8.3"
+    ],
+    "auth": [
+      "next-auth@5.0.0-beta.30",
+      "@auth/prisma-adapter@2.11.1",
+      "bcryptjs@3.0.3"
+    ],
+    "ui": [
+      "tailwindcss@3.4.1",
+      "@radix-ui/*",
+      "shadcn@4.1.0",
+      "lucide-react@0.577.0"
+    ],
+    "data": [
+      "@tanstack/react-query@5.28.0",
+      "zod@4.3.6",
+      "@supabase/supabase-js@2.103.0"
+    ],
+    "utilities": [
+      "date-fns@3.0.0",
+      "html2canvas@1.4.1",
+      "jspdf@4.2.1",
+      "recharts@3.8.0",
+      "sharp@0.34.5"
+    ]
+  },
+  "environment_variables": {
+    "database": {
+      "DATABASE_URL": "PostgreSQL connection (pooled)",
+      "DATABASE_URL_UNPOOLED": "PostgreSQL connection (unpooled for migrations)",
+      "POSTGRES_*": "Alt DB credentials",
+      "NEON_PROJECT_ID": "Neon project identifier"
+    },
+    "authentication": {
+      "NEXTAUTH_SECRET": "NextAuth session secret",
+      "NEXTAUTH_URL": "Production auth URL",
+      "AUTH_SECRET": "Legacy auth secret",
+      "JWT_SECRET": "JWT signing secret"
+    },
+    "realtime": {
+      "PUSHER_APP_ID": "2145178",
+      "PUSHER_KEY": "9fe1ba2119a241c8b676",
+      "PUSHER_SECRET": "a4eb15709398553ac97e",
+      "PUSHER_CLUSTER": "eu",
+      "NEXT_PUBLIC_PUSHER_KEY": "Public Pusher key",
+      "NEXT_PUBLIC_PUSHER_CLUSTER": "Public Pusher cluster"
+    },
+    "external_services": {
+      "NEXT_PUBLIC_SUPABASE_URL": "Supabase API URL",
+      "NEXT_PUBLIC_SUPABASE_ANON_KEY": "Supabase public key",
+      "NEXT_PUBLIC_MONOBANK_JAR_ID": "Payment JAR ID",
+      "TELEGRAM_BOT_TOKEN": "Telegram bot token",
+      "TELEGRAM_ADMIN_CHAT_ID": "Admin chat ID",
+      "TELEGRAM_CHANNEL_ID": "Notification channel ID"
+    },
+    "deployment": {
+      "VERCEL": "Vercel platform flag",
+      "VERCEL_ENV": "Environment (production/preview)",
+      "CHAT_SERVER_URL": "Chat server URL"
+    }
+  },
+  "restore_priority": {
+    "tier_1_critical": [
+      {
+        "file": "components/public/RucheekGameCanvas.tsx",
+        "reason": "Core game logic - without this entire game is non-functional",
+        "backup": "RucheekGameCanvas.tsx.orig (exists)"
+      },
+      {
+        "file": "components/public/basketball-physics-engine.ts",
+        "reason": "Physics calculations - without this ball physics broken",
+        "backup": "PHYSICS_DEBUG_CHECKLIST.md"
+      },
+      {
+        "file": "prisma/schema.prisma",
+        "reason": "Database schema - defines all data structures",
+        "backup": "SUPER_FULL_BACKUP.json"
+      },
+      {
+        "file": ".env/.env.local",
+        "reason": "Credentials & config - without this nothing connects",
+        "backup": ".env.example, .env.vercel.prod"
+      },
+      {
+        "file": "pages/api/pusher/get-order.ts",
+        "reason": "Persistent game order counter - NEW critical fix",
+        "backup": "Git history"
+      },
+      {
+        "file": "pages/api/pusher/reset-order.ts",
+        "reason": "Resets order counter on game restart",
+        "backup": "Git history"
+      }
+    ],
+    "tier_2_important": [
+      {
+        "file": "lib/gameOrderCounter.ts",
+        "reason": "Game counter (now deprecated in favor of DB)",
+        "status": "Can be removed after verifying DB approach works"
+      },
+      {
+        "file": "lib/auth.ts",
+        "reason": "NextAuth configuration",
+        "backup": "Git history"
+      },
+      {
+        "file": "lib/prisma.ts",
+        "reason": "Prisma singleton client",
+        "status": "Standard pattern"
+      },
+      {
+        "file": "middleware.ts",
+        "reason": "Auth middleware for protected routes",
+        "status": "Standard NextAuth setup"
+      }
+    ],
+    "tier_3_standard": [
+      "app/api/* routes (100+ files)",
+      "components/* (UI components)",
+      "lib/* (utilities)",
+      "public/* (static assets)",
+      "prisma/seed.ts (initial data)"
+    ]
+  },
+  "recent_changes_2026_04_27": [
+    "✅ Implemented 6 permanent fixed player positions for Rucheek game",
+    "✅ Fixed Y positioning using groundYRef.current (scales with canvas)",
+    "✅ Migrated game order counter from in-memory to PostgreSQL (SiteSettings)",
+    "✅ Added order counter reset on game restart, exit, and when last player leaves",
+    "✅ Fixed multiplayer queue positioning (second player no longer appears at position #6)",
+    "✅ Deployed to Vercel production (https://basketball.lviv.ua)"
+  ],
+  "critical_bugs_fixed": {
+    "ghost_players": {
+      "status": "✅ FIXED",
+      "root_cause": "Pusher adding _sub_X/_session_Y suffixes not normalized",
+      "fix": "normalizePlayerId() function in 3 critical locations",
+      "commit": "ebca6a6"
+    },
+    "queue_positions": {
+      "status": "✅ FIXED",
+      "root_cause": "Used local idx instead of server order, hot-reload reset counter",
+      "fix": "Persistent counter in SiteSettings DB",
+      "commit": "1b1ac04, 63163c9"
+    },
+    "player_physics": {
+      "status": "✅ FIXED",
+      "root_cause": "Gravity constant 0.102, rim collision ring 16-segment with 2 scoring gates",
+      "fix": "Complete physics engine rewrite",
+      "commit": "0ef6e15"
+    }
+  },
+  "deployment_status": {
+    "local": {
+      "status": "✅ Running",
+      "url": "http://localhost:3006/chat",
+      "command": "npm run dev:safe"
+    },
+    "production": {
+      "status": "✅ Live",
+      "url": "https://basketball.lviv.ua",
+      "vercel_url": "https://basket-lviv-q6bn6yayi-golospravdy8-9774s-projects.vercel.app",
+      "last_deploy": "2026-04-27 13:07 UTC",
+      "deploy_id": "dpl_AaNC9xgstvXFnGq5uMoGiJPwPZFX"
+    }
+  },
+  "notes": {
+    "game_architecture": "Canvas-based 2D game using HTML5 Canvas API. Real-time multiplayer via Pusher WebSockets. Physics simulation in JavaScript (not Matter.js, custom engine). Turn-based game with persistent queue positions.",
+    "data_persistence": "localStorage for session state + Prisma/PostgreSQL for permanent data. Game state survives F5 refresh.",
+    "scalability_notes": "Currently stores game order in SiteSettings table. Could migrate to Redis for high-traffic scenarios.",
+    "testing_status": "Manual testing complete. 6 test scenarios in RUCHEEK_TESTING_GUIDE.md",
+    "documentation": "Comprehensive markdown docs (20+ files) covering physics, sync, implementation, testing"
+  }
+}
