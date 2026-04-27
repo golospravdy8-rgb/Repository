@@ -1379,73 +1379,96 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       ss.lockedAngle = null;
       ss.idealTraj = null;
 
-      // 🏀 RUCHEEK GAME: КЛЮЧЕВАЯ ЛОГИКА ВЫБИВАНИЯ
+      // 🏀 RUCHEEK GAME: ПОЛНАЯ ЛОГИКА ГОЛА И ВЫБИВАНИЯ
       // Правила:
-      // A) Если текущий игрок ПЕРВЫЙ (idx === 0) → просто идёт в хвост, никто не выбывает
-      // B) Если текущий имеет hasActiveRight = true И предыдущий hasThrown = true → предыдущий выбывает
-      // C) Иначе → никто не выбывает, текущий идёт в хвост
+      // 1. Забил → проверить есть ли выбиваемый (предыдущий с hasThrown=true)
+      // 2. Если есть → выбить (splice), передать право, проверить победу
+      // 3. Если нет → просто идёт в хвост, право к следующему
 
-      if (p.hasActiveRight === true && idx !== 0) {
-        // Найти реально предыдущего живого игрока (перед текущим)
-        let prevIdx = (idx - 1 + gs.players.length) % gs.players.length;
-        while (gs.players[prevIdx]?.isEliminated && prevIdx !== idx) {
-          prevIdx = (prevIdx - 1 + gs.players.length) % gs.players.length;
+      if (p.hasActiveRight === true) {
+        // Найти предыдущего игрока (у кого был мяч)
+        let prevIdx = -1;
+        for (let i = 1; i < gs.players.length; i++) {
+          const checkIdx = (idx - i + gs.players.length) % gs.players.length;
+          prevIdx = checkIdx;
+          break;
         }
 
-        const prevPlayer = gs.players[prevIdx];
+        const prevPlayer = prevIdx !== -1 ? gs.players[prevIdx] : null;
 
-        // КЛЮЧЕВАЯ ПРОВЕРКА: выбивать только если:
-        // 1. Есть реальный предыдущий (prevIdx !== idx)
-        // 2. Предыдущий выпустил мяч (hasThrown = true)
-        // 3. Предыдущий не сам выбыт (не isEliminated)
-        if (
-          prevIdx !== idx &&
-          prevPlayer &&
-          prevPlayer.hasThrown === true &&
-          !prevPlayer.isEliminated
-        ) {
-          // 🎯 ВЫБИТЬ ПРЕДЫДУЩЕГО (УДАЛИТЬ ИЗ ИГРЫ)
+        // ПРОВЕРКА: выбивать только если предыдущий выпустил мяч
+        if (prevPlayer && prevPlayer.hasThrown === true) {
+          // 💥 ВЫБИВАНИЕ: предыдущий бросил но не попал → ИСЧЕЗАЕТ
           p.goalCount = (p.goalCount || 0) + 1;
 
-          addFlash(`💥 ВИБУВ: ${prevPlayer.name}!`, prevPlayer.x, prevPlayer.y - 50*scaleY, '#ff4444');
+          addFlash(`💥 ${prevPlayer.name} ВИБУВ!`, prevPlayer.x, prevPlayer.y - 80*scaleY, '#ff4444');
           eliminationOrderRef.current.push(prevPlayer.name);
 
-          // 🏀 RUCHEEK: ВАЖНО — удалить выбитого игрока из массива
-          const elimIdx = gs.players.indexOf(prevPlayer);
-          if (elimIdx !== -1) {
-            gs.players.splice(elimIdx, 1);
-            gs.shootStates.splice(elimIdx, 1);
+          // Удалить из массива
+          gs.players.splice(prevIdx, 1);
+          gs.shootStates.splice(prevIdx, 1);
+
+          // Пересчитать idx текущего игрока после splice
+          const newShooterIdx = gs.players.findIndex((pl: any) => pl === p);
+
+          // Проверить победу ДО перемещения в хвост
+          if (gs.players.length === 1) {
+            // ТОЛЬКО ОДИН ОСТАЛСЯ - ПОБЕДА
+            gs.state = 'finished';
+            addFlash(`🏆 ${p.name} ПЕРЕМОЖЕЦЬ!`, p.x, p.y - 150*scaleY, '#ffff00');
+            fetch('/api/players/add-hp', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                playerId: p.id || p.name,
+                hp: 10,
+                reason: 'Rucheek game win',
+              }),
+            }).catch(() => {});
+            return;
           }
 
-          // Скорректировать текущий idx если нужно
-          const newCurrentIdx = idx > gs.players.length - 1 ? 0 : idx;
+          // Игра продолжается - забивший идёт в хвост
+          const w = gs.players.splice(newShooterIdx, 1)[0];
+          const sw = gs.shootStates.splice(newShooterIdx, 1)[0];
+          if (w && sw) {
+            w.hasThrown = false;
+            w.hasActiveRight = false;
+            sw.phase = null;
+            gs.players.push(w);
+            gs.shootStates.push(sw);
+          }
 
-          // Передать право СЛЕДУЮЩЕМУ игроку
+          // Право к первому в очереди
           if (gs.players.length > 0) {
-            gs.players[newCurrentIdx].hasActiveRight = false;
-            let nextIdx = (newCurrentIdx + 1) % gs.players.length;
-            gs.players[nextIdx].hasActiveRight = true;
+            gs.players[0].hasActiveRight = true;
+            gs.players[0].hasThrown = false;
           }
 
-          // Проверить завершение игры
-          if (gs.players.length <= 1) {
-            // ИГРА ЗАВЕРШЕНА - НАЙТИ ПОБЕДИТЕЛЯ
-            const winner = gs.players[0];
-            if (winner) {
-              gs.state = 'finished';
-              // Дать +10 HP победителю
-              fetch('/api/players/add-hp', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  playerId: winner.id || winner.name,
-                  hp: 10,
-                  reason: 'Rucheek game win',
-                }),
-              }).catch(() => {});
+        } else {
+          // ✅ НИКОГО НЕ ВЫБИВАЕМ - забивший просто идёт в хвост
+          p.goalCount = (p.goalCount || 0) + 1;
 
-              addFlash(`🏆 ПЕРЕМОЖЕЦЬ: ${winner.name} +10 HP!`, HOOP_X, HOOP_Y - 200*scaleY, '#ffff00');
+          p.hasThrown = false;
+          p.hasActiveRight = false;
+
+          // Переместить в хвост (если не первый)
+          if (idx !== 0) {
+            const w = gs.players.splice(idx, 1)[0];
+            const sw = gs.shootStates.splice(idx, 1)[0];
+            if (w && sw) {
+              sw.phase = null;
+              gs.players.push(w);
+              gs.shootStates.push(sw);
             }
+          } else {
+            // Первый уже обрабатывается ниже в shift/push
+          }
+
+          // Право к первому в очереди
+          if (gs.players.length > 0) {
+            gs.players[0].hasActiveRight = true;
+            gs.players[0].hasThrown = false;
           }
         }
       }
