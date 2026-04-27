@@ -29,7 +29,10 @@
     "news-app": "npx next dev apps/news -p 3010",
     "chat": "npx next dev apps/chat -p 3011",
     "portal": "concurrently --names \"MAIN,AUTH,MARKET,COURSES,SHOP,NEWS,CHAT\" --prefix-colors \"blue,green,yellow,cyan,magenta,red,white\" \"npm run dev\" \"npm run auth\" \"npm run marketplace\" \"npm run courses\" \"npm run shop\" \"npm run news-app\" \"npm run chat\"",
-    "dev:vercel": "concurrently --names \"VERCEL,AUTH,MARKET,COURSES,SHOP,NEWS\" --prefix-colors \"blue,green,yellow,cyan,magenta,red\" \"vercel dev --listen 3000\" \"npm run auth\" \"npm run marketplace\" \"npm run courses\" \"npm run shop\" \"npm run news-app\""
+    "dev:vercel": "concurrently --names \"VERCEL,AUTH,MARKET,COURSES,SHOP,NEWS\" --prefix-colors \"blue,green,yellow,cyan,magenta,red\" \"vercel dev --listen 3000\" \"npm run auth\" \"npm run marketplace\" \"npm run courses\" \"npm run shop\" \"npm run news-app\"",
+    "backup": "bash backup/scripts/backup.sh",
+    "restore:game": "bash backup/scripts/restore-game.sh",
+    "restore:file": "bash backup/scripts/restore.sh"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

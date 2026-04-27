@@ -1,0 +1,62 @@
+{
+  "_comment": "Restore map for critical game files in basket-lviv",
+  "_created": "2026-04-27",
+  "_description": "Key files that can be individually restored using: bash backup/scripts/restore.sh latest [file_path]",
+
+  "game_engine": {
+    "main_canvas": "components/public/RucheekGameCanvas.tsx",
+    "physics_engine": "components/public/basketball-physics-engine.ts",
+    "advanced_physics": "components/public/advanced-basketball-physics.ts",
+    "enhanced_visuals": "components/public/enhanced-basketball-visuals.tsx"
+  },
+
+  "api_endpoints": {
+    "get_order": "pages/api/pusher/get-order.ts",
+    "reset_order": "pages/api/pusher/reset-order.ts",
+    "add_hp": "app/api/players/add-hp/route.ts",
+    "players_list": "app/api/players/route.ts",
+    "monthly_stats": "app/api/players/month/route.ts"
+  },
+
+  "game_logic": {
+    "order_counter": "lib/gameOrderCounter.ts",
+    "basketball_physics": "lib/game/basketballPhysics.ts",
+    "power_meter_system": "lib/game/powerMeterSystem.ts",
+    "power_meter_ui": "lib/game/powerMeterUI.ts",
+    "rim_collision": "lib/game/RimCollisionSystem.ts",
+    "rim_physics_config": "lib/game/rimPhysicsConfig.ts",
+    "rim_renderer": "lib/game/rimRenderer.ts"
+  },
+
+  "core_systems": {
+    "prisma_client": "lib/prisma.ts",
+    "pusher_config": "lib/pusher.ts",
+    "game_channel": "lib/gameChannel.ts"
+  },
+
+  "database": {
+    "schema": "prisma/schema.prisma",
+    "migrations": "prisma/migrations/"
+  },
+
+  "environment": {
+    "env_backup": "backup/env/env.backup",
+    "env_local_backup": "backup/env/env.local.backup"
+  },
+
+  "restore_commands": {
+    "restore_single_file": "bash backup/scripts/restore.sh latest [file_path]",
+    "restore_game": "bash backup/scripts/restore-game.sh",
+    "restore_from_date": "bash backup/scripts/restore.sh 20260427_130000 [file_path]",
+    "list_snapshots": "ls backup/snapshots/",
+    "view_snapshot": "bash backup/scripts/restore.sh latest"
+  },
+
+  "quick_restore_scenarios": {
+    "game_canvas_broken": "bash backup/scripts/restore.sh latest components/public/RucheekGameCanvas.tsx",
+    "physics_broken": "bash backup/scripts/restore.sh latest components/public/basketball-physics-engine.ts",
+    "order_api_broken": "bash backup/scripts/restore.sh latest pages/api/pusher/get-order.ts",
+    "entire_game": "bash backup/scripts/restore-game.sh",
+    "all_files": "bash backup/scripts/restore-game.sh 20260427_130000"
+  }
+}
