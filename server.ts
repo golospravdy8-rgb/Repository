@@ -6,7 +6,7 @@ import { Server } from "colyseus";
 import { BasketballRoom } from "./lib/colyseus/BasketballRoom";
 
 const dev = process.env.NODE_ENV !== "production";
-const port = parseInt(process.env.PORT || "3006", 10);
+const port = parseInt(process.env.PORT || "3006", 10);  // Fly.io uses PORT=8080
 
 const app = next({ dev, port });
 const handle = app.getRequestHandler();
