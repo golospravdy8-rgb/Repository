@@ -1380,27 +1380,38 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       ss.idealTraj = null;
 
       // 🏀 RUCHEEK GAME: КЛЮЧЕВАЯ ЛОГИКА ВЫБИВАНИЯ
-      // Если текущий игрок имеет право бросать (hasActiveRight=true)
-      // и забивает, то предыдущий игрок (который выпустил мяч но не забил) → ВЫБЫВАЕТ
-      if (p.hasActiveRight === true) {
-        // Найти предыдущего живого игрока (который выпустил мяч)
+      // Правила:
+      // A) Если текущий игрок ПЕРВЫЙ (idx === 0) → просто идёт в хвост, никто не выбывает
+      // B) Если текущий имеет hasActiveRight = true И предыдущий hasThrown = true → предыдущий выбывает
+      // C) Иначе → никто не выбывает, текущий идёт в хвост
+
+      if (p.hasActiveRight === true && idx !== 0) {
+        // Найти реально предыдущего живого игрока (перед текущим)
         let prevIdx = (idx - 1 + gs.players.length) % gs.players.length;
         while (gs.players[prevIdx]?.isEliminated && prevIdx !== idx) {
           prevIdx = (prevIdx - 1 + gs.players.length) % gs.players.length;
         }
 
         const prevPlayer = gs.players[prevIdx];
-        // Если предыдущий выпустил мяч И текущий забил раньше → предыдущий ВЫБЫВАЕТ
-        if (prevPlayer && prevPlayer.hasThrown === true && prevIdx !== idx) {
+
+        // КЛЮЧЕВАЯ ПРОВЕРКА: выбивать только если:
+        // 1. Есть реальный предыдущий (prevIdx !== idx)
+        // 2. Предыдущий выпустил мяч (hasThrown = true)
+        // 3. Предыдущий не сам выбыт (не isEliminated)
+        if (
+          prevIdx !== idx &&
+          prevPlayer &&
+          prevPlayer.hasThrown === true &&
+          !prevPlayer.isEliminated
+        ) {
+          // 🎯 ВЫБИТЬ ПРЕДЫДУЩЕГО
           prevPlayer.isEliminated = true;
           p.goalCount = (p.goalCount || 0) + 1;
 
           addFlash(`⚡ ВИСЕЛИЦЯ ${prevPlayer.name}!`, prevPlayer.x, prevPlayer.y - 100*scaleY, '#ff6666');
-
-          // Запомнить порядок выбывания
           eliminationOrderRef.current.push(prevPlayer.name);
 
-          // Передать право СЛЕДУЮЩЕМУ игроку в цепи
+          // Передать право СЛЕДУЮЩЕМУ живому игроку
           let nextIdx = (idx + 1) % gs.players.length;
           while (gs.players[nextIdx]?.isEliminated && nextIdx !== idx) {
             nextIdx = (nextIdx + 1) % gs.players.length;
@@ -1423,7 +1434,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                  playerId: winner.id || winner.name, // Используем name как fallback
+                  playerId: winner.id || winner.name,
                   hp: 10,
                   reason: 'Rucheek game win',
                 }),
@@ -1478,12 +1489,20 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         const w = gs.players.shift(), sw = gs.shootStates.shift();
         if (w && sw) {
           w.status = 'running';
+          w.hasThrown = false;  // 🏀 RUCHEEK: Reset hasThrown when player goes to tail
+          w.hasActiveRight = false;  // Clear active right (will be set by next player)
           sw.phase = 'manual_run';
           sw.inDanger = false;
           gs.players.push(w);
           gs.shootStates.push(sw);
           gs.disputeP1 = 0;
           gs.disputeP2 = -1;
+
+          // 🏀 RUCHEEK: NEW FIRST PLAYER (idx=0) GETS ACTIVE RIGHT
+          if (gs.players.length > 0 && !gs.players[0].isEliminated) {
+            gs.players[0].hasActiveRight = true;
+          }
+
           // 🏀 RUCHEEK: Update positions based on new order (6 permanent positions)
           gs.players.forEach((p2: any, i: number) => {
             const pos = QUEUE_POSITIONS[i];
@@ -1495,11 +1514,6 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           const lastPos = QUEUE_POSITIONS[Math.min(gs.players.length - 1, QUEUE_POSITIONS.length - 1)];
           sw.runTarget = { x: lastPos.x, y: GY };
         }
-      }
-      // Only end game if only 1 player left alive (all others eliminated)
-      const aliveCount = gs.players.filter((p: any) => p.status !== 'eliminated').length;
-      if (aliveCount <= 1) {
-        gs.state = 'finished';
       }
     }
 
