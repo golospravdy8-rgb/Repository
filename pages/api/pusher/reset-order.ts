@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { resetOrder } from '../../../lib/gameOrderCounter';
+import { prisma } from '@/lib/prisma';
 
 export default async function handler(
   req: NextApiRequest,
@@ -15,10 +15,22 @@ export default async function handler(
     return res.status(400).json({ error: 'gameRoomId required' });
   }
 
-  // Reset the counter for this room
-  resetOrder(gameRoomId);
+  try {
+    // 🏀 RUCHEEK: Reset counter in database
+    const counterKey = `game_order_${gameRoomId}`;
 
-  console.log(`[RESET-ORDER] Room=${gameRoomId}, Counter reset to 0`);
+    // Delete the counter setting to reset it
+    await prisma.siteSettings.delete({
+      where: { key: counterKey }
+    }).catch(() => {
+      // It's OK if it doesn't exist
+    });
 
-  res.status(200).json({ message: 'Order counter reset', gameRoomId });
+    console.log(`[RESET-ORDER] Room=${gameRoomId}, Counter reset`);
+
+    res.status(200).json({ message: 'Order counter reset', gameRoomId });
+  } catch (error) {
+    console.error('[RESET-ORDER] Error:', error);
+    res.status(500).json({ error: 'Failed to reset order', details: String(error) });
+  }
 }
