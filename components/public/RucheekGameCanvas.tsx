@@ -119,23 +119,36 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
   useEffect(() => {
     if (!mounted || pusherRef.current) return;
 
+    console.log('[🔴 DEBUG] Initializing Pusher with gameRoomId:', gameRoomId);
 
     const pusherClient = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY!, {
       cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER!,
     });
     pusherRef.current = pusherClient;
 
-    const channel = pusherClient.subscribe(`game-${gameRoomId}`);
+    const channelName = `game-${gameRoomId}`;
+    console.log('[🔴 DEBUG] Subscribing to channel:', channelName);
+    const channel = pusherClient.subscribe(channelName);
     channelRef.current = channel;
 
 
     // ✅ MULTIPLAYER: Event - Another player joined
     channel.bind('player-joined', (data: any) => {
+      console.log('[🟢 PUSHER] player-joined EVENT:', {
+        playerId: data.playerId,
+        nickname: data.nickname,
+        x: data.x,
+        y: data.y
+      });
+
       // ✅ GHOST FIX: Нормализуем оба ID перед сравнением (удаляем Pusher суфиксы)
       const normalizedIncoming = normalizePlayerId(data.playerId);
       const normalizedLocal = normalizePlayerId(playerIdRef.current);
 
-      if (normalizedIncoming === normalizedLocal) return;
+      if (normalizedIncoming === normalizedLocal) {
+        console.log('[🟢 PUSHER] Skipping local player join event');
+        return;
+      }
 
       // ✅ GHOST FIX: Удаляем старые записи этого же игрока (по нормализованному ID)
       const normalizedIncomingClean = normalizePlayerId(data.playerId);
@@ -175,9 +188,20 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       const normalizedIncoming = normalizePlayerId(data.playerId);
       const normalizedLocal = normalizePlayerId(playerIdRef.current);
 
-      console.log('[PUSHER] player-move:', { incoming: data.playerId, normalized: normalizedIncoming, local: playerIdRef.current, isLocal: normalizedIncoming === normalizedLocal });
+      console.log('[🟢 PUSHER] player-move EVENT RECEIVED:', {
+        playerId: data.playerId,
+        normalized: normalizedIncoming,
+        status: data.status,
+        x: data.x,
+        y: data.y,
+        name: data.name,
+        isLocal: normalizedIncoming === normalizedLocal
+      });
 
-      if (normalizedIncoming === normalizedLocal) return;
+      if (normalizedIncoming === normalizedLocal) {
+        console.log('[🟢 PUSHER] Skipping local player event');
+        return;
+      }
 
       // ✅ GHOST FIX: Удаляем старые записи этого же игрока (по нормализованному ID)
       remotePlayersRef.current.forEach((_, key) => {
@@ -188,7 +212,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       });
 
       const existingPlayer = remotePlayersRef.current.get(data.playerId);
-      remotePlayersRef.current.set(data.playerId, {
+      const newPlayer = {
         ...(existingPlayer || {}),
         socketId: data.playerId,
         basePlayerId: normalizedIncoming,
@@ -197,8 +221,16 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         name: data.name || 'Player',
         status: data.status || 'alive',  // ✅ МУЛЬТИПЛЕЕР: Используем статус из события, fallback на 'alive'
         ball: data.ball || null,
+      };
+      remotePlayersRef.current.set(data.playerId, newPlayer);
+      console.log('[👁️ RENDER] Stored remote player:', {
+        key: data.playerId,
+        status: newPlayer.status,
+        x: data.x,
+        y: data.y,
+        name: data.name,
+        mapSize: remotePlayersRef.current.size
       });
-      console.log('[PUSHER] Stored remote player:', { key: data.playerId, x: data.x, y: data.y, name: data.name });
     });
 
     // ✅ MULTIPLAYER: Event - Another player left
@@ -2083,10 +2115,18 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         const normalizedRpKey = normalizePlayerId(rpKey);
         const normalizedLocal = normalizePlayerId(playerIdRef.current);
 
-        if (normalizedRpKey === normalizedLocal) return;
+        if (normalizedRpKey === normalizedLocal) {
+          console.log('[🔴 DEBUG] Skipping self in render:', { key: rpKey, status: rp.status });
+          return;
+        }
 
         // ✅ МУЛЬТИПЛЕЕР: Показывать игрока если он не выбыт (может быть в статусе shooting/running/idle)
-        if (rp.status === 'eliminated') return;
+        if (rp.status === 'eliminated') {
+          console.log('[🔴 DEBUG] Skipping eliminated player:', { key: rpKey, name: rp.name });
+          return;
+        }
+
+        console.log('[🎨 DRAWING] Remote player:', { key: rpKey, name: rp.name, status: rp.status, x: rp.x, y: rp.y });
         const isLocalPlayer = gs.players.some((p: any) => p.name === rp.name || p.name === rp.nickname);
         if (isLocalPlayer) return;
 
