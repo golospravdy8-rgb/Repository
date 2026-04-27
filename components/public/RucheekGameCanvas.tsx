@@ -106,9 +106,12 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       // Skip if this is a local player's sub-ID that slipped through
       if (baseId === playerIdRef.current) return;
 
-      // Delete all sub-ID entries of this player if they exist (prevent duplicates)
+      // GHOST FIX: Delete ALL old entries of this player (base ID + all sub-IDs)
+      // This prevents duplicates when player rejoins with different ID
       remotePlayersRef.current.forEach((_, key) => {
-        if (key.startsWith(data.playerId + '_')) {
+        const keyBaseId = key.split('_').slice(0, -1).join('_');
+        // Delete if: same base ID, same key, or key is sub-ID of new player
+        if (keyBaseId === baseId || key === data.playerId || key.startsWith(data.playerId + '_')) {
           remotePlayersRef.current.delete(key);
         }
       });
@@ -148,11 +151,11 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       // Skip if this is a local player's sub-ID that slipped through
       if (baseId === playerIdRef.current) return;
 
-      // Delete base ID and all old sub-IDs for this player (prevent duplicates)
-      const baseId2 = data.playerId.split('_').slice(0, -1).join('_');
+      // GHOST FIX: Delete base ID and all old sub-IDs for this player (prevent duplicates)
       remotePlayersRef.current.forEach((_, key) => {
-        // Delete base ID or any sub-ID of the same player
-        if (key === baseId2 || key.startsWith(baseId2 + '_')) {
+        const keyBaseId = key.split('_').slice(0, -1).join('_');
+        // Delete if: same base ID, same key, or key is sub-ID of new player
+        if (keyBaseId === baseId || key === data.playerId || key.startsWith(data.playerId + '_')) {
           remotePlayersRef.current.delete(key);
         }
       });
@@ -1928,6 +1931,9 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       remotePlayersRef.current.forEach((rp: any, rpKey: string) => {
         // Skip local player to avoid rendering duplicate (use Map key, not object field)
         if (rpKey === playerIdRef.current || rpKey.startsWith(playerIdRef.current + '_')) return;
+
+        // GHOST FIX: Additional safety check using basePlayerId
+        if (rp.basePlayerId === playerIdRef.current) return;
 
         if (rp.status !== 'alive') return;
         const isLocalPlayer = gs.players.some((p: any) => p.name === rp.name || p.name === rp.nickname);
