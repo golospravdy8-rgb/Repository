@@ -27,15 +27,16 @@ interface RucheekGameCanvasProps {
 const PLAYER_COLORS = ["#4fc3f7","#81c784","#ffb74d","#f06292","#ce93d8","#80cbc4"];
 const MAX_PLAYERS = 6;
 
-// 🏀 RUCHEEK: 6 permanent fixed positions (in original 860x624 coordinates)
-// Each position is always at the same spot. Players occupy the first available position.
+// 🏀 RUCHEEK: 6 permanent fixed positions (X in original 860x624 coordinates)
+// Y is always groundYRef.current (scales with canvas size)
+// Each position is always at the same spot. Players occupy positions based on server order.
 const QUEUE_POSITIONS = [
-  { x: 400, y: 584 },  // POSITION #1 — always this spot
-  { x: 490, y: 584 },  // POSITION #2 — always this spot
-  { x: 580, y: 584 },  // POSITION #3 — always this spot
-  { x: 670, y: 584 },  // POSITION #4 — always this spot
-  { x: 760, y: 584 },  // POSITION #5 — always this spot
-  { x: 850, y: 584 },  // POSITION #6 — always this spot
+  { x: 480 },  // POSITION #1 — always this X
+  { x: 560 },  // POSITION #2 — always this X
+  { x: 640 },  // POSITION #3 — always this X
+  { x: 720 },  // POSITION #4 — always this X
+  { x: 800 },  // POSITION #5 — always this X
+  { x: 860 },  // POSITION #6 — always this X
 ];
 
 // ✅ GHOST FIX (4-та линия защиты): Нормализация playerId
@@ -1487,7 +1488,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           gs.players.forEach((p2: any, i: number) => {
             const pos = QUEUE_POSITIONS[i];
             p2.x = pos.x;
-            p2.y = pos.y;
+            p2.y = GY;  // ✅ USE REAL GROUND Y
             p2.playerNumber = i + 1;  // Update number based on new position
           });
           // Update run target to new last player position
@@ -2674,17 +2675,31 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
     if (gs.players.length >= MAX_PLAYERS) { alert("Максимум 6 гравців!"); return; }
     const name = pname.trim() || `Гр.${gs.players.length+1}`;
 
+    // 🏀 RUCHEEK: Get global order from server (ensures correct position across browsers)
+    let assignedOrder = gs.players.length + 1;  // Fallback
+    try {
+      const resp = await fetch('/api/pusher/get-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ gameRoomId })
+      });
+      const data = await resp.json();
+      assignedOrder = data.order;
+    } catch (e) {
+      console.warn('[ADD-PLAYER] Failed to get order from server:', e);
+    }
+
     // 🏀 RUCHEEK: 6 PERMANENT POSITIONS
-    // positionIndex = first available spot (0-5)
-    const positionIndex = gs.players.length;
+    // positionIndex based on server order (0-5), clamp to max 5
+    const positionIndex = Math.min(assignedOrder - 1, QUEUE_POSITIONS.length - 1);
     const playerNumber = positionIndex + 1;  // 1-6
     const queuePos = QUEUE_POSITIONS[positionIndex];
 
     const newPlayer = {
       name,
-      order: playerNumber,  // Store position number as order
+      order: assignedOrder,  // Global order from server
       x: queuePos.x,
-      y: queuePos.y,
+      y: groundYRef.current,  // ✅ USE REAL GROUND Y (scales with canvas)
       score:0,
       kills:0,
       status:"idle",
