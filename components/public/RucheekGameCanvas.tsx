@@ -27,6 +27,23 @@ interface RucheekGameCanvasProps {
 const PLAYER_COLORS = ["#4fc3f7","#81c784","#ffb74d","#f06292","#ce93d8","#80cbc4"];
 const MAX_PLAYERS = 6;
 
+// ✅ GHOST FIX (4-та линия защиты): Нормализация playerId
+// Удаляет Pusher суфиксы (_sub_X, _session_Y) для корректного сравнения
+function normalizePlayerId(id: string): string {
+  // Сначала удаляем известные Pusher суфиксы
+  const withoutSub = id.split('_sub_')[0];
+  const withoutSession = withoutSub.split('_session_')[0];
+
+  // Если в ID 4+ части и 3-я часть НЕ число (timestamp) → это суффикс
+  const parts = withoutSession.split('_');
+  if (parts.length >= 4 && parts[2] && !parts[2].match(/^\d+$/)) {
+    // Формат: player_timestamp_randomString_suffix → берем первые 3 части
+    return parts.slice(0, 3).join('_');
+  }
+
+  return withoutSession;
+}
+
 export default function RucheekGameCanvas({ isVisible, userName = "", userPhone = "", gameRoomId = "general" }: RucheekGameCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rafRef = useRef<number>(0);
@@ -96,29 +113,24 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
 
     // ✅ MULTIPLAYER: Event - Another player joined
     channel.bind('player-joined', (data: any) => {
-      // Skip local player (bare ID or any sub-ID like "_0", "_1")
-      if (data.playerId === playerIdRef.current ||
-          data.playerId.startsWith(playerIdRef.current + '_')) return;
+      // ✅ GHOST FIX: Нормализуем оба ID перед сравнением (удаляем Pusher суфиксы)
+      const normalizedIncoming = normalizePlayerId(data.playerId);
+      const normalizedLocal = normalizePlayerId(playerIdRef.current);
 
-      // Extract base player ID (remove sub-ID suffix like "_0", "_1")
-      const baseId = data.playerId.split('_').slice(0, -1).join('_');
+      if (normalizedIncoming === normalizedLocal) return;
 
-      // Skip if this is a local player's sub-ID that slipped through
-      if (baseId === playerIdRef.current) return;
-
-      // GHOST FIX: Delete ALL old entries of this player (base ID + all sub-IDs)
-      // This prevents duplicates when player rejoins with different ID
+      // ✅ GHOST FIX: Удаляем старые записи этого же игрока (по нормализованному ID)
+      const normalizedIncomingClean = normalizePlayerId(data.playerId);
       remotePlayersRef.current.forEach((_, key) => {
-        const keyBaseId = key.split('_').slice(0, -1).join('_');
-        // Delete if: same base ID, same key, or key is sub-ID of new player
-        if (keyBaseId === baseId || key === data.playerId || key.startsWith(data.playerId + '_')) {
+        const normalizedKey = normalizePlayerId(key);
+        if (normalizedKey === normalizedIncomingClean) {
           remotePlayersRef.current.delete(key);
         }
       });
 
       remotePlayersRef.current.set(data.playerId, {
         socketId: data.playerId,
-        basePlayerId: baseId,
+        basePlayerId: normalizedIncomingClean,
         playerIndex: data.playerIndex,
         order: data.order,  // Preserve global order from server
         x: data.x,
@@ -141,34 +153,25 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
 
     // ✅ MULTIPLAYER: Event - Another player moved
     channel.bind('player-move', (data: any) => {
-      // Skip local player (bare ID or any sub-ID like "_0", "_1")
-      if (data.playerId === playerIdRef.current ||
-          data.playerId.startsWith(playerIdRef.current + '_')) return;
+      // ✅ GHOST FIX: Нормализуем оба ID перед сравнением (удаляем Pusher суфиксы)
+      const normalizedIncoming = normalizePlayerId(data.playerId);
+      const normalizedLocal = normalizePlayerId(playerIdRef.current);
 
-      // Extract base player ID (remove sub-ID suffix like "_0", "_1")
-      const baseId = data.playerId.split('_').slice(0, -1).join('_');
+      if (normalizedIncoming === normalizedLocal) return;
 
-      // Skip if this is a local player's sub-ID that slipped through
-      if (baseId === playerIdRef.current) return;
-
-      // GHOST FIX: Delete base ID and all old sub-IDs for this player (prevent duplicates)
+      // ✅ GHOST FIX: Удаляем старые записи этого же игрока (по нормализованному ID)
       remotePlayersRef.current.forEach((_, key) => {
-        const keyBaseId = key.split('_').slice(0, -1).join('_');
-        // Delete if: same base ID, same key, or key is sub-ID of new player
-        if (keyBaseId === baseId || key === data.playerId || key.startsWith(data.playerId + '_')) {
+        const normalizedKey = normalizePlayerId(key);
+        if (normalizedKey === normalizedIncoming) {
           remotePlayersRef.current.delete(key);
         }
       });
-
-      // ETAP 8: Debug ball data reception
-      if (data.ball) {
-      }
 
       const existingPlayer = remotePlayersRef.current.get(data.playerId);
       remotePlayersRef.current.set(data.playerId, {
         ...(existingPlayer || {}),
         socketId: data.playerId,
-        basePlayerId: baseId,
+        basePlayerId: normalizedIncoming,
         x: data.x,
         y: data.y,
         name: data.name || 'Player',
@@ -1929,11 +1932,11 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
 
       // Draw remote players from Socket.IO
       remotePlayersRef.current.forEach((rp: any, rpKey: string) => {
-        // Skip local player to avoid rendering duplicate (use Map key, not object field)
-        if (rpKey === playerIdRef.current || rpKey.startsWith(playerIdRef.current + '_')) return;
+        // ✅ GHOST FIX: Нормализуем оба ID перед сравнением в рендеринге
+        const normalizedRpKey = normalizePlayerId(rpKey);
+        const normalizedLocal = normalizePlayerId(playerIdRef.current);
 
-        // GHOST FIX: Additional safety check using basePlayerId
-        if (rp.basePlayerId === playerIdRef.current) return;
+        if (normalizedRpKey === normalizedLocal) return;
 
         if (rp.status !== 'alive') return;
         const isLocalPlayer = gs.players.some((p: any) => p.name === rp.name || p.name === rp.nickname);
