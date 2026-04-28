@@ -152,6 +152,14 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         playerIdRef.current = room.sessionId;
         console.log('[🔴 DEBUG] Updated playerIdRef to:', playerIdRef.current);
 
+        // 🟢 ОЧИСТИТЬ СТАРЫХ ПРИЗРАКОВ ИЗ ПРЕДЫДУЩЕЙ СЕССИИ
+        remotePlayersRef.current.clear();
+        console.log('[🟢 COLYSEUS] Cleared old ghost players on join');
+
+        // 🟢 ОЧИСТИТЬ СТАРОЕ СОСТОЯНИЕ ИЗ localStorage (статусы могут быть 'eliminated')
+        localStorage.removeItem(`basketball_game_state_${gameRoomId}`);
+        console.log('[🟢 COLYSEUS] Cleared old game state from localStorage');
+
         // ✅ MULTIPLAYER: Sync remote players from room state
         // Colyseus 0.16 syncs state automatically - we just need to poll and render
         syncIntervalRef.current = setInterval(() => {
@@ -163,16 +171,54 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           const stateChanged = false;
 
           // Sync all players from room state
+          console.log('[🔴 DEBUG] syncInterval - total players in room:', room.state.players.size, 'my sessionId:', room.sessionId);
           room.state.players.forEach((player: any, key: string) => {
-            if (key === room.sessionId) return; // Skip self
+            console.log('[🔴 DEBUG] Checking player:', { key, nickname: player.nickname, status: player.status, isMe: key === room.sessionId });
+            if (key === room.sessionId) {
+              console.log('[🔴 DEBUG] Skipping self player:', key);
+              return; // Skip self
+            }
+
+            // ФИЛЬТР ПРИЗРАКОВ: пропускать если нет nickname
+            if (!player.nickname || player.nickname === '' || player.nickname === 'undefined') {
+              console.log('[🔴 DEBUG] Removing ghost player (no nickname):', key);
+              remotePlayersRef.current.delete(key);
+              return;
+            }
+
+            // ФИЛЬТР: пропускать eliminated игроков
+            if (player.status === 'eliminated' || player.status === 'dead') {
+              console.log('[🔴 DEBUG] Removing eliminated player:', { key, nickname: player.nickname });
+              remotePlayersRef.current.delete(key);
+              return;
+            }
+
+            // ФИЛЬТР: пропускать неактивных игроков (стоявших более 30 сек)
+            const lastSeen = player.lastSeen || 0;
+            const now = Date.now();
+            const INACTIVITY_THRESHOLD = 30000; // 30 seconds
+            if (now - lastSeen > INACTIVITY_THRESHOLD) {
+              console.log('[🔴 DEBUG] Removing inactive player:', { key, nickname: player.nickname, lastSeen, now });
+              remotePlayersRef.current.delete(key);
+              return;
+            }
 
             const existingPlayer = remotePlayersRef.current.get(key);
 
-            // 🏀 RUCHEEK: Get fixed position from playerIndex, not from server x/y
-            const positionIndex = Math.min(player.playerIndex || 0, QUEUE_POSITIONS.length - 1);
-            const queuePos = QUEUE_POSITIONS[positionIndex];
-            const posX = queuePos.x;
-            const posY = groundYRef.current; // Uses scaled ground Y
+            // 🏀 RUCHEEK: Use queue position OR real position depending on status
+            let posX: number, posY: number;
+
+            // When shooting or running, use REAL coordinates from server
+            if (player.status === 'shooting' || player.status === 'running') {
+              posX = player.x || 480;
+              posY = player.y || groundYRef.current;
+            } else {
+              // Otherwise use fixed queue position for waiting players
+              const positionIndex = Math.min(player.playerIndex || 0, QUEUE_POSITIONS.length - 1);
+              const queuePos = QUEUE_POSITIONS[positionIndex];
+              posX = queuePos.x;
+              posY = groundYRef.current;
+            }
 
             const newPlayer = {
               socketId: key,
@@ -187,7 +233,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
             };
 
             // Check if player is new or changed
-            if (!existingPlayer || existingPlayer.x !== player.x || existingPlayer.y !== player.y) {
+            if (!existingPlayer || existingPlayer.x !== posX || existingPlayer.y !== posY) {
               if (!existingPlayer) {
                 console.log('[🟢 COLYSEUS] New player:', { key, nickname: player.nickname });
                 gsRef.current.flashes.push({
@@ -215,6 +261,12 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
             forceUpdate(n => n + 1);
           }
         }, 50); // 50ms sync interval for 20fps multiplayer updates
+
+        // ✅ MULTIPLAYER: Event - Another player joined
+        room.onMessage('playerJoined', (data: any) => {
+          if (data.playerId === playerIdRef.current) return;
+          console.log('[🟢 COLYSEUS] playerJoined event:', data.nickname);
+        });
 
         // ✅ MULTIPLAYER: Event - Another player shot
         room.onMessage('shotResult', (data: any) => {
@@ -246,17 +298,25 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         });
 
         // ✅ MULTIPLAYER: Listen to ball state changes
-        room.state.ball.onChange(() => {
-          const ball = room.state.ball;
-          gsRef.current.remoteBall = {
-            x: ball.x,
-            y: ball.y,
-            vx: ball.vx,
-            vy: ball.vy,
-            state: ball.state,
-            rotation: ball.rotation,
-          };
-        });
+        const setupBallSync = () => {
+          if (room && room.state && room.state.ball) {
+            room.state.ball.onChange(() => {
+              if (gsRef.current && room.state && room.state.ball) {
+                gsRef.current.remoteBall = {
+                  x: room.state.ball.x,
+                  y: room.state.ball.y,
+                  vx: room.state.ball.vx,
+                  vy: room.state.ball.vy,
+                  state: room.state.ball.state,
+                  rotation: room.state.ball.rotation,
+                };
+              }
+            });
+          } else {
+            setTimeout(setupBallSync, 200);
+          }
+        };
+        setupBallSync();
       }).catch((err: any) => {
         console.error('[🔴 ERROR] Colyseus join failed:', err);
       });
@@ -1507,6 +1567,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
 
       // ✅ MULTIPLAYER: Emit shot completion to server via Colyseus
       if (idx === 0 && roomRef.current) {
+        const ss = gs.shootStates[0];
         roomRef.current.send('shoot', {
           playerId: playerIdRef.current,
           playerIndex: idx,
@@ -1514,6 +1575,11 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           shotScore: 1,
           accuracy,
           collisionType: 'swish',
+          startX: ss?.ball?.x || p.x,
+          startY: ss?.ball?.y || p.y,
+          vx: ss?.ball?.vx || 0,
+          vy: ss?.ball?.vy || 0,
+          spin: ss?.ball?.spin || 0,
         });
       }
 
@@ -1524,6 +1590,16 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           addFlash('💀 ВИБИТО!', gs.players[gs.disputeP1]?.x || 300, GY - 130*scaleY, '#ff4444');
           if (gs.players[gs.disputeP1]) gs.players[gs.disputeP1].status = 'eliminated';
           if (gs.players[idx]) gs.players[idx].kills = (gs.players[idx].kills || 0) + 1;
+
+          // 🟢 ОТПРАВИТЬ СТАТУС НА СЕРВЕР
+          const eliminatedPlayerId = gs.players[gs.disputeP1]?.playerId;
+          if (roomRef.current && eliminatedPlayerId) {
+            roomRef.current.send('playerStatus', {
+              playerId: eliminatedPlayerId,
+              status: 'eliminated'
+            });
+            console.log('[🟢 COLYSEUS] Sent eliminated status for player:', eliminatedPlayerId);
+          }
           setTimeout(() => {
             const idx2 = gs.disputeP1;
             const eliminatedName = gs.players[idx2]?.name;
@@ -2175,6 +2251,16 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         } else if (rp.ball) {
         }
       });
+
+      // Draw remote ball from server (when other player is shooting)
+      if (gsRef.current.remoteBall && (gsRef.current.remoteBall.state === 'flying' || gsRef.current.remoteBall.state === 'bouncing')) {
+        const rb = gsRef.current.remoteBall;
+        ctx.save();
+        ctx.translate(rb.x, rb.y);
+        ctx.rotate(rb.rotation || 0);
+        drawBball(0, 0, 11*scaleX);
+        ctx.restore();
+      }
 
       gs.flashes.forEach((f: any) => {
         ctx.globalAlpha = f.alpha;

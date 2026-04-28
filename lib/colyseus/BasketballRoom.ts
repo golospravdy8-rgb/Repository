@@ -33,6 +33,7 @@ export class BasketballRoom extends Room<GameStateSchema> {
 
   private lastBallScore = 0;
   private ballShotTime = 0;
+  private cleanupInterval: any;
 
   onCreate(options: any) {
     console.log(`[Colyseus] Basketball room created`);
@@ -55,6 +56,21 @@ export class BasketballRoom extends Room<GameStateSchema> {
     this.onMessage("move", (client, data) => this.handleMove(client, data));
     this.onMessage("shoot", (client, data) => this.handleShoot(client, data));
     this.onMessage("ready", (client, data) => this.handleReady(client, data));
+    this.onMessage("playerStatus", (client, data) => this.handlePlayerStatus(client, data));
+
+    // Cleanup interval: remove inactive players every 10 seconds
+    this.cleanupInterval = setInterval(() => {
+      const now = Date.now();
+      const INACTIVITY_THRESHOLD = 30000; // 30 seconds
+
+      this.state.players.forEach((player, playerId) => {
+        const lastSeen = player.lastSeen || 0;
+        if (now - lastSeen > INACTIVITY_THRESHOLD) {
+          console.log(`[Colyseus] Cleaning up inactive player: ${player.nickname} (${playerId})`);
+          this.state.players.delete(playerId);
+        }
+      });
+    }, 10000);
   }
 
   onJoin(client: Client, options: any) {
@@ -63,6 +79,7 @@ export class BasketballRoom extends Room<GameStateSchema> {
     const player = new PlayerSchema();
     player.id = client.sessionId;
     player.nickname = options.nickname || "Player";
+    player.lastSeen = Date.now();
 
     // 🏀 RUCHEEK: Assign permanent playerIndex (0-5) based on join order
     const playerCount = this.state.players.size;
@@ -92,9 +109,13 @@ export class BasketballRoom extends Room<GameStateSchema> {
     });
   }
 
-  onLeave(client: Client) {
-    console.log(`[Colyseus] Player ${client.sessionId} leaving`);
+  async onLeave(client: Client, consented: boolean) {
+    const player = this.state.players.get(client.sessionId);
+    console.log(`[Colyseus] Player left - ${client.sessionId} (${player?.nickname}) consented=${consented}`);
+
+    // Немедленно удалить — не ждать reconnect
     this.state.players.delete(client.sessionId);
+    console.log(`[Colyseus] Player removed. Remaining: ${this.state.players.size}`);
 
     this.broadcast("playerLeft", {
       playerId: client.sessionId,
@@ -108,6 +129,7 @@ export class BasketballRoom extends Room<GameStateSchema> {
     player.x = data.x || player.x;
     player.y = data.y || player.y;
     player.status = data.status || "alive";
+    player.lastSeen = Date.now();
   }
 
   private handleShoot(client: Client, data: any) {
@@ -139,6 +161,14 @@ export class BasketballRoom extends Room<GameStateSchema> {
     const player = this.state.players.get(client.sessionId);
     if (player) {
       player.isReady = true;
+    }
+  }
+
+  private handlePlayerStatus(client: Client, data: any) {
+    const player = this.state.players.get(client.sessionId);
+    if (player && data.status) {
+      player.status = data.status;
+      console.log(`[Colyseus] Player ${player.nickname} status updated to: ${data.status}`);
     }
   }
 

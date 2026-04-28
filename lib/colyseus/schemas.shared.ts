@@ -14,6 +14,7 @@ export class PlayerSchema extends Schema {
   @type("string") status: string = "alive"; // alive | dead | shooting
   @type("boolean") isReady: boolean = false;
   @type("string") lastAction: string = "idle";
+  @type("number") lastSeen: number = 0;
 }
 
 export class BallSchema extends Schema {
