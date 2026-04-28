@@ -160,116 +160,105 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         localStorage.removeItem(`basketball_game_state_${gameRoomId}`);
         console.log('[🟢 COLYSEUS] Cleared old game state from localStorage');
 
-        // ✅ MULTIPLAYER: Sync remote players from room state
-        // Colyseus 0.16 syncs state automatically - we just need to poll and render
-        syncIntervalRef.current = setInterval(() => {
-          if (!room || !room.state || !room.state.players) {
-            if (syncIntervalRef.current && !room) clearInterval(syncIntervalRef.current);
+        // ✅ FIX #2: Заменить polling на встроенные Colyseus listeners
+        // Это дает мгновенную синхронизацию вместо задержки 16-48ms
+
+        // Слушать новых игроков
+        room.state.players.onAdd((player: any, key: string) => {
+          console.log('[🟢 COLYSEUS] Player joined:', { key, nickname: player.nickname });
+          if (key === room.sessionId) return; // Skip self
+          updateRemotePlayerFromState(player, key);
+        });
+
+        // Слушать изменения существующих игроков
+        room.state.players.onChange((player: any, key: string) => {
+          if (key === room.sessionId) return; // Skip self
+          updateRemotePlayerFromState(player, key);
+        });
+
+        // Слушать удаление игроков
+        room.state.players.onRemove((player: any, key: string) => {
+          console.log('[🟢 COLYSEUS] Player left:', { key, nickname: player.nickname });
+          remotePlayersRef.current.delete(key);
+        });
+
+        // Вспомогательная функция для обновления игрока
+        const updateRemotePlayerFromState = (player: any, key: string) => {
+          // ФИЛЬТР ПРИЗРАКОВ: пропускать если нет nickname
+          if (!player.nickname || player.nickname === '' || player.nickname === 'undefined') {
+            console.log('[🟡] Ignoring player without nickname:', key);
+            remotePlayersRef.current.delete(key);
             return;
           }
 
-          let stateChanged = false;
-
-          // Sync all players from room state
-          console.log('[🔴 DEBUG] syncInterval - total players in room:', room.state.players.size, 'my sessionId:', room.sessionId);
-          room.state.players.forEach((player: any, key: string) => {
-            console.log('[🔴 DEBUG] Checking player:', { key, nickname: player.nickname, status: player.status, isMe: key === room.sessionId });
-            if (key === room.sessionId) {
-              console.log('[🔴 DEBUG] Skipping self player:', key);
-              return; // Skip self
-            }
-
-            // ФИЛЬТР ПРИЗРАКОВ: пропускать если нет nickname
-            if (!player.nickname || player.nickname === '' || player.nickname === 'undefined') {
-              console.log('[🔴 DEBUG] Removing ghost player (no nickname):', key);
-              remotePlayersRef.current.delete(key);
-              return;
-            }
-
-            // ФИЛЬТР: пропускать eliminated игроков
-            if (player.status === 'eliminated' || player.status === 'dead') {
-              console.log('[🔴 DEBUG] Removing eliminated player:', { key, nickname: player.nickname });
-              remotePlayersRef.current.delete(key);
-              return;
-            }
-
-            // ФИЛЬТР: пропускать неактивных игроков (стоявших более 30 сек)
-            const lastSeen = player.lastSeen || 0;
-            const now = Date.now();
-            const INACTIVITY_THRESHOLD = 30000; // 30 seconds
-            if (now - lastSeen > INACTIVITY_THRESHOLD) {
-              console.log('[🔴 DEBUG] Removing inactive player:', { key, nickname: player.nickname, lastSeen, now });
-              remotePlayersRef.current.delete(key);
-              return;
-            }
-
-            const existingPlayer = remotePlayersRef.current.get(key);
-
-            // 🏀 RUCHEEK: Use queue position OR real position depending on status
-            let posX: number, posY: number;
-
-            // When shooting or running, use REAL coordinates from server
-            if (player.status === 'shooting' || player.status === 'running') {
-              posX = player.x || 480;
-              posY = player.y || groundYRef.current;
-            } else {
-              // Otherwise use fixed queue position for waiting players
-              const positionIndex = Math.min(player.playerIndex || 0, QUEUE_POSITIONS.length - 1);
-              const queuePos = QUEUE_POSITIONS[positionIndex];
-              posX = queuePos.x;
-              posY = groundYRef.current;
-            }
-
-            const newPlayer = {
-              socketId: key,
-              basePlayerId: key,
-              playerIndex: player.playerIndex || 0,
-              order: player.playerIndex || 0,
-              x: posX,
-              y: posY,
-              status: player.status || 'alive',
-              nickname: player.nickname || 'Player',
-              name: player.nickname || 'Player',
-            };
-
-            // Check if player is new or changed (compare calculated positions not raw)
-            if (!existingPlayer ||
-                existingPlayer.x !== posX ||
-                existingPlayer.y !== posY ||
-                existingPlayer.status !== player.status) {
-              if (!existingPlayer) {
-                console.log('[🟢 COLYSEUS] New player:', { key, nickname: player.nickname });
-                gsRef.current.flashes.push({
-                  text: `✅ ${player.nickname} присоединився!`,
-                  x: 400,
-                  y: 50,
-                  color: '#88ff88',
-                  alpha: 1,
-                  dy: 0,
-                });
-              } else if (existingPlayer.x !== posX || existingPlayer.y !== posY) {
-                console.log('[🔵 COLYSEUS] Player moved:', { key, nickname: player.nickname, x: posX, y: posY });
-              }
-              remotePlayersRef.current.set(key, newPlayer);
-              stateChanged = true;
-            }
-          });
-
-          // Remove players that left
-          let playersChanged = false;
-          remotePlayersRef.current.forEach((_, key) => {
-            if (!room.state.players.has(key)) {
-              console.log('[🟢 COLYSEUS] Player left:', key);
-              remotePlayersRef.current.delete(key);
-              playersChanged = true;
-            }
-          });
-
-          // Always trigger re-render if state changed (new player, moved, or left)
-          if (stateChanged || playersChanged || remotePlayersRef.current.size > 0) {
-            forceUpdate(n => n + 1);
+          // ФИЛЬТР: пропускать eliminated игроков
+          if (player.status === 'eliminated' || player.status === 'dead') {
+            console.log('[🟡] Removing eliminated player:', { key, nickname: player.nickname });
+            remotePlayersRef.current.delete(key);
+            return;
           }
-        }, 50); // 50ms sync interval for 20fps multiplayer updates
+
+          // ФИЛЬТР: пропускать неактивных игроков (стоявших более 30 сек)
+          const lastSeen = player.lastSeen || 0;
+          const now = Date.now();
+          const INACTIVITY_THRESHOLD = 30000; // 30 seconds
+          if (now - lastSeen > INACTIVITY_THRESHOLD) {
+            console.log('[🟡] Removing inactive player:', { key, nickname: player.nickname, lastSeen, now });
+            remotePlayersRef.current.delete(key);
+            return;
+          }
+
+          // 🏀 RUCHEEK: Use queue position OR real position depending on status
+          let posX: number, posY: number;
+
+          // When shooting or running, use REAL coordinates from server
+          if (player.status === 'shooting' || player.status === 'running') {
+            posX = player.x || 480;
+            posY = player.y || groundYRef.current;
+          } else {
+            // Otherwise use fixed queue position for waiting players
+            const positionIndex = Math.min(player.playerIndex || 0, QUEUE_POSITIONS.length - 1);
+            const queuePos = QUEUE_POSITIONS[positionIndex];
+            posX = queuePos.x;
+            posY = groundYRef.current;
+          }
+
+          const newPlayer = {
+            socketId: key,
+            basePlayerId: key,
+            playerIndex: player.playerIndex || 0,
+            order: player.playerIndex || 0,
+            x: posX,
+            y: posY,
+            status: player.status || 'alive',
+            nickname: player.nickname || 'Player',
+            name: player.nickname || 'Player',
+          };
+
+          const existingPlayer = remotePlayersRef.current.get(key);
+
+          // Check if player is new or changed (compare calculated positions not raw)
+          if (!existingPlayer ||
+              existingPlayer.x !== posX ||
+              existingPlayer.y !== posY ||
+              existingPlayer.status !== player.status) {
+            if (!existingPlayer) {
+              console.log('[🟢 COLYSEUS] New player:', { key, nickname: player.nickname });
+              gsRef.current.flashes.push({
+                text: `✅ ${player.nickname} присоединився!`,
+                x: 400,
+                y: 50,
+                color: '#88ff88',
+                alpha: 1,
+                dy: 0,
+              });
+            } else if (existingPlayer.x !== posX || existingPlayer.y !== posY) {
+              console.log('[🔵 COLYSEUS] Player moved:', { key, nickname: player.nickname, x: posX, y: posY });
+            }
+            remotePlayersRef.current.set(key, newPlayer);
+            forceUpdate(x => x + 1);
+          }
+        };
 
         // ✅ MULTIPLAYER: Event - Another player joined
         room.onMessage('playerJoined', (data: any) => {
@@ -342,8 +331,8 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         clearInterval(syncIntervalRef.current);
         syncIntervalRef.current = null;
       }
-      if (room) {
-        room.leave().catch(() => {});
+      if (roomRef.current) {
+        roomRef.current.leave().catch(() => {});
       }
       colysusClientRef.current = null;
       roomRef.current = null;
