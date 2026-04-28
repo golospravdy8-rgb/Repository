@@ -198,6 +198,54 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           });
         });
 
+        // 🔴 FIX CONTINUOUS SYNC: Постоянная подписка на изменения state для координат
+        // (onStateChange.once срабатывает только один раз, нужно слушать все обновления)
+        room.onStateChange((state: any) => {
+          let hasChanges = false;
+
+          state.players?.forEach((player: any, key: string) => {
+            if (key !== room.sessionId) {
+              const existing = remotePlayersRef.current.get(key);
+
+              if (existing) {
+                // Обновить координаты и статус существующего игрока (onChange уже заполнил основное)
+                const oldX = existing.x;
+                const oldY = existing.y;
+
+                // Если игрок двигается (shooting/running), обновить реальные координаты
+                if (player.status === 'shooting' || player.status === 'running') {
+                  existing.x = player.x;
+                  existing.y = player.y;
+                } else {
+                  // Если ждёт, использовать queue position
+                  const positionIndex = Math.min(player.playerIndex || 0, QUEUE_POSITIONS.length - 1);
+                  const queuePos = QUEUE_POSITIONS[positionIndex];
+                  existing.x = queuePos.x;
+                  existing.y = groundYRef.current;
+                }
+
+                existing.status = player.status || 'alive';
+                existing.lastSeen = player.lastSeen;
+
+                if (oldX !== existing.x || oldY !== existing.y) {
+                  console.log('[🟢 STATE SYNC] Coords updated:', key, 'from:', oldX, oldY, 'to:', existing.x, existing.y);
+                  remotePlayersRef.current.set(key, existing);
+                  hasChanges = true;
+                }
+              } else if (player.nickname) {
+                // Игрок ещё не добавлен (вошел до нас) — добавить через updateRemote
+                console.log('[🟢 STATE SYNC] Found new player not in map:', key, player.nickname);
+                updateRemotePlayerFromState(player, key);
+                hasChanges = true;
+              }
+            }
+          });
+
+          if (hasChanges) {
+            forceUpdate(x => x + 1);
+          }
+        });
+
         // Вспомогательная функция для обновления игрока
         const updateRemotePlayerFromState = (player: any, key: string) => {
           console.log('[🔴 updateRemote] Called for:', key,
