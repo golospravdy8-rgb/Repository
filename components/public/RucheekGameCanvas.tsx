@@ -167,33 +167,34 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           localStorage.removeItem(`basketball_game_state_${gameRoomId}`);
           console.log('[🟢 COLYSEUS] Cleared old game state from localStorage');
 
-          // 🔴 FIX A: Ітерувати існуючих гравців одразу
+          // 🔴 COLYSEUS 0.15+ FIX: Listeners are property assignments, NOT method calls
+          // 1. СНАЧАЛА назначить listeners (property assignment syntax)
+          state.players.onAdd = (player: any, key: string) => {
+            console.log('[🟢 onAdd] Player joined:', key, player.nickname);
+            if (key !== room.sessionId) {
+              updateRemotePlayerFromState(player, key);
+            }
+          };
+
+          state.players.onChange = (player: any, key: string) => {
+            console.log('[🟢 onChange] Player changed:', key, player.nickname);
+            if (key !== room.sessionId) {
+              updateRemotePlayerFromState(player, key);
+            }
+          };
+
+          state.players.onRemove = (player: any, key: string) => {
+            console.log('[🟢 onRemove] Player left:', key);
+            remotePlayersRef.current.delete(key);
+          };
+
+          // 2. ПОТОМ пройти по существующим игрокам (FIX A)
           console.log('[🟢 INIT] Processing existing players in room:', state.players?.size);
           state.players?.forEach((player: any, key: string) => {
             if (key !== room.sessionId) {
               console.log('[🟢 INIT] Existing player found:', { key, nickname: player.nickname });
-              console.log('[🔴 FIX A] About to call updateRemotePlayerFromState for:', key, player.nickname);
               updateRemotePlayerFromState(player, key);
             }
-          });
-
-          // Слушать новых игроков
-          state.players.onAdd((player: any, key: string) => {
-            console.log('[🟢 COLYSEUS] Player joined:', { key, nickname: player.nickname });
-            if (key === room.sessionId) return;
-            updateRemotePlayerFromState(player, key);
-          });
-
-          // Слушать изменения существующих игроков
-          state.players.onChange((player: any, key: string) => {
-            if (key === room.sessionId) return;
-            updateRemotePlayerFromState(player, key);
-          });
-
-          // Слушать удаление игроков
-          state.players.onRemove((player: any, key: string) => {
-            console.log('[🟢 COLYSEUS] Player left:', { key, nickname: player.nickname });
-            remotePlayersRef.current.delete(key);
           });
         });
 
