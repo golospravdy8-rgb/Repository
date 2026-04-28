@@ -168,7 +168,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
             return;
           }
 
-          const stateChanged = false;
+          let stateChanged = false;
 
           // Sync all players from room state
           console.log('[🔴 DEBUG] syncInterval - total players in room:', room.state.players.size, 'my sessionId:', room.sessionId);
@@ -232,8 +232,11 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
               name: player.nickname || 'Player',
             };
 
-            // Check if player is new or changed
-            if (!existingPlayer || existingPlayer.x !== posX || existingPlayer.y !== posY) {
+            // Check if player is new or changed (compare calculated positions not raw)
+            if (!existingPlayer ||
+                existingPlayer.x !== posX ||
+                existingPlayer.y !== posY ||
+                existingPlayer.status !== player.status) {
               if (!existingPlayer) {
                 console.log('[🟢 COLYSEUS] New player:', { key, nickname: player.nickname });
                 gsRef.current.flashes.push({
@@ -244,20 +247,26 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
                   alpha: 1,
                   dy: 0,
                 });
+              } else if (existingPlayer.x !== posX || existingPlayer.y !== posY) {
+                console.log('[🔵 COLYSEUS] Player moved:', { key, nickname: player.nickname, x: posX, y: posY });
               }
               remotePlayersRef.current.set(key, newPlayer);
+              stateChanged = true;
             }
           });
 
           // Remove players that left
+          let playersChanged = false;
           remotePlayersRef.current.forEach((_, key) => {
             if (!room.state.players.has(key)) {
               console.log('[🟢 COLYSEUS] Player left:', key);
               remotePlayersRef.current.delete(key);
+              playersChanged = true;
             }
           });
 
-          if (remotePlayersRef.current.size > 0) {
+          // Always trigger re-render if state changed (new player, moved, or left)
+          if (stateChanged || playersChanged || remotePlayersRef.current.size > 0) {
             forceUpdate(n => n + 1);
           }
         }, 50); // 50ms sync interval for 20fps multiplayer updates
@@ -297,7 +306,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           forceUpdate(n => n + 1);
         });
 
-        // ✅ MULTIPLAYER: Listen to ball state changes
+        // ✅ MULTIPLAYER: Listen to ball state changes (FIX #3: Ball visibility)
         const setupBallSync = () => {
           if (room && room.state && room.state.ball) {
             room.state.ball.onChange(() => {
@@ -310,6 +319,8 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
                   state: room.state.ball.state,
                   rotation: room.state.ball.rotation,
                 };
+                // Trigger re-render when remote ball changes
+                forceUpdate(n => n + 1);
               }
             });
           } else {
