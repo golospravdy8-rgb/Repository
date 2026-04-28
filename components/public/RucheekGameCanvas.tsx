@@ -152,48 +152,58 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         playerIdRef.current = room.sessionId;
         console.log('[🔴 DEBUG] Updated playerIdRef to:', playerIdRef.current);
 
-        // 🟢 ОЧИСТИТЬ СТАРЫХ ПРИЗРАКОВ ИЗ ПРЕДЫДУЩЕЙ СЕССИИ
-        remotePlayersRef.current.clear();
-        console.log('[🟢 COLYSEUS] Cleared old ghost players on join');
+        console.log('[🔴 CLIENT joined] My sessionId:', room.sessionId);
 
-        // 🟢 ОЧИСТИТЬ СТАРОЕ СОСТОЯНИЕ ИЗ localStorage (статусы могут быть 'eliminated')
-        localStorage.removeItem(`basketball_game_state_${gameRoomId}`);
-        console.log('[🟢 COLYSEUS] Cleared old game state from localStorage');
+        // 🔴 FIX 1: Ждём когда state инициализируется асинхронно
+        // room.state.players может быть undefined в момент joinOrCreate
+        room.onStateChange.once((state: any) => {
+          console.log('[🔴 INIT STATE] State received, players:', state.players?.size);
 
-        // ✅ FIX #2: Заменить polling на встроенные Colyseus listeners
-        // Это дает мгновенную синхронизацию вместо задержки 16-48ms
+          // 🟢 ОЧИСТИТЬ СТАРЫХ ПРИЗРАКОВ ИЗ ПРЕДЫДУЩЕЙ СЕССИИ
+          remotePlayersRef.current.clear();
+          console.log('[🟢 COLYSEUS] Cleared old ghost players on join');
 
-        // 🔴 FIX A (КРИТИЧНЫЙ): Ітерувати існуючих гравців одразу після join
-        // onAdd() НЕ спрацьовує для гравців що вже були в кімнаті до мого join
-        console.log('[🟢 INIT] Processing existing players in room:', room.state.players.size);
-        room.state.players.forEach((player: any, key: string) => {
-          if (key !== room.sessionId) {
-            console.log('[🟢 INIT] Existing player found:', { key, nickname: player.nickname });
+          // 🟢 ОЧИСТИТЬ СТАРОЕ СОСТОЯНИЕ ИЗ localStorage
+          localStorage.removeItem(`basketball_game_state_${gameRoomId}`);
+          console.log('[🟢 COLYSEUS] Cleared old game state from localStorage');
+
+          // 🔴 FIX A: Ітерувати існуючих гравців одразу
+          console.log('[🟢 INIT] Processing existing players in room:', state.players?.size);
+          state.players?.forEach((player: any, key: string) => {
+            if (key !== room.sessionId) {
+              console.log('[🟢 INIT] Existing player found:', { key, nickname: player.nickname });
+              console.log('[🔴 FIX A] About to call updateRemotePlayerFromState for:', key, player.nickname);
+              updateRemotePlayerFromState(player, key);
+            }
+          });
+
+          // Слушать новых игроков
+          state.players.onAdd((player: any, key: string) => {
+            console.log('[🟢 COLYSEUS] Player joined:', { key, nickname: player.nickname });
+            if (key === room.sessionId) return;
             updateRemotePlayerFromState(player, key);
-          }
-        });
+          });
 
-        // Слушать новых игроков
-        room.state.players.onAdd((player: any, key: string) => {
-          console.log('[🟢 COLYSEUS] Player joined:', { key, nickname: player.nickname });
-          if (key === room.sessionId) return; // Skip self
-          updateRemotePlayerFromState(player, key);
-        });
+          // Слушать изменения существующих игроков
+          state.players.onChange((player: any, key: string) => {
+            if (key === room.sessionId) return;
+            updateRemotePlayerFromState(player, key);
+          });
 
-        // Слушать изменения существующих игроков
-        room.state.players.onChange((player: any, key: string) => {
-          if (key === room.sessionId) return; // Skip self
-          updateRemotePlayerFromState(player, key);
-        });
-
-        // Слушать удаление игроков
-        room.state.players.onRemove((player: any, key: string) => {
-          console.log('[🟢 COLYSEUS] Player left:', { key, nickname: player.nickname });
-          remotePlayersRef.current.delete(key);
+          // Слушать удаление игроков
+          state.players.onRemove((player: any, key: string) => {
+            console.log('[🟢 COLYSEUS] Player left:', { key, nickname: player.nickname });
+            remotePlayersRef.current.delete(key);
+          });
         });
 
         // Вспомогательная функция для обновления игрока
         const updateRemotePlayerFromState = (player: any, key: string) => {
+          console.log('[🔴 updateRemote] Called for:', key,
+            'nickname:', player.nickname,
+            'lastSeen:', player.lastSeen,
+            'status:', player.status);
+
           // ФИЛЬТР ПРИЗРАКОВ: пропускать если нет nickname
           if (!player.nickname || player.nickname === '' || player.nickname === 'undefined') {
             console.log('[🟡] Ignoring player without nickname:', key);
@@ -234,7 +244,9 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
             posY = groundYRef.current;
           }
 
+          // 🔴 FIX 4: Улучшенное добавление игрока в remotePlayersRef
           const newPlayer = {
+            sessionId: key,
             socketId: key,
             basePlayerId: key,
             playerIndex: player.playerIndex || 0,
@@ -255,6 +267,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
               existingPlayer.status !== player.status) {
             if (!existingPlayer) {
               console.log('[🟢 COLYSEUS] New player:', { key, nickname: player.nickname });
+              console.log('[🔴 FIX 4] Setting player in remotePlayersRef:', key, player.nickname);
               gsRef.current.flashes.push({
                 text: `✅ ${player.nickname} присоединився!`,
                 x: 400,
@@ -267,14 +280,30 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
               console.log('[🔵 COLYSEUS] Player moved:', { key, nickname: player.nickname, x: posX, y: posY });
             }
             remotePlayersRef.current.set(key, newPlayer);
+            console.log('[🔴 FIX 4] remotePlayersRef.current.size after set:', remotePlayersRef.current.size);
             forceUpdate(x => x + 1);
           }
         };
 
         // ✅ MULTIPLAYER: Event - Another player joined
+        // 🔴 FIX 2: Регистрировать onMessage для playerJoined
         room.onMessage('playerJoined', (data: any) => {
+          console.log('[🔴 MSG playerJoined]', data);
+          if (data.sessionId && data.sessionId !== room.sessionId) {
+            console.log('[🔴 FIX 2] Processing playerJoined message:', data.sessionId, data.nickname);
+            // Попытаемся добавить игрока если он не из state
+            // (может быть параллельный broadcast от сервера)
+          }
           if (data.playerId === playerIdRef.current) return;
           console.log('[🟢 COLYSEUS] playerJoined event:', data.nickname);
+        });
+
+        // 🔴 FIX 2: Регистрировать playerLeft
+        room.onMessage('playerLeft', (data: any) => {
+          console.log('[🔴 MSG playerLeft]', data);
+          if (data.sessionId) {
+            remotePlayersRef.current.delete(data.sessionId);
+          }
         });
 
         // ✅ MULTIPLAYER: Event - Another player shot
@@ -2198,7 +2227,9 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       }
 
       // Draw remote players from Colyseus
+      console.log('[🔴 RENDER] Remote players count:', remotePlayersRef.current.size);
       remotePlayersRef.current.forEach((rp: any, rpKey: string) => {
+        console.log('[🔴 RENDER] Drawing player:', rpKey, rp.nickname, 'x:', rp.x, 'y:', rp.y);
         // 🔥 Для Colyseus: прямое сравнение sessionId
         if (rpKey === playerIdRef.current) {
           console.log('[🔴 DEBUG] Skipping self in render:', { key: rpKey, status: rp.status });

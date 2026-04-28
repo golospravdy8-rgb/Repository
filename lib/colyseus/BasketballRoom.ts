@@ -114,6 +114,9 @@ export class BasketballRoom extends Room<GameStateSchema> {
     this.state.players.set(client.sessionId, player);
 
     console.log(`[Colyseus] Player ${player.nickname} joined. Total: ${this.state.players.size}`);
+    console.log('[🔴 SERVER onJoin] Player added to state:', client.sessionId,
+      'Total players:', this.state.players.size,
+      'All keys:', Array.from(this.state.players.keys()));
 
     // Broadcast join event to all (including new player)
     this.broadcast("playerJoined", {
@@ -145,6 +148,8 @@ export class BasketballRoom extends Room<GameStateSchema> {
     player.y = data.y || player.y;
     player.status = data.status || "alive";
     player.lastSeen = Date.now();
+    console.log('[🔴 SERVER move] Player moved:', client.sessionId,
+      'x:', player.x, 'y:', player.y);
   }
 
   private handleShoot(client: Client, data: any) {
