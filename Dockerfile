@@ -9,10 +9,9 @@ COPY package*.json ./
 RUN npm ci
 
 # Copy source files
-COPY server.ts ./
+COPY server-colyseus.ts ./
 COPY lib/colyseus ./lib/colyseus
 COPY tsconfig.json ./
-COPY .tsx.config.cjs ./
 
 # Expose port
 EXPOSE 8080
@@ -22,4 +21,4 @@ ENV NODE_ENV=production
 ENV PORT=8080
 
 # Start server
-CMD ["npx", "tsx", "server.ts"]
+CMD ["npx", "tsx", "server-colyseus.ts"]
