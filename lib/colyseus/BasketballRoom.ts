@@ -34,6 +34,7 @@ export class BasketballRoom extends Room<GameStateSchema> {
   private lastBallScore = 0;
   private ballShotTime = 0;
   private cleanupInterval: any;
+  private ballBroadcastInterval: any; // FIX C: для синхронізації м'яча
 
   onCreate(options: any) {
     console.log(`[Colyseus] Basketball room created`);
@@ -57,6 +58,20 @@ export class BasketballRoom extends Room<GameStateSchema> {
     this.onMessage("shoot", (client, data) => this.handleShoot(client, data));
     this.onMessage("ready", (client, data) => this.handleReady(client, data));
     this.onMessage("playerStatus", (client, data) => this.handlePlayerStatus(client, data));
+
+    // 🔴 FIX C: Синхронізація м'яча під час польоту (30fps)
+    this.ballBroadcastInterval = setInterval(() => {
+      if (this.state.ball && this.state.ball.state === "flying") {
+        this.broadcast("ballUpdate", {
+          x: this.state.ball.x,
+          y: this.state.ball.y,
+          vx: this.state.ball.vx,
+          vy: this.state.ball.vy,
+          rotation: this.state.ball.rotation,
+          state: this.state.ball.state,
+        });
+      }
+    }, 1000 / 30); // 30fps ball sync
 
     // Cleanup interval: remove inactive players every 10 seconds
     this.cleanupInterval = setInterval(() => {
@@ -361,6 +376,19 @@ export class BasketballRoom extends Room<GameStateSchema> {
           shooter.status = "alive";
         }
       }, 1000);
+    }
+  }
+
+  // 🔴 FIX C: Cleanup ballBroadcastInterval при закритті кімнати
+  onDispose() {
+    console.log(`[Colyseus] Room disposing`);
+    if (this.ballBroadcastInterval) {
+      clearInterval(this.ballBroadcastInterval);
+      this.ballBroadcastInterval = null;
+    }
+    if (this.cleanupInterval) {
+      clearInterval(this.cleanupInterval);
+      this.cleanupInterval = null;
     }
   }
 }

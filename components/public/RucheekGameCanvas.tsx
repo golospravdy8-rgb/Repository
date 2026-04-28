@@ -163,6 +163,16 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         // ✅ FIX #2: Заменить polling на встроенные Colyseus listeners
         // Это дает мгновенную синхронизацию вместо задержки 16-48ms
 
+        // 🔴 FIX A (КРИТИЧНЫЙ): Ітерувати існуючих гравців одразу після join
+        // onAdd() НЕ спрацьовує для гравців що вже були в кімнаті до мого join
+        console.log('[🟢 INIT] Processing existing players in room:', room.state.players.size);
+        room.state.players.forEach((player: any, key: string) => {
+          if (key !== room.sessionId) {
+            console.log('[🟢 INIT] Existing player found:', { key, nickname: player.nickname });
+            updateRemotePlayerFromState(player, key);
+          }
+        });
+
         // Слушать новых игроков
         room.state.players.onAdd((player: any, key: string) => {
           console.log('[🟢 COLYSEUS] Player joined:', { key, nickname: player.nickname });
@@ -198,11 +208,12 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
             return;
           }
 
-          // ФИЛЬТР: пропускать неактивных игроков (стоявших более 30 сек)
+          // 🔴 FIX D: ФИЛЬТР: пропускать неактивных игроков (стоявших более 30 сек)
+          // НО не удалять гравця якщо lastSeen = 0 (тільки зайшов)
           const lastSeen = player.lastSeen || 0;
           const now = Date.now();
           const INACTIVITY_THRESHOLD = 30000; // 30 seconds
-          if (now - lastSeen > INACTIVITY_THRESHOLD) {
+          if (lastSeen > 0 && now - lastSeen > INACTIVITY_THRESHOLD) {
             console.log('[🟡] Removing inactive player:', { key, nickname: player.nickname, lastSeen, now });
             remotePlayersRef.current.delete(key);
             return;
@@ -293,6 +304,23 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           }
           lb.sort((a: any, b: any) => b.score - a.score);
           forceUpdate(n => n + 1);
+        });
+
+        // 🔴 FIX C: Слухати м'яч від інших гравців (ballUpdate broadcast з сервера)
+        room.onMessage('ballUpdate', (data: any) => {
+          // Отримати дані м'яча з сервера під час польоту
+          if (gsRef.current && data) {
+            gsRef.current.remoteBall = {
+              x: data.x,
+              y: data.y,
+              vx: data.vx,
+              vy: data.vy,
+              rotation: data.rotation || 0,
+              state: data.state || 'flying',
+              isRemote: true, // Відмітити що це чужий м'яч
+            };
+            forceUpdate(n => n + 1);
+          }
         });
 
         // ✅ MULTIPLAYER: Listen to ball state changes (FIX #3: Ball visibility)
