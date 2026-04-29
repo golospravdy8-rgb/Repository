@@ -20,6 +20,7 @@ import {
   checkAllCollisions,
   checkGoalEntry,
   computeLaunchVelocityMeters,
+  sweepSphereVsSphere,
   type PhysicsConstantsM,
 } from "./basketball-physics-engine";
 
@@ -1086,7 +1087,121 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
 
       while (b._accumulator >= FIXED_DT && b.state === 'flying') {
         integratePhysics(b, FIXED_DT, C);
-        checkAllCollisions(b, FIXED_DT, C);
+
+        // ── 16-POINT RIM COLLISION (Basketball Lab / Three.js method) ───
+        const rimX_m = C.HOOP_X_M;
+        const rimY_m = C.HOOP_Y_M;
+        const rimR_m = C.RIM_RADIUS_M;
+        const rimTubeR_m = C.RIM_TUBE_R_M;
+        const ballR_m = C.BALL_RADIUS_M;
+        const contactR = rimTubeR_m + ballR_m;
+
+        let rimHit = false;
+        let earliestT = FIXED_DT + 0.001;
+        let hitPointNx = 0, hitPointNy = 0;
+        let rimPointIndex = -1;
+
+        // 16-point collision check around rim
+        for (let i = 0; i < 16; i++) {
+          const angle = (i / 16) * Math.PI * 2;
+          const px_m = rimX_m + rimR_m * Math.cos(angle);
+          const py_m = rimY_m + rimR_m * Math.sin(angle);
+
+          const ccd = sweepSphereVsSphere(b, { x: px_m, y: py_m }, contactR, FIXED_DT);
+          if (ccd.hit && ccd.t < earliestT) {
+            earliestT = ccd.t;
+            hitPointNx = ccd.nx;
+            hitPointNy = ccd.ny;
+            rimHit = true;
+            rimPointIndex = i;
+          }
+        }
+
+        if (rimHit && earliestT < FIXED_DT) {
+          // Advance to collision point
+          const prevVx = b.vx, prevVy = b.vy;
+          b._x_m += b.vx * earliestT + 0.5 * (-C.Cd * Math.sqrt(b.vx*b.vx + b.vy*b.vy) * b.vx - C.Cm * b.omega * b.vy) * earliestT * earliestT;
+          b._y_m += b.vy * earliestT + 0.5 * (C.GRAVITY - C.Cd * Math.sqrt(b.vx*b.vx + b.vy*b.vy) * b.vy + C.Cm * b.omega * b.vx) * earliestT * earliestT;
+          b.vx += (-C.Cd * Math.sqrt(prevVx*prevVx + prevVy*prevVy) * prevVx - C.Cm * b.omega * prevVy) * earliestT;
+          b.vy += (C.GRAVITY - C.Cd * Math.sqrt(prevVx*prevVx + prevVy*prevVy) * prevVy + C.Cm * b.omega * prevVx) * earliestT;
+
+          // Impact velocity
+          const vn = b.vx * hitPointNx + b.vy * hitPointNy;
+          const speed = Math.sqrt(b.vx * b.vx + b.vy * b.vy);
+          const impactFactor = Math.min(1.0, speed / 8.0);
+
+          // Restitution based on impact speed (0.55–0.65 range)
+          const baseE = 0.60;
+          const E = baseE - (0.05 * impactFactor);
+
+          // Apply impulse
+          const J = -(1 + E) * vn;
+          b.vx += J * hitPointNx;
+          b.vy += J * hitPointNy;
+
+          // Friction (energy loss on tangential)
+          const vt = Math.sqrt((b.vx - vn*hitPointNx)**2 + (b.vy - vn*hitPointNy)**2);
+          const muF = 0.45 + (0.12 * (1 - impactFactor));
+          const Jt = Math.min(muF * Math.abs(J), vt);
+          const tx = -(b.vy - vn*hitPointNy) / (vt || 1);
+          const ty = (b.vx - vn*hitPointNx) / (vt || 1);
+          b.vx += Jt * tx;
+          b.vy += Jt * ty;
+
+          // Spin dissipation at contact
+          b.omega *= 0.70;
+
+          // Update contact tracking
+          b.rimContacts++;
+          if (rimPointIndex < 8) b.rimContactMask |= 0b001; // front
+          else b.rimContactMask |= 0b010; // back
+          b.rimHitTimer = 30; // 30-tick grace period
+
+          // Penetration correction
+          const dx = b._x_m - (C.HOOP_X_M + C.RIM_RADIUS_M * Math.cos((rimPointIndex / 16) * Math.PI * 2));
+          const dy = b._y_m - (C.HOOP_Y_M + C.RIM_RADIUS_M * Math.sin((rimPointIndex / 16) * Math.PI * 2));
+          const dist = Math.sqrt(dx*dx + dy*dy);
+          if (dist < contactR) {
+            const pushOut = (contactR - dist + 0.001) / (dist || 1);
+            b._x_m += dx * pushOut;
+            b._y_m += dy * pushOut;
+          }
+
+          // Remaining time integration
+          const remainDt = FIXED_DT - earliestT;
+          if (remainDt > 1e-6) {
+            const speed2 = Math.sqrt(b.vx * b.vx + b.vy * b.vy);
+            const ax2 = -C.Cd * speed2 * b.vx - C.Cm * b.omega * b.vy;
+            const ay2 = C.GRAVITY - C.Cd * speed2 * b.vy + C.Cm * b.omega * b.vx;
+            b._x_m += b.vx * remainDt + 0.5 * ax2 * remainDt * remainDt;
+            b._y_m += b.vy * remainDt + 0.5 * ay2 * remainDt * remainDt;
+            b.vx += ax2 * remainDt;
+            b.vy += ay2 * remainDt;
+          }
+        }
+        // ───────────────────────────────────────────────────────────────
+
+        // Backboard collision
+        const boardContactR = 0.05;
+        if (Math.abs(b._x_m - C.BOARD_X_M) < boardContactR && b._y_m > C.BOARD_TOP_M && b._y_m < C.BOARD_BOT_M) {
+          if (b.vx > 0) {
+            b.vx *= -0.82;
+            b.vy *= 0.90;
+            b._x_m = C.BOARD_X_M - boardContactR - 0.001;
+            b.hitBackboard = true;
+          }
+        }
+
+        // Floor bounce
+        if (b._y_m + ballR_m >= C.GROUND_Y_M) {
+          b._y_m = C.GROUND_Y_M - ballR_m;
+          b.vy *= -0.60;
+          b.bounceCount++;
+          if (b.bounceCount >= 4) {
+            b.state = 'missed';
+          }
+        }
+
         checkGoalEntry(b, C);
         b._physTick++;
         b._accumulator -= FIXED_DT;
@@ -1723,10 +1838,19 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       ctx.moveTo(POLE_X, 209*scaleY);
       ctx.lineTo(ARM_X, 209*scaleY);
       ctx.stroke();
-      ctx.lineWidth = 3*scaleX;
+
+      // ── BACKBOARD VISUAL (White, simplified) ───
+      ctx.fillStyle = '#ffffff';
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 2*scaleX;
+      ctx.fillRect(BOARD_X, BOARD_TOP, BOARD_W, BOARD_BOT - BOARD_TOP);
       ctx.strokeRect(BOARD_X, BOARD_TOP, BOARD_W, BOARD_BOT - BOARD_TOP);
+      // Backboard target square (white outline)
       ctx.lineWidth = 1.5*scaleX;
       ctx.strokeRect(BOARD_X + 1*scaleX, 227*scaleY, BOARD_W - 2*scaleX, 30*scaleY);
+
+      // ── HOOP ARMS (from backboard to rim) ───
+      ctx.strokeStyle = '#ffffff';
       ctx.lineWidth = 1.8*scaleX;
       ctx.beginPath();
       ctx.moveTo(BOARD_FACE, 262*scaleY);
@@ -1736,39 +1860,48 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       ctx.moveTo(BOARD_FACE, 276*scaleY);
       ctx.lineTo(HOOP_X - HOOP_R + 3*scaleX, HOOP_Y + sh * 0.3);
       ctx.stroke();
+
+      // ── 16-POINT BASKETBALL LAB RIM (Ellipse with perspective) ───
+      // Rear ellipse (dull, darker, represents back of rim from viewing angle)
+      ctx.strokeStyle = 'rgba(200, 100, 0, 0.4)';
+      ctx.lineWidth = 2.5*scaleX;
+      ctx.beginPath();
+      ctx.ellipse(HOOP_X + sh * 0.3, HOOP_Y + sh * 0.15 - 2*scaleY, HOOP_R - 2*scaleX, 5*scaleY, 0, 0, Math.PI);
+      ctx.stroke();
+
+      // Front ellipse (bright, white, represents near side of rim)
+      ctx.strokeStyle = '#ffffff';
       ctx.lineWidth = 3*scaleX;
       ctx.beginPath();
-      ctx.ellipse(HOOP_X + sh * 0.3, HOOP_Y + sh * 0.15, HOOP_R, 8*scaleY, 0, 0, Math.PI * 2);
+      ctx.ellipse(HOOP_X + sh * 0.3, HOOP_Y + sh * 0.15, HOOP_R, 8*scaleY, 0, Math.PI, Math.PI * 2);
       ctx.stroke();
+
+      // Net mesh (white lines, slightly transparent)
       ctx.lineWidth = 1*scaleX;
       ctx.globalAlpha = 0.65;
       ctx.strokeStyle = 'rgba(255,255,255,0.85)';
 
-      // ETAP 5: Calculate net swing displacement based on hit type
+      // Calculate net swing displacement based on hit type
       let netSwing = 0;
       if (gs.netSwing.type) {
         const elapsed = Date.now() - gs.netSwing.startTime;
         const progress = Math.min(1, elapsed / gs.netSwing.duration);
 
         if (gs.netSwing.type === 'DIRECT') {
-          // DIRECT: 3 oscillations, fast (200ms total)
           const oscillations = 3;
           const angle = progress * oscillations * Math.PI * 2;
           netSwing = Math.sin(angle) * 15 * scaleY * Math.cos(progress * Math.PI);
         } else if (gs.netSwing.type === 'ARC') {
-          // ARC: 2 oscillations, medium (300ms total)
           const oscillations = 2;
           const angle = progress * oscillations * Math.PI * 2;
           netSwing = Math.sin(angle) * 20 * scaleY * Math.cos(progress * Math.PI);
         } else if (gs.netSwing.type === 'SWISH') {
-          // SWISH: 1 vibration, fast (100ms total)
           netSwing = Math.sin(progress * Math.PI * 2) * 8 * scaleY;
         }
-
-        if (progress >= 1) gs.netSwing.type = null;  // Clear animation when done
+        if (progress >= 1) gs.netSwing.type = null;
       }
 
-      // Draw net with swing offset
+      // Vertical net mesh lines
       for (let i = 0; i < 7; i++) {
         const tx = HOOP_X - HOOP_R + 3*scaleX + i * (HOOP_R * 2 - 6*scaleX) / 6;
         const bx2 = HOOP_X - 11*scaleX + i * 22*scaleX / 6;
@@ -1777,6 +1910,8 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         ctx.lineTo(bx2 + sh * 0.12 * (i - 3) + netSwing * 0.1, HOOP_Y + 46*scaleY + sh + netSwing);
         ctx.stroke();
       }
+
+      // Horizontal net mesh lines (tapering toward bottom)
       for (let j = 0; j < 3; j++) {
         const t = (j + 1) / 4;
         const yw = HOOP_Y + 8*scaleY + t * 38*scaleY + sh * 0.08 + netSwing * (1 - t);
@@ -1786,6 +1921,8 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         ctx.lineTo(HOOP_X + hw, yw);
         ctx.stroke();
       }
+
+      // Goal flash (when scoring)
       if (gs.netShake) {
         const a = Math.max(0, (gs.netShakeEnd - Date.now()) / 700);
         ctx.globalAlpha = a * 0.55;
@@ -1794,6 +1931,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         ctx.ellipse(HOOP_X, HOOP_Y, HOOP_R + 14*scaleX, 11*scaleY, 0, 0, Math.PI * 2);
         ctx.fill();
       }
+
       ctx.globalAlpha = 1;
       ctx.restore();
     }
