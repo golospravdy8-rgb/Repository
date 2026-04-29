@@ -1828,77 +1828,133 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
 
-      // ── POLE (RED VERTICAL STANCHION) ───
-      ctx.strokeStyle = '#cc2200';
-      ctx.lineWidth = 6*scaleX;
+      // ─────────────────────────────────────────────────────────
+      // ШАГ 1: ЩИТ (Щит слегка повёрнут — правый край чуть смещён вниз)
+      // ─────────────────────────────────────────────────────────
+      // Деревянная рамка (тёмно-коричневая)
       ctx.beginPath();
-      ctx.moveTo(POLE_X, GY);
-      ctx.lineTo(POLE_X, 209*scaleY);
-      ctx.stroke();
-
-      // ── ARM (RED HORIZONTAL SUPPORT) ───
-      ctx.strokeStyle = '#cc2200';
-      ctx.lineWidth = 5*scaleX;
-      ctx.beginPath();
-      ctx.moveTo(POLE_X, 209*scaleY);
-      ctx.lineTo(ARM_X, 209*scaleY);
-      ctx.stroke();
-
-      // ── BACKBOARD (WHITE WITH SHADOW) ───
-      // Main backboard rectangle with slight transparency
-      ctx.fillStyle = 'rgba(255,255,255,0.15)';
-      ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 3*scaleX;
-      ctx.fillRect(BOARD_X, BOARD_TOP, BOARD_W, BOARD_BOT - BOARD_TOP);
-      ctx.strokeRect(BOARD_X, BOARD_TOP, BOARD_W, BOARD_BOT - BOARD_TOP);
-
-      // Target square (red outline) centered on backboard
-      ctx.strokeStyle = '#cc2200';
-      ctx.lineWidth = 2*scaleX;
-      const boardCenterX = BOARD_X + BOARD_W / 2;
-      const boardCenterY = BOARD_TOP + (BOARD_BOT - BOARD_TOP) / 2;
-      const targetSize = 30*scaleY;
-      ctx.strokeRect(boardCenterX - targetSize/2, boardCenterY - targetSize/2, targetSize, targetSize);
-
-      // ── MOUNTING ARMS (RED, BOARD → HOOP) ───
-      ctx.strokeStyle = '#cc2200';
-      ctx.lineWidth = 3*scaleX;
-      ctx.beginPath();
-      ctx.moveTo(BOARD_FACE, 262*scaleY);
-      ctx.lineTo(HOOP_X - HOOP_R + 3*scaleX, HOOP_Y + sh * 0.3);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.moveTo(BOARD_FACE, 276*scaleY);
-      ctx.lineTo(HOOP_X - HOOP_R + 3*scaleX, HOOP_Y + sh * 0.3);
-      ctx.stroke();
-
-      // ── RIM SHADOW (UNDER THE HOOP) ───
-      ctx.fillStyle = 'rgba(0,0,0,0.3)';
-      ctx.beginPath();
-      ctx.ellipse(HOOP_X + sh * 0.3, HOOP_Y + sh * 0.15 + 5*scaleY, HOOP_R - 2*scaleX, 4*scaleY, 0, 0, Math.PI * 2);
+      ctx.moveTo(BOARD_X - 2*scaleX, BOARD_TOP - 2*scaleY);
+      ctx.lineTo(BOARD_X + BOARD_W + 2*scaleX, BOARD_TOP);
+      ctx.lineTo(BOARD_X + BOARD_W + 2*scaleX, BOARD_BOT + 4*scaleY);
+      ctx.lineTo(BOARD_X - 2*scaleX, BOARD_BOT + 2*scaleY);
+      ctx.closePath();
+      ctx.fillStyle = '#7B5010';
       ctx.fill();
 
-      // ── RIM (ORANGE-RED WITH 3D EFFECT) ───
-      // Back half (darker, shadowed)
-      ctx.strokeStyle = '#cc3311';
-      ctx.lineWidth = 5*scaleX;
+      // Лицевая панель щита (фиолетово-прозрачная)
       ctx.beginPath();
-      ctx.ellipse(HOOP_X + sh * 0.3, HOOP_Y + sh * 0.15, HOOP_R, 8*scaleY, 0, 0, Math.PI);
+      ctx.moveTo(BOARD_X + 1*scaleX, BOARD_TOP + 3*scaleY);
+      ctx.lineTo(BOARD_X + BOARD_W, BOARD_TOP + 2*scaleY);
+      ctx.lineTo(BOARD_X + BOARD_W, BOARD_BOT + 1*scaleY);
+      ctx.lineTo(BOARD_X + 1*scaleX, BOARD_BOT);
+      ctx.closePath();
+      ctx.fillStyle = 'rgba(100,80,140,0.75)';
+      ctx.fill();
+      ctx.strokeStyle = '#5a3a08';
+      ctx.lineWidth = 1.5 * scaleX;
       ctx.stroke();
 
-      // Front half (brighter, highlighted)
-      ctx.strokeStyle = '#ff5533';
-      ctx.lineWidth = 5*scaleX;
+      // Блик на щите (левая светлая полоса)
       ctx.beginPath();
-      ctx.ellipse(HOOP_X + sh * 0.3, HOOP_Y + sh * 0.15, HOOP_R, 8*scaleY, 0, Math.PI, Math.PI * 2);
+      ctx.moveTo(BOARD_X + 1*scaleX, BOARD_TOP + 3*scaleY);
+      ctx.lineTo(BOARD_X + BOARD_W*0.35, BOARD_TOP + 2*scaleY);
+      ctx.lineTo(BOARD_X + BOARD_W*0.35, BOARD_BOT + 1*scaleY);
+      ctx.lineTo(BOARD_X + 1*scaleX, BOARD_BOT);
+      ctx.closePath();
+      ctx.fillStyle = 'rgba(255,255,255,0.08)';
+      ctx.fill();
+
+      // Прицельный прямоугольник внутри щита (золотой)
+      const aimL = BOARD_X + BOARD_W*0.15;
+      const aimR = BOARD_X + BOARD_W*0.90;
+      const aimT = BOARD_TOP + (BOARD_BOT - BOARD_TOP) * 0.30;
+      const aimB = BOARD_TOP + (BOARD_BOT - BOARD_TOP) * 0.65;
+      ctx.beginPath();
+      ctx.moveTo(aimL, aimT);
+      ctx.lineTo(aimR, aimT + 1*scaleY);
+      ctx.lineTo(aimR, aimB + 2*scaleY);
+      ctx.lineTo(aimL, aimB + 1*scaleY);
+      ctx.closePath();
+      ctx.strokeStyle = '#C8A84B';
+      ctx.lineWidth = 2 * scaleX;
       ctx.stroke();
 
-      // ── NET MESH ───
-      ctx.lineWidth = 1*scaleX;
-      ctx.strokeStyle = 'rgba(255,255,255,0.9)';
-      ctx.globalAlpha = 0.8;
+      // ─────────────────────────────────────────────────────────
+      // ШАГ 2: КРЕПЛЕНИЕ (Горизонтальная полка от щита к кольцу)
+      // ─────────────────────────────────────────────────────────
+      const RIM_RX = HOOP_R;
+      const RIM_RY = HOOP_R * 0.28;
+      const SHX = sh * 0.3;
+      const SHY = sh * 0.15;
+      const cx = HOOP_X + SHX;
+      const cy = HOOP_Y + SHY;
+      const rimRightX = cx + RIM_RX + SHX;
+      const bracketY = cy + SHY;
 
-      // Calculate net swing displacement
+      // Нижняя горизонтальная труба (основное крепление)
+      ctx.beginPath();
+      ctx.moveTo(BOARD_FACE, bracketY);
+      ctx.lineTo(rimRightX, bracketY);
+      ctx.strokeStyle = '#6B4010';
+      ctx.lineWidth = 5 * scaleX;
+      ctx.stroke();
+
+      // Верхняя труба параллельно (создаёт объём полки)
+      ctx.beginPath();
+      ctx.moveTo(BOARD_FACE, bracketY - 6*scaleY);
+      ctx.lineTo(rimRightX, bracketY - 6*scaleY);
+      ctx.strokeStyle = '#8B5518';
+      ctx.lineWidth = 3 * scaleX;
+      ctx.stroke();
+
+      // Заливка между трубами — объёмная полка
+      ctx.beginPath();
+      ctx.moveTo(BOARD_FACE, bracketY - 6*scaleY);
+      ctx.lineTo(rimRightX, bracketY - 6*scaleY);
+      ctx.lineTo(rimRightX, bracketY);
+      ctx.lineTo(BOARD_FACE, bracketY);
+      ctx.closePath();
+      ctx.fillStyle = '#7B4A14';
+      ctx.fill();
+
+      // Вертикальная пластина у щита
+      ctx.beginPath();
+      ctx.rect(BOARD_FACE, bracketY - 10*scaleY,
+               5*scaleX, 14*scaleY);
+      ctx.fillStyle = '#9B5A1A';
+      ctx.fill();
+      ctx.strokeStyle = '#6B3A0A';
+      ctx.lineWidth = 1 * scaleX;
+      ctx.stroke();
+
+      // ─────────────────────────────────────────────────────────
+      // ШАГ 3: КОЛЬЦО И СЕТКА
+      // ─────────────────────────────────────────────────────────
+
+      // ── 1. ЗАДНЯЯ ДУГА (верхняя, рисуется ДО сетки) ──────────
+      const RIM_TUBE = 5 * scaleX;
+
+      // Тень
+      ctx.beginPath();
+      ctx.ellipse(cx, cy + 1.5*scaleY, RIM_RX, RIM_RY, 0, Math.PI, 0);
+      ctx.strokeStyle = 'rgba(60,0,0,0.6)';
+      ctx.lineWidth = RIM_TUBE * 2.0;
+      ctx.stroke();
+      // Тёмный слой
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, RIM_RX, RIM_RY, 0, Math.PI, 0);
+      ctx.strokeStyle = '#8B1500';
+      ctx.lineWidth = RIM_TUBE * 1.3;
+      ctx.stroke();
+      // Основной цвет
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, RIM_RX, RIM_RY, 0, Math.PI, 0);
+      ctx.strokeStyle = '#B82010';
+      ctx.lineWidth = RIM_TUBE * 0.9;
+      ctx.stroke();
+
+      // ── 2. СЕТКА — трапеция, 3 цвета ─────────────────────────
+      // Первый, читаем netSwing из существующей переменной
       let netSwing = 0;
       if (gs.netSwing.type) {
         const elapsed = Date.now() - gs.netSwing.startTime;
@@ -1918,30 +1974,123 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         if (progress >= 1) gs.netSwing.type = null;
       }
 
-      // 8 vertical net strands (converging toward center/bottom)
-      for (let i = 0; i < 8; i++) {
-        const startX = HOOP_X - HOOP_R + (i / 7) * (HOOP_R * 2);
-        const endX = HOOP_X + (i - 3.5) * 3 * scaleX; // Converge toward center
-        const endY = HOOP_Y + 40*scaleY;
+      const netBottom = cy + HOOP_R * 1.5 + (netSwing || 0) * scaleY;
+      const NET_TOP_HALF = RIM_RX * 0.95;   // верх широкий
+      const NET_BOT_HALF = RIM_RX * 0.30;   // низ узкий (трапеция)
+
+      // Вертикальные нити — 11 штук по эллипсу
+      for (let i = 0; i <= 10; i++) {
+        const t = i / 10;
+        const topX = cx + (t - 0.5) * 2 * NET_TOP_HALF;
+        const topY = cy + RIM_RY * Math.cos(Math.PI * t) * 0.3;
+        const botX = cx + (t - 0.5) * 2 * NET_BOT_HALF;
+        const botY = netBottom;
+
+        // Цвет нити — белый→синий→красный снизу
+        const relPos = i / 10;
+        let netColor;
+        if (relPos < 0.15 || relPos > 0.85) {
+          netColor = 'rgba(200,200,255,0.82)'; // края светлее
+        } else {
+          netColor = 'rgba(225,215,255,0.88)'; // центр ярче
+        }
 
         ctx.beginPath();
-        ctx.moveTo(startX + sh * 0.08 * (i - 3.5), HOOP_Y + 8*scaleY);
-        ctx.lineTo(endX + sh * 0.12 * (i - 3.5) + netSwing * 0.1, endY + sh + netSwing);
+        ctx.strokeStyle = netColor;
+        ctx.lineWidth = 1.1 * scaleX;
+        ctx.moveTo(topX, topY);
+        // Контрольная точка — нити слегка провисают
+        const cpx = topX * 0.6 + botX * 0.4;
+        const cpy = topY + (botY - topY) * 0.5;
+        ctx.quadraticCurveTo(cpx, cpy, botX, botY);
         ctx.stroke();
       }
 
-      // 4 horizontal net rings (tapering downward)
-      for (let j = 1; j <= 4; j++) {
-        const t = j / 4;
-        const yw = HOOP_Y + 8*scaleY + t * 32*scaleY + sh * 0.08 + netSwing * (1 - t);
-        const widthFactor = 1 - (t * 0.5); // Taper: top 100%, bottom 50%
-        const hw = HOOP_R * widthFactor - 2*scaleX;
-
+      // Горизонтальные кольца сетки — 5 рядов
+      const netColors = [
+        'rgba(225,215,255,0.72)',  // ряд 1 белый
+        'rgba(210,200,255,0.68)',  // ряд 2 белый
+        'rgba(180,180,255,0.72)',  // ряд 3 белый-синий
+        'rgba(80,80,220,0.78)',    // ряд 4 синий
+        'rgba(200,50,50,0.82)',    // ряд 5 красный
+      ];
+      for (let j = 0; j < 5; j++) {
+        const t = (j + 1) / 5;
+        const rowY = cy + RIM_RY + (netBottom - cy - RIM_RY) * t;
+        const rowHalfW = NET_TOP_HALF * (1 - t) + NET_BOT_HALF * t;
+        const rowRY = RIM_RY * (1 - t * 0.75) * 0.25;
         ctx.beginPath();
-        ctx.moveTo(HOOP_X - hw, yw);
-        ctx.lineTo(HOOP_X + hw, yw);
+        ctx.ellipse(cx, rowY, rowHalfW, Math.max(rowRY, 1*scaleY),
+                    0, 0, Math.PI * 2);
+        ctx.strokeStyle = netColors[j];
+        ctx.lineWidth = (j >= 3 ? 1.2 : 0.9) * scaleX;
         ctx.stroke();
       }
+
+      // ── 3. ПЕРЕДНЯЯ ДУГА (рисуется ПОСЛЕ сетки — поверх) ─────
+      // Тень под передней дугой
+      ctx.beginPath();
+      ctx.ellipse(cx, cy + 2.5*scaleY, RIM_RX, RIM_RY, 0, 0, Math.PI);
+      ctx.strokeStyle = 'rgba(40,0,0,0.65)';
+      ctx.lineWidth = RIM_TUBE * 2.2;
+      ctx.stroke();
+      // Тёмный слой
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, RIM_RX, RIM_RY, 0, 0, Math.PI);
+      ctx.strokeStyle = '#8B1500';
+      ctx.lineWidth = RIM_TUBE * 1.6;
+      ctx.stroke();
+      // Средний тон
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, RIM_RX, RIM_RY, 0, 0, Math.PI);
+      ctx.strokeStyle = '#CC2200';
+      ctx.lineWidth = RIM_TUBE * 1.2;
+      ctx.stroke();
+      // Яркий верхний слой
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, RIM_RX, RIM_RY, 0, 0, Math.PI);
+      ctx.strokeStyle = '#FF3311';
+      ctx.lineWidth = RIM_TUBE * 0.7;
+      ctx.stroke();
+      // Блик на передней дуге
+      ctx.beginPath();
+      ctx.ellipse(cx, cy - 0.5*scaleY,
+                  RIM_RX * 0.65, RIM_RY * 0.55,
+                  0, Math.PI * 0.18, Math.PI * 0.82);
+      ctx.strokeStyle = 'rgba(255,180,140,0.50)';
+      ctx.lineWidth = 2.5 * scaleX;
+      ctx.stroke();
+
+      // Кружки дужек (передних) — ближние к нам
+      // Левая дужка
+      ctx.beginPath();
+      ctx.arc(cx - RIM_RX + SHX, cy + SHY, 5.5*scaleX, 0, Math.PI*2);
+      ctx.fillStyle = '#8B1500';
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(cx - RIM_RX + SHX, cy + SHY, 4*scaleX, 0, Math.PI*2);
+      ctx.fillStyle = '#DD2200';
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(cx - RIM_RX + SHX - 1.5*scaleX,
+              cy + SHY - 2*scaleY, 2*scaleX, 0, Math.PI*2);
+      ctx.fillStyle = 'rgba(255,190,150,0.55)';
+      ctx.fill();
+
+      // Правая дужка
+      ctx.beginPath();
+      ctx.arc(cx + RIM_RX + SHX, cy + SHY, 5.5*scaleX, 0, Math.PI*2);
+      ctx.fillStyle = '#8B1500';
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(cx + RIM_RX + SHX, cy + SHY, 4*scaleX, 0, Math.PI*2);
+      ctx.fillStyle = '#DD2200';
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(cx + RIM_RX + SHX - 1.5*scaleX,
+              cy + SHY - 2*scaleY, 2*scaleX, 0, Math.PI*2);
+      ctx.fillStyle = 'rgba(255,190,150,0.55)';
+      ctx.fill();
 
       // ── GOAL FLASH (GREEN GLOW ON SCORING) ───
       if (gs.netShake) {
