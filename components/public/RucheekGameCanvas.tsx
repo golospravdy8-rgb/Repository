@@ -550,30 +550,6 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
     }
 
     // НОВАЯ СИСТЕМА КОЛІЖІЙ: 5 різних результатів кидка
-    function checkHoopCollision(ball: any): string {
-      const dx = ball.x - HOOP_X;
-      const dy = ball.y - HOOP_Y;
-      const dist = Math.hypot(dx, dy);
-      const contacts = ball.rimContacts || 0;
-
-      if (ball.vy <= 0) return 'miss';
-
-      if (ball.guaranteedScore && dist < 80 * scaleX) return 'swish';
-
-      const entryAngle = Math.atan2(ball.vy, ball.vx) * 180 / Math.PI;
-      const NET_ZONE = 35 * scaleX;
-
-      if (dist < NET_ZONE && contacts === 0) return 'swish';
-
-      if (contacts >= 1 && dist < HOOP_RADIUS + BALL_RADIUS && entryAngle < -25) return 'rattleIn';
-
-      if (dist < HOOP_RADIUS && entryAngle < -35) return 'rattleIn';
-
-      if (dist < HOOP_RADIUS + BALL_RADIUS) return 'rimOut';
-
-      return 'miss';
-    }
-
     // ETAP 5: Determine realistic hit type (DIRECT/ARC/SWISH) based on accuracy and position
     function determineHitType(accuracy: number, dx: number, dy: number, dist: number): string {
       // DIRECT: 60% (accuracy affects probability)
@@ -596,84 +572,6 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
 
       // Default to DIRECT for most cases
       return 'DIRECT';
-    }
-
-    // Зберігаємо стару функцію для сумісності (використовується для fallback)
-    function checkBallInHoop(ballPos: any, hoopX: number, hoopY: number, hoopRadius: number): boolean {
-      const dx = ballPos.x - hoopX;
-      const dy = ballPos.y - hoopY;
-      const horizontalDist = Math.abs(dx);
-      const inRimArea = horizontalDist < (hoopRadius + BALL_RADIUS);
-      const belowRim = ballPos.y > hoopY + 10 * scaleY;
-      return inRimArea && belowRim;
-    }
-
-    // Застосування реалістичного відскоку від обіду
-    function applyRimBounce(ball: any): void {
-      if (ball.rimContacts === undefined) ball.rimContacts = 0;
-
-      const frontRim = { x: HOOP_X + HOOP_R, y: HOOP_Y };
-      const backRim  = { x: HOOP_X - HOOP_R, y: HOOP_Y };
-      const tubeR = HOOP_R * 0.22;
-
-      const dFront = Math.hypot(ball.x - frontRim.x, ball.y - frontRim.y);
-      const dBack  = Math.hypot(ball.x - backRim.x,  ball.y - backRim.y);
-      const rim    = dFront < dBack ? frontRim : backRim;
-      const isFront = dFront < dBack;
-
-      const dx = ball.x - rim.x;
-      const dy = ball.y - rim.y;
-      const dist = Math.hypot(dx, dy) || 1;
-      const nx = dx / dist;
-      const ny = dy / dist;
-
-      ball.x = rim.x + nx * (BALL_RADIUS + tubeR + 1);
-      ball.y = rim.y + ny * (BALL_RADIUS + tubeR + 1);
-
-      const dot = ball.vx * nx + ball.vy * ny;
-      const tx = ball.vx - dot * nx;
-      const ty = ball.vy - dot * ny;
-      ball.vx = -dot * 0.25 * nx + tx * 0.82;
-      ball.vy = -dot * 0.25 * ny + ty * 0.82;
-
-      const speed = Math.hypot(ball.vx, ball.vy);
-      const entryAngle = Math.atan2(Math.abs(ball.vy), Math.abs(ball.vx)) * 180 / Math.PI;
-
-      ball.rimContacts++;
-
-      if (isFront) {
-        if (entryAngle >= 40 && entryAngle <= 70 && speed >= 2 && speed <= 7) {
-          ball.vx = -Math.abs(ball.vx) * 0.35;
-          ball.vy =  Math.abs(ball.vy) * 0.45;
-        } else if (entryAngle > 70) {
-          ball.vy = -speed * 0.4;
-          ball.vx *= 0.3;
-        } else {
-          ball.vx = (ball.vx > 0 ? 1 : -1) * speed * 0.5;
-          ball.vy = -Math.abs(ball.vy) * 0.3;
-        }
-      } else {
-        if (entryAngle > 55) {
-          ball.vx = (HOOP_X - ball.x) * 0.12;
-          ball.vy =  Math.abs(ball.vy) * 0.55;
-        } else {
-          ball.vx = Math.abs(ball.vx) * 0.55;
-          ball.vy = -Math.abs(ball.vy) * 0.25;
-        }
-      }
-
-      if (ball.rimContacts >= 2) {
-        const s2 = Math.hypot(ball.vx, ball.vy);
-        if (s2 < 3.5 && Math.abs(ball.x - HOOP_X) < HOOP_R * 0.8) {
-          ball.vx = (HOOP_X - ball.x) * 0.18;
-          ball.vy = Math.abs(ball.vy) + 2.8;
-        }
-      }
-
-      if (ball.spin && ball.spin < -0.03) {
-        ball.vy += Math.abs(ball.spin) * 0.6;
-        ball.vx *= 0.65;
-      }
     }
 
     function getHoopInsideDepth(ballX: number, ballY: number, hoopX: number, hoopY: number): number {
