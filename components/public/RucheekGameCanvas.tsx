@@ -16,7 +16,14 @@ import {
   calculateGreenZonePosition,
   updateOscillator,
   calculateAccuracy,
+  integratePhysics,
+  checkAllCollisions,
+  checkGoalEntry,
+  computeLaunchVelocityMeters,
+  type PhysicsConstantsM,
+  type BallStateM,
 } from "./basketball-physics-engine";
+import { recordCheckpoint } from "@/lib/game/trajectoryHash";
 
 interface RucheekGameCanvasProps {
   isVisible: boolean;
@@ -480,6 +487,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
     const H = canvas.height;
     const GY = GY_ORIG * scaleY;
     groundYRef.current = GY;
+    const SCALE = W / 15.0;  // pixels per meter (court is 15m)
     // Real gravity: 9.81 m/s² = 0.095 px/frame² at 35px=1m, 60fps
     // Гравітація: зменшена на 15% для красивішої параболи (0.12 * 0.85 = 0.102)
     const G = 0.102;
@@ -543,29 +551,6 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
     }
 
     // НОВАЯ СИСТЕМА КОЛІЖІЙ: 5 різних результатів кидка
-    function checkHoopCollision(ball: any): string {
-      const dx = ball.x - HOOP_X;
-      const dy = ball.y - HOOP_Y;
-      const dist = Math.hypot(dx, dy);
-      const contacts = ball.rimContacts || 0;
-
-      if (ball.vy <= 0) return 'miss';
-
-      if (ball.guaranteedScore && dist < 80 * scaleX) return 'swish';
-
-      const entryAngle = Math.atan2(ball.vy, ball.vx) * 180 / Math.PI;
-      const NET_ZONE = 35 * scaleX;
-
-      if (dist < NET_ZONE && contacts === 0) return 'swish';
-
-      if (contacts >= 1 && dist < HOOP_RADIUS + BALL_RADIUS && entryAngle < -25) return 'rattleIn';
-
-      if (dist < HOOP_RADIUS && entryAngle < -35) return 'rattleIn';
-
-      if (dist < HOOP_RADIUS + BALL_RADIUS) return 'rimOut';
-
-      return 'miss';
-    }
 
     // ETAP 5: Determine realistic hit type (DIRECT/ARC/SWISH) based on accuracy and position
     function determineHitType(accuracy: number, dx: number, dy: number, dist: number): string {
@@ -602,73 +587,6 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
     }
 
     // Застосування реалістичного відскоку від обіду
-    function applyRimBounce(ball: any): void {
-      if (ball.rimContacts === undefined) ball.rimContacts = 0;
-
-      const frontRim = { x: HOOP_X + HOOP_R, y: HOOP_Y };
-      const backRim  = { x: HOOP_X - HOOP_R, y: HOOP_Y };
-      const tubeR = HOOP_R * 0.22;
-
-      const dFront = Math.hypot(ball.x - frontRim.x, ball.y - frontRim.y);
-      const dBack  = Math.hypot(ball.x - backRim.x,  ball.y - backRim.y);
-      const rim    = dFront < dBack ? frontRim : backRim;
-      const isFront = dFront < dBack;
-
-      const dx = ball.x - rim.x;
-      const dy = ball.y - rim.y;
-      const dist = Math.hypot(dx, dy) || 1;
-      const nx = dx / dist;
-      const ny = dy / dist;
-
-      ball.x = rim.x + nx * (BALL_RADIUS + tubeR + 1);
-      ball.y = rim.y + ny * (BALL_RADIUS + tubeR + 1);
-
-      const dot = ball.vx * nx + ball.vy * ny;
-      const tx = ball.vx - dot * nx;
-      const ty = ball.vy - dot * ny;
-      ball.vx = -dot * 0.25 * nx + tx * 0.82;
-      ball.vy = -dot * 0.25 * ny + ty * 0.82;
-
-      const speed = Math.hypot(ball.vx, ball.vy);
-      const entryAngle = Math.atan2(Math.abs(ball.vy), Math.abs(ball.vx)) * 180 / Math.PI;
-
-      ball.rimContacts++;
-
-      if (isFront) {
-        if (entryAngle >= 40 && entryAngle <= 70 && speed >= 2 && speed <= 7) {
-          ball.vx = -Math.abs(ball.vx) * 0.35;
-          ball.vy =  Math.abs(ball.vy) * 0.45;
-        } else if (entryAngle > 70) {
-          ball.vy = -speed * 0.4;
-          ball.vx *= 0.3;
-        } else {
-          ball.vx = (ball.vx > 0 ? 1 : -1) * speed * 0.5;
-          ball.vy = -Math.abs(ball.vy) * 0.3;
-        }
-      } else {
-        if (entryAngle > 55) {
-          ball.vx = (HOOP_X - ball.x) * 0.12;
-          ball.vy =  Math.abs(ball.vy) * 0.55;
-        } else {
-          ball.vx = Math.abs(ball.vx) * 0.55;
-          ball.vy = -Math.abs(ball.vy) * 0.25;
-        }
-      }
-
-      if (ball.rimContacts >= 2) {
-        const s2 = Math.hypot(ball.vx, ball.vy);
-        if (s2 < 3.5 && Math.abs(ball.x - HOOP_X) < HOOP_R * 0.8) {
-          ball.vx = (HOOP_X - ball.x) * 0.18;
-          ball.vy = Math.abs(ball.vy) + 2.8;
-        }
-      }
-
-      if (ball.spin && ball.spin < -0.03) {
-        ball.vy += Math.abs(ball.spin) * 0.6;
-        ball.vx *= 0.65;
-      }
-    }
-
     function getHoopInsideDepth(ballX: number, ballY: number, hoopX: number, hoopY: number): number {
       const dx = ballX - hoopX;
       const horizontalDist = Math.abs(dx);
@@ -1060,273 +978,50 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       gs.autoTestRun = true;
     }
 
-    function stepBall(b: any, dt: number) {
+    function stepBall(b: any, dt_normalized: number) {
       if (b.state !== 'flying') return;
+      const FIXED_DT = 1/120;  // seconds
 
-      const prevX = b.x, prevY = b.y;
+      // Init on first call
+      if (b._accumulator === undefined) { b._accumulator = 0; b._physTick = 0; b._checkpoints = []; }
 
-      // Pure parabolic physics: gravity + velocity + drag
-      b.vy += G * dt;
-      const spd = Math.hypot(b.vx, b.vy);
-      b.vx -= b.vx * 0.0018 * spd;  // Drag effect
-      b.vy -= b.vy * 0.0018 * spd;  // Drag effect
-      b.x += b.vx * dt;
-      b.y += b.vy * dt;
-      b.rot += 0.08;
+      // dt_normalized is frames at 60fps → convert to real seconds
+      const frameMs = dt_normalized * (1000/60);
+      b._accumulator = Math.min(b._accumulator + frameMs/1000, 3 * FIXED_DT);  // cap 3 steps
 
-      // Magnet removed — ball flies pure parabola, no artificial attraction to hoop
+      // Build meter-space PhysicsConstants from closure vars
+      const C: PhysicsConstantsM = {
+        GRAVITY: 9.81, BALL_MASS: 0.623, BALL_RADIUS_M: 0.12,
+        RIM_RADIUS_M: 0.225, RIM_TUBE_R_M: 0.023, NET_ZONE_DEPTH_M: 0.45,
+        E_RIM: 0.72, MU_RIM: 0.57, Cd: 0.004, Cm: 0.000045, OMEGA_DECAY: 0.985,
+        HOOP_X_M: HOOP_X / SCALE, HOOP_Y_M: HOOP_Y / SCALE,
+        BOARD_X_M: BOARD_FACE / SCALE, BOARD_TOP_M: BOARD_TOP / SCALE,
+        BOARD_BOT_M: BOARD_BOT / SCALE, GROUND_Y_M: GY / SCALE,
+      };
 
-      // Guided-mode correction ONLY in last 5 frames
-      if (b.isGuided) {
-        b.frameCount = (b.frameCount || 0) + 1;
-        const framesLeft = b.T - b.frameCount;
-        if (framesLeft > 0 && framesLeft <= 5) {
-          // Smooth correction toward target
-          b.x += (b.targetX - b.x) * (0.15 * (6 - framesLeft));
-          b.y += (b.targetY - b.y) * (0.15 * (6 - framesLeft));
-        }
+      while (b._accumulator >= FIXED_DT && b.state === 'flying') {
+        integratePhysics(b, FIXED_DT, C);
+        checkAllCollisions(b, FIXED_DT, C);
+        checkGoalEntry(b, C);
+        b._physTick++;
+        if (b._physTick % 30 === 0) recordCheckpoint(b, b._checkpoints);
+        b._accumulator -= FIXED_DT;
       }
 
-      // ═══════════════════════════════════════
-      // РЕАЛІСТИЧНА ФІЗИКА КІЛЬЦЯ
-      // Кожен кадр перевіряємо зіткнення з дужками
-      // ═══════════════════════════════════════
-      {
-        const FRONT_RIM = { x: HOOP_X + HOOP_R, y: HOOP_Y };
-        const BACK_RIM  = { x: HOOP_X - HOOP_R, y: HOOP_Y };
-        const TUBE_R = HOOP_R * 0.22;
+      if (b.rimHitTimer > 0) b.rimHitTimer--;
 
-        for (const rim of [FRONT_RIM, BACK_RIM]) {
-          const isFront = rim === FRONT_RIM;
-          const rdx = b.x - rim.x;
-          const rdy = b.y - rim.y;
-          const rdist = Math.hypot(rdx, rdy);
-          if (rdist >= BALL_RADIUS + TUBE_R || rdist === 0) continue;
+      // Update pixel-space b.x/b.y for draw compatibility
+      b.x = b._x_m * SCALE;
+      b.y = b._y_m * SCALE;
 
-          if (b.rimContacts === undefined) b.rimContacts = 0;
-          b.rimContacts++;
-
-          // Виштовхнути м'яч від дужки
-          const nx = rdx / rdist;
-          const ny = rdy / rdist;
-          b.x = rim.x + nx * (BALL_RADIUS + TUBE_R + 1);
-          b.y = rim.y + ny * (BALL_RADIUS + TUBE_R + 1);
-
-          // Базовий відскок
-          const dot = b.vx * nx + b.vy * ny;
-          const tx = b.vx - dot * nx;
-          const ty = b.vy - dot * ny;
-          b.vx = -dot * 0.25 * nx + tx * 0.82;
-          b.vy = -dot * 0.25 * ny + ty * 0.82;
-
-          const speed = Math.hypot(b.vx, b.vy);
-          const entryAngle = Math.atan2(Math.abs(b.vy), Math.abs(b.vx)) * 180 / Math.PI;
-          const spin = b.spin || 0;
-          const hasBackspin = spin < -0.03;
-          const rnd = Math.random();
-
-          let outcome = 'unknown';
-          const rimHitLog = `RIM HIT: front=${isFront}, angle=${entryAngle.toFixed(1)}°, speed=${speed.toFixed(2)}, spin=${spin.toFixed(3)}, contacts=${b.rimContacts}`;
-
-          if (isFront) {
-            if (entryAngle >= 40 && entryAngle <= 65 && speed >= 2 && speed <= 6) {
-              // СЦЕНАРІЙ 6: Передня→задня→всередину (18% реальний)
-              outcome = 'front_mid_in';
-              b.vx = -Math.abs(b.vx) * 0.35;
-              b.vy =  Math.abs(b.vy) * 0.42;
-              addFlash('💥', HOOP_X, HOOP_Y - 30*scaleY, '#ff9900');
-            } else if (entryAngle > 70) {
-              // СЦЕНАРІЙ 3/4: Крутий кут — підскок вгору
-              if (hasBackspin && rnd < 0.65) {
-                // Бекспін повертає м'яч в кільце (65% при бекспін)
-                outcome = 'front_steep_backspin';
-                b.vy = -speed * 0.35;
-                b.vx = (HOOP_X - b.x) * 0.08;
-              } else {
-                outcome = 'front_steep_bounce';
-                b.vy = -speed * 0.45;
-                b.vx *= 0.25;
-              }
-              addFlash('💥', HOOP_X, HOOP_Y - 30*scaleY, '#ff9900');
-            } else {
-              // СЦЕНАРІЙ 8: Пологий → відскок назад (недоліт)
-              outcome = 'front_shallow_out';
-              b.vx = (b.vx > 0 ? 1 : -1) * speed * 0.55;
-              b.vy = -Math.abs(b.vy) * 0.28;
-              addFlash('💢', HOOP_X, HOOP_Y - 30*scaleY, '#ff4444');
-            }
-          } else {
-            if (entryAngle > 55) {
-              // СЦЕНАРІЙ 9: Задня крутий → притягується до центру (перекид)
-              outcome = 'back_steep_in';
-              b.vx = (HOOP_X - b.x) * 0.14;
-              b.vy =  Math.abs(b.vy) * 0.52;
-              addFlash('💥', HOOP_X, HOOP_Y - 30*scaleY, '#ff9900');
-            } else if (entryAngle > 30) {
-              // Середній кут задньої — може зайти або вилетіти
-              if (rnd < 0.45) {
-                outcome = 'back_mid_in_50';
-                b.vx = (HOOP_X - b.x) * 0.10;
-                b.vy =  Math.abs(b.vy) * 0.45;
-              } else {
-                outcome = 'back_mid_out_50';
-                b.vx = Math.abs(b.vx) * 0.5;
-                b.vy = -Math.abs(b.vy) * 0.2;
-              }
-              addFlash('💥', HOOP_X, HOOP_Y - 30*scaleY, '#ffaa00');
-            } else {
-              // СЦЕНАРІЙ 10: Задня пологий → перелет вперед
-              outcome = 'back_shallow_out';
-              b.vx = Math.abs(b.vx) * 0.55;
-              b.vy = -Math.abs(b.vy) * 0.22;
-              addFlash('💢', HOOP_X, HOOP_Y - 30*scaleY, '#ff4444');
-            }
-          }
-
-          // СЦЕНАРІЙ 4/11: Rim roll — повільний м'яч біля центру скочується
-          if (b.rimContacts >= 2) {
-            const s2 = Math.hypot(b.vx, b.vy);
-            const centerDist = Math.abs(b.x - HOOP_X);
-            if (s2 < 3.5 && centerDist < HOOP_R * 0.8) {
-              if (rnd < 0.6) {
-                // 60% — залетає (rim roll in)
-                outcome = 'rimroll_in_60';
-                b.vx = (HOOP_X - b.x) * 0.18;
-                b.vy = Math.abs(b.vy) + 2.8;
-                addFlash('🔄', HOOP_X, HOOP_Y - 30*scaleY, '#00ff88');
-              } else {
-                // 40% — вилітає (rim roll out)
-                outcome = 'rimroll_out_40';
-                b.vx = (b.x > HOOP_X ? 1 : -1) * 2.5;
-                b.vy = -1.5;
-                addFlash('😬', HOOP_X, HOOP_Y - 30*scaleY, '#ff4444');
-              }
-            }
-          }
-
-          // СЦЕНАРІЙ 17: Бекспін — засмоктує в кільце після будь-якого торкання
-          if (hasBackspin) {
-            outcome += '_with_backspin';
-            b.vy += Math.abs(spin) * 0.6;
-            b.vx *= 0.65;
-          }
-
-          console.log(`${rimHitLog}, outcome=${outcome}`);
-
-          break; // одне торкання за кадр
-        }
-
-        // ── ПЕРЕВІРКА ГОЛУ — м'яч пройшов крізь кільце зверху вниз ──
-        if (b.vy > 0 && !b.scoredGoal) {
-          const distC = Math.hypot(b.x - HOOP_X, b.y - HOOP_Y);
-          const inNetZone =
-            distC < HOOP_RADIUS - BALL_RADIUS * 0.3 &&
-            b.y >= HOOP_Y - 4 * scaleY &&
-            b.y <= HOOP_Y + 20 * scaleY;
-
-          if (inNetZone) {
-            const rimC = b.rimContacts || 0;
-            b.outcome = rimC === 0 ? 'swish' : rimC <= 2 ? 'rattleIn' : 'direct';
-            console.log(`GOAL: contacts=${rimC}, outcome=${b.outcome}`);
-            b.scoredGoal = true;
-            b.state = 'scored';
-            b.vx = 0;
-            b.vy = 0;
-            b.x = HOOP_X;
-            b.y = HOOP_Y + 26 * scaleY;
-            gs.netShake = true;
-            gs.netShakeEnd = Date.now() + 700;
-            gs.netSwing = {
-              type: rimC === 0 ? 'SWISH' : 'DIRECT',
-              startTime: Date.now(),
-              duration: rimC === 0 ? 100 : 200
-            };
-            const msg = rimC === 0 ? '🎯 SWISH!' : rimC <= 2 ? '💥 Rattles In!' : '🎯 IN!';
-            const clr = rimC === 0 ? '#00ff00' : '#ff9900';
-            addFlash(msg, HOOP_X, HOOP_Y - 52 * scaleY, clr);
-            return;
-          }
+      // Classify miss outcomes
+      if (b.state === 'missed' && !b.outcome) {
+        if (b.rimContacts === 0) {
+          b.outcome = 'airball';
+        } else {
+          b.outcome = (b.rimContactMask & 0b001) ? 'front_rim_out' : 'back_rim_out';
         }
       }
-
-      // BANK SHOT обробка (обід щитка потім в сітку) - залишається як раніше
-      if (!b.boardHandled) {
-        const crossedFace = (prevX > BOARD_FACE && b.x <= BOARD_FACE) || (prevX >= BOARD_FACE && b.x < BOARD_FACE);
-        const nearFace = b.x <= BOARD_FACE + 12 && b.x >= BOARD_X - 4 && b.vx < 0;
-        if ((crossedFace || nearFace) && b.vx < 0) {
-          const hitY = prevY + (b.y - prevY) * Math.max(0, Math.min(1, (prevX - BOARD_FACE) / Math.max(0.001, prevX - b.x)));
-          if (hitY >= BOARD_TOP - 8 && hitY <= BOARD_BOT + 8) {
-            b.boardHandled = true;
-            b.hitBackboard = true;
-            b.x = BOARD_FACE + 2;
-            const hitRatio = Math.max(0, Math.min(1, (hitY - BOARD_TOP) / (BOARD_BOT - BOARD_TOP)));
-            const impactSpd = Math.hypot(b.vx, b.vy);
-            const goIn = Math.random() < 0.50;
-            if (goIn) {
-              addFlash('💥 BANK SHOT! 💥', BOARD_X + 50*scaleX, BOARD_TOP - 32*scaleY, '#ffffff');
-              b.outcome = 'bankShot';
-              const toHX = HOOP_X - b.x, toHY = HOOP_Y - hitY;
-              const toHLen = Math.hypot(toHX, toHY);
-              const normHX = toHX / toHLen, normHY = toHY / toHLen;
-              const reflectVx = Math.abs(b.vx) * 0.65, reflectVy = b.vy * 0.80;
-              const blendToHoop = 0.80 - hitRatio * 0.40;
-              const physBlend = 1 - blendToHoop;
-              const finalSpd = impactSpd * 0.68;
-              b.vx = (normHX * blendToHoop + (reflectVx / impactSpd) * physBlend) * finalSpd + (Math.random() - 0.5) * 0.3;
-              b.vy = (normHY * blendToHoop + (reflectVy / impactSpd) * physBlend) * finalSpd + (Math.random() - 0.5) * 0.2;
-              b.outcome = 'direct';
-            } else {
-              addFlash('🔶 ВІДБІЙ→МИМО', BOARD_X + 50*scaleX, BOARD_TOP - 32*scaleY, '#ff6600');
-              b.vx = Math.abs(b.vx) * 0.60 * (0.9 + Math.random() * 0.2);
-              b.vy = b.vy * 0.50 + Math.random() * 0.5;
-              b.outcome = 'miss_fly';
-            }
-          }
-        }
-      }
-
-      // РЕАЛІСТИЧНИЙ ВІДСКІК ВІД ПІДЛОГИ з фізикою обертання
-      const BOUNCE_RESTITUTION = 0.6;
-      const FLOOR_FRICTION = 0.75;
-      const MIN_BOUNCE_SPEED = 1.5;
-      const MAX_BOUNCES = 4;
-
-      if (b.y >= GY) {
-        if (!b.bounceCount) b.bounceCount = 0;
-
-        // Ініціалізуй ротацію якщо не розпочата
-        if (!b.angularVelocity) b.angularVelocity = 0;
-
-        // Перший контакт з підлогою - відскік
-        if (b.bounceCount < MAX_BOUNCES && Math.abs(b.vy) >= MIN_BOUNCE_SPEED) {
-          b.y = GY;
-
-          // Коефіцієнт пружності залежить від кута падіння
-          const fallAngle = Math.abs(Math.atan2(b.vy, b.vx));
-          const restitution = BOUNCE_RESTITUTION * (0.8 + 0.4 * Math.cos(fallAngle));
-
-          // Відскік: інвертуй vy, зменши за рахунок пружності
-          b.vy = -b.vy * restitution;
-
-          // Тертя: зменш горизонтальну швидкість при відскоці
-          b.vx *= FLOOR_FRICTION;
-
-          // Обертання: збільш angular velocity при відскоці
-          b.angularVelocity = b.vx * 0.05;
-
-          // Лічи відскоки
-          b.bounceCount++;
-
-        } else if (b.bounceCount >= MAX_BOUNCES || Math.abs(b.vy) < MIN_BOUNCE_SPEED) {
-          // Відскоки завершені або низька швидкість - м'яч зупинився
-          b.y = GY;
-          b.vx = 0;
-          b.vy = 0;
-          b.angularVelocity = 0;
-          b.state = 'missed';
-        }
-      }
-
     }
 
     function launchBall(idx: number, shotCursorPos: number = 0.5) {
@@ -1354,71 +1049,36 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         scaleX: scaleX,
       };
 
-      // Get realistic launch velocity from physics engine
-      const { vx, vy, spin } = computeLaunchVelocity(launchParams);
+      const scale_m = SCALE;
+      const px_m = px / scale_m;
+      const py_m = py / scale_m;
+      const distToHoop_m = Math.hypot(HOOP_X/scale_m - px_m, HOOP_Y/scale_m - py_m);
 
-      // ── OUTCOME DETERMINATION based on Sweet Spot accuracy
-      // Use accuracy from cursor position relative to Sweet Spot to determine shot success
-      const accuracy = ss.accuracy || 0;
-
-      // Outcome probabilities based on accuracy to Sweet Spot:
-      // accuracy >= 85% → guaranteed score
-      // accuracy >= 70% → likely score with rim bounce
-      // accuracy >= 50% → possible score
-      // accuracy < 50% → likely miss
-      let outcome = 'miss';
-      let matchPct = accuracy;
-
-      if (accuracy >= 85) {
-        // Perfect or near-perfect accuracy → direct swish/score
-        outcome = 'perfect_direct';
-        matchPct = 95 + Math.random() * 5;
-      } else if (accuracy >= 70) {
-        // Good accuracy → likely direct score
-        const scoreChance = 0.75 + (accuracy - 70) / 30 * 0.15;
-        if (Math.random() < scoreChance) {
-          outcome = 'direct';
-          matchPct = 75 + Math.random() * 15;
-        } else {
-          outcome = 'miss';
-          matchPct = accuracy;
-        }
-      } else if (accuracy >= 50) {
-        // Moderate accuracy → possible score
-        const scoreChance = 0.40 + (accuracy - 50) / 20 * 0.35;
-        if (Math.random() < scoreChance) {
-          outcome = 'direct';
-          matchPct = 50 + Math.random() * 20;
-        } else {
-          outcome = 'miss';
-          matchPct = accuracy;
-        }
-      } else {
-        // Low accuracy → mostly miss
-        outcome = 'miss';
-        matchPct = accuracy;
-      }
+      const { vx_m, vy_m, omega } = computeLaunchVelocityMeters({
+        angle: ss.lockedAngle,
+        power: shotPower,
+        accuracy: ss.accuracy || 0,
+        distToHoop_m, px_m, py_m,
+      });
 
       ss.ball = {
-        x: px,
-        y: py,
-        vx,
-        vy,
-        rot: 0,
-        spin,
-        drag: PHYSICS_CONSTANTS.DRAG_COEFFICIENT,
-        state: 'flying',
-        outcome,
-        matchPct,
-        accuracy: ss.accuracy || 0,
-        scoredGoal: false,
-        boardHandled: false,
-        rimHandled: false,
-        owner: idx,
-        bounceCount: 0,
-        rimBounceCount: 0,
-        frameCount: 0,
-        isGuided: false,
+        // Meter-space physics state
+        _x_m: px_m, _y_m: py_m,
+        vx: vx_m, vy: vy_m,
+        omega,
+        // Pixel-space (kept in sync by stepBall for draw compat)
+        x: px, y: py,
+        rot: 0, spin: omega,
+        // Accumulator
+        _accumulator: 0, _physTick: 0, _checkpoints: [],
+        _scale: scale_m,
+        // Game state
+        state: 'flying', outcome: 'in_progress',
+        scoredGoal: false, boardHandled: false, hitBackboard: false,
+        owner: idx, bounceCount: 0,
+        rimContacts: 0, rimContactMask: 0, rimHitTimer: 0, rimBounceCount: 0,
+        frameCount: 0, isGuided: false, guaranteedScore: false,
+        _inRimZone: false,
       };
 
 

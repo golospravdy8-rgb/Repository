@@ -124,6 +124,9 @@ export class BasketballRoom extends Room<GameStateSchema> {
       nickname: player.nickname,
       color: player.color,
       playerIndex: player.playerIndex,
+      x: player.x,
+      y: player.y,
+      status: player.status,
     });
   }
 
@@ -144,8 +147,9 @@ export class BasketballRoom extends Room<GameStateSchema> {
     const player = this.state.players.get(client.sessionId);
     if (!player) return;
 
-    player.x = data.x || player.x;
-    player.y = data.y || player.y;
+    // Fix: use explicit check instead of || fallback (|| fails when x/y = 0)
+    player.x = (data.x !== undefined && data.x !== null) ? data.x : player.x;
+    player.y = (data.y !== undefined && data.y !== null) ? data.y : player.y;
     player.status = data.status || "alive";
     player.lastSeen = Date.now();
     console.log('[🔴 SERVER move] Player moved:', client.sessionId,

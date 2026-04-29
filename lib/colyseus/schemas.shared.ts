@@ -30,6 +30,12 @@ export class BallSchema extends Schema {
   @type("number") rimContacts: number = 0;
   @type("number") spin: number = 0;
   @type("number") guaranteedScore: number = 0; // для accuracy-based scoring
+  @type("number") omega: number = 0;           // rad/s spin from new physics engine
+  @type("number") physTick: number = 0;        // current physics tick
+  @type("string") lastOutcome: string = "";    // last classified ShotOutcome
+  @type("number") rimContactMask: number = 0;  // bitmask: bit0=front, bit1=back, bit2=side
+  @type("string") trajectoryHash: string = ""; // base64 trajectory for desync detection
+  @type("number") launchTick: number = 0;      // server tick when shot launched
 }
 
 export class GameStateSchema extends Schema {
@@ -59,4 +65,9 @@ export class GameStateSchema extends Schema {
 
   @type("number")
   scale = 1;
+
+  @type("number")
+  physicsTick: number = 0;     // global monotonic 120Hz tick counter
+  @type("string")
+  desyncFlags: string = "";    // comma-separated playerIds with desync
 }
