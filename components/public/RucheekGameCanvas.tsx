@@ -1825,33 +1825,44 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
     function drawBasket() {
       const sh = gs.netShake ? Math.sin(gs.netShakeT) * 2.5 : 0;
       ctx.save();
-      ctx.strokeStyle = '#e05545';
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
-      ctx.lineWidth = 5*scaleX;
+
+      // ── POLE (RED VERTICAL STANCHION) ───
+      ctx.strokeStyle = '#cc2200';
+      ctx.lineWidth = 6*scaleX;
       ctx.beginPath();
       ctx.moveTo(POLE_X, GY);
       ctx.lineTo(POLE_X, 209*scaleY);
       ctx.stroke();
-      ctx.lineWidth = 3*scaleX;
+
+      // ── ARM (RED HORIZONTAL SUPPORT) ───
+      ctx.strokeStyle = '#cc2200';
+      ctx.lineWidth = 5*scaleX;
       ctx.beginPath();
       ctx.moveTo(POLE_X, 209*scaleY);
       ctx.lineTo(ARM_X, 209*scaleY);
       ctx.stroke();
 
-      // ── BACKBOARD VISUAL (White, simplified) ───
-      ctx.fillStyle = '#ffffff';
+      // ── BACKBOARD (WHITE WITH SHADOW) ───
+      // Main backboard rectangle with slight transparency
+      ctx.fillStyle = 'rgba(255,255,255,0.15)';
       ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 2*scaleX;
+      ctx.lineWidth = 3*scaleX;
       ctx.fillRect(BOARD_X, BOARD_TOP, BOARD_W, BOARD_BOT - BOARD_TOP);
       ctx.strokeRect(BOARD_X, BOARD_TOP, BOARD_W, BOARD_BOT - BOARD_TOP);
-      // Backboard target square (white outline)
-      ctx.lineWidth = 1.5*scaleX;
-      ctx.strokeRect(BOARD_X + 1*scaleX, 227*scaleY, BOARD_W - 2*scaleX, 30*scaleY);
 
-      // ── HOOP ARMS (from backboard to rim) ───
-      ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 1.8*scaleX;
+      // Target square (red outline) centered on backboard
+      ctx.strokeStyle = '#cc2200';
+      ctx.lineWidth = 2*scaleX;
+      const boardCenterX = BOARD_X + BOARD_W / 2;
+      const boardCenterY = BOARD_TOP + (BOARD_BOT - BOARD_TOP) / 2;
+      const targetSize = 30*scaleY;
+      ctx.strokeRect(boardCenterX - targetSize/2, boardCenterY - targetSize/2, targetSize, targetSize);
+
+      // ── MOUNTING ARMS (RED, BOARD → HOOP) ───
+      ctx.strokeStyle = '#cc2200';
+      ctx.lineWidth = 3*scaleX;
       ctx.beginPath();
       ctx.moveTo(BOARD_FACE, 262*scaleY);
       ctx.lineTo(HOOP_X - HOOP_R + 3*scaleX, HOOP_Y + sh * 0.3);
@@ -1861,27 +1872,33 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       ctx.lineTo(HOOP_X - HOOP_R + 3*scaleX, HOOP_Y + sh * 0.3);
       ctx.stroke();
 
-      // ── 16-POINT BASKETBALL LAB RIM (Ellipse with perspective) ───
-      // Rear ellipse (dull, darker, represents back of rim from viewing angle)
-      ctx.strokeStyle = 'rgba(200, 100, 0, 0.4)';
-      ctx.lineWidth = 2.5*scaleX;
+      // ── RIM SHADOW (UNDER THE HOOP) ───
+      ctx.fillStyle = 'rgba(0,0,0,0.3)';
       ctx.beginPath();
-      ctx.ellipse(HOOP_X + sh * 0.3, HOOP_Y + sh * 0.15 - 2*scaleY, HOOP_R - 2*scaleX, 5*scaleY, 0, 0, Math.PI);
+      ctx.ellipse(HOOP_X + sh * 0.3, HOOP_Y + sh * 0.15 + 5*scaleY, HOOP_R - 2*scaleX, 4*scaleY, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // ── RIM (ORANGE-RED WITH 3D EFFECT) ───
+      // Back half (darker, shadowed)
+      ctx.strokeStyle = '#cc3311';
+      ctx.lineWidth = 5*scaleX;
+      ctx.beginPath();
+      ctx.ellipse(HOOP_X + sh * 0.3, HOOP_Y + sh * 0.15, HOOP_R, 8*scaleY, 0, 0, Math.PI);
       ctx.stroke();
 
-      // Front ellipse (bright, white, represents near side of rim)
-      ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 3*scaleX;
+      // Front half (brighter, highlighted)
+      ctx.strokeStyle = '#ff5533';
+      ctx.lineWidth = 5*scaleX;
       ctx.beginPath();
       ctx.ellipse(HOOP_X + sh * 0.3, HOOP_Y + sh * 0.15, HOOP_R, 8*scaleY, 0, Math.PI, Math.PI * 2);
       ctx.stroke();
 
-      // Net mesh (white lines, slightly transparent)
+      // ── NET MESH ───
       ctx.lineWidth = 1*scaleX;
-      ctx.globalAlpha = 0.65;
-      ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+      ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+      ctx.globalAlpha = 0.8;
 
-      // Calculate net swing displacement based on hit type
+      // Calculate net swing displacement
       let netSwing = 0;
       if (gs.netSwing.type) {
         const elapsed = Date.now() - gs.netSwing.startTime;
@@ -1901,28 +1918,32 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         if (progress >= 1) gs.netSwing.type = null;
       }
 
-      // Vertical net mesh lines
-      for (let i = 0; i < 7; i++) {
-        const tx = HOOP_X - HOOP_R + 3*scaleX + i * (HOOP_R * 2 - 6*scaleX) / 6;
-        const bx2 = HOOP_X - 11*scaleX + i * 22*scaleX / 6;
+      // 8 vertical net strands (converging toward center/bottom)
+      for (let i = 0; i < 8; i++) {
+        const startX = HOOP_X - HOOP_R + (i / 7) * (HOOP_R * 2);
+        const endX = HOOP_X + (i - 3.5) * 3 * scaleX; // Converge toward center
+        const endY = HOOP_Y + 40*scaleY;
+
         ctx.beginPath();
-        ctx.moveTo(tx + sh * 0.08 * (i - 3), HOOP_Y + 8*scaleY);
-        ctx.lineTo(bx2 + sh * 0.12 * (i - 3) + netSwing * 0.1, HOOP_Y + 46*scaleY + sh + netSwing);
+        ctx.moveTo(startX + sh * 0.08 * (i - 3.5), HOOP_Y + 8*scaleY);
+        ctx.lineTo(endX + sh * 0.12 * (i - 3.5) + netSwing * 0.1, endY + sh + netSwing);
         ctx.stroke();
       }
 
-      // Horizontal net mesh lines (tapering toward bottom)
-      for (let j = 0; j < 3; j++) {
-        const t = (j + 1) / 4;
-        const yw = HOOP_Y + 8*scaleY + t * 38*scaleY + sh * 0.08 + netSwing * (1 - t);
-        const hw = HOOP_R * (1 - t * 0.4) - 2*scaleX;
+      // 4 horizontal net rings (tapering downward)
+      for (let j = 1; j <= 4; j++) {
+        const t = j / 4;
+        const yw = HOOP_Y + 8*scaleY + t * 32*scaleY + sh * 0.08 + netSwing * (1 - t);
+        const widthFactor = 1 - (t * 0.5); // Taper: top 100%, bottom 50%
+        const hw = HOOP_R * widthFactor - 2*scaleX;
+
         ctx.beginPath();
         ctx.moveTo(HOOP_X - hw, yw);
         ctx.lineTo(HOOP_X + hw, yw);
         ctx.stroke();
       }
 
-      // Goal flash (when scoring)
+      // ── GOAL FLASH (GREEN GLOW ON SCORING) ───
       if (gs.netShake) {
         const a = Math.max(0, (gs.netShakeEnd - Date.now()) / 700);
         ctx.globalAlpha = a * 0.55;
