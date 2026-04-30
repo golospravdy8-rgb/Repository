@@ -851,6 +851,19 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       while (b._accumulator >= FIXED_DT && b.state === 'flying') {
         integratePhysics(b, FIXED_DT, C);
 
+        // 🚨 ПЕРША РАМА ФІЗИКИ
+        if (!b._loggedFrame0) {
+          b._loggedFrame0 = true;
+          console.log('[FRAME1 - after integratePhysics]', {
+            x: (b._x_m * SCALE).toFixed(0),
+            y: (b._y_m * SCALE).toFixed(0),
+            _x_m: b._x_m.toFixed(3),
+            _y_m: b._y_m.toFixed(3),
+            vx: b.vx.toFixed(2),
+            vy: b.vy.toFixed(2),
+          });
+        }
+
         // ── BASKETBALL LAB 16-POINT RIM COLLISION ──────────────────
         // Источник: Basketball Lab Three.js
         // Ключевое отличие: только точки с |cos(angle)| > 0.3
@@ -1069,6 +1082,20 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       b.x = b._x_m * SCALE;
       b.y = b._y_m * SCALE;
 
+      // 🚨 ЛОГУВАННЯ КОНВЕРТАЦІЇ КООРДИНАТ (перший раз)
+      if (!b._loggedConvert) {
+        b._loggedConvert = true;
+        console.log('[FRAME_CONVERT] After pixel conversion', {
+          _x_m: b._x_m.toFixed(3),
+          _y_m: b._y_m.toFixed(3),
+          x_pixel: b.x.toFixed(0),
+          y_pixel: b.y.toFixed(0),
+          SCALE: SCALE.toFixed(1),
+          vx: b.vx.toFixed(2),
+          vy: b.vy.toFixed(2),
+        });
+      }
+
       // 🚨 ПІДЛОГА: реалістичний відскок накаченого м'яча (ПІСЛЯ конвертації)
       if (b.y + BALL_RADIUS >= GY) {
         b.y = GY - BALL_RADIUS;
@@ -1167,15 +1194,14 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       };
 
       // 🚨 ТЕСТОВИЙ ЛОГ: Діагностика кидку
-      console.log('[THROW]', {
-        vx: vx_m.toFixed(2),
-        vy: vy_m.toFixed(2),
+      console.log('[FRAME0 - launchBall]', {
+        x: px.toFixed(0), y: py.toFixed(0),
+        _x_m: px_m.toFixed(3), _y_m: py_m.toFixed(3),
+        vx: vx_m.toFixed(2), vy: vy_m.toFixed(2),
+        SCALE: SCALE.toFixed(1),
+        distPx: distToHoop.toFixed(0),
+        distM: distToHoop_m.toFixed(2),
         angle: (ss.lockedAngle * 180/Math.PI).toFixed(1) + '°',
-        startX: px.toFixed(0),
-        startY: py.toFixed(0),
-        hoopX: HOOP_X.toFixed(0),
-        hoopY: HOOP_Y.toFixed(0),
-        distToHoop: distToHoop.toFixed(0),
       });
 
       ss.phase = 'flying';
