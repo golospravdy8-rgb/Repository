@@ -18,22 +18,16 @@ import {
 import { ref, get, remove, set } from "firebase/database";
 import { getFirebaseDatabase } from "@/lib/firebase";
 import {
-  computeLaunchVelocity,
   stepPhysics,
   computeRimCollision,
   computeBackboardCollision,
   computeFloorBounce,
   simulateTrajectory,
   PHYSICS_CONSTANTS,
-  calculateGreenZonePosition,
-  updateOscillator,
-  calculateAccuracy,
   integratePhysics,
   checkAllCollisions,
   checkGoalEntry,
   checkGateScoring,
-  computeLaunchVelocityMeters,
-  computeIdealSpeed,
   computeIdealVelocity,
   sweepSphereVsSphere,
   type PhysicsConstantsM,
@@ -863,86 +857,6 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       }
     }
 
-    function launchBall(idx: number, shotCursorPos: number = 0.5) {
-      const p = gs.players[idx];
-      const ss = gs.shootStates[idx];
-      const headX_m = (p.x - 15*scaleX) / SCALE;
-      const headY_m = (p.y - 55*scaleY) / SCALE;
-
-      const dx_m = HOOP_X/SCALE - headX_m;
-      const dy_m = HOOP_Y/SCALE - headY_m;
-
-      // Идеальная скорость (одна и та же формула как в КЛИК 1)
-      const g = 9.81;
-      const theta = -ss.lockedAngle;
-      const cosT = Math.cos(theta);
-      const tanT = Math.tan(theta);
-      const denom = 2*cosT*cosT*(dx_m*tanT - dy_m);
-      const v_ideal = (denom > 0.01)
-        ? Math.max(4, Math.min(18, Math.sqrt(g*dx_m*dx_m/denom)))
-        : (ss.idealVelocity || 10.0);
-
-      // shotCursorPos = 0-1 (позиция на шкале)
-      // 0.0 = 50% от идеальной скорости (минимум)
-      // 0.5 = 100% от идеальной скорости (центр зеленой зоны)
-      // 1.0 = 150% от идеальной скорости (максимум)
-      const power_factor = 0.5 + shotCursorPos * 1.0;
-      const v_real = v_ideal * power_factor;
-
-      const vx_m = Math.cos(theta) * v_real;
-      const vy_m = -Math.sin(theta) * v_real;
-
-      console.log('[LAUNCH METRICS]', {
-        v_ideal_ms: v_ideal.toFixed(2),
-        v_real_ms: v_real.toFixed(2),
-        power_factor: power_factor.toFixed(2),
-        cursor_pos: shotCursorPos.toFixed(2),
-        vx_m: vx_m.toFixed(2),
-        vy_m: vy_m.toFixed(2),
-        angle_deg: (ss.lockedAngle * 180/Math.PI).toFixed(1),
-        dx_m: dx_m.toFixed(2),
-        dy_m: dy_m.toFixed(2),
-        SCALE: SCALE.toFixed(1),
-      });
-
-      ss.ball = {
-        _x_m: headX_m, _y_m: headY_m,
-        vx: vx_m, vy: vy_m,
-        omega: 0,
-        x: p.x - 15*scaleX, y: p.y - 55*scaleY,
-        rot: 0, spin: 0,
-        _accumulator: 0, _physTick: 0, _checkpoints: [],
-        _scale: SCALE,
-        state: 'flying', outcome: 'in_progress',
-        scoredGoal: false, boardHandled: false, hitBackboard: false,
-        owner: idx, bounceCount: 0,
-        rimContacts: 0, rimContactMask: 0, rimHitTimer: 0, rimBounceCount: 0,
-        frameCount: 0, isGuided: false, guaranteedScore: false,
-        _inRimZone: false,
-      };
-
-      ss.phase = 'flying';
-      ss.lockedAngle = null;
-      ss.idealTraj = null;
-      p.status = 'shooting';
-
-      // 🏀 RUCHEEK: Текущий игрок выпустил мяч → передать право СЛЕДУЮЩЕМУ
-      p.hasThrown = true;
-      p.hasActiveRight = false; // Текущий теряет право
-
-      // Найти следующего живого игрока
-      let nextIdx = (idx + 1) % gs.players.length;
-      while (gs.players[nextIdx].isEliminated && nextIdx !== idx) {
-        nextIdx = (nextIdx + 1) % gs.players.length;
-      }
-
-      // Если найден живой игрок → дать ему право
-      if (nextIdx !== idx && !gs.players[nextIdx].isEliminated) {
-        gs.players[nextIdx].hasActiveRight = true;
-      }
-
-      if (idx === gs.disputeP1 && gs.disputeP2 === -1 && gs.players.length > 1) gs.disputeP2 = 1;
-    }
 
     function update(dt: number) {
       if (gs.state !== 'playing') return;
@@ -1884,10 +1798,6 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           ctx.lineWidth = 1;
           ctx.strokeRect(bx, bTop, bW, bH);
 
-          // Бігунок коливається
-          markerPosRef.current += (markerDirRef.current || 1) * 0.013;
-          if (markerPosRef.current >= 1) { markerPosRef.current = 1; markerDirRef.current = -1; }
-          if (markerPosRef.current <= 0) { markerPosRef.current = 0; markerDirRef.current = 1; }
         }
 
         if (ss.ball && ss.phase === 'flying') {
