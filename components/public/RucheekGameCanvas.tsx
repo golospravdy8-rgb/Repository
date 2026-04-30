@@ -838,7 +838,8 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
 
       const C: PhysicsConstantsM = {
         GRAVITY: 9.81, BALL_MASS: 0.623, BALL_RADIUS_M: 0.12,
-        RIM_RADIUS_M: 0.225, RIM_TUBE_R_M: 0.023, NET_ZONE_DEPTH_M: 0.45,
+        RIM_RADIUS_M: 0.6,  // Збільшено щоб відповідати HOOP_R=27px (вся 10px)
+        RIM_TUBE_R_M: 0.023, NET_ZONE_DEPTH_M: 0.45,
         E_RIM: 0.72, MU_RIM: 0.57, Cd: 0.004, Cm: 0.000045, OMEGA_DECAY: 0.985,
         HOOP_X_M: HOOP_X / SCALE, HOOP_Y_M: HOOP_Y / SCALE,
         BOARD_X_M: BOARD_FACE / SCALE, BOARD_TOP_M: BOARD_TOP / SCALE,

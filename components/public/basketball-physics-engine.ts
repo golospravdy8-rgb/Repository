@@ -118,11 +118,11 @@ export function checkGoalEntry(b: BallStateM, C: PhysicsConstantsM): boolean {
   if (b.scoredGoal || b.vy <= 0) return false;
   // Note: In canvas coordinates, Y increases downward, so vy > 0 means falling down toward net
 
-  // ВИПРАВЛЕННЯ: Розширити вікно попадання з 0.105м до 0.18м (80% від rimRadius)
-  // Було: er = rimRadius - ballRadius = 0.105м = ~4px (майже неможливо)
-  // Тепер: scoreWindow = rimRadius * 0.8 = 0.18м = ~7px (реалістично)
+  // ВИПРАВЛЕННЯ: Вікно попадання = 95% від rimRadius (дозволяє торкання краю)
+  // RIM_RADIUS_M тепер = 0.6м (відповідає HOOP_R=27px)
+  // scoreWindow = 0.6 * 0.95 = 0.57м = ~26px (реалістично для баскетболу)
   const dx = b._x_m - C.HOOP_X_M;
-  const scoreWindow = C.RIM_RADIUS_M * 0.8; // 0.225 * 0.8 = 0.18м
+  const scoreWindow = C.RIM_RADIUS_M * 0.95; // Вікно попадання
   if (Math.abs(dx) >= scoreWindow || b._y_m < C.HOOP_Y_M || b._y_m > C.HOOP_Y_M + C.NET_ZONE_DEPTH_M) return false;
 
   b.scoredGoal = true;
@@ -193,7 +193,7 @@ export function simulateTrajectory(p: LaunchParams): Array<{ x: number; y: numbe
     GRAVITY: 9.81,
     BALL_MASS: 0.623,
     BALL_RADIUS_M: 0.12,
-    RIM_RADIUS_M: 0.225,
+    RIM_RADIUS_M: 0.6,  // Увеличено чтобы соответствовать визуальному HOOP_R=27px (вместо 10px)
     RIM_TUBE_R_M: 0.023,
     NET_ZONE_DEPTH_M: 0.45,
     E_RIM: 0.72,
