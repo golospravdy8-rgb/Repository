@@ -33,6 +33,7 @@ import {
   checkGoalEntry,
   checkGateScoring,
   computeLaunchVelocityMeters,
+  computeIdealSpeed,
   sweepSphereVsSphere,
   type PhysicsConstantsM,
 } from "./basketball-physics-engine";
@@ -913,13 +914,33 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       const scale_m = SCALE;
       const px_m = px / scale_m;
       const py_m = py / scale_m;
-      const distToHoop_m = Math.hypot(HOOP_X/scale_m - px_m, HOOP_Y/scale_m - py_m);
+      const hoopX_m = HOOP_X / scale_m;
+      const hoopY_m = HOOP_Y / scale_m;
+      const distToHoop_m = Math.hypot(hoopX_m - px_m, hoopY_m - py_m);
+      const heightDiff_m = hoopY_m - py_m; // позитивне якщо кільце нижче
 
       const { vx_m, vy_m, omega } = computeLaunchVelocityMeters({
         angle: ss.lockedAngle,
         power: shotPower,
         accuracy: ss.accuracy || 0,
         distToHoop_m, px_m, py_m,
+        heightDiff_m,
+      });
+
+      // 🎯 DIAGNOSTIC: Throw calibration logging
+      console.log('[THROW CALIBRATION]', {
+        angle_deg: (ss.lockedAngle * 180/Math.PI).toFixed(1),
+        dist_m: distToHoop_m.toFixed(2),
+        height_diff_m: heightDiff_m.toFixed(2),
+        vx: vx_m.toFixed(2),
+        vy: vy_m.toFixed(2),
+        power_percent: shotPower.toFixed(1),
+        SCALE: SCALE.toFixed(1),
+        startX_px: px.toFixed(0),
+        startY_px: py.toFixed(0),
+        hoopX_px: HOOP_X.toFixed(0),
+        hoopY_px: HOOP_Y.toFixed(0),
+        idealPower: ss.idealPower?.toFixed(3),
       });
 
       ss.ball = {
@@ -2473,6 +2494,14 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           // Calculate green zone position using physics-based kinematic equations
           const angleDeg = Math.abs((ss.lockedAngle || -Math.PI * 0.72) * 180 / Math.PI);
           ss.greenZonePos = calculateIdealMarkerPos(px, py, HOOP_X, HOOP_Y, angleDeg);
+
+          // 🎯 CALIBRATION: Обчислити idealPower фізично з реальної дистанції та кута
+          const heightDiff_m = (HOOP_Y - py) / SCALE;
+          const distToHoop_m = Math.hypot(HOOP_X - px, HOOP_Y - py) / SCALE;
+          const physicalIdealSpeed = computeIdealSpeed(distToHoop_m, ss.lockedAngle, heightDiff_m);
+          const MAX_SPEED = 18.0;  // з THROW_CONSTANTS
+          ss.idealPower = Math.max(0.1, Math.min(1.0, physicalIdealSpeed / MAX_SPEED));
+
           // Reset marker for distance indicator
           markerPosRef.current = 0;
           markerDirRef.current = 1;

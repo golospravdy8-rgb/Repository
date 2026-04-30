@@ -235,9 +235,55 @@ export function checkGateScoring(b: BallStateM, C: PhysicsConstantsM): boolean {
   return true;
 }
 
-export function computeLaunchVelocityMeters(p: { angle: number; power: number; accuracy: number; distToHoop_m: number; px_m?: number; py_m?: number }): { vx_m: number; vy_m: number; omega: number } {
-  const bs = 6.0 + (p.distToHoop_m / 15.0) * 8.0;
-  const ls = bs * (0.3 + (p.power / 200) * 1.7);
+// ⚙️ BASKETBALL THROW CONSTANTS (фізика реального кидка)
+export const THROW_CONSTANTS = {
+  GRAVITY: 9.81,           // м/с²
+  MAX_THROW_SPEED: 18.0,   // м/с (максимум)
+  MIN_THROW_SPEED: 4.0,    // м/с (мінімум)
+  COURT_LENGTH_M: 15.0,    // довжина корту (SCALE basis)
+  ARC_FACTOR: 1.15,        // множник для дуги (вище = більша дуга)
+  POWER_SCALE: 0.8,        // power 100% = 80% від ідеальної швидкості + запас
+  GREEN_ZONE_WIDTH: 0.12,  // ширина зеленої зони (±6% від ідеалу)
+};
+
+// Фізична формула ідеальної швидкості кидка
+// v = sqrt(g * d² / (2 * cos²(θ) * (d*tan(θ) - h)))
+// де: d = горизонтальна відстань, θ = кут від горизонталі, h = різниця висот
+export function computeIdealSpeed(
+  distToHoop_m: number,
+  angle: number,        // від горизонталі (від'ємне = вгору)
+  heightDiff_m: number  // HOOP_Y_M - player_Y_M (позитивне якщо кільце нижче)
+): number {
+  const g = THROW_CONSTANTS.GRAVITY;
+  const theta = -angle;  // angle від'ємне у canvas, нам потрібне позитивне
+  const cosT = Math.cos(theta);
+  const sinT = Math.sin(theta);
+  const tanT = Math.tan(theta);
+
+  const numerator = g * distToHoop_m * distToHoop_m;
+  const denominator = 2 * cosT * cosT * (distToHoop_m * tanT - heightDiff_m);
+
+  if (denominator <= 0) return THROW_CONSTANTS.MIN_THROW_SPEED;
+
+  const v2 = numerator / denominator;
+  if (v2 <= 0) return THROW_CONSTANTS.MIN_THROW_SPEED;
+
+  const v = Math.sqrt(v2);
+  return Math.max(THROW_CONSTANTS.MIN_THROW_SPEED, Math.min(THROW_CONSTANTS.MAX_THROW_SPEED, v));
+}
+
+export function computeLaunchVelocityMeters(p: { angle: number; power: number; accuracy: number; distToHoop_m: number; px_m?: number; py_m?: number; heightDiff_m?: number }): { vx_m: number; vy_m: number; omega: number } {
+  // Обчислити ідеальну швидкість фізично
+  const heightDiff = p.heightDiff_m || 0;
+  const idealSpeed = computeIdealSpeed(p.distToHoop_m, p.angle, heightDiff);
+
+  // Power масштабуємо від 0-100 (не 0-200)
+  // 100% power = 80% від ідеальної швидкості (з запасом)
+  // 0% power = 40% від ідеальної швидкості
+  const powerNorm = Math.max(0, Math.min(1, p.power / 100));
+  const speedMultiplier = 0.4 + powerNorm * THROW_CONSTANTS.POWER_SCALE;
+  const ls = idealSpeed * speedMultiplier;
+
   const vx_m = Math.cos(p.angle) * ls;
   const vy_m = Math.sin(p.angle) * ls;
 
