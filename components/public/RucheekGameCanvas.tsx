@@ -1662,7 +1662,8 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
 
     function drawAimArrow(px: number, py: number, angle: number) {
       const hx = px, hy = py - 52*scaleY;
-      const ex = hx + Math.cos(angle) * 88*scaleX, ey = hy + Math.sin(angle) * 88*scaleY;
+      // 🚨 РОЗШИРЕННЯ: Стрілка з 88 до 200px для кращої видимості
+      const ex = hx + Math.cos(angle) * 200*scaleX, ey = hy + Math.sin(angle) * 200*scaleY;
       ctx.strokeStyle = '#ffdd00';
       ctx.lineWidth = 2;
       ctx.setLineDash([7, 4]);
@@ -2307,10 +2308,16 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       });
 
       // Draw remote ball from server (when other player is shooting)
+      // 🚨 ВИПРАВЛЕННЯ: НЕ показувати remoteBall якщо локальний м'яч літає (ghost ball fix)
+      const myShootState = gsRef.current.shootStates[0];
+      const myBallFlying = myShootState && myShootState.ball &&
+                          (myShootState.ball.state === 1 || myShootState.ball.state === 'flying');
+
       const rb = gsRef.current.remoteBall;
       const rbFlying = rb && rb.state !== undefined &&
                        rb.state !== 0 && rb.state !== 'idle' &&
-                       rb.state !== 'waiting' && rb.state !== 'scored' && rb.state !== 'missed';
+                       rb.state !== 'waiting' && rb.state !== 'scored' && rb.state !== 'missed' &&
+                       !myBallFlying; // Don't show remote ball when local ball is flying
       if (rbFlying) {
         ctx.save();
         // 🔥 ВИПРАВЛЕННЯ: НЕ множимо координати на scale (як rb.x/rb.y вже абсолютні)

@@ -73,6 +73,14 @@ function applyRimImpulse(b: BallStateM, ccd: CcdResult, C: PhysicsConstantsM): v
   b.vx += J_n * ccd.nx + J_t * ccd.ny;
   b.vy += J_n * ccd.ny - J_t * ccd.nx;
   b.omega *= 0.70;
+
+  // 🚨 АНТИ-ЗАСТРЯГАННЯ: М'яч не завис на кільці
+  const speed = Math.sqrt(b.vx * b.vx + b.vy * b.vy);
+  if (speed < 0.5) {
+    const pushDir = (b._x_m - C.HOOP_X_M) > 0 ? 1 : -1;
+    b.vx += pushDir * 1.5;
+    b.vy += 2.0;
+  }
 }
 
 function checkBackboardCollision(b: BallStateM, C: PhysicsConstantsM): void {
@@ -124,6 +132,14 @@ export function checkGoalEntry(b: BallStateM, C: PhysicsConstantsM): boolean {
   const dx = b._x_m - C.HOOP_X_M;
   const scoreWindow = C.RIM_RADIUS_M * 0.95; // Вікно попадання
   if (Math.abs(dx) >= scoreWindow || b._y_m < C.HOOP_Y_M || b._y_m > C.HOOP_Y_M + C.NET_ZONE_DEPTH_M) return false;
+
+  // 🚨 АНТИ-ЗАСТРЯГАННЯ: Якщо м'яч торкнувся кільця > 3 разів, це miss
+  const speed = Math.sqrt(b.vx * b.vx + b.vy * b.vy);
+  if (b.rimContacts > 3 && speed < 1.0) {
+    b.scoredGoal = true;
+    b.state = 'missed';
+    return false;
+  }
 
   b.scoredGoal = true;
   b.state = 'scored';
