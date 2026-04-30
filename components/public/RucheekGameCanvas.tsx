@@ -1891,6 +1891,32 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           const maxDist = Math.hypot(W, H);
           ss_ideal_power = 50 + (distToHoop / maxDist) * 50;
 
+          // Draw distance indicator bar with green zone and oscillating marker (using physics engine)
+          const bx2 = p.x + 30*scaleX, barTop = p.y - 80*scaleY, barW = 14*scaleX, barH = 80*scaleY;
+          const zoneCenter2 = ss.greenZonePos || 0.5;
+          const zoneSize2 = 0.12;
+          const zoneMin2 = zoneCenter2 - zoneSize2 / 2;
+          const zoneMax2 = zoneCenter2 + zoneSize2 / 2;
+
+          // Background bar
+          ctx.fillStyle = '#222';
+          ctx.fillRect(bx2, barTop, barW, barH);
+          // Green success zone
+          // FIXED: Invert Y position so close shots have low zone (bottom), far shots have high zone (top)
+          ctx.fillStyle = '#00FF44';
+          ctx.fillRect(bx2, barTop + (1 - zoneMax2) * barH, barW, zoneSize2 * barH);
+          // Marker (white line) - updated by updateOscillator
+          // FIXED: Invert Y position so bottom = min power (0), top = max power (1)
+          const markerY2 = barTop + (1 - markerPosRef.current) * barH;
+          ctx.fillStyle = '#FFFFFF';
+          ctx.fillRect(bx2 - 2*scaleX, markerY2 - 2, barW + 4*scaleX, 4);
+          // Distance label (in meters)
+          ctx.fillStyle = '#FFFF00';
+          ctx.font = `${11*scaleX}px Arial`;
+          ctx.textAlign = 'center';
+          const distMeters = (distToHoop / 140).toFixed(1);
+          ctx.fillText(distMeters + 'm', bx2 + barW/2, barTop - 5*scaleY);
+
         }
 
         if (ss.ball && ss.phase === 'flying') {
