@@ -480,8 +480,9 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
 
     // Game logic functions from original demo
     function hitTestPlayer(mx: number, my: number, px: number, py: number) {
-      if (Math.hypot(mx - px, my - (py - 54*scaleY)) <= 12*scaleX) return true;
-      if (mx >= px - 5*scaleX && mx <= px + 5*scaleX && my >= py - 44*scaleY && my <= py - 17*scaleY) return true;
+      // ВИПРАВЛЕННЯ: Розширений радіус з 12px до 30px для кращої гібелості
+      if (Math.hypot(mx - px, my - (py - 54*scaleY)) <= 30*scaleX) return true;
+      if (mx >= px - 15*scaleX && mx <= px + 15*scaleX && my >= py - 50*scaleY && my <= py - 10*scaleY) return true;
       if (my >= py - 19*scaleY && my <= py + 1*scaleY) {
         const t = (my - (py - 18*scaleY)) / (18*scaleY);
         if (mx >= px - 12*scaleX*t && mx <= px + 12*scaleX*t) return true;
@@ -1110,8 +1111,9 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
     function launchBall(idx: number, shotCursorPos: number = 0.5) {
       const p = gs.players[idx];
       const ss = gs.shootStates[idx];
-      const px = p.x;
-      const py = p.y - 40 * scaleY;
+      // ВИПРАВЛЕННЯ: Використовувати правильне зміщення гравця (як в update функції)
+      const px = p.x - 15*scaleX;  // Горизонтальне зміщення до рук гравця
+      const py = p.y - 55*scaleY;   // Вертикальне зміщення до точки випуску
 
       // Calculate distance to hoop for physics calculation
       const distToHoop = Math.hypot(HOOP_X - px, HOOP_Y - py);
@@ -2754,30 +2756,20 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         if (gs.selectedMoveIdx >= 0 && gs.selectedMoveIdx < gs.players.length) {
           const p = gs.players[gs.selectedMoveIdx], ss = gs.shootStates[gs.selectedMoveIdx];
 
-          // BUG 1 FIX: Block movement during aiming or charging phase
-          if (ss.phase === "aiming" || ss.phase === "charging") {
-            return; // Ignore click, don't move player
-          }
-
-          // DEBUG: Log why movement might not trigger
-
-          // BLOCK movement during shooting phases (aiming/charging)
-          if (ss.phase === "aiming" || ss.phase === "charging") {
-            return;
-          }
-
-          // FIX: Include "idle" phase in movement check (was missing before)
+          // ВИПРАВЛЕННЯ: Видалено дублювання перевірки aiming/charging (було 2 рази)
+          // Рух дозволено у всіх станах крім aiming/charging (вони скасовуються ПКМ)
           const canMove = p.status !== "eliminated" &&
                          (ss.phase === null ||
                           ss.phase === "idle" ||
                           ss.phase === "pickup_wait" ||
-                          ss.phase === "manual_run");
+                          ss.phase === "manual_run" ||
+                          ss.phase === "flying" ||
+                          ss.phase === "auto_run");
 
           if (canMove) {
             ss.runTarget = { x: Math.max(50*scaleX, Math.min(W - 30*scaleX, mx)), y: GY };
             ss.phase = "manual_run";
             p.status = "running";
-          } else {
           }
         }
       }
