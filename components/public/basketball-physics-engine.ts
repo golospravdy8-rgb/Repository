@@ -91,8 +91,8 @@ function checkBackboardCollision(b: BallStateM, C: PhysicsConstantsM): void {
     b.boardHandled = true;
     b.hitBackboard = true;
     b._x_m = face + C.BALL_RADIUS_M;
-    b.vx = -b.vx * 0.55;
-    b.vy = b.vy * 0.70;
+    b.vx = -b.vx * 0.66;  // Backboard bounciness (GitHub)
+    b.vy = b.vy * 0.62;   // 1 - 0.38 friction (GitHub)
   }
 }
 
@@ -118,18 +118,47 @@ function checkPoleCollision(b: BallStateM, C: PhysicsConstantsM): void {
 export function checkAllCollisions(b: BallStateM, dt: number, C: PhysicsConstantsM): void {
   checkBackboardCollision(b, C);
   checkPoleCollision(b, C);
-  const ccdF = sweepSphereVsSphere(b, { x: C.HOOP_X_M + C.RIM_RADIUS_M, y: C.HOOP_Y_M }, C.RIM_TUBE_R_M + C.BALL_RADIUS_M, dt);
-  const ccdB = sweepSphereVsSphere(b, { x: C.HOOP_X_M - C.RIM_RADIUS_M, y: C.HOOP_Y_M }, C.RIM_TUBE_R_M + C.BALL_RADIUS_M, dt);
-  const isFront = ccdF.hit && (!ccdB.hit || ccdF.t <= ccdB.t);
-  const ccd = isFront && ccdF.hit ? ccdF : ccdB.hit ? ccdB : null;
-  if (ccd && ccd.hit) {
-    integratePhysics(b, ccd.t, C);
-    applyRimImpulse(b, ccd, C);
+
+  // 🏀 8-POINT RIM COLLISION SYSTEM
+  // Проверяем только боковые точки (|cos(angle)| > 0.25 = дужки слева и справа)
+  const NUM_RIM_POINTS = 8;
+  let bestCcd: CcdResult | null = null;
+  let bestT = dt;
+
+  for (let i = 0; i < NUM_RIM_POINTS; i++) {
+    const angle = (i / NUM_RIM_POINTS) * Math.PI * 2;
+    const cosA = Math.cos(angle);
+    const sinA = Math.sin(angle);
+
+    // Пропускаем точки сверху и снизу (| cosA | < 0.25 = верх и низ эллипса)
+    if (Math.abs(cosA) < 0.25) continue;
+
+    const rimX = C.HOOP_X_M + cosA * C.RIM_RADIUS_M;
+    const rimY = C.HOOP_Y_M + sinA * C.RIM_RADIUS_M * 0.3;
+
+    const ccd = sweepSphereVsSphere(
+      b,
+      { x: rimX, y: rimY },
+      C.RIM_TUBE_R_M + C.BALL_RADIUS_M,
+      dt
+    );
+
+    if (ccd.hit && ccd.t < bestT) {
+      bestCcd = ccd;
+      bestT = ccd.t;
+    }
+  }
+
+  if (bestCcd && bestCcd.hit) {
+    integratePhysics(b, bestCcd.t, C);
+    applyRimImpulse(b, bestCcd, C);
     b.rimContacts++;
-    if (isFront) b.rimContactMask |= 0b001;
+    // Determine front/back based on X position of rim
+    const rimX = bestCcd.nx > 0 ? 1 : -1; // nx = normal X direction
+    if (rimX > 0) b.rimContactMask |= 0b001;
     else b.rimContactMask |= 0b010;
     b.rimHitTimer = 18;
-    const rem = dt - ccd.t;
+    const rem = dt - bestCcd.t;
     if (rem > 1e-6) integratePhysics(b, rem, C);
   }
   if (b._y_m + C.BALL_RADIUS_M >= C.GROUND_Y_M) {
