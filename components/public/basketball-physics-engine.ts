@@ -163,32 +163,44 @@ export function checkAllCollisions(b: BallStateM, dt: number, C: PhysicsConstant
 }
 
 export function checkGoalEntry(b: BallStateM, C: PhysicsConstantsM): boolean {
-  // 🚨 ВИПРАВЛЕННЯ 3 & 4: Спрощена надійна логіка детекції голу
+  // Deprecated: replaced by checkGateScoring (Top/Bottom Gate system)
+  return false;
+}
+
+export function checkGateScoring(b: BallStateM, C: PhysicsConstantsM): boolean {
+  // ⭐ TOP/BOTTOM GATE SCORING SYSTEM (from GitHub)
+  // М'яч входить через верхню браму (Top Gate) і виходить через нижню (Bottom Gate)
+
   if (b.scoredGoal) return false;
 
-  // М'яч ПОВИНЕН рухатись вниз (в canvas coords: vy > 0)
+  // М'яч ПОВИНЕН рухатись ВНИЗ (в canvas coords: vy > 0)
   if (b.vy <= 0) return false;
 
-  // М'яч має бути в зоні кільця по X (±90% від радіуса)
+  // ширина воріт (85% від радіуса дужки)
+  const gateHalfWidth = C.RIM_RADIUS_M * 0.85;
   const dx = Math.abs(b._x_m - C.HOOP_X_M);
-  if (dx > C.RIM_RADIUS_M * 0.9) return false;
+  if (dx > gateHalfWidth) return false;
 
-  // М'яч має бути на висоті кільця (±0.6м вертикальна зона)
-  const dy = b._y_m - C.HOOP_Y_M;
-  if (dy < 0 || dy > 0.6) return false;
+  // TOP GATE: м'яч входить зверху (трохи вище центру)
+  // BOTTOM GATE: м'яч виходить знизу (0.35м нижче центру)
+  const topGateY = C.HOOP_Y_M + 0.05;    // Верхня брама
+  const bottomGateY = C.HOOP_Y_M + 0.35; // Нижня брама
 
-  // ГОЛ! Відеограємо результат
+  // Перевірити що м'яч між top і bottom gate (пройшов крізь кільце)
+  if (b._y_m < topGateY || b._y_m > bottomGateY) return false;
+
+  // ГОЛ! М'яч пройшов крізь обидві брами
   b.scoredGoal = true;
   b.state = 'scored';
 
-  // Визначити тип гола
+  // Визначити тип гола (залежно від кількості торкань дужки)
   const rc = b.rimContacts || 0;
   if (rc === 0) {
-    b.outcome = 'swish'; // Прямо без дотику кільця
+    b.outcome = 'swish';      // Прямий гол без дотику
   } else if (rc <= 2) {
-    b.outcome = 'rattle_in'; // Один-два торкання — нормально
+    b.outcome = 'rattle_in';  // 1-2 торкання
   } else {
-    b.outcome = 'rattle_in'; // Більше торкань — щастя
+    b.outcome = 'rattle_in';  // 3+ торкання (щастя)
   }
 
   return true;

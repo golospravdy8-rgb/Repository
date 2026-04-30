@@ -31,6 +31,7 @@ import {
   integratePhysics,
   checkAllCollisions,
   checkGoalEntry,
+  checkGateScoring,
   computeLaunchVelocityMeters,
   sweepSphereVsSphere,
   type PhysicsConstantsM,
@@ -865,7 +866,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         physicsSteps++;
         integratePhysics(b, FIXED_DT, C);
         checkAllCollisions(b, FIXED_DT, C);
-        checkGoalEntry(b, C);
+        checkGateScoring(b, C);
         b._physTick++;
         b._accumulator -= FIXED_DT;
       }
