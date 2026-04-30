@@ -260,6 +260,24 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           if (!isActive) return;
 
           if (gsRef.current && ball) {
+            // 🔴 КРИТИЧНО: НЕ оновлювати remoteBall якщо це власний м'яч
+            if (ball.ownerId === playerIdRef.current) {
+              console.log('[🚫 OWN BALL IGNORED] Ignoring own thrown ball from Firebase');
+              return; // ігнорувати власний кидок
+            }
+
+            // 🔴 КРИТИЧНО: НЕ оновлювати remoteBall якщо локальний гравець (індекс 0) кидає
+            const localPlayer = gsRef.current.players[0];
+            const localShootState = gsRef.current.shootStates[0];
+            const isLocalBallFlying = localShootState?.ball?.state === 'flying' ||
+                                     localShootState?.ball?.state === 1 ||
+                                     localShootState?.phase === 'flying';
+
+            if (isLocalBallFlying) {
+              console.log('[🚫 REMOTE BALL BLOCKED] Local ball flying, ignoring Firebase update');
+              return; // ігнорувати Firebase під час локального кидку
+            }
+
             // Перевірити hash траєкторії для детектування десинхрону
             const receivedHash = ball.trajectoryHash;
             if (receivedHash && gsRef.current.shootStates[0]?.ball) {
@@ -848,7 +866,14 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         POLE_X_M: POLE_X / SCALE, // Стійка для колізії
       };
 
-      while (b._accumulator >= FIXED_DT && b.state === 'flying') {
+      // 🔴 КРИТИЧНО: Обмеження на кількість фізичних ітерацій за кадр
+      // При лагу (dt > 50ms) accumulator може накопичити 5+ FIXED_DT
+      // Без обмеження м'яч телепортується на 5+ кроків одночасно!
+      const MAX_PHYSICS_STEPS = 5;
+      let physicsSteps = 0;
+
+      while (b._accumulator >= FIXED_DT && b.state === 'flying' && physicsSteps < MAX_PHYSICS_STEPS) {
+        physicsSteps++;
         integratePhysics(b, FIXED_DT, C);
 
         // 🚨 ПЕРША РАМА ФІЗИКИ
@@ -1270,7 +1295,8 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
               lastBallSendRef.current = now;
               // Обчислити hash траєкторії для детектування десинхрону
               const tHash = computeTrajectoryHash(ss.ball.x, ss.ball.y, ss.ball.vx || 0, ss.ball.vy || 0);
-              updateBall(gameRoomId, ss.ball.x, ss.ball.y, ss.ball.vx || 0, ss.ball.vy || 0, ss.ball.state || 1, tHash)
+              // 🔴 КРИТИЧНО: Передати ownerId щоб listenToBall ігнорував власний кидок
+              updateBall(gameRoomId, ss.ball.x, ss.ball.y, ss.ball.vx || 0, ss.ball.vy || 0, ss.ball.state || 1, tHash, playerIdRef.current)
                 .catch(err => console.error('[🔴] Firebase ball update failed:', err));
             }
           }

@@ -132,7 +132,8 @@ export async function updateBall(
   vx: number,
   vy: number,
   state: number,
-  trajectoryHash?: string
+  trajectoryHash?: string,
+  ownerId?: string
 ) {
   const db = getFirebaseDatabase();
   const ballRef = ref(db, `games/${roomId}/ball`);
@@ -146,6 +147,11 @@ export async function updateBall(
       state,
       timestamp: Date.now(),
     };
+
+    // 🔴 КРИТИЧНО: Додати ownerId щоб listenToBall знав хто кинув м'яч
+    if (ownerId) {
+      ballData.ownerId = ownerId;
+    }
 
     // Добавить hash траектории для мультиплеєра
     if (trajectoryHash) {
