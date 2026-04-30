@@ -1856,15 +1856,6 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         const sx = p.x - 15*scaleX, sy = p.y - 55*scaleY;
         const danger = ss.inDanger || false;
 
-        if (danger && (ss.phase !== 'flying')) {
-          const al = 0.3 + 0.4 * Math.sin(Date.now() / 200);
-          ctx.strokeStyle = `rgba(255,50,50,${al})`;
-          ctx.lineWidth = 2;
-          ctx.beginPath();
-          ctx.arc(p.x, p.y - 37*scaleY, 48*scaleX, 0, Math.PI * 2);
-          ctx.stroke();
-        }
-
         if (i === gs.selectedMoveIdx) {
           const al = 0.5 + 0.4 * Math.sin(Date.now() / 250);
           ctx.strokeStyle = `rgba(255,220,50,${al})`;
@@ -2499,7 +2490,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
             angle: ss.lockedAngle,
             power: 100,  // Full power preview for maximum arc visibility
             accuracy: 85,
-            distToHoop: distToHoop_m * SCALE,
+            distToHoop: Math.hypot(HOOP_X - px, HOOP_Y - py),  // расстояние в пиксели
             playerX: px,
             playerY: py,
             hoopX: HOOP_X,
@@ -2507,6 +2498,21 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
             scaleX: scaleX,
           };
           ss.idealTraj = simulateTrajectory(launchParams);
+
+          // DEBUG: Проверить что дуга построилась
+          if (!ss.idealTraj || ss.idealTraj.length === 0) {
+            console.warn('[ARC EMPTY]', {
+              angle: ss.lockedAngle,
+              distToHoop_m,
+              distToHoop_px: Math.hypot(HOOP_X - px, HOOP_Y - py),
+            });
+          } else {
+            console.log('[ARC OK]', {
+              points: ss.idealTraj.length,
+              start: ss.idealTraj[0],
+              end: ss.idealTraj[ss.idealTraj.length - 1],
+            });
+          }
 
           // Переход к фазе зарядки силы
           ss.phase = "charging";
