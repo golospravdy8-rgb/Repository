@@ -2698,11 +2698,11 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
     if (gs.players.length >= MAX_PLAYERS) { alert("Максимум 6 гравців!"); return; }
     const name = pname.trim() || `Гр.${gs.players.length+1}`;
 
-    // 🔥 ВИПРАВЛЕННЯ: Перевірити що гравець ще не доданий (без дублів)
-    if (gs.players.some((p: any) => p.name === name)) {
-      console.warn('🚨 Гравець вже існує:', name);
-      alert(`❌ Гравець "${name}" вже доданий!`);
-      return;
+    // 🔥 FIX: Перевірити що цей гравець (за playerId) ще не доданий локально
+    // Якщо вже доданий → тихо ігнорувати (без діалогу)
+    if (gs.players.some((p: any) => p.playerId === playerIdRef.current)) {
+      console.warn('🚨 Ви вже в грі:', playerIdRef.current);
+      return;  // Тихо ігнорувати, без alert()
     }
 
     // 🏀 RUCHEEK: Get global order (Firebase maintains it)
@@ -2716,6 +2716,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
     const queuePos = QUEUE_POSITIONS[positionIndex];
 
     const newPlayer = {
+      playerId: playerIdRef.current,  // 🔥 CRITICAL: Store playerId for deduplication
       name,
       order: assignedOrder,
       x: queuePos.x,
