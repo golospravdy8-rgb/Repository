@@ -26,7 +26,12 @@ export interface CcdResult { hit: boolean; t: number; nx: number; ny: number; }
 
 export interface BallPhysicsState { x: number; y: number; vx: number; vy: number; rot: number; spin: number; drag: number; bounceCount: number; rimBounceCount: number; }
 
-export interface LaunchParams { angle: number; power: number; accuracy: number; distToHoop: number; playerX: number; playerY: number; hoopX: number; hoopY: number; scaleX: number; }
+export interface LaunchParams {
+  // Old interface (legacy, still supported for backward compat)
+  angle?: number; power?: number; accuracy?: number; distToHoop?: number; playerX?: number; playerY?: number; hoopX?: number; hoopY?: number; scaleX?: number;
+  // New metric interface (preferred)
+  vx_m?: number; vy_m?: number; x0_m?: number; y0_m?: number; scale?: number; groundY_m?: number;
+}
 
 export interface RimCollisionResult { newVx: number; newVy: number; outcome: string; shouldScore: boolean; }
 
@@ -312,23 +317,44 @@ export function calculateGreenZonePosition(d: number, min: number = 0, max: numb
 }
 
 export function simulateTrajectory(p: LaunchParams): Array<{ x: number; y: number }> {
-  // Use the same physics as real shot: compute launch velocity from angle and power
-  const SCALE = p.scaleX * 15.0;  // pixels per meter (court is 15m)
-  const px_m = p.playerX / SCALE;
-  const py_m = p.playerY / SCALE;
-  const distToHoop_m = Math.hypot(p.hoopX / SCALE - px_m, p.hoopY / SCALE - py_m);
+  let vx_m: number, vy_m: number, x0_m: number, y0_m: number, scale: number, groundY_m: number;
 
-  const { vx_m, vy_m } = computeLaunchVelocityMeters({
-    angle: p.angle,
-    power: p.power,
-    accuracy: p.accuracy || 0,
-    distToHoop_m, px_m, py_m,
-  });
+  // Поддержка двух интерфейсов: новый (метрический) и старый (пиксельный)
+  if (p.vx_m !== undefined && p.vy_m !== undefined && p.x0_m !== undefined && p.y0_m !== undefined && p.scale !== undefined && p.groundY_m !== undefined) {
+    // Новый метрический интерфейс (предпочтительно)
+    vx_m = p.vx_m;
+    vy_m = p.vy_m;
+    x0_m = p.x0_m;
+    y0_m = p.y0_m;
+    scale = p.scale;
+    groundY_m = p.groundY_m;
+  } else {
+    // Старый интерфейс (обратная совместимость)
+    if (!p.scaleX || !p.playerX || !p.playerY || !p.hoopX || !p.hoopY || !p.angle || p.power === undefined) {
+      throw new Error('simulateTrajectory: missing required parameters for legacy interface');
+    }
+    scale = p.scaleX * 15.0;
+    const px_m = p.playerX / scale;
+    const py_m = p.playerY / scale;
+    const distToHoop_m = Math.hypot(p.hoopX / scale - px_m, p.hoopY / scale - py_m);
+
+    const launchVel = computeLaunchVelocityMeters({
+      angle: p.angle,
+      power: p.power,
+      accuracy: p.accuracy || 0,
+      distToHoop_m, px_m, py_m,
+    });
+    vx_m = launchVel.vx_m;
+    vy_m = launchVel.vy_m;
+    x0_m = px_m;
+    y0_m = py_m;
+    groundY_m = (p.playerY + 34) / scale;
+  }
 
   // Simulate trajectory using same integration as stepBall
   const ball = {
-    _x_m: px_m,
-    _y_m: py_m,
+    _x_m: x0_m,
+    _y_m: y0_m,
     vx: vx_m,
     vy: vy_m,
     omega: 0,
@@ -338,7 +364,7 @@ export function simulateTrajectory(p: LaunchParams): Array<{ x: number; y: numbe
     GRAVITY: 9.81,
     BALL_MASS: 0.623,
     BALL_RADIUS_M: 0.12,
-    RIM_RADIUS_M: 0.6,  // Увеличено чтобы соответствовать визуальному HOOP_R=27px (вместо 10px)
+    RIM_RADIUS_M: 0.6,
     RIM_TUBE_R_M: 0.023,
     NET_ZONE_DEPTH_M: 0.8,
     E_RIM: 0.82,
@@ -346,28 +372,27 @@ export function simulateTrajectory(p: LaunchParams): Array<{ x: number; y: numbe
     Cd: 0.004,
     Cm: 0.000045,
     OMEGA_DECAY: 0.985,
-    HOOP_X_M: p.hoopX / SCALE,
-    HOOP_Y_M: p.hoopY / SCALE,
-    BOARD_X_M: (p.hoopX - 0) / SCALE,  // approximation
-    BOARD_TOP_M: (p.hoopY - 107) / SCALE,
-    BOARD_BOT_M: (p.hoopY - 41) / SCALE,
-    GROUND_Y_M: (p.playerY + 34) / SCALE,  // ground below player
+    HOOP_X_M: 0,  // не используется для дуги
+    HOOP_Y_M: 0,  // не используется для дуги
+    BOARD_X_M: 0,
+    BOARD_TOP_M: 0,
+    BOARD_BOT_M: 0,
+    GROUND_Y_M: groundY_m,
   };
 
   const pts: Array<{ x: number; y: number }> = [];
-  const FIXED_DT = 1 / 120;  // 120Hz physics
+  const FIXED_DT = 1 / 120;
   let time = 0;
 
-  // Simulate until ball goes out of bounds or hits ground
   for (let tick = 0; tick < 500 && time < 5; tick++) {
-    // Record trajectory point
-    pts.push({ x: ball._x_m * SCALE, y: ball._y_m * SCALE });
+    // Record trajectory point in PIXELS
+    pts.push({ x: ball._x_m * scale, y: ball._y_m * scale });
 
     // Integrate physics
     integratePhysics(ball as BallStateM, FIXED_DT, C);
 
     // Stop if ball hits ground
-    if (ball._y_m + C.BALL_RADIUS_M >= C.GROUND_Y_M) break;
+    if (ball._y_m + C.BALL_RADIUS_M >= groundY_m) break;
 
     time += FIXED_DT;
   }
@@ -381,6 +406,10 @@ export function updateOscillator(cp: number, a: number = 0.3, f: number = 2.5): 
 }
 
 export function computeLaunchVelocity(p: LaunchParams): { vx: number; vy: number; spin: number } {
+  // Legacy function - deprecated, use computeLaunchVelocityMeters instead
+  if (!p.power || !p.distToHoop || !p.angle || p.accuracy === undefined) {
+    return { vx: 0, vy: 0, spin: 0 };
+  }
   const pm = 0.3 + (p.power / 200) * 1.7, bs = 10 + (p.distToHoop / 500) * 8, ls = bs * pm;
   const vx = Math.cos(p.angle) * ls, vy = Math.sin(p.angle) * ls;
   const ad = Math.abs(p.angle * (180 / Math.PI));

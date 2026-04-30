@@ -888,88 +888,53 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
     function launchBall(idx: number, shotCursorPos: number = 0.5) {
       const p = gs.players[idx];
       const ss = gs.shootStates[idx];
-      // ВИПРАВЛЕННЯ: Використовувати правильне зміщення гравця (як в update функції)
-      const px = p.x - 15*scaleX;  // Горизонтальне зміщення до рук гравця
-      const py = p.y - 55*scaleY;   // Вертикальне зміщення до точки випуску
+      const headX_m = (p.x - 15*scaleX) / SCALE;
+      const headY_m = (p.y - 55*scaleY) / SCALE;
 
-      // Calculate distance to hoop for physics calculation
-      const distToHoop = Math.hypot(HOOP_X - px, HOOP_Y - py);
+      const dx_m = HOOP_X/SCALE - headX_m;
+      const dy_m = HOOP_Y/SCALE - headY_m;
 
-      // Use physics engine for realistic launch velocity
-      // Power is determined by cursor position (shotCursorPos is 0-1 normalized)
-      const shotPower = shotCursorPos * 100; // Convert to 0-100% scale (not 0-200)
+      // Идеальная скорость (одна и та же формула как в КЛИК 1)
+      const g = 9.81;
+      const theta = -ss.lockedAngle;
+      const cosT = Math.cos(theta);
+      const tanT = Math.tan(theta);
+      const denom = 2*cosT*cosT*(dx_m*tanT - dy_m);
+      const v_ideal = (denom > 0.01)
+        ? Math.max(4, Math.min(18, Math.sqrt(g*dx_m*dx_m/denom)))
+        : (ss.idealVelocity || 10.0);
 
-      const launchParams = {
-        angle: ss.lockedAngle,
-        power: shotPower,
-        accuracy: ss.accuracy || 0,
-        distToHoop,
-        playerX: px,
-        playerY: py,
-        hoopX: HOOP_X,
-        hoopY: HOOP_Y,
-        scaleX: scaleX,
-      };
+      // shotCursorPos = 0-1 (позиция на шкале)
+      // 0.0 = 50% от идеальной скорости (минимум)
+      // 0.5 = 100% от идеальной скорости (центр зеленой зоны)
+      // 1.0 = 150% от идеальной скорости (максимум)
+      const power_factor = 0.5 + shotCursorPos * 1.0;
+      const v_real = v_ideal * power_factor;
 
-      const scale_m = SCALE;
-      const px_m = px / scale_m;
-      const py_m = py / scale_m;
-      const hoopX_m = HOOP_X / scale_m;
-      const hoopY_m = HOOP_Y / scale_m;
-      const distToHoop_m = Math.hypot(hoopX_m - px_m, hoopY_m - py_m);
-      const heightDiff_m = hoopY_m - py_m; // позитивне якщо кільце нижче
+      const vx_m = Math.cos(theta) * v_real;
+      const vy_m = -Math.sin(theta) * v_real;
 
-      const { vx_m, vy_m, omega } = computeLaunchVelocityMeters({
-        angle: ss.lockedAngle,
-        power: shotPower,
-        accuracy: ss.accuracy || 0,
-        distToHoop_m, px_m, py_m,
-        heightDiff_m,
-      });
-
-      // 🎯 DIAGNOSTIC: Throw calibration logging
-      // Обчислити теоретичний час падіння до кільця
-      const dx_m = hoopX_m - px_m;
-      const dy_m = hoopY_m - py_m;
-      const disc = vy_m*vy_m - 2*9.81*(py_m - hoopY_m);
-      let t_to_hoop = -1, x_at_hoop = -1, error_m = -1;
-      if (disc >= 0) {
-        t_to_hoop = (-vy_m + Math.sqrt(disc)) / 9.81;
-        x_at_hoop = px_m + vx_m * t_to_hoop;
-        error_m = Math.abs(x_at_hoop - hoopX_m);
-      }
-
-      console.log('[THROW CALIBRATION]', {
+      console.log('[LAUNCH METRICS]', {
+        v_ideal_ms: v_ideal.toFixed(2),
+        v_real_ms: v_real.toFixed(2),
+        power_factor: power_factor.toFixed(2),
+        cursor_pos: shotCursorPos.toFixed(2),
+        vx_m: vx_m.toFixed(2),
+        vy_m: vy_m.toFixed(2),
         angle_deg: (ss.lockedAngle * 180/Math.PI).toFixed(1),
-        dist_m: distToHoop_m.toFixed(2),
-        height_diff_m: heightDiff_m.toFixed(2),
-        vx: vx_m.toFixed(2),
-        vy: vy_m.toFixed(2),
-        power_percent: shotPower.toFixed(1),
-        t_to_hoop: t_to_hoop >= 0 ? t_to_hoop.toFixed(3) + 's' : 'invalid',
-        x_at_hoop_m: x_at_hoop >= 0 ? x_at_hoop.toFixed(2) : 'invalid',
-        hoop_x_m: hoopX_m.toFixed(2),
-        error_m: error_m >= 0 ? error_m.toFixed(3) : 'invalid',
+        dx_m: dx_m.toFixed(2),
+        dy_m: dy_m.toFixed(2),
         SCALE: SCALE.toFixed(1),
-        startX_px: px.toFixed(0),
-        startY_px: py.toFixed(0),
-        hoopX_px: HOOP_X.toFixed(0),
-        hoopY_px: HOOP_Y.toFixed(0),
-        idealPower: ss.idealPower?.toFixed(3),
       });
 
       ss.ball = {
-        // Meter-space physics state
-        _x_m: px_m, _y_m: py_m,
+        _x_m: headX_m, _y_m: headY_m,
         vx: vx_m, vy: vy_m,
-        omega,
-        // Pixel-space (kept in sync by stepBall for draw compat)
-        x: px, y: py,
-        rot: 0, spin: omega,
-        // Accumulator
+        omega: 0,
+        x: p.x - 15*scaleX, y: p.y - 55*scaleY,
+        rot: 0, spin: 0,
         _accumulator: 0, _physTick: 0, _checkpoints: [],
-        _scale: scale_m,
-        // Game state
+        _scale: SCALE,
         state: 'flying', outcome: 'in_progress',
         scoredGoal: false, boardHandled: false, hitBackboard: false,
         owner: idx, bounceCount: 0,
@@ -978,9 +943,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         _inRimZone: false,
       };
 
-
       ss.phase = 'flying';
-
       ss.lockedAngle = null;
       ss.idealTraj = null;
       p.status = 'shooting';
@@ -1021,15 +984,11 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           }
         }
         if (ss.phase === 'charging') {
-          ss.power += 2.6 * ss.powerDir * dt; // Doubled rate for 200% range
-          if (ss.power >= 200) { ss.power = 200; ss.powerDir = -1; }
-          if (ss.power <= 0) { ss.power = 0; ss.powerDir = 1; }
           // Oscillate distance indicator marker with arcade-style difficulty
           const distToHoop = Math.hypot(HOOP_X - (p.x - 15*scaleX), HOOP_Y - (p.y - 55*scaleY));
           const maxDist = Math.hypot(W, H);
           const distRatio = Math.min(distToHoop / maxDist, 1);
 
-          // Oscillate distance indicator marker with arcade-style difficulty (old logic)
           const MARKER_SPEED = 0.65 + distRatio * 0.45;
           const FIXED_DT = 1 / 60;
           markerPosRef.current += markerDirRef.current * MARKER_SPEED * FIXED_DT;
@@ -1896,8 +1855,8 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
 
           // 🟢 ЗЕЛЁНАЯ ЗОНА: Диапазон идеальной силы (ФИКСИРОВАННАЯ позиция)
           const bx2 = p.x + 30*scaleX, barTop = p.y - 80*scaleY, barW = 14*scaleX, barH = 80*scaleY;
-          const greenZoneMin = (ss.greenZoneMin || 40) / 100;  // Нормализовано 0-1
-          const greenZoneMax = (ss.greenZoneMax || 60) / 100;
+          const greenZoneMin = ss.greenZoneMin || 0.4;  // уже в масштабе 0-1
+          const greenZoneMax = ss.greenZoneMax || 0.6;
           const greenZoneHeight = (greenZoneMax - greenZoneMin) * barH;
 
           // Background bar (черный фон)
@@ -2451,146 +2410,133 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           p.status = "shooting";
           if (hitIdx === 0) gs.disputeP1 = 0;
         } else if (ss.phase === "aiming") {
-          // 🎯 КЛИК 1: ФИКСАЦИЯ УГЛА И ВЫЧИСЛЕНИЕ ИДЕАЛЬНОЙ ТРАЕКТОРИИ
+          // 🎯 КЛИК 1: ФИКСАЦИЯ УГЛА И ВЫЧИСЛЕНИЕ ИДЕАЛЬНОЙ ТРАЕКТОРИИ (ПОЛНАЯ МЕТРИКА)
           ss.lockedAngle = ss.aimAngle;
 
-          const px = p.x - 15*scaleX;
-          const py = p.y - 55*scaleY;
           const SCALE = Math.min(W, H) / 15.0;
+          const headX_m = (p.x - 15*scaleX) / SCALE;
+          const headY_m = (p.y - 55*scaleY) / SCALE;
+          const hoopX_m = HOOP_X / SCALE;
+          const hoopY_m = HOOP_Y / SCALE;
+          const groundY_m = GY / SCALE;
 
-          // Перевести в метры для физики
-          const px_m = px / SCALE;
-          const py_m = py / SCALE;
-          const hoop_x_m = HOOP_X / SCALE;
-          const hoop_y_m = HOOP_Y / SCALE;
+          const dx_m = hoopX_m - headX_m;
+          const dy_m = hoopY_m - headY_m;
 
-          // Вычислить расстояние до кольца в метрах
-          const distToHoop_m = Math.hypot(hoop_x_m - px_m, hoop_y_m - py_m);
-          const heightDiff_m = hoop_y_m - py_m;
+          const g = 9.81;
+          const theta = -ss.lockedAngle;  // canvas угол (от'ємне = вгору) → математический
+          const cosT = Math.cos(theta);
+          const tanT = Math.tan(theta);
+          const denom = 2 * cosT * cosT * (dx_m * tanT - dy_m);
 
-          // 🔴 ИДЕАЛЬНАЯ СКОРОСТЬ: обратная баллистика для траектории player → hoop
-          const idealSpeedMs = computeIdealSpeed(distToHoop_m, ss.lockedAngle, heightDiff_m);
-          ss.idealSpeedMs = idealSpeedMs;
-
-          // Конвертировать м/с в % power (0-100%)
-          // Power formula: speed = idealSpeed * (0.4 + power_norm * 0.8)
-          // При power=100%: speed = idealSpeed * 1.2
-          // Поэтому power_ideal = (idealSpeed / idealSpeed / 1.2) * 100 = 83.3% (округляем до 80%)
-          const POWER_MIN = 0.4;
-          const POWER_MAX = 1.2;
-          const speedForMaxPower = idealSpeedMs * POWER_MAX;
-          const speedForMinPower = idealSpeedMs * POWER_MIN;
-          const speedRange = speedForMaxPower - speedForMinPower;
-          const targetSpeed = idealSpeedMs;
-          const powerNorm = Math.max(0, Math.min(1, (targetSpeed - speedForMinPower) / speedRange));
-          ss.idealPowerPercent = powerNorm * 100;
-
-          // Сохранить идеальную траекторию (красная дуга) при 100% мощности
-          const launchParams = {
-            angle: ss.lockedAngle,
-            power: 100,  // Full power preview for maximum arc visibility
-            accuracy: 85,
-            distToHoop: Math.hypot(HOOP_X - px, HOOP_Y - py),  // расстояние в пиксели
-            playerX: px,
-            playerY: py,
-            hoopX: HOOP_X,
-            hoopY: HOOP_Y,
-            scaleX: scaleX,
-          };
-          ss.idealTraj = simulateTrajectory(launchParams);
-
-          // DEBUG: Проверить что дуга построилась
-          if (!ss.idealTraj || ss.idealTraj.length === 0) {
-            console.warn('[ARC EMPTY]', {
-              angle: ss.lockedAngle,
-              distToHoop_m,
-              distToHoop_px: Math.hypot(HOOP_X - px, HOOP_Y - py),
-            });
+          let v_ideal: number;
+          if (denom > 0.01) {
+            v_ideal = Math.sqrt(g * dx_m * dx_m / denom);
+            v_ideal = Math.max(4.0, Math.min(18.0, v_ideal));
           } else {
-            console.log('[ARC OK]', {
-              points: ss.idealTraj.length,
-              start: ss.idealTraj[0],
-              end: ss.idealTraj[ss.idealTraj.length - 1],
-            });
+            v_ideal = 10.0;
           }
 
-          // Переход к фазе зарядки силы
+          ss.idealVelocity = v_ideal;  // в м/с
+          ss.idealPower = Math.max(0.05, Math.min(0.95, (v_ideal - 4.0) / 14.0));  // нормализовано 0-1
+
+          const vx_ideal = Math.cos(theta) * v_ideal;
+          const vy_ideal = -Math.sin(theta) * v_ideal;  // от'ємне = вгору
+
+          // Генерировать дугу через simulateTrajectory (все в метрах входе, пикселях выходе)
+          ss.idealTraj = simulateTrajectory({
+            vx_m: vx_ideal,
+            vy_m: vy_ideal,
+            x0_m: headX_m,
+            y0_m: headY_m,
+            scale: SCALE,
+            groundY_m: groundY_m,
+          });
+
+          console.log('[IDEAL ARC GENERATED]', {
+            v_ideal_ms: v_ideal.toFixed(2),
+            idealPower_0_1: ss.idealPower.toFixed(2),
+            points: ss.idealTraj.length,
+            start_px: ss.idealTraj[0] ? {x: ss.idealTraj[0].x.toFixed(0), y: ss.idealTraj[0].y.toFixed(0)} : null,
+            end_px: ss.idealTraj.length > 0 ? {x: ss.idealTraj[ss.idealTraj.length-1].x.toFixed(0), y: ss.idealTraj[ss.idealTraj.length-1].y.toFixed(0)} : null,
+            hoop_px: {x: HOOP_X.toFixed(0), y: HOOP_Y.toFixed(0)},
+            dx_m: dx_m.toFixed(2), dy_m: dy_m.toFixed(2),
+            theta_deg: (theta * 180/Math.PI).toFixed(1),
+          });
+
           ss.phase = "charging";
           ss.power = 0;
           ss.powerDir = 1;
 
-          // Зелёная зона: диапазон допустимых сил вокруг идеальной
-          const tolerance = 0.05;  // ±5% от идеальной силы
-          ss.greenZoneMin = Math.max(0, ss.idealPowerPercent - tolerance * 100);
-          ss.greenZoneMax = Math.min(100, ss.idealPowerPercent + tolerance * 100);
-          ss.greenZonePos = ss.idealPowerPercent / 100;  // Нормализовано 0-1
+          const tolerance = 0.08;  // ±8% от идеальной силы (в 0-1 scale)
+          const pMin = Math.max(0, ss.idealPower - tolerance);
+          const pMax = Math.min(1, ss.idealPower + tolerance);
+          ss.greenZoneMin = pMin;
+          ss.greenZoneMax = pMax;
+          ss.greenZonePos = ss.idealPower;
 
-          // Reset marker для шкалы силы
-          markerPosRef.current = ss.greenZonePos;
+          markerPosRef.current = ss.idealPower;
           markerDirRef.current = 1;
         } else if (ss.phase === "charging") {
-          // 🎯 КЛИК 3: БРОСОК НА ОСНОВЕ ЧИСТОЙ ФИЗИКИ
+          // 🎯 КЛИК 3: БРОСОК НА ОСНОВЕ МЕТРИЧЕСКОЙ ФИЗИКИ
 
-          // Текущая позиция маркера силы (0-1)
-          const currentPowerNorm = markerPosRef.current;
-          const currentPowerPercent = currentPowerNorm * 100;
+          const cursorPos = markerPosRef.current;  // 0-1 позиция на шкале
+          const greenZoneMin = ss.greenZoneMin || 0.4;  // уже в масштабе 0-1
+          const greenZoneMax = ss.greenZoneMax || 0.6;
 
-          // Зелёная зона (диапазон допустимых сил)
-          const greenZoneMin = ss.greenZoneMin || 40;
-          const greenZoneMax = ss.greenZoneMax || 60;
+          const inGreenZone = cursorPos >= greenZoneMin && cursorPos <= greenZoneMax;
+          ss.accuracy = inGreenZone ? 95 + Math.random() * 5 : Math.max(5, 90 - Math.abs(cursorPos - ss.idealPower) * 100 * 2);
 
-          // Точность попадания зависит от попадания в зелёную зону
-          const inGreenZone = currentPowerPercent >= greenZoneMin && currentPowerPercent <= greenZoneMax;
-          ss.accuracy = inGreenZone ? 95 + Math.random() * 5 : Math.max(5, 90 - Math.abs(currentPowerPercent - ss.idealPowerPercent) * 2);
+          // Используем тот же расчет как в launchBall
+          const headX_m = (p.x - 15*scaleX) / SCALE;
+          const headY_m = (p.y - 55*scaleY) / SCALE;
 
-          // Координаты игрока в пикселях и метрах
-          const px = p.x - 15*scaleX;
-          const py = p.y - 55*scaleY;
-          const SCALE = Math.min(W, H) / 15.0;
-          const px_m = px / SCALE;
-          const py_m = py / SCALE;
-          const hoop_x_m = HOOP_X / SCALE;
-          const hoop_y_m = HOOP_Y / SCALE;
-          const distToHoop_m = Math.hypot(hoop_x_m - px_m, hoop_y_m - py_m);
-          const heightDiff_m = hoop_y_m - py_m;
+          const dx_m = HOOP_X/SCALE - headX_m;
+          const dy_m = HOOP_Y/SCALE - headY_m;
 
-          // Вычислить реальную скорость из выбранной силы
-          const { vx_m, vy_m } = computeLaunchVelocityMeters({
-            angle: ss.lockedAngle,
-            power: currentPowerPercent,
-            accuracy: ss.accuracy,
-            distToHoop_m,
-            px_m,
-            py_m,
-            heightDiff_m,
-          });
+          const g = 9.81;
+          const theta = -ss.lockedAngle;
+          const cosT = Math.cos(theta);
+          const tanT = Math.tan(theta);
+          const denom = 2*cosT*cosT*(dx_m*tanT - dy_m);
+          const v_ideal = (denom > 0.01)
+            ? Math.max(4, Math.min(18, Math.sqrt(g*dx_m*dx_m/denom)))
+            : (ss.idealVelocity || 10.0);
 
-          // Создать мяч с начальными условиями (в метрах)
+          const power_factor = 0.5 + cursorPos * 1.0;
+          const v_real = v_ideal * power_factor;
+
+          const vx_m = Math.cos(theta) * v_real;
+          const vy_m = -Math.sin(theta) * v_real;
+
           ss.ball = {
-            _x_m: px_m,
-            _y_m: py_m,
-            vx: vx_m,
-            vy: vy_m,
-            rot: 0,
+            _x_m: headX_m, _y_m: headY_m,
+            vx: vx_m, vy: vy_m,
             omega: 0,
-            state: 'flying',
-            x: px,  // Пиксели для отрисовки
-            y: py,
+            x: p.x - 15*scaleX, y: p.y - 55*scaleY,
+            rot: 0, spin: 0,
+            _accumulator: 0, _physTick: 0, _checkpoints: [],
+            _scale: SCALE,
+            state: 'flying', outcome: 'in_progress',
+            scoredGoal: false, boardHandled: false, hitBackboard: false,
+            owner: hitIdx, bounceCount: 0,
+            rimContacts: 0, rimContactMask: 0, rimHitTimer: 0, rimBounceCount: 0,
+            frameCount: 0, isGuided: false, guaranteedScore: false,
+            _inRimZone: false,
           };
 
-          // Запустить физический полёт мяча
           ss.phase = "flying";
           p.status = "shooting";
 
-          // Логирование для отладки
-          console.log('[SHOT 3]', {
-            power_percent: currentPowerPercent.toFixed(1),
-            ideal_power: ss.idealPowerPercent.toFixed(1),
+          console.log('[SHOT 3 LAUNCH]', {
+            cursor_pos: cursorPos.toFixed(2),
             in_green_zone: inGreenZone,
+            v_ideal: v_ideal.toFixed(2),
+            v_real: v_real.toFixed(2),
+            power_factor: power_factor.toFixed(2),
+            vx_m: vx_m.toFixed(2),
+            vy_m: vy_m.toFixed(2),
             accuracy: ss.accuracy.toFixed(0),
-            vx_ms: vx_m.toFixed(2),
-            vy_ms: vy_m.toFixed(2),
-            distToHoop_m: distToHoop_m.toFixed(2),
           });
 
         }
