@@ -100,9 +100,9 @@ setTimeout(() => {
   console.log("📡 WebSocket → ws://localhost:3006");
   console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
 
-  // Start unified Next.js + Colyseus server (port 3006)
-  console.log("▶ Starting Next.js + Colyseus server...");
-  const server = spawn("npx", ["tsx", "watch", "server.ts"], {
+  // Start Next.js development server (port 3006) - now using Firebase instead of Colyseus
+  console.log("▶ Starting Next.js development server...");
+  const server = spawn("next", ["dev", "-p", "3006"], {
     stdio: "inherit",
     shell: isWindows,
     cwd: path.resolve(__dirname, ".."),

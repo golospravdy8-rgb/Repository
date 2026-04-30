@@ -1,21 +1,10 @@
 "use client";
 import { useEffect, useRef, useState, useCallback } from "react";
 import { createPortal } from "react-dom";
+import { Client } from "colyseus.js";
+import { GameStateSchema } from "@/lib/colyseus/schemas.shared";
 import { PowerMeterSystem } from "@/lib/game/powerMeterSystem";
 import { createMeterElement, hideMeter, showAccuracyFeedback } from "@/lib/game/powerMeterUI";
-import {
-  initializeFirebase,
-  initializeRoom,
-  joinGame,
-  updatePlayerPosition,
-  updateBall,
-  updateScore,
-  leaveGame,
-  listenToPlayers,
-  listenToBall,
-} from "@/lib/firebase-game";
-import { ref, get, remove, set } from "firebase/database";
-import { getFirebaseDatabase } from "@/lib/firebase";
 import {
   computeLaunchVelocity,
   stepPhysics,
@@ -82,7 +71,9 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rafRef = useRef<number>(0);
   const pnameRef = useRef<HTMLInputElement>(null);
-  const firebaseUnsubscribeRef = useRef<Array<() => void>>([]);
+  const colysusClientRef = useRef<any>(null);
+  const roomRef = useRef<any>(null);
+  const syncIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const remotePlayersRef = useRef<Map<string, any>>(new Map());
   const [mounted, setMounted] = useState(false);
   const [pname, setPname] = useState(userName);
@@ -123,10 +114,6 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
   const eliminationOrderRef = useRef<string[]>([]);
   const markerPosRef = useRef<number>(0);
   const markerDirRef = useRef<number>(1);
-  const lastPositionSendRef = useRef<number>(0);  // 🔥 БАГ 1: Throttle for player position updates (50ms)
-  const lastBallSendRef = useRef<number>(0);      // 🔥 БАГ 2: Throttle for ball updates (50ms)
-  const lastSentPosRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 }); // ⏱️ Для проверки расстояния
-  const MOVE_THRESHOLD = 5; // Отправлять только если движение > 5 пиксели
 
   // Power Meter System refs and state
   const powerMeterRef = useRef<PowerMeterSystem | null>(null);
@@ -136,106 +123,206 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
 
   useEffect(() => { setMounted(true); }, []);
 
-  // Initialize Firebase connection
+  // Initialize Colyseus connection
   useEffect(() => {
-    if (!mounted) return;
+    if (!mounted || roomRef.current) {
+      console.log('[🔴 DEBUG] Skipping Colyseus init:', { mounted, alreadyInit: !!roomRef.current });
+      return;
+    }
 
-    console.log('[🔥 FIREBASE] Initializing Firebase with gameRoomId:', gameRoomId);
+    console.log('[🔴 DEBUG] Initializing Colyseus with gameRoomId:', gameRoomId);
 
-    let isActive = true;
+    let client: any;
+    let room: any;
+    try {
+      // Для production используем NEXT_PUBLIC_COLYSEUS_URL (Railway), иначе текущий хост
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const host = window.location.host;
+      const colysuesUrl = process.env.NEXT_PUBLIC_COLYSEUS_URL || `${protocol}//${host}`;
+      const isProduction = process.env.NEXT_PUBLIC_COLYSEUS_URL !== undefined;
+      console.log(`[🔴 DEBUG] Connecting to Colyseus (${isProduction ? 'PRODUCTION' : 'LOCAL'}):`, colysuesUrl);
+      client = new Client(colysuesUrl);
+      colysusClientRef.current = client;
 
-    const initializeFirebaseGame = async () => {
-      try {
-        // Initialize Firebase
-        initializeFirebase();
-        console.log('✅ Firebase инициализирован');
+      client.joinOrCreate('basketball', {
+        nickname: userName || 'Player',
+        playerId: playerIdRef.current,
+        x: 480,
+        y: 584,
+        color: PLAYER_COLORS[Math.floor(Math.random() * PLAYER_COLORS.length)],
+      }).then((joinedRoom: any) => {
+        console.log('[🔴 DEBUG] Colyseus room joined:', joinedRoom.sessionId);
+        room = joinedRoom;
+        roomRef.current = room;
+        // 🔥 КРИТИЧНО: обновить playerIdRef на настоящий Colyseus sessionId
+        playerIdRef.current = room.sessionId;
+        console.log('[🔴 DEBUG] Updated playerIdRef to:', playerIdRef.current);
 
-        // Initialize room
-        await initializeRoom(gameRoomId);
-        console.log('✅ Комната инициализирована');
+        console.log('[🔴 CLIENT joined] My sessionId:', room.sessionId);
 
-        if (!isActive) return;
+        // 🔴 FIX 1: Ждём когда state инициализируется асинхронно
+        // room.state.players может быть undefined в момент joinOrCreate
+        room.onStateChange.once((state: any) => {
+          console.log('[🔴 INIT STATE] State received, players:', state.players?.size);
 
-        // 🔥 ВИПРАВЛЕННЯ: Очистити застарілих гравців з Firebase перед входом
-        // 🔥 ЯДЕРНА ОЧИСТКА: Видалити ВСІХ гравців + переініціалізувати кімнату
-        const cleanupOldPlayers = async () => {
-          try {
-            const db = getFirebaseDatabase();
-            const playersRef = ref(db, `games/${gameRoomId}/players`);
-            // Видаляємо ВСІХ гравців назавжди (очистка DB)
-            await remove(playersRef);
-            console.log('[🔥 NUCLEAR CLEANUP] Видалено ВСІХ гравців при старті');
-          } catch (err) {
-            console.warn('[⚠️ CLEANUP] Помилка при ядерній очистці:', err);
+          // 🟢 ОЧИСТИТЬ СТАРЫХ ПРИЗРАКОВ ИЗ ПРЕДЫДУЩЕЙ СЕССИИ
+          remotePlayersRef.current.clear();
+          console.log('[🟢 COLYSEUS] Cleared old ghost players on join');
+
+          // 🟢 ОЧИСТИТЬ СТАРОЕ СОСТОЯНИЕ ИЗ localStorage
+          localStorage.removeItem(`basketball_game_state_${gameRoomId}`);
+          console.log('[🟢 COLYSEUS] Cleared old game state from localStorage');
+
+          // 🔴 COLYSEUS 0.15+ FIX: Listeners are property assignments, NOT method calls
+          // 1. СНАЧАЛА назначить listeners (property assignment syntax)
+          state.players.onAdd = (player: any, key: string) => {
+            console.log('[🟢 onAdd] Player joined:', key, player.nickname);
+            if (key !== room.sessionId) {
+              updateRemotePlayerFromState(player, key);
+            }
+          };
+
+          state.players.onChange = (player: any, key: string) => {
+            console.log('[🟢 onChange] Player changed:', key, player.nickname);
+            if (key !== room.sessionId) {
+              updateRemotePlayerFromState(player, key);
+            }
+          };
+
+          state.players.onRemove = (player: any, key: string) => {
+            console.log('[🟢 onRemove] Player left:', key);
+            remotePlayersRef.current.delete(key);
+          };
+
+          // 2. ПОТОМ пройти по существующим игрокам (FIX A)
+          console.log('[🟢 INIT] Processing existing players in room:', state.players?.size);
+          state.players?.forEach((player: any, key: string) => {
+            if (key !== room.sessionId) {
+              console.log('[🟢 INIT] Existing player found:', { key, nickname: player.nickname });
+              updateRemotePlayerFromState(player, key);
+            }
+          });
+        });
+
+        // 🔴 FIX CONTINUOUS SYNC: Постоянная подписка на изменения state для координат
+        // (onStateChange.once срабатывает только один раз, нужно слушать все обновления)
+        room.onStateChange((state: any) => {
+          let hasChanges = false;
+
+          state.players?.forEach((player: any, key: string) => {
+            if (key !== room.sessionId) {
+              const existing = remotePlayersRef.current.get(key);
+
+              if (existing) {
+                // Обновить координаты и статус существующего игрока (onChange уже заполнил основное)
+                const oldX = existing.x;
+                const oldY = existing.y;
+
+                // Если игрок двигается (shooting/running), обновить реальные координаты
+                if (player.status === 'shooting' || player.status === 'running') {
+                  existing.x = player.x;
+                  existing.y = player.y;
+                } else {
+                  // Если ждёт, использовать queue position
+                  const positionIndex = Math.min(player.playerIndex || 0, QUEUE_POSITIONS.length - 1);
+                  const queuePos = QUEUE_POSITIONS[positionIndex];
+                  existing.x = queuePos.x;
+                  existing.y = groundYRef.current;
+                }
+
+                existing.status = player.status || 'alive';
+                existing.lastSeen = player.lastSeen;
+
+                if (oldX !== existing.x || oldY !== existing.y) {
+                  console.log('[🟢 STATE SYNC] Coords updated:', key, 'from:', oldX, oldY, 'to:', existing.x, existing.y);
+                  remotePlayersRef.current.set(key, existing);
+                  hasChanges = true;
+                }
+              } else if (player.nickname) {
+                // Игрок ещё не добавлен (вошел до нас) — добавить через updateRemote
+                console.log('[🟢 STATE SYNC] Found new player not in map:', key, player.nickname);
+                updateRemotePlayerFromState(player, key);
+                hasChanges = true;
+              }
+            }
+          });
+
+          if (hasChanges) {
+            forceUpdate(x => x + 1);
           }
-        };
+        });
 
-        await cleanupOldPlayers();
+        // Вспомогательная функция для обновления игрока
+        const updateRemotePlayerFromState = (player: any, key: string) => {
+          console.log('[🔴 updateRemote] Called for:', key,
+            'nickname:', player.nickname,
+            'lastSeen:', player.lastSeen,
+            'status:', player.status);
 
-        // Очистити локальний стан
-        remotePlayersRef.current.clear();
-        console.log('[🟢 FIREBASE] Cleared old ghost players on join');
+          // ФИЛЬТР ПРИЗРАКОВ: пропускать если нет nickname
+          if (!player.nickname || player.nickname === '' || player.nickname === 'undefined') {
+            console.log('[🟡] Ignoring player without nickname:', key);
+            remotePlayersRef.current.delete(key);
+            return;
+          }
 
-        // Clear old game state from localStorage
-        localStorage.removeItem(`basketball_game_state_${gameRoomId}`);
-        console.log('[🟢 FIREBASE] Cleared old game state from localStorage');
+          // ФИЛЬТР: пропускать eliminated игроков
+          if (player.status === 'eliminated' || player.status === 'dead') {
+            console.log('[🟡] Removing eliminated player:', { key, nickname: player.nickname });
+            remotePlayersRef.current.delete(key);
+            return;
+          }
 
-        // Переініціалізувати кімнату (скинути球, game state)
-        await initializeRoom(gameRoomId);
-        console.log('[🔥] Кімната переініціалізована');
+          // 🔴 FIX D: ФИЛЬТР: пропускать неактивных игроков (стоявших более 30 сек)
+          // НО не удалять гравця якщо lastSeen = 0 (тільки зайшов)
+          const lastSeen = player.lastSeen || 0;
+          const now = Date.now();
+          const INACTIVITY_THRESHOLD = 30000; // 30 seconds
+          if (lastSeen > 0 && now - lastSeen > INACTIVITY_THRESHOLD) {
+            console.log('[🟡] Removing inactive player:', { key, nickname: player.nickname, lastSeen, now });
+            remotePlayersRef.current.delete(key);
+            return;
+          }
 
-        // Join the game
-        await joinGame(gameRoomId, playerIdRef.current, userName || 'Player', Math.floor(Math.random() * MAX_PLAYERS));
-        console.log(`✅ ${userName} присоединился к игре`);
+          // 🏀 RUCHEEK: Use queue position OR real position depending on status
+          let posX: number, posY: number;
 
-        if (!isActive) return;
+          // When shooting or running, use REAL coordinates from server
+          if (player.status === 'shooting' || player.status === 'running') {
+            posX = player.x || 480;
+            posY = player.y || groundYRef.current;
+          } else {
+            // Otherwise use fixed queue position for waiting players
+            const positionIndex = Math.min(player.playerIndex || 0, QUEUE_POSITIONS.length - 1);
+            const queuePos = QUEUE_POSITIONS[positionIndex];
+            posX = queuePos.x;
+            posY = groundYRef.current;
+          }
 
-        // Listen to players
-        const unsubscribePlayers = listenToPlayers(gameRoomId, (players: any[]) => {
-          if (!isActive) return;
+          // 🔴 FIX 4: Улучшенное добавление игрока в remotePlayersRef
+          const newPlayer = {
+            sessionId: key,
+            socketId: key,
+            basePlayerId: key,
+            playerIndex: player.playerIndex || 0,
+            order: player.playerIndex || 0,
+            x: posX,
+            y: posY,
+            status: player.status || 'alive',
+            nickname: player.nickname || 'Player',
+            name: player.nickname || 'Player',
+          };
 
-          // 🔥 ВИПРАВЛЕННЯ: ПОВНА ПЕРЕСБОРКА MAP — видаляємо ВСІх кого немає в Firebase
-          const newMap = new Map<string, any>();
+          const existingPlayer = remotePlayersRef.current.get(key);
 
-          players.forEach((player: any) => {
-            const playerId = player.id;
-            if (!playerId) return;
-            if (playerId === playerIdRef.current) return; // Skip self
-
-            // Skip eliminated players
-            if (player.status === 'eliminated' || player.status === 'dead') return;
-
-            // Skip inactive players
-            const lastUpdate = player.lastUpdate || 0;
-            const now = Date.now();
-            const INACTIVITY_THRESHOLD = 10000;
-            if (lastUpdate > 0 && now - lastUpdate > INACTIVITY_THRESHOLD) return;
-
-            // Determine position — use QUEUE_POSITIONS for fixed layout
-            const playerIdx = player.playerIndex || 0;
-            const safeIdx = Math.min(playerIdx, QUEUE_POSITIONS.length - 1);
-            const queuePos = QUEUE_POSITIONS[safeIdx];
-            const posX: number = queuePos.x;
-            const posY: number = groundYRef.current;
-
-            const newPlayer = {
-              sessionId: playerId,
-              socketId: playerId,
-              basePlayerId: playerId,
-              playerIndex: player.playerIndex || 0,
-              order: player.playerIndex || 0,
-              x: posX,
-              y: posY,
-              status: player.status || 'alive',
-              nickname: player.nickname || 'Player',
-              name: player.nickname || 'Player',
-              score: player.score || 0,
-            };
-
-            // Check if this is a new player
-            const existingPlayer = remotePlayersRef.current.get(playerId);
+          // Check if player is new or changed (compare calculated positions not raw)
+          if (!existingPlayer ||
+              existingPlayer.x !== posX ||
+              existingPlayer.y !== posY ||
+              existingPlayer.status !== player.status) {
             if (!existingPlayer) {
-              console.log('[🟢 FIREBASE] New player:', { playerId, nickname: player.nickname });
+              console.log('[🟢 COLYSEUS] New player:', { key, nickname: player.nickname });
+              console.log('[🔴 FIX 4] Setting player in remotePlayersRef:', key, player.nickname);
               gsRef.current.flashes.push({
                 text: `✅ ${player.nickname} присоединився!`,
                 x: 400,
@@ -244,55 +331,123 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
                 alpha: 1,
                 dy: 0,
               });
+            } else if (existingPlayer.x !== posX || existingPlayer.y !== posY) {
+              console.log('[🔵 COLYSEUS] Player moved:', { key, nickname: player.nickname, x: posX, y: posY });
             }
+            remotePlayersRef.current.set(key, newPlayer);
+            console.log('[🔴 FIX 4] remotePlayersRef.current.size after set:', remotePlayersRef.current.size);
+            forceUpdate(x => x + 1);
+          }
+        };
 
-            newMap.set(playerId, newPlayer);
-          });
-
-          // 🔥 ЗАМІНЮЄМО весь Map одразу — старі гравці (привиди) зникають автоматично
-          remotePlayersRef.current = newMap;
-          forceUpdate(x => x + 1);
+        // ✅ MULTIPLAYER: Event - Another player joined
+        // 🔴 FIX 2: Регистрировать onMessage для playerJoined
+        room.onMessage('playerJoined', (data: any) => {
+          console.log('[🔴 MSG playerJoined]', data);
+          if (data.sessionId && data.sessionId !== room.sessionId) {
+            console.log('[🔴 FIX 2] Processing playerJoined message:', data.sessionId, data.nickname);
+            // Попытаемся добавить игрока если он не из state
+            // (может быть параллельный broadcast от сервера)
+          }
+          if (data.playerId === playerIdRef.current) return;
+          console.log('[🟢 COLYSEUS] playerJoined event:', data.nickname);
         });
 
-        // Listen to ball
-        const unsubscribeBall = listenToBall(gameRoomId, (ball: any) => {
-          if (!isActive) return;
+        // 🔴 FIX 2: Регистрировать playerLeft
+        room.onMessage('playerLeft', (data: any) => {
+          console.log('[🔴 MSG playerLeft]', data);
+          if (data.sessionId) {
+            remotePlayersRef.current.delete(data.sessionId);
+          }
+        });
 
-          if (gsRef.current && ball) {
+        // ✅ MULTIPLAYER: Event - Another player shot
+        room.onMessage('shotResult', (data: any) => {
+          if (data.playerId === playerIdRef.current) return;
+
+          gsRef.current.flashes.push({
+            text: `⚽ ${data.nickname}: ${data.shotScore}pts (${Math.round(data.accuracy)}%)`,
+            x: 400,
+            y: 150,
+            color: '#ffdd44',
+            alpha: 1,
+            dy: 0,
+          });
+
+          // Update leaderboard
+          const lb = gsRef.current.leaderboard as any[];
+          const existing = lb.find((e: any) => e.playerId === data.playerId);
+          if (existing) {
+            existing.score = (existing.score || 0) + data.shotScore;
+          } else {
+            lb.push({
+              playerId: data.playerId,
+              nickname: data.nickname,
+              score: data.shotScore,
+            });
+          }
+          lb.sort((a: any, b: any) => b.score - a.score);
+          forceUpdate(n => n + 1);
+        });
+
+        // 🔴 FIX C: Слухати м'яч від інших гравців (ballUpdate broadcast з сервера)
+        room.onMessage('ballUpdate', (data: any) => {
+          // Отримати дані м'яча з сервера під час польоту
+          if (gsRef.current && data) {
             gsRef.current.remoteBall = {
-              x: ball.x,
-              y: ball.y,
-              vx: ball.vx,
-              vy: ball.vy,
-              rotation: ball.rotation || 0,
-              state: ball.state || 'waiting',
-              isRemote: true,
+              x: data.x,
+              y: data.y,
+              vx: data.vx,
+              vy: data.vy,
+              rotation: data.rotation || 0,
+              state: data.state || 'flying',
+              isRemote: true, // Відмітити що це чужий м'яч
             };
             forceUpdate(n => n + 1);
           }
         });
 
-        firebaseUnsubscribeRef.current.push(unsubscribePlayers, unsubscribeBall);
-      } catch (err) {
-        console.error('[🔴 ERROR] Firebase initialization failed:', err);
-      }
-    };
-
-    initializeFirebaseGame();
-
-    return () => {
-      isActive = false;
-      firebaseUnsubscribeRef.current.forEach(unsubscribe => {
-        try {
-          unsubscribe();
-        } catch (e) {
-          console.error('Error unsubscribing:', e);
-        }
+        // ✅ MULTIPLAYER: Listen to ball state changes (FIX #3: Ball visibility)
+        const setupBallSync = () => {
+          if (room && room.state && room.state.ball) {
+            room.state.ball.onChange(() => {
+              if (gsRef.current && room.state && room.state.ball) {
+                gsRef.current.remoteBall = {
+                  x: room.state.ball.x,
+                  y: room.state.ball.y,
+                  vx: room.state.ball.vx,
+                  vy: room.state.ball.vy,
+                  state: room.state.ball.state,
+                  rotation: room.state.ball.rotation,
+                };
+                // Trigger re-render when remote ball changes
+                forceUpdate(n => n + 1);
+              }
+            });
+          } else {
+            setTimeout(setupBallSync, 200);
+          }
+        };
+        setupBallSync();
+      }).catch((err: any) => {
+        console.error('[🔴 ERROR] Colyseus join failed:', err);
       });
-      firebaseUnsubscribeRef.current = [];
+    } catch (e) {
+      console.error('[🔴 ERROR] Colyseus initialization failed:', e);
+      return;
+    }
 
-      // Leave game
-      leaveGame(gameRoomId, playerIdRef.current).catch(() => {});
+    // Cleanup on unmount
+    return () => {
+      if (syncIntervalRef.current) {
+        clearInterval(syncIntervalRef.current);
+        syncIntervalRef.current = null;
+      }
+      if (roomRef.current) {
+        roomRef.current.leave().catch(() => {});
+      }
+      colysusClientRef.current = null;
+      roomRef.current = null;
     };
   }, [mounted, gameRoomId, userName]);
 
@@ -1186,15 +1341,6 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         }
         if (ss.phase === 'flying' && ss.ball) {
           stepBall(ss.ball, dt);
-          // 🔥 БАГ 2 ВИПРАВЛЕННЯ: Одразу відправити стан м'яча в Firebase (throttle 50ms)
-          if (i === 0) {
-            const now = Date.now();
-            if (now - lastBallSendRef.current > 50 && ss.ball.state === 'flying') {
-              lastBallSendRef.current = now;
-              updateBall(gameRoomId, ss.ball.x, ss.ball.y, ss.ball.vx || 0, ss.ball.vy || 0, ss.ball.state || 1)
-                .catch(err => console.error('[🔴] Firebase ball update failed:', err));
-            }
-          }
           if (ss.ball.state === 'scored') handleScored(i);
           else if (ss.ball.state === 'missed') handleMissed(i);
         }
@@ -1207,21 +1353,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           const t = ss.runTarget;
           if (!t) { ss.phase = ss.phase === 'auto_run' ? 'pickup_wait' : null; p.status = 'idle'; continue; }
           const dx = t.x - p.x;
-          if (Math.abs(dx) > 4) {
-            p.x += Math.sign(dx) * 3.5 * dt;
-            // 🔥 БАГ 1 ВИПРАВЛЕННЯ: Одразу відправити оновлену позицію в Firebase (throttle 50ms)
-            // ВАЖЛИВО: Тільки ЛОКАЛЬНИЙ гравець (i === 0) відправляє свою позицію!
-            // Remote гравці отримуються від Firebase listener (лінія 168)
-            if (i === 0) {
-              const now = Date.now();
-              if (now - lastPositionSendRef.current > 50) {
-                lastPositionSendRef.current = now;
-                updatePlayerPosition(gameRoomId, playerIdRef.current, p.x, p.y).catch(err =>
-                  console.error('[🔴] Firebase position update failed:', err)
-                );
-              }
-            }
-          }
+          if (Math.abs(dx) > 4) { p.x += Math.sign(dx) * 3.5 * dt; }
           else {
             if (ss.phase === 'auto_run') { ss.phase = 'pickup_wait'; ss.ball = null; }
             else ss.phase = null;
@@ -1406,12 +1538,22 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
 
       // DEBUG: Log scoring event with distance, accuracy, and hit type
 
-      // ✅ MULTIPLAYER: Emit shot completion to server via Firebase
-      if (idx === 0) {
+      // ✅ MULTIPLAYER: Emit shot completion to server via Colyseus
+      if (idx === 0 && roomRef.current) {
         const ss = gs.shootStates[0];
-        updateScore(gameRoomId, playerIdRef.current, (p.score || 0) + 1).catch(err =>
-          console.error('[🔴] Firebase shot score failed:', err)
-        );
+        roomRef.current.send('shoot', {
+          playerId: playerIdRef.current,
+          playerIndex: idx,
+          nickname: p.name || userName || 'Player',
+          shotScore: 1,
+          accuracy,
+          collisionType: 'swish',
+          startX: ss?.ball?.x || p.x,
+          startY: ss?.ball?.y || p.y,
+          vx: ss?.ball?.vx || 0,
+          vy: ss?.ball?.vy || 0,
+          spin: ss?.ball?.spin || 0,
+        });
       }
 
       if (idx === gs.disputeP2 && gs.disputeP1 >= 0 && gs.disputeP1 < gs.players.length) {
@@ -1422,11 +1564,14 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           if (gs.players[gs.disputeP1]) gs.players[gs.disputeP1].status = 'eliminated';
           if (gs.players[idx]) gs.players[idx].kills = (gs.players[idx].kills || 0) + 1;
 
-          // 🟢 ОТПРАВИТЬ СТАТУС НА СЕРВЕР VIA FIREBASE
+          // 🟢 ОТПРАВИТЬ СТАТУС НА СЕРВЕР
           const eliminatedPlayerId = gs.players[gs.disputeP1]?.playerId;
-          if (eliminatedPlayerId) {
-            updatePlayerPosition(gameRoomId, eliminatedPlayerId, gs.players[gs.disputeP1]?.x || 0, gs.players[gs.disputeP1]?.y || 0).catch(() => {});
-            console.log('[🟢 FIREBASE] Sent eliminated status for player:', eliminatedPlayerId);
+          if (roomRef.current && eliminatedPlayerId) {
+            roomRef.current.send('playerStatus', {
+              playerId: eliminatedPlayerId,
+              status: 'eliminated'
+            });
+            console.log('[🟢 COLYSEUS] Sent eliminated status for player:', eliminatedPlayerId);
           }
           setTimeout(() => {
             const idx2 = gs.disputeP1;
@@ -2201,33 +2346,37 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         }
       }
 
-      // Draw remote players from Firebase
+      // Draw remote players from Colyseus
+      console.log('[🔴 RENDER] Remote players count:', remotePlayersRef.current.size);
       remotePlayersRef.current.forEach((rp: any, rpKey: string) => {
-        // 🔥 Пропустити себе
-        if (rpKey === playerIdRef.current) return;
+        console.log('[🔴 RENDER] Drawing player:', rpKey, rp.nickname, 'x:', rp.x, 'y:', rp.y);
+        // 🔥 Для Colyseus: прямое сравнение sessionId
+        if (rpKey === playerIdRef.current) {
+          console.log('[🔴 DEBUG] Skipping self in render:', { key: rpKey, status: rp.status });
+          return;
+        }
 
-        // ✅ МУЛЬТИПЛЕЕР: Показывать игрока если он не выбыт
-        if (rp.status === 'eliminated') return;
+        // ✅ МУЛЬТИПЛЕЕР: Показывать игрока если он не выбыт (может быть в статусе shooting/running/idle)
+        if (rp.status === 'eliminated') {
+          console.log('[🔴 DEBUG] Skipping eliminated player:', { key: rpKey, name: rp.name });
+          return;
+        }
 
-        // 🔥 Захист от неправильних координат (привиды в куту)
-        if (!rp.x || !rp.y || rp.x < 0 || rp.x > 2000 || rp.y < 0 || rp.y > 2000) return;
+        console.log('[🎨 DRAWING] Remote player:', { key: rpKey, name: rp.name, status: rp.status, x: rp.x, y: rp.y });
+        const isLocalPlayer = gs.players.some((p: any) => p.name === rp.name || p.name === rp.nickname);
+        if (isLocalPlayer) return;
 
-        // 🔥 ВИПРАВЛЕННЯ: НЕ подвійне множення! Координати вже масштабовані
-        // rp.x це вже абсолютна координата в пікселях canvas
-        // groundYRef.current = GY = GY_ORIG * scaleY (вже масштабовано)
-        // Але ноги гравця заканчиваютсь на rpy, тому nужно сместить вверх на 20 px
-        const rpx = rp.x;  // БЕЗ множення на scaleX!
-        const rpy = groundYRef.current;  // Ноги мають бути на одній лінії з локальним гравцем
+        const rpx = rp.x;
+        const rpy = rp.y;
         const rpColor = '#80cbc4'; // Cyan for remote players
 
-        // Draw remote player ІДЕНТИЧНО до локального (idle pose)
-        // Голова
+        // Draw simple circle for remote player (idle pose)
         ctx.fillStyle = rpColor;
         ctx.beginPath();
         ctx.arc(rpx, rpy - 54*scaleY, 10*scaleX, 0, Math.PI * 2);
         ctx.fill();
 
-        // Тулуб
+        // Draw body
         ctx.strokeStyle = rpColor;
         ctx.lineWidth = 2.5;
         ctx.lineCap = 'round';
@@ -2237,40 +2386,36 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         ctx.lineTo(rpx, rpy - 18*scaleY);
         ctx.stroke();
 
-        // Ліва рука
+        // Draw arms
         ctx.beginPath();
-        ctx.moveTo(rpx, rpy - 37*scaleY);
-        ctx.lineTo(rpx - 12*scaleX, rpy - 26*scaleY);
+        ctx.moveTo(rpx, rpy - 35*scaleY);
+        ctx.lineTo(rpx - 12*scaleX, rpy - 28*scaleY);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(rpx, rpy - 35*scaleY);
+        ctx.lineTo(rpx + 12*scaleX, rpy - 28*scaleY);
         ctx.stroke();
 
-        // Права рука
-        ctx.beginPath();
-        ctx.moveTo(rpx, rpy - 37*scaleY);
-        ctx.lineTo(rpx + 17*scaleX, rpy - 22*scaleY);
-        ctx.stroke();
-
-        // Ліва нога
+        // Draw legs
         ctx.beginPath();
         ctx.moveTo(rpx, rpy - 18*scaleY);
         ctx.lineTo(rpx - 8*scaleX, rpy);
         ctx.stroke();
-
-        // Права нога
         ctx.beginPath();
         ctx.moveTo(rpx, rpy - 18*scaleY);
         ctx.lineTo(rpx + 8*scaleX, rpy);
         ctx.stroke();
 
-        // Ім'я гравця
+        // Draw name label
         ctx.fillStyle = rpColor;
         ctx.font = `bold ${11*scaleX}px sans-serif`;
         ctx.textAlign = 'center';
-        ctx.fillText('🌐 ' + (rp.name || `Remote ${rp.playerIndex}`), rpx, rpy - 62*scaleY);
+        ctx.fillText('🌐 ' + (rp.name || `Remote ${rp.playerIndex}`), rpx, rpy - 73*scaleY);
 
-        // Статус
+        // Draw status
         ctx.fillStyle = '#80cbc4';
         ctx.font = `${10*scaleX}px sans-serif`;
-        ctx.fillText(rp.status === 'alive' ? '✓ alive' : '✗ eliminated', rpx, rpy - 50*scaleY);
+        ctx.fillText(rp.status === 'alive' ? '✓ alive' : '✗ eliminated', rpx, rpy - 60*scaleY);
 
         // ETAP 8: Draw remote player's ball (multiplayer sync) with debugging
         if (rp.ball) {
@@ -2287,13 +2432,9 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       });
 
       // Draw remote ball from server (when other player is shooting)
-      const rb = gsRef.current.remoteBall;
-      const rbFlying = rb && rb.state !== undefined &&
-                       rb.state !== 0 && rb.state !== 'idle' &&
-                       rb.state !== 'waiting' && rb.state !== 'scored' && rb.state !== 'missed';
-      if (rbFlying) {
+      if (gsRef.current.remoteBall && (gsRef.current.remoteBall.state === 'flying' || gsRef.current.remoteBall.state === 'bouncing')) {
+        const rb = gsRef.current.remoteBall;
         ctx.save();
-        // 🔥 ВИПРАВЛЕННЯ: НЕ множимо координати на scale (як rb.x/rb.y вже абсолютні)
         ctx.translate(rb.x, rb.y);
         ctx.rotate(rb.rotation || 0);
         drawBball(0, 0, 11*scaleX);
@@ -2465,16 +2606,6 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         ctx.font = `${13*scaleX}px sans-serif`;
         ctx.fillText('↺ Рестарт', W / 2, 410*scaleY);
       }
-
-      // 🔥 ДИАГНОСТИКА: Показать статус Firebase на canvas
-      ctx.fillStyle = '#00ffaa';
-      ctx.font = '14px monospace';
-      ctx.textAlign = 'left';
-      ctx.fillText(`🔥 Firebase: ${firebaseUnsubscribeRef.current.length > 0 ? 'ON' : 'OFF'}`, 10, 25);
-      ctx.fillText(`👤 My ID: ${playerIdRef.current?.slice(-8) || 'N/A'}`, 10, 45);
-      ctx.fillText(`🌐 Remote: ${remotePlayersRef.current.size}`, 10, 65);
-      ctx.fillText(`👥 Local: ${gs.players.length}`, 10, 85);
-      ctx.fillText(`💾 Game: ${gs.state}`, 10, 105);
     }
 
     // FEATURE: Game state persistence on page reload
@@ -2776,12 +2907,14 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       update(dt);
       draw(dt);
 
-      // 🔥 ВИПРАВЛЕННЯ #3: Отправлять позицию КАЖДЫЙ КАДР (60 FPS) для плавной синхронизации
-      // emitPlayerPosition() использует Firebase, который асинхронный, поэтому можно вызывать часто
-      emitPlayerPosition();
+      // Emit player position every 100ms to server
+      const now = Date.now();
+      if (now - lastEmitTimeRef.current > 100) {
+        emitPlayerPosition();
+        lastEmitTimeRef.current = now;
+      }
 
       // Save game state every 2 seconds to localStorage
-      const now = Date.now();
       saveGameState(gs);
 
       // Emit full game state to server every 3 seconds for persistence
@@ -2804,108 +2937,88 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
   const emitPlayerPosition = useCallback(() => {
     if (gs.state !== 'playing' || gs.players.length === 0 || !gameRoomId) return;
 
-    // 🔥 ВИПРАВЛЕННЯ #1: Отправлять позицию ТОЛЬКО для своего игрока (индекс 0)
-    // ⏱️ С THROTTLING: только если движение > 5px или 50ms прошло
-    const myPlayer = gs.players[0];
-    if (myPlayer && myPlayer.status !== 'eliminated') {
-      const now = Date.now();
-      const timeSinceLastSend = now - lastPositionSendRef.current;
+    // FIX #4: Send position for ALL players, not just first
+    gs.players.forEach((myPlayer: any, idx: number) => {
+      if (myPlayer.status === 'eliminated') return;
 
-      // Проверить расстояние и время
-      const lastPos = lastSentPosRef.current;
-      const distance = Math.sqrt(
-        (myPlayer.x - lastPos.x) ** 2 + (myPlayer.y - lastPos.y) ** 2
-      );
+      const ball = gs.shootStates[idx]?.ball;
 
-      // Отправить если: движение > 5px ИЛИ прошло > 50ms
-      if (distance > MOVE_THRESHOLD || timeSinceLastSend > 50) {
-        lastSentPosRef.current = { x: myPlayer.x, y: myPlayer.y };
-        lastPositionSendRef.current = now;
-
-        updatePlayerPosition(
-          gameRoomId,
-          playerIdRef.current,
-          myPlayer.x,
-          myPlayer.y
-        ).catch((err) =>
-          console.error("[🔴] Firebase update position failed:", err)
-        );
+      if (roomRef.current) {
+        roomRef.current.send('move', {
+          x: myPlayer.x,
+          y: myPlayer.y,
+          name: myPlayer.name,
+          score: myPlayer.score,
+          status: myPlayer.status,
+          ball: ball ? {
+            x: ball.x,
+            y: ball.y,
+            vx: ball.vx,
+            vy: ball.vy,
+            rot: ball.rot,
+            state: ball.state
+          } : null,
+        });
       }
-
-      // 🔥 ВИПРАВЛЕННЯ #2: Отправлять мяч во время полета
-      const ss = gs.shootStates[0];
-      if (ss && ss.ball && (ss.ball.state === 1 || ss.ball.state === "flying")) {
-        const ballTimeSinceLastSend = now - lastBallSendRef.current;
-        if (ballTimeSinceLastSend > 50) {
-          lastBallSendRef.current = now;
-          updateBall(
-            gameRoomId,
-            ss.ball.x,
-            ss.ball.y,
-            ss.ball.vx,
-            ss.ball.vy,
-            ss.ball.state || 1
-          ).catch((err) =>
-            console.error("[🔴] Firebase update ball failed:", err)
-          );
-        }
-      }
-    }
+    });
   }, [gameRoomId]);
 
   // Game state is persisted via localStorage (no server-side persistence needed)
   const emitGameStateToServer = useCallback(() => {
-    // Firebase: game state is synced via updatePlayerPosition
-    if (gs.state !== 'playing' || !gameRoomId) return;
+    // Colyseus: game state is synced via room.send('move')
+    if (gs.state !== 'playing' || !gameRoomId || !roomRef.current) return;
   }, [gameRoomId]);
 
   const handleAddPlayer = async () => {
     if (gs.players.length >= MAX_PLAYERS) { alert("Максимум 6 гравців!"); return; }
     const name = pname.trim() || `Гр.${gs.players.length+1}`;
 
-    // 🔥 ВИПРАВЛЕННЯ: Перевірити що гравець ще не доданий (без дублів)
-    if (gs.players.some((p: any) => p.name === name)) {
-      console.warn('🚨 Гравець вже існує:', name);
-      alert(`❌ Гравець "${name}" вже доданий!`);
-      return;
+    // 🏀 RUCHEEK: Get global order from server (ensures correct position across browsers)
+    let assignedOrder = gs.players.length + 1;  // Fallback
+    // Colyseus: server maintains order via room state
+    if (roomRef.current && roomRef.current.state && roomRef.current.state.players) {
+      assignedOrder = roomRef.current.state.players.size + 1;
+    } else {
+      assignedOrder = gs.players.length + 1;
     }
 
-    // 🏀 RUCHEEK: Get global order (Firebase maintains it)
-    let assignedOrder = gs.players.length + 1;
-    const players = remotePlayersRef.current.size + 1;
-    assignedOrder = Math.max(assignedOrder, players);
-
     // 🏀 RUCHEEK: 6 PERMANENT POSITIONS
+    // positionIndex based on server order (0-5), clamp to max 5
     const positionIndex = Math.min(assignedOrder - 1, QUEUE_POSITIONS.length - 1);
     const playerNumber = positionIndex + 1;  // 1-6
     const queuePos = QUEUE_POSITIONS[positionIndex];
 
     const newPlayer = {
       name,
-      order: assignedOrder,
+      order: assignedOrder,  // Global order from server
       x: queuePos.x,
-      y: groundYRef.current,
+      y: groundYRef.current,  // ✅ USE REAL GROUND Y (scales with canvas)
       score:0,
       kills:0,
       status:"idle",
       rf:0,
       color: PLAYER_COLORS[positionIndex % 6],
       // 🏀 RUCHEEK GAME FIELDS
-      playerNumber: playerNumber,
-      hasActiveRight: positionIndex === 0,
-      hasThrown: false,
-      isEliminated: false,
-      goalCount: 0,
+      playerNumber: playerNumber,         // 1-6: постоянное место игрока
+      hasActiveRight: positionIndex === 0,  // TRUE только для первого игрока (место №1)
+      hasThrown: false,                   // TRUE когда игрок выпустил мяч
+      isEliminated: false,                // TRUE когда игрок выбит
+      goalCount: 0,                       // Количество голов в этой игре
     };
     gs.players.push(newPlayer);
     gs.shootStates.push({ phase:null,aimAngle:-Math.PI*0.72,aimDir:1,power:0,powerDir:1,ball:null,lockedAngle:null,idealTraj:null,idealSpeed:10,runTarget:null,inDanger:false,greenZonePos:0.5,powerMeterResult:null,accuracy:0 });
 
-    // 🔥 КРИТИЧНО: Регистрируем гравца на Firebase (joinGame) с реальными координатами
-    joinGame(gameRoomId, playerIdRef.current, name, positionIndex, newPlayer.x, newPlayer.y)
-      .then(() => {
-        console.log('[🟢 Firebase] Player registered:', name);
-      })
-      .catch(err => console.error('[🔴] Firebase add player failed:', err));
+    // Broadcast to other clients via Colyseus
+    if (roomRef.current) {
+      roomRef.current.send('ready', {
+        playerIndex: positionIndex,
+        nickname: name,
+        order: playerNumber,
+        x: newPlayer.x,
+        y: newPlayer.y,
+        color: newPlayer.color,
+      });
+    }
 
     // Immediately set game to playing when first player is added
     if (gs.players.length === 1) {
@@ -2914,6 +3027,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       gs.disputeP1 = 0;
       gs.disputeP2 = -1;
       gs.selectedMoveIdx = -1;
+      // First player can shoot
       showOrderRef.current = { [playerNumber]: true };
     }
 
@@ -2956,18 +3070,6 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
   const handleDeleteLast = async () => {
     if (gs.state === "playing") { alert("❌ Не можна видалити гравця під час гри!"); return; }
     if (gs.players.length <= 1) { alert("❌ Потрібно щонайменше 1 гравець для видалення!"); return; }
-
-    // 🔥 КРИТИЧНО: Видалити гравця з Firebase
-    const removedPlayer = gs.players[gs.players.length - 1];
-    try {
-      const db = getFirebaseDatabase();
-      const playerRef = ref(db, `games/${gameRoomId}/players/${removedPlayer.name}`);
-      await remove(playerRef);
-      console.log('[🔥 FIREBASE] Removed player:', removedPlayer.name);
-    } catch (err) {
-      console.error('[🔴] Error removing player from Firebase:', err);
-    }
-
     gs.players.pop();
     gs.shootStates.pop();
 
@@ -2979,22 +3081,6 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
 
   const handleExit = async () => {
     if (!confirm("Вихід з гри? Усі гравці будуть видалені!")) return;
-
-    // 🔥 КРИТИЧНО: Видалити ВСІХ гравців з кімнати (очистити Firebase повністю)
-    try {
-      const db = getFirebaseDatabase();
-      const playersRef = ref(db, `games/${gameRoomId}/players`);
-      await remove(playersRef);
-      console.log('[🔥 FIREBASE] All players removed from room');
-
-      // Також очистити м'яч
-      const ballRef = ref(db, `games/${gameRoomId}/ball`);
-      await set(ballRef, { x: 300, y: 100, vx: 0, vy: 0, state: 0 });
-      console.log('[🔥 FIREBASE] Ball reset');
-    } catch (err) {
-      console.error('[🔴] Error clearing room:', err);
-    }
-
     gs.state = "waiting";
     gs.players = [];
     gs.shootStates = [];
@@ -3002,7 +3088,6 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
     gs.disputeP1 = 0;
     gs.disputeP2 = -1;
     gs.selectedMoveIdx = -1;
-    remotePlayersRef.current.clear();
     // Clear persisted state when exiting
     localStorage.removeItem(`basketball_game_state_${gameRoomId}`);
     // 🏀 RUCHEEK: Server resets order automatically on Colyseus
