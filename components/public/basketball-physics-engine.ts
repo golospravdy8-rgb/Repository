@@ -254,8 +254,8 @@ export function simulateTrajectory(p: LaunchParams): Array<{ x: number; y: numbe
     RIM_RADIUS_M: 0.6,  // Увеличено чтобы соответствовать визуальному HOOP_R=27px (вместо 10px)
     RIM_TUBE_R_M: 0.023,
     NET_ZONE_DEPTH_M: 0.8,
-    E_RIM: 0.72,
-    MU_RIM: 0.57,
+    E_RIM: 0.82,
+    MU_RIM: 0.25,
     Cd: 0.004,
     Cm: 0.000045,
     OMEGA_DECAY: 0.985,
