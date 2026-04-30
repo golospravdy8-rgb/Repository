@@ -13,6 +13,7 @@ import {
   leaveGame,
   listenToPlayers,
   listenToBall,
+  computeTrajectoryHash,
 } from "@/lib/firebase-game";
 import { ref, get, remove, set } from "firebase/database";
 import { getFirebaseDatabase } from "@/lib/firebase";
@@ -259,6 +260,21 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           if (!isActive) return;
 
           if (gsRef.current && ball) {
+            // Перевірити hash траєкторії для детектування десинхрону
+            const receivedHash = ball.trajectoryHash;
+            if (receivedHash && gsRef.current.shootStates[0]?.ball) {
+              const localHash = computeTrajectoryHash(
+                gsRef.current.shootStates[0].ball.x,
+                gsRef.current.shootStates[0].ball.y,
+                gsRef.current.shootStates[0].ball.vx || 0,
+                gsRef.current.shootStates[0].ball.vy || 0
+              );
+              if (receivedHash !== localHash && ball.state === 'flying') {
+                console.warn('[⚠️ DESYNC] Trajectory mismatch!', { received: receivedHash, local: localHash });
+                // Прийняти стан від сервера (Firebase = source of truth)
+              }
+            }
+
             gsRef.current.remoteBall = {
               x: ball.x,
               y: ball.y,
@@ -267,6 +283,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
               rotation: ball.rotation || 0,
               state: ball.state || 'waiting',
               isRemote: true,
+              trajectoryHash: receivedHash,
             };
             forceUpdate(n => n + 1);
           }
@@ -1191,7 +1208,9 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
             const now = Date.now();
             if (now - lastBallSendRef.current > 50 && ss.ball.state === 'flying') {
               lastBallSendRef.current = now;
-              updateBall(gameRoomId, ss.ball.x, ss.ball.y, ss.ball.vx || 0, ss.ball.vy || 0, ss.ball.state || 1)
+              // Обчислити hash траєкторії для детектування десинхрону
+              const tHash = computeTrajectoryHash(ss.ball.x, ss.ball.y, ss.ball.vx || 0, ss.ball.vy || 0);
+              updateBall(gameRoomId, ss.ball.x, ss.ball.y, ss.ball.vx || 0, ss.ball.vy || 0, ss.ball.state || 1, tHash)
                 .catch(err => console.error('[🔴] Firebase ball update failed:', err));
             }
           }

@@ -119,26 +119,40 @@ export async function updatePlayerPosition(
 // ============================================
 // 🎯 ОБНОВЛЕНИЕ СОСТОЯНИЯ МЯЧА
 // ============================================
+
+// Вычислить hash траектории для детектирования десинхрона
+export function computeTrajectoryHash(x: number, y: number, vx: number, vy: number): string {
+  return `${Math.round(x)}-${Math.round(y)}-${Math.round(vx*10)}-${Math.round(vy*10)}`;
+}
+
 export async function updateBall(
   roomId: string,
   x: number,
   y: number,
   vx: number,
   vy: number,
-  state: number
+  state: number,
+  trajectoryHash?: string
 ) {
   const db = getFirebaseDatabase();
   const ballRef = ref(db, `games/${roomId}/ball`);
 
   try {
-    await update(ballRef, {
+    const ballData: any = {
       x: Math.round(x),
       y: Math.round(y),
       vx: Math.round(vx * 100) / 100, // 2 знака после запятой
       vy: Math.round(vy * 100) / 100,
       state,
       timestamp: Date.now(),
-    });
+    };
+
+    // Добавить hash траектории для мультиплеєра
+    if (trajectoryHash) {
+      ballData.trajectoryHash = trajectoryHash;
+    }
+
+    await update(ballRef, ballData);
   } catch (err) {
     console.error("❌ Ball update ошибка:", err);
   }
