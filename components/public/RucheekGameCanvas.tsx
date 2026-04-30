@@ -1881,10 +1881,10 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         }
 
         if (ss.phase === 'aiming') {
-          // 🔥 FIX: Use 50% power for aiming preview (neutral arc)
+          // 🔥 FIX: Use 100% power for aiming preview (full parabolic arc visibility)
           const launchParams = {
             angle: ss.aimAngle,
-            power: 50,  // 50% power for preview (not hardcoded formula)
+            power: 100,  // 100% power for preview (full arc, not tiny circle)
             accuracy: 85,
             distToHoop: Math.hypot(HOOP_X - sx, HOOP_Y - sy),
             playerX: sx,
@@ -1894,7 +1894,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
             scaleX: scaleX,
           };
           const pts = simulateTrajectory(launchParams);
-          drawTrajPts(pts, 'rgba(220,80,60,0.45)', [5, 5]);
+          drawTrajPts(pts, 'rgba(255,80,80,0.7)', [5, 5]);
           drawAimArrow(p.x, p.y, ss.aimAngle);
         }
 
