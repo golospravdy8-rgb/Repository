@@ -1899,64 +1899,35 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         }
 
         if (ss.phase === 'charging') {
-          if (ss.idealTraj) drawTrajPts(ss.idealTraj, 'rgba(255,230,0,0.75)', [6, 5], 1.9);
+          // 🎯 КЛИК 2: ВЫБОР СИЛЫ (ТОЛЬКО UI)
+          // Рисуем ТОЛЬКО одну траекторию (идеальную красную)
+          if (ss.idealTraj) drawTrajPts(ss.idealTraj, 'rgba(255,80,80,0.7)', [5, 5], 2.0);
 
-          // 🔥 FIX: Use physics-based power calculation from idealPower
-          // markerPosRef.current oscillates 0-1, map to power 0-100%
-          const markerNorm = markerPosRef.current || 0.5;
-          const shotPowerPercent = markerNorm * 100;
-
-          const launchParams = {
-            angle: ss.aimAngle,
-            power: shotPowerPercent,  // 0-100%, not 0-200 with arbitrary formula
-            accuracy: 85,
-            distToHoop: Math.hypot(HOOP_X - sx, HOOP_Y - sy),
-            playerX: sx,
-            playerY: sy,
-            hoopX: HOOP_X,
-            hoopY: HOOP_Y,
-            scaleX: scaleX,
-          };
-          const pts = simulateTrajectory(launchParams);
-          const idealEnd = ss.idealTraj ? ss.idealTraj[ss.idealTraj.length - 1] : { x: HOOP_X, y: HOOP_Y };
-          const curEnd = pts[pts.length - 1];
-          const endDiff = Math.hypot(curEnd.x - idealEnd.x, curEnd.y - idealEnd.y);
-          const spdDiff = Math.abs(shotPowerPercent - (ss.idealPower || 0.5) * 100);
-          const matchPct = Math.max(0, Math.min(100, 100 - spdDiff * 13 - endDiff * 0.3));
-          let tColor;
-          if (matchPct > 92) tColor = 'rgba(0,255,170,0.9)';
-          else if (matchPct > 85) tColor = 'rgba(60,220,80,0.8)';
-          else if (matchPct > 55) tColor = 'rgba(255,210,0,0.7)';
-          else tColor = 'rgba(220,80,60,0.6)';
-          drawTrajPts(pts, tColor, [4, 4], 2.2);
-          const distToHoop = Math.hypot(HOOP_X - sx, HOOP_Y - sy);
-          const maxDist = Math.hypot(W, H);
-          ss_ideal_power = 50 + (distToHoop / maxDist) * 50;
-
-          // Draw distance indicator bar with green zone and oscillating marker (using physics engine)
+          // 🟢 ЗЕЛЁНАЯ ЗОНА: Диапазон идеальной силы (ФИКСИРОВАННАЯ позиция)
           const bx2 = p.x + 30*scaleX, barTop = p.y - 80*scaleY, barW = 14*scaleX, barH = 80*scaleY;
-          const zoneCenter2 = ss.greenZonePos || 0.5;
-          const zoneSize2 = 0.12;
-          const zoneMin2 = zoneCenter2 - zoneSize2 / 2;
-          const zoneMax2 = zoneCenter2 + zoneSize2 / 2;
+          const greenZoneMin = (ss.greenZoneMin || 40) / 100;  // Нормализовано 0-1
+          const greenZoneMax = (ss.greenZoneMax || 60) / 100;
+          const greenZoneHeight = (greenZoneMax - greenZoneMin) * barH;
 
-          // Background bar
+          // Background bar (черный фон)
           ctx.fillStyle = '#222';
           ctx.fillRect(bx2, barTop, barW, barH);
-          // Green success zone
-          // FIXED: Invert Y position so close shots have low zone (bottom), far shots have high zone (top)
+
+          // Зелёная зона (фиксированная, показывает допустимый диапазон)
           ctx.fillStyle = '#00FF44';
-          ctx.fillRect(bx2, barTop + (1 - zoneMax2) * barH, barW, zoneSize2 * barH);
-          // Marker (white line) - updated by updateOscillator
-          // FIXED: Invert Y position so bottom = min power (0), top = max power (1)
+          ctx.fillRect(bx2, barTop + (1 - greenZoneMax) * barH, barW, greenZoneHeight);
+
+          // Маркер (белая линия, колеблется)
           const markerY2 = barTop + (1 - markerPosRef.current) * barH;
           ctx.fillStyle = '#FFFFFF';
           ctx.fillRect(bx2 - 2*scaleX, markerY2 - 2, barW + 4*scaleX, 4);
-          // Distance label (in meters)
+
+          // Метка расстояния
           ctx.fillStyle = '#FFFF00';
           ctx.font = `${11*scaleX}px Arial`;
           ctx.textAlign = 'center';
-          const distMeters = (distToHoop / 140).toFixed(1);
+          const distToHoopPx = Math.hypot(HOOP_X - sx, HOOP_Y - sy);
+          const distMeters = (distToHoopPx / 140).toFixed(1);
           ctx.fillText(distMeters + 'm', bx2 + barW/2, barTop - 5*scaleY);
 
         }
@@ -2489,28 +2460,46 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           p.status = "shooting";
           if (hitIdx === 0) gs.disputeP1 = 0;
         } else if (ss.phase === "aiming") {
+          // 🎯 КЛИК 1: ФИКСАЦИЯ УГЛА И ВЫЧИСЛЕНИЕ ИДЕАЛЬНОЙ ТРАЕКТОРИИ
           ss.lockedAngle = ss.aimAngle;
-          const idealSpd = findIdealSpeedForAngle(p.x - 15*scaleX, p.y - 55*scaleY, ss.lockedAngle);
-          ss.idealSpeed = idealSpd;
+
           const px = p.x - 15*scaleX;
           const py = p.y - 55*scaleY;
-          const distToHoop = Math.hypot(HOOP_X - px, HOOP_Y - py);
-          const maxDist = Math.hypot(W, H);
-          ss_ideal_power = 50 + (distToHoop / maxDist) * 50;
+          const SCALE = Math.min(W, H) / 15.0;
 
-          // 🔥 FIX: Convert idealSpd (m/s) to power percentage using physics formula
-          // idealSpd from computeIdealSpeed is in m/s
-          // computeLaunchVelocityMeters: ls = idealSpeed * (0.4 + power_norm * 0.8)
-          // At power=100%: ls = idealSpeed * 1.2
-          // So: idealSpd corresponds to power ≈ 100%
-          const MAX_SPEED = 18.0;
-          const idealPowerPercent = Math.max(0.1, Math.min(1.0, idealSpd / MAX_SPEED)) * 100;
+          // Перевести в метры для физики
+          const px_m = px / SCALE;
+          const py_m = py / SCALE;
+          const hoop_x_m = HOOP_X / SCALE;
+          const hoop_y_m = HOOP_Y / SCALE;
 
+          // Вычислить расстояние до кольца в метрах
+          const distToHoop_m = Math.hypot(hoop_x_m - px_m, hoop_y_m - py_m);
+          const heightDiff_m = hoop_y_m - py_m;
+
+          // 🔴 ИДЕАЛЬНАЯ СКОРОСТЬ: обратная баллистика для траектории player → hoop
+          const idealSpeedMs = computeIdealSpeed(distToHoop_m, ss.lockedAngle, heightDiff_m);
+          ss.idealSpeedMs = idealSpeedMs;
+
+          // Конвертировать м/с в % power (0-100%)
+          // Power formula: speed = idealSpeed * (0.4 + power_norm * 0.8)
+          // При power=100%: speed = idealSpeed * 1.2
+          // Поэтому power_ideal = (idealSpeed / idealSpeed / 1.2) * 100 = 83.3% (округляем до 80%)
+          const POWER_MIN = 0.4;
+          const POWER_MAX = 1.2;
+          const speedForMaxPower = idealSpeedMs * POWER_MAX;
+          const speedForMinPower = idealSpeedMs * POWER_MIN;
+          const speedRange = speedForMaxPower - speedForMinPower;
+          const targetSpeed = idealSpeedMs;
+          const powerNorm = Math.max(0, Math.min(1, (targetSpeed - speedForMinPower) / speedRange));
+          ss.idealPowerPercent = powerNorm * 100;
+
+          // Сохранить идеальную траекторию (красная дуга) при 100% мощности
           const launchParams = {
             angle: ss.lockedAngle,
-            power: idealPowerPercent,  // 0-100%, not hardcoded formula
+            power: 100,  // Full power preview for maximum arc visibility
             accuracy: 85,
-            distToHoop,
+            distToHoop: distToHoop_m * SCALE,
             playerX: px,
             playerY: py,
             hoopX: HOOP_X,
@@ -2518,29 +2507,85 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
             scaleX: scaleX,
           };
           ss.idealTraj = simulateTrajectory(launchParams);
+
+          // Переход к фазе зарядки силы
           ss.phase = "charging";
           ss.power = 0;
           ss.powerDir = 1;
-          // Calculate green zone position using physics-based kinematic equations
-          const angleDeg = Math.abs((ss.lockedAngle || -Math.PI * 0.72) * 180 / Math.PI);
-          ss.greenZonePos = calculateIdealMarkerPos(px, py, HOOP_X, HOOP_Y, angleDeg);
 
-          // 🎯 CALIBRATION: Обчислити idealPower фізично з реальної дистанції та кута
-          const heightDiff_m = (HOOP_Y - py) / SCALE;
-          const distToHoop_m = Math.hypot(HOOP_X - px, HOOP_Y - py) / SCALE;
-          const physicalIdealSpeed = computeIdealSpeed(distToHoop_m, ss.lockedAngle, heightDiff_m);
-          ss.idealPower = Math.max(0.1, Math.min(1.0, physicalIdealSpeed / MAX_SPEED));
+          // Зелёная зона: диапазон допустимых сил вокруг идеальной
+          const tolerance = 0.05;  // ±5% от идеальной силы
+          ss.greenZoneMin = Math.max(0, ss.idealPowerPercent - tolerance * 100);
+          ss.greenZoneMax = Math.min(100, ss.idealPowerPercent + tolerance * 100);
+          ss.greenZonePos = ss.idealPowerPercent / 100;  // Нормализовано 0-1
 
-          // Reset marker for distance indicator
-          markerPosRef.current = 0;
+          // Reset marker для шкалы силы
+          markerPosRef.current = ss.greenZonePos;
           markerDirRef.current = 1;
         } else if (ss.phase === "charging") {
-          // Calculate accuracy using physics engine function
-          ss.greenZonePos = ss.greenZonePos || 0.5;
-          ss.accuracy = calculateAccuracy(markerPosRef.current, ss.greenZonePos, 0.12);
-          ss.powerMeterResult = { accuracy: ss.accuracy, meterHeight: markerPosRef.current * 200, greenLinePosition: ss.greenZonePos * 200 };
+          // 🎯 КЛИК 3: БРОСОК НА ОСНОВЕ ЧИСТОЙ ФИЗИКИ
 
-          launchBall(hitIdx, markerPosRef.current);
+          // Текущая позиция маркера силы (0-1)
+          const currentPowerNorm = markerPosRef.current;
+          const currentPowerPercent = currentPowerNorm * 100;
+
+          // Зелёная зона (диапазон допустимых сил)
+          const greenZoneMin = ss.greenZoneMin || 40;
+          const greenZoneMax = ss.greenZoneMax || 60;
+
+          // Точность попадания зависит от попадания в зелёную зону
+          const inGreenZone = currentPowerPercent >= greenZoneMin && currentPowerPercent <= greenZoneMax;
+          ss.accuracy = inGreenZone ? 95 + Math.random() * 5 : Math.max(5, 90 - Math.abs(currentPowerPercent - ss.idealPowerPercent) * 2);
+
+          // Координаты игрока в пикселях и метрах
+          const px = p.x - 15*scaleX;
+          const py = p.y - 55*scaleY;
+          const SCALE = Math.min(W, H) / 15.0;
+          const px_m = px / SCALE;
+          const py_m = py / SCALE;
+          const hoop_x_m = HOOP_X / SCALE;
+          const hoop_y_m = HOOP_Y / SCALE;
+          const distToHoop_m = Math.hypot(hoop_x_m - px_m, hoop_y_m - py_m);
+          const heightDiff_m = hoop_y_m - py_m;
+
+          // Вычислить реальную скорость из выбранной силы
+          const { vx_m, vy_m } = computeLaunchVelocityMeters({
+            angle: ss.lockedAngle,
+            power: currentPowerPercent,
+            accuracy: ss.accuracy,
+            distToHoop_m,
+            px_m,
+            py_m,
+            heightDiff_m,
+          });
+
+          // Создать мяч с начальными условиями (в метрах)
+          ss.ball = {
+            _x_m: px_m,
+            _y_m: py_m,
+            vx: vx_m,
+            vy: vy_m,
+            rot: 0,
+            omega: 0,
+            state: 'flying',
+            x: px,  // Пиксели для отрисовки
+            y: py,
+          };
+
+          // Запустить физический полёт мяча
+          ss.phase = "flying";
+          p.status = "shooting";
+
+          // Логирование для отладки
+          console.log('[SHOT 3]', {
+            power_percent: currentPowerPercent.toFixed(1),
+            ideal_power: ss.idealPowerPercent.toFixed(1),
+            in_green_zone: inGreenZone,
+            accuracy: ss.accuracy.toFixed(0),
+            vx_ms: vx_m.toFixed(2),
+            vy_ms: vy_m.toFixed(2),
+            distToHoop_m: distToHoop_m.toFixed(2),
+          });
 
         }
       } else {
