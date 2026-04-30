@@ -141,7 +141,6 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
   useEffect(() => {
     if (!mounted) return;
 
-    console.log('[🔥 FIREBASE] Initializing Firebase with gameRoomId:', gameRoomId);
 
     let isActive = true;
 
@@ -149,11 +148,9 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       try {
         // Initialize Firebase
         initializeFirebase();
-        console.log('✅ Firebase инициализирован');
 
         // Initialize room
         await initializeRoom(gameRoomId);
-        console.log('✅ Комната инициализирована');
 
         if (!isActive) return;
 
@@ -165,7 +162,6 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
             const playersRef = ref(db, `games/${gameRoomId}/players`);
             // Видаляємо ВСІХ гравців назавжди (очистка DB)
             await remove(playersRef);
-            console.log('[🔥 NUCLEAR CLEANUP] Видалено ВСІХ гравців при старті');
           } catch (err) {
             console.warn('[⚠️ CLEANUP] Помилка при ядерній очистці:', err);
           }
@@ -175,19 +171,15 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
 
         // Очистити локальний стан
         remotePlayersRef.current.clear();
-        console.log('[🟢 FIREBASE] Cleared old ghost players on join');
 
         // Clear old game state from localStorage
         localStorage.removeItem(`basketball_game_state_${gameRoomId}`);
-        console.log('[🟢 FIREBASE] Cleared old game state from localStorage');
 
         // Переініціалізувати кімнату (скинути球, game state)
         await initializeRoom(gameRoomId);
-        console.log('[🔥] Кімната переініціалізована');
 
         // Join the game
         await joinGame(gameRoomId, playerIdRef.current, userName || 'Player', Math.floor(Math.random() * MAX_PLAYERS));
-        console.log(`✅ ${userName} присоединился к игре`);
 
         if (!isActive) return;
 
@@ -236,7 +228,6 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
             // Check if this is a new player
             const existingPlayer = remotePlayersRef.current.get(playerId);
             if (!existingPlayer) {
-              console.log('[🟢 FIREBASE] New player:', { playerId, nickname: player.nickname });
               gsRef.current.flashes.push({
                 text: `✅ ${player.nickname} присоединився!`,
                 x: 400,
@@ -262,7 +253,6 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           if (gsRef.current && ball) {
             // 🔴 КРИТИЧНО: НЕ оновлювати remoteBall якщо це власний м'яч
             if (ball.ownerId === playerIdRef.current) {
-              console.log('[🚫 OWN BALL IGNORED] Ignoring own thrown ball from Firebase');
               return; // ігнорувати власний кидок
             }
 
@@ -274,7 +264,6 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
                                      localShootState?.phase === 'flying';
 
             if (isLocalBallFlying) {
-              console.log('[🚫 REMOTE BALL BLOCKED] Local ball flying, ignoring Firebase update');
               return; // ігнорувати Firebase під час локального кидку
             }
 
@@ -381,6 +370,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
     const BOARD_FACE = BOARD_X + BOARD_W;
     const HOOP_X = 110*scaleX, HOOP_Y = 307*scaleY;
     const HOOP_R = 27*scaleX;
+    const HOOP_RADIUS = 22*scaleX;
     const P_START = W * 0.65, P_STEP = W * 0.07;
     // 🏀 RUCHEEK: Save position params to refs for use in handleAddPlayer
     pStartRef.current = P_START;
@@ -417,7 +407,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
 
     // Ball physics constants
     const BALL_RADIUS = 12 * scaleX;
-    const HOOP_RADIUS = 22 * scaleX;
+    // 🚨 ВИДАЛЕНО: const HOOP_RADIUS = 22 * scaleX; — це дублює HOOP_R на рядку 383
     const HOOP_DEPTH = 15 * scaleY;
     const MIN_BALL_SPEED = 5.0;
     const MAX_BALL_SPEED = 16.0;
@@ -683,7 +673,6 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           if (bx < HOOP_X - 50) break;
         }
         const status = closestDist < 30 ? '✅' : '❌';
-        console.log(`${pos.name}: idealPos=${idealPos.toFixed(3)} (power=${(idealPos*200).toFixed(0)}%) closest=${closestDist.toFixed(1)}px ${status}`);
       });
     }
 
@@ -876,18 +865,6 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         physicsSteps++;
         integratePhysics(b, FIXED_DT, C);
 
-        // 🚨 ПЕРША РАМА ФІЗИКИ
-        if (!b._loggedFrame0) {
-          b._loggedFrame0 = true;
-          console.log('[FRAME1 - after integratePhysics]', {
-            x: (b._x_m * SCALE).toFixed(0),
-            y: (b._y_m * SCALE).toFixed(0),
-            _x_m: b._x_m.toFixed(3),
-            _y_m: b._y_m.toFixed(3),
-            vx: b.vx.toFixed(2),
-            vy: b.vy.toFixed(2),
-          });
-        }
 
         // ── BASKETBALL LAB 16-POINT RIM COLLISION ──────────────────
         // Источник: Basketball Lab Three.js
@@ -1027,76 +1004,9 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         }
         // ── КОНЕЦ BASKETBALL LAB RIM COLLISION ─────────────────────
 
-        // ── BANK SHOT PHYSICS — отскок от щита к кольцу ──────────
-        // Закон отражения: угол падения = угол отражения
-        // При правильном угле мяч направляется в кольцо
-        if (b.x + BALL_RADIUS >= BOARD_FACE &&
-            b.y >= BOARD_TOP - BALL_RADIUS &&
-            b.y <= BOARD_BOT + BALL_RADIUS &&
-            b.vx > 0) {
-
-          // Penetration fix
-          b.x = BOARD_FACE - BALL_RADIUS - 0.5;
-
-          const impactSpeed = Math.sqrt(b.vx * b.vx + b.vy * b.vy);
-          const spin = b.spin || b.angularVel || b.omega || 0;
-
-          // Точка удара о щит
-          const impactY = b.y;
-
-          // Расстояние от точки удара до центра кольца по Y
-          const deltaY = HOOP_Y - impactY;
-
-          // Расстояние от щита до кольца по X
-          const deltaX = BOARD_FACE - HOOP_X;
-
-          // Идеальный угол отражения для попадания в кольцо:
-          // tan(ideal_angle) = deltaY / deltaX
-          const idealAngle = Math.atan2(deltaY, Math.abs(deltaX));
-
-          // Текущий угол входа мяча (в абсолютных значениях скорости)
-          const incomingAngle = Math.atan2(b.vy, -Math.abs(b.vx));
-
-          // Отклонение от идеального угла (в радианах)
-          const angleDiff = incomingAngle - idealAngle;
-
-          // ── Стандартный отскок (закон отражения) ──────────────
-          // vx меняет знак (отражение от вертикальной поверхности)
-          const BOARD_RESTITUTION = 0.75;  // упругость щита (стекло)
-          const BOARD_FRICTION = 0.12;     // трение щита (минимальное)
-
-          b.vx = -b.vx * BOARD_RESTITUTION;
-          b.vy = b.vy * (1 - BOARD_FRICTION);
-
-          // ── Умный bank shot — корректировка к кольцу ──────────
-          // Если угол близок к идеальному (±25°) — помочь мячу
-          // Если далеко от идеального — чистый физический отскок
-          const MAX_ASSIST_ANGLE = 25 * Math.PI / 180; // 25 градусов
-
-          if (Math.abs(angleDiff) < MAX_ASSIST_ANGLE) {
-            // Мяч летит примерно в правильном направлении
-            // Лёгкая коррекция к центру кольца (10-20%)
-            const assistStrength = 1 - Math.abs(angleDiff) / MAX_ASSIST_ANGLE;
-            const toHoopX = HOOP_X - b.x;
-            const toHoopY = HOOP_Y - b.y;
-            const toHoopDist = Math.sqrt(toHoopX * toHoopX + toHoopY * toHoopY);
-
-            if (toHoopDist > 0) {
-              // Добавить импульс к кольцу пропорционально точности
-              const assist = assistStrength * 0.18 * impactSpeed;
-              b.vx += (toHoopX / toHoopDist) * assist;
-              b.vy += (toHoopY / toHoopDist) * assist;
-            }
-          }
-
-          // Вытолкнуть мяч из щита
-          b.x = BOARD_FACE + BALL_RADIUS + 0.5 * scaleX;
-
-          // Флаги
-          b.hitBackboard = true;
-          b.rimHitTimer = 0;  // сбросить таймер — щит не кольцо
-        }
-        // ── КОНЕЦ BANK SHOT PHYSICS ────────────────────────────
+        // 🚨 ВИДАЛЕНО: Pixel-space BANK SHOT PHYSICS (рядки 1030-1099)
+        // Це був дублюючий код — обробляється в basketball-physics-engine.ts
+        // applyRimImpulse() + board collision в metric-space вже робить це!
 
         checkGoalEntry(b, C);
         b._physTick++;
@@ -1107,49 +1017,11 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       b.x = b._x_m * SCALE;
       b.y = b._y_m * SCALE;
 
-      // 🚨 ЛОГУВАННЯ КОНВЕРТАЦІЇ КООРДИНАТ (перший раз)
-      if (!b._loggedConvert) {
-        b._loggedConvert = true;
-        console.log('[FRAME_CONVERT] After pixel conversion', {
-          _x_m: b._x_m.toFixed(3),
-          _y_m: b._y_m.toFixed(3),
-          x_pixel: b.x.toFixed(0),
-          y_pixel: b.y.toFixed(0),
-          SCALE: SCALE.toFixed(1),
-          vx: b.vx.toFixed(2),
-          vy: b.vy.toFixed(2),
-        });
-      }
 
-      // 🚨 ПІДЛОГА: реалістичний відскок накаченого м'яча (ПІСЛЯ конвертації)
-      if (b.y + BALL_RADIUS >= GY) {
-        b.y = GY - BALL_RADIUS;
-        b._y_m = (GY - BALL_RADIUS) / SCALE;
-
-        const absVy = Math.abs(b.vy);
-        if (absVy > 0.3) {
-          b.vy = -absVy * 0.62; // відскок вгору
-          b.vx = b.vx * 0.80; // тертя горизонтально
-          b.bounceCount = (b.bounceCount || 0) + 1;
-          if (b.bounceCount >= 5) {
-            b.vx = 0; b.vy = 0; b.state = 'missed';
-          }
-        } else {
-          b.vx *= 0.85;
-          if (Math.abs(b.vx) < 0.05) {
-            b.vx = 0; b.vy = 0; b.state = 'missed';
-          }
-        }
-      }
-
-      // 🚨 ЩИТ: відскок від щита (ПІСЛЯ конвертації)
-      if (b.x + BALL_RADIUS >= BOARD_FACE) {
-        b.x = BOARD_FACE - BALL_RADIUS;
-        b._x_m = (BOARD_FACE - BALL_RADIUS) / SCALE;
-        b.vx = -Math.abs(b.vx) * 0.65; // відскок назад
-        b.vy = b.vy * 0.85;
-        b.hitBackboard = true;
-      }
+      // 🚨 ВИДАЛЕНО: Floor/Backboard pixel-space bounces були ДУБЛЮЮЧИ
+      // Вони обробляються в basketball-physics-engine.ts (metric-space)
+      // checkAllCollisions() → checkGoalEntry() + applyRimImpulse() в metric-space
+      // Coordinate conversion + collision response є в physics-engine, не тут!
 
       if (b.state === 'missed' && !b.outcome) {
         if (b.rimContacts === 0) {
@@ -1218,16 +1090,6 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         _inRimZone: false,
       };
 
-      // 🚨 ТЕСТОВИЙ ЛОГ: Діагностика кидку
-      console.log('[FRAME0 - launchBall]', {
-        x: px.toFixed(0), y: py.toFixed(0),
-        _x_m: px_m.toFixed(3), _y_m: py_m.toFixed(3),
-        vx: vx_m.toFixed(2), vy: vy_m.toFixed(2),
-        SCALE: SCALE.toFixed(1),
-        distPx: distToHoop.toFixed(0),
-        distM: distToHoop_m.toFixed(2),
-        angle: (ss.lockedAngle * 180/Math.PI).toFixed(1) + '°',
-      });
 
       ss.phase = 'flying';
 
@@ -1531,7 +1393,6 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           const eliminatedPlayerId = gs.players[gs.disputeP1]?.playerId;
           if (eliminatedPlayerId) {
             updatePlayerPosition(gameRoomId, eliminatedPlayerId, gs.players[gs.disputeP1]?.x || 0, gs.players[gs.disputeP1]?.y || 0).catch(() => {});
-            console.log('[🟢 FIREBASE] Sent eliminated status for player:', eliminatedPlayerId);
           }
           setTimeout(() => {
             const idx2 = gs.disputeP1;
@@ -3008,7 +2869,6 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
     // 🔥 КРИТИЧНО: Регистрируем гравца на Firebase (joinGame) с реальными координатами
     joinGame(gameRoomId, playerIdRef.current, name, positionIndex, newPlayer.x, newPlayer.y)
       .then(() => {
-        console.log('[🟢 Firebase] Player registered:', name);
       })
       .catch(err => console.error('[🔴] Firebase add player failed:', err));
 
@@ -3068,7 +2928,6 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       const db = getFirebaseDatabase();
       const playerRef = ref(db, `games/${gameRoomId}/players/${removedPlayer.name}`);
       await remove(playerRef);
-      console.log('[🔥 FIREBASE] Removed player:', removedPlayer.name);
     } catch (err) {
       console.error('[🔴] Error removing player from Firebase:', err);
     }
@@ -3090,12 +2949,10 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       const db = getFirebaseDatabase();
       const playersRef = ref(db, `games/${gameRoomId}/players`);
       await remove(playersRef);
-      console.log('[🔥 FIREBASE] All players removed from room');
 
       // Також очистити м'яч
       const ballRef = ref(db, `games/${gameRoomId}/ball`);
       await set(ballRef, { x: 300, y: 100, vx: 0, vy: 0, state: 0 });
-      console.log('[🔥 FIREBASE] Ball reset');
     } catch (err) {
       console.error('[🔴] Error clearing room:', err);
     }
