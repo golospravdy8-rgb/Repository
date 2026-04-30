@@ -34,6 +34,7 @@ import {
   checkGateScoring,
   computeLaunchVelocityMeters,
   computeIdealSpeed,
+  computeIdealVelocity,
   sweepSphereVsSphere,
   type PhysicsConstantsM,
 } from "./basketball-physics-engine";
@@ -776,29 +777,6 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       return { score: false, matchPct: 15 };
     }
 
-    function findIdealSpeedForAngle(sx: number, sy: number, angle: number) {
-      let bestSpd = 10, bestD = 1e9;
-      for (let spd = 4; spd <= 16; spd += 0.12) {
-        const launchParams = {
-          angle,
-          power: Math.min(200, spd * 20),
-          accuracy: 85,
-          distToHoop: Math.hypot(HOOP_X - sx, HOOP_Y - sy),
-          playerX: sx,
-          playerY: sy,
-          hoopX: HOOP_X,
-          hoopY: HOOP_Y,
-          scaleX: 1,
-        };
-        const pts = simulateTrajectory(launchParams);
-        for (const pt of pts) {
-          const d = Math.hypot(pt.x - HOOP_X, pt.y - HOOP_Y);
-          if (d < bestD && pt.y < GY) { bestD = d; bestSpd = spd; }
-        }
-      }
-      return bestSpd;
-    }
-
     // AUTOTEST: Тестування зеленої лінії та гарантії
     function autoTest() {
 
@@ -972,16 +950,9 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         const p = gs.players[i], ss = gs.shootStates[i];
         if (p.status === 'eliminated') continue;
         if (ss.phase === 'aiming') {
-          const sx = p.x - 15*scaleX;
-          const behindBoard = sx < BOARD_FACE;
-          ss.aimAngle += 0.022 * ss.aimDir * dt;
-          if (behindBoard) {
-            if (ss.aimAngle >= -0.06) { ss.aimAngle = -0.06; ss.aimDir = -1; }
-            if (ss.aimAngle <= -Math.PI * 0.5) { ss.aimAngle = -Math.PI * 0.5; ss.aimDir = 1; }
-          } else {
-            if (ss.aimAngle >= -Math.PI * 0.5) { ss.aimAngle = -Math.PI * 0.5; ss.aimDir = -1; }
-            if (ss.aimAngle <= -Math.PI * 0.94) { ss.aimAngle = -Math.PI * 0.94; ss.aimDir = 1; }
-          }
+          ss.aimAngle += ss.aimDir * 0.022;
+          if (ss.aimAngle > -0.08) { ss.aimAngle = -0.08; ss.aimDir = -1; }
+          if (ss.aimAngle < -Math.PI * 0.75) { ss.aimAngle = -Math.PI * 0.75; ss.aimDir = 1; }
         }
         if (ss.phase === 'charging') {
           // Oscillate distance indicator marker with arcade-style difficulty
@@ -1831,55 +1802,92 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         }
 
         if (ss.phase === 'aiming') {
-          // 🔥 FIX: Use 100% power for aiming preview (full parabolic arc visibility)
-          const launchParams = {
-            angle: ss.aimAngle,
-            power: 100,  // 100% power for preview (full arc, not tiny circle)
-            accuracy: 85,
-            distToHoop: Math.hypot(HOOP_X - sx, HOOP_Y - sy),
-            playerX: sx,
-            playerY: sy,
-            hoopX: HOOP_X,
-            hoopY: HOOP_Y,
-            scaleX: scaleX,
-          };
-          const pts = simulateTrajectory(launchParams);
-          drawTrajPts(pts, 'rgba(255,80,80,0.7)', [5, 5]);
-          drawAimArrow(p.x, p.y, ss.aimAngle);
+          // 🎯 МАЯТНИК: Жёлтая пунктирная стрелка
+          const hx = p.x, hy = p.y - 52*scaleY;
+          const len = 400*scaleX;
+          const ex = hx + Math.cos(ss.aimAngle)*len;
+          const ey = hy + Math.sin(ss.aimAngle)*len;
+          ctx.save();
+          ctx.strokeStyle = '#FFDD00';
+          ctx.lineWidth = 2.5;
+          ctx.setLineDash([8, 5]);
+          ctx.beginPath();
+          ctx.moveTo(hx, hy);
+          ctx.lineTo(ex, ey);
+          ctx.stroke();
+          ctx.setLineDash([]);
+          ctx.restore();
         }
 
         if (ss.phase === 'charging') {
-          // 🎯 КЛИК 2: ВЫБОР СИЛЫ (ТОЛЬКО UI)
-          // Рисуем ТОЛЬКО одну траекторию (идеальную красную)
-          if (ss.idealTraj) drawTrajPts(ss.idealTraj, 'rgba(255,80,80,0.7)', [5, 5], 2.0);
+          // 🎯 CHARGING: ЧЕРВОНА ДУГА (ідеальна) + СИНЯ (динамічна)
 
-          // 🟢 ЗЕЛЁНАЯ ЗОНА: Диапазон идеальной силы (ФИКСИРОВАННАЯ позиция)
-          const bx2 = p.x + 30*scaleX, barTop = p.y - 80*scaleY, barW = 14*scaleX, barH = 80*scaleY;
-          const greenZoneMin = ss.greenZoneMin || 0.4;  // уже в масштабе 0-1
-          const greenZoneMax = ss.greenZoneMax || 0.6;
-          const greenZoneHeight = (greenZoneMax - greenZoneMin) * barH;
+          // ЧЕРВОНА ДУГА (ідеальна)
+          const arc = ss.idealTraj;
+          if (arc && arc.length > 2) {
+            ctx.save();
+            ctx.strokeStyle = 'rgba(255,50,50,0.95)';
+            ctx.lineWidth = 3;
+            ctx.setLineDash([8, 5]);
+            ctx.beginPath();
+            ctx.moveTo(arc[0].x, arc[0].y);
+            for (let k = 1; k < arc.length; k++) ctx.lineTo(arc[k].x, arc[k].y);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            // Крапка в кільці
+            ctx.fillStyle = 'red';
+            ctx.beginPath();
+            ctx.arc(HOOP_X, HOOP_Y, 7, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+          }
 
-          // Background bar (черный фон)
-          ctx.fillStyle = '#222';
-          ctx.fillRect(bx2, barTop, barW, barH);
+          // СИНЯ ДИНАМІЧНА ДУГА (поточна сила)
+          const curPower = markerPosRef.current;  // 0-1
+          const v_cur = (ss.idealVelocity || 10) * (0.5 + curPower * 1.0);
+          const theta2 = -ss.lockedAngle;
+          const hx_m2 = sx / SCALE;
+          const hy_m2 = (p.y - 52*scaleY) / SCALE;
+          const dynArc = simulateTrajectory({
+            vx_m: Math.cos(theta2) * v_cur,
+            vy_m: -Math.sin(theta2) * v_cur,
+            x0_m: hx_m2, y0_m: hy_m2,
+            scale: SCALE, groundY_m: GY / SCALE
+          });
+          if (dynArc.length > 2) {
+            ctx.save();
+            ctx.strokeStyle = 'rgba(100,150,255,0.7)';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([5, 4]);
+            ctx.beginPath();
+            ctx.moveTo(dynArc[0].x, dynArc[0].y);
+            for (let k = 1; k < dynArc.length; k++) ctx.lineTo(dynArc[k].x, dynArc[k].y);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.restore();
+          }
 
-          // Зелёная зона (фиксированная, показывает допустимый диапазон)
+          // ШКАЛА СИЛИ
+          const bx = p.x + 30*scaleX, bTop = p.y - 90*scaleY;
+          const bW = 14*scaleX, bH = 90*scaleY;
+          ctx.fillStyle = 'rgba(0,0,0,0.8)';
+          ctx.fillRect(bx, bTop, bW, bH);
+          const ip = ss.idealPower || 0.5, tol = 0.08;
+          const zTop = bTop + (1 - Math.min(1, ip + tol)) * bH;
+          const zH = tol * 2 * bH;
           ctx.fillStyle = '#00FF44';
-          ctx.fillRect(bx2, barTop + (1 - greenZoneMax) * barH, barW, greenZoneHeight);
+          ctx.fillRect(bx, zTop, bW, Math.max(4, zH));
+          const mY = bTop + (1 - markerPosRef.current) * bH;
+          ctx.fillStyle = '#FFF';
+          ctx.fillRect(bx - 2*scaleX, mY - 2, bW + 4*scaleX, 4);
+          ctx.strokeStyle = '#888';
+          ctx.lineWidth = 1;
+          ctx.strokeRect(bx, bTop, bW, bH);
 
-          // Маркер (белая линия, колеблется)
-          const markerY2 = barTop + (1 - markerPosRef.current) * barH;
-          ctx.fillStyle = '#FFFFFF';
-          ctx.fillRect(bx2 - 2*scaleX, markerY2 - 2, barW + 4*scaleX, 4);
-
-          // Метка расстояния
-          ctx.fillStyle = '#FFFF00';
-          ctx.font = `${11*scaleX}px Arial`;
-          ctx.textAlign = 'center';
-          const distToHoopPx = Math.hypot(HOOP_X - sx, HOOP_Y - sy);
-          const distMeters = (distToHoopPx / 140).toFixed(1);
-          ctx.fillText(distMeters + 'm', bx2 + barW/2, barTop - 5*scaleY);
-
+          // Бігунок коливається
+          markerPosRef.current += (markerDirRef.current || 1) * 0.013;
+          if (markerPosRef.current >= 1) { markerPosRef.current = 1; markerDirRef.current = -1; }
+          if (markerPosRef.current <= 0) { markerPosRef.current = 0; markerDirRef.current = 1; }
         }
 
         if (ss.ball && ss.phase === 'flying') {
@@ -2478,39 +2486,22 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           markerPosRef.current = ss.idealPower;
           markerDirRef.current = 1;
         } else if (ss.phase === "charging") {
-          // 🎯 КЛИК 3: БРОСОК НА ОСНОВЕ МЕТРИЧЕСКОЙ ФИЗИКИ
+          // 🎯 КЛІК 3: КИДОК З ЧИСТОЇ МЕТРИКИ
 
-          const cursorPos = markerPosRef.current;  // 0-1 позиция на шкале
-          const greenZoneMin = ss.greenZoneMin || 0.4;  // уже в масштабе 0-1
-          const greenZoneMax = ss.greenZoneMax || 0.6;
+          const theta3 = -ss.lockedAngle;
+          const hx_m3 = (p.x - 15*scaleX) / SCALE;
+          const hy_m3 = (p.y - 52*scaleY) / SCALE;
+          const dx_m3 = HOOP_X / SCALE - hx_m3;
+          const dy_m3 = HOOP_Y / SCALE - hy_m3;
+          const v_ideal3 = computeIdealVelocity(dx_m3, dy_m3, theta3);
+          const power_factor = 0.5 + markerPosRef.current * 1.0;
+          const v_real = v_ideal3 * power_factor;
 
-          const inGreenZone = cursorPos >= greenZoneMin && cursorPos <= greenZoneMax;
-          ss.accuracy = inGreenZone ? 95 + Math.random() * 5 : Math.max(5, 90 - Math.abs(cursorPos - ss.idealPower) * 100 * 2);
-
-          // Используем тот же расчет как в launchBall
-          const headX_m = (p.x - 15*scaleX) / SCALE;
-          const headY_m = (p.y - 55*scaleY) / SCALE;
-
-          const dx_m = HOOP_X/SCALE - headX_m;
-          const dy_m = HOOP_Y/SCALE - headY_m;
-
-          const g = 9.81;
-          const theta = -ss.lockedAngle;
-          const cosT = Math.cos(theta);
-          const tanT = Math.tan(theta);
-          const denom = 2*cosT*cosT*(dx_m*tanT - dy_m);
-          const v_ideal = (denom > 0.01)
-            ? Math.max(4, Math.min(18, Math.sqrt(g*dx_m*dx_m/denom)))
-            : (ss.idealVelocity || 10.0);
-
-          const power_factor = 0.5 + cursorPos * 1.0;
-          const v_real = v_ideal * power_factor;
-
-          const vx_m = Math.cos(theta) * v_real;
-          const vy_m = -Math.sin(theta) * v_real;
+          const vx_m = Math.cos(theta3) * v_real;
+          const vy_m = -Math.sin(theta3) * v_real;
 
           ss.ball = {
-            _x_m: headX_m, _y_m: headY_m,
+            _x_m: hx_m3, _y_m: hy_m3,
             vx: vx_m, vy: vy_m,
             omega: 0,
             x: p.x - 15*scaleX, y: p.y - 55*scaleY,
@@ -2527,16 +2518,17 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
 
           ss.phase = "flying";
           p.status = "shooting";
+          ss.idealTraj = null;
+          ss.lockedAngle = null;
 
           console.log('[SHOT 3 LAUNCH]', {
-            cursor_pos: cursorPos.toFixed(2),
-            in_green_zone: inGreenZone,
-            v_ideal: v_ideal.toFixed(2),
+            cursor_pos: markerPosRef.current.toFixed(2),
+            v_ideal: v_ideal3.toFixed(2),
             v_real: v_real.toFixed(2),
             power_factor: power_factor.toFixed(2),
             vx_m: vx_m.toFixed(2),
             vy_m: vy_m.toFixed(2),
-            accuracy: ss.accuracy.toFixed(0),
+            theta_deg: (theta3 * 180/Math.PI).toFixed(1),
           });
 
         }
