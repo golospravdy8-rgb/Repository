@@ -204,8 +204,6 @@ export function computeLaunchVelocityMeters(p: { angle: number; power: number; a
   const angleDeg = p.angle * (180 / Math.PI);
   let omega = angleDeg > 55 ? -(0.8 + (angleDeg - 55) * 0.01) : 0.2 + (50 - angleDeg) * 0.01;
 
-  console.log(`[⚽ LAUNCH] angle=${angleDeg.toFixed(1)}° dist=${p.distToHoop_m.toFixed(2)}m power=${p.power.toFixed(0)} → vx=${vx_m.toFixed(2)} vy=${vy_m.toFixed(2)} m/s omega=${omega.toFixed(2)} rad/s`);
-
   return { vx_m, vy_m, omega };
 }
 
