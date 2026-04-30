@@ -850,6 +850,9 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       while (b._accumulator >= FIXED_DT && b.state === 'flying') {
         integratePhysics(b, FIXED_DT, C);
 
+        // 🚨 ВИКЛИКАТИ ФІЗИЧНІ КОЛІЗІЇ (включає floor bounce в метрах)
+        checkAllCollisions(b, FIXED_DT, C);
+
         // ── BASKETBALL LAB 16-POINT RIM COLLISION ──────────────────
         // Источник: Basketball Lab Three.js
         // Ключевое отличие: только точки с |cos(angle)| > 0.3
@@ -1059,14 +1062,23 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         }
         // ── КОНЕЦ BANK SHOT PHYSICS ────────────────────────────
 
-        // Floor bounce (pixel-space)
+        // 🚨 СТІЙКА: прямая проверка в пиксель-спейсе
+        const POLE_RADIUS_PX = 8 * scaleX;
+        const ballPxX = b._x_m * SCALE;
+        const polePxX = POLE_X; // вже в пікселях
+        if (Math.abs(ballPxX - polePxX) < POLE_RADIUS_PX + BALL_RADIUS) {
+          console.log('[POLE_PX] HIT at x=' + ballPxX.toFixed(0) + ' vs pole=' + polePxX.toFixed(0));
+          const pushDir = ballPxX < polePxX ? -1 : 1;
+          b._x_m = (polePxX + pushDir * (POLE_RADIUS_PX + BALL_RADIUS + 1)) / SCALE;
+          b.vx = -b.vx * 0.65;
+          b.vy *= 0.9;
+        }
+
+        // Pixel-space floor (тільки для позиції, відскок у basket-physics-engine)
         if (b.y + BALL_RADIUS >= GY) {
           b.y = GY - BALL_RADIUS;
-          b.vy *= -0.60;
-          b.bounceCount++;
-          if (b.bounceCount >= 4) {
-            b.state = 'missed';
-          }
+          b._y_m = (GY - BALL_RADIUS) / SCALE;
+          // Не змінювати vy тут — це робить physics engine в checkAllCollisions
         }
 
         checkGoalEntry(b, C);

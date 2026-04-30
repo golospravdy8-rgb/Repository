@@ -98,13 +98,19 @@ function checkBackboardCollision(b: BallStateM, C: PhysicsConstantsM): void {
 
 function checkPoleCollision(b: BallStateM, C: PhysicsConstantsM): void {
   // 🚨 ВИПРАВЛЕННЯ 2: Колізія зі стійкою (вертикальний циліндр)
-  if (!C.POLE_X_M) return; // Стійка не визначена
+  if (C.POLE_X_M === undefined || C.POLE_X_M === null) return; // Стійка не визначена
 
   const POLE_HALF_WIDTH = 0.05; // Половина ширини стійки в метрах (~10px для SCALE 100)
   const dx = b._x_m - C.POLE_X_M;
 
+  // [DIAG] Логування для перевірки
+  if (Math.abs(dx) < 0.5) {
+    console.log('[POLE] x_m=' + b._x_m.toFixed(2) + ' POLE_X_M=' + C.POLE_X_M.toFixed(2) + ' dx=' + dx.toFixed(2));
+  }
+
   // Перевіряємо чи м'яч торкається стійки
   if (Math.abs(dx) < POLE_HALF_WIDTH + C.BALL_RADIUS_M) {
+    console.log('[POLE] HIT! Pushing back...');
     // М'яч торкнувся стійки — відштовхнемо його назад до гравців
     const pushDir = dx > 0 ? 1 : -1;
     b._x_m = C.POLE_X_M + pushDir * (POLE_HALF_WIDTH + C.BALL_RADIUS_M + 0.01);
@@ -133,6 +139,7 @@ export function checkAllCollisions(b: BallStateM, dt: number, C: PhysicsConstant
     if (rem > 1e-6) integratePhysics(b, rem, C);
   }
   if (b._y_m + C.BALL_RADIUS_M >= C.GROUND_Y_M) {
+    console.log('[FLOOR] HIT y_m=' + b._y_m.toFixed(2) + ' vy=' + b.vy.toFixed(2) + ' bounceCount=' + (b.bounceCount || 0));
     b._y_m = C.GROUND_Y_M - C.BALL_RADIUS_M;
 
     // 🚨 ВИПРАВЛЕННЯ 1: Реалістичний відскок від підлоги (NBA баскетбольний м'яч)
