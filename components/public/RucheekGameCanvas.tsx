@@ -839,7 +839,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       const C: PhysicsConstantsM = {
         GRAVITY: 9.81, BALL_MASS: 0.623, BALL_RADIUS_M: 0.12,
         RIM_RADIUS_M: 0.6,  // Збільшено щоб відповідати HOOP_R=27px (вся 10px)
-        RIM_TUBE_R_M: 0.023, NET_ZONE_DEPTH_M: 0.45,
+        RIM_TUBE_R_M: 0.023, NET_ZONE_DEPTH_M: 0.8,
         E_RIM: 0.72, MU_RIM: 0.57, Cd: 0.004, Cm: 0.000045, OMEGA_DECAY: 0.985,
         HOOP_X_M: HOOP_X / SCALE, HOOP_Y_M: HOOP_Y / SCALE,
         BOARD_X_M: BOARD_FACE / SCALE, BOARD_TOP_M: BOARD_TOP / SCALE,
@@ -849,9 +849,6 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
 
       while (b._accumulator >= FIXED_DT && b.state === 'flying') {
         integratePhysics(b, FIXED_DT, C);
-
-        // 🚨 ВИКЛИКАТИ ФІЗИЧНІ КОЛІЗІЇ (включає floor bounce в метрах)
-        checkAllCollisions(b, FIXED_DT, C);
 
         // ── BASKETBALL LAB 16-POINT RIM COLLISION ──────────────────
         // Источник: Basketball Lab Three.js
@@ -1062,25 +1059,6 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         }
         // ── КОНЕЦ BANK SHOT PHYSICS ────────────────────────────
 
-        // 🚨 СТІЙКА: прямая проверка в пиксель-спейсе
-        const POLE_RADIUS_PX = 8 * scaleX;
-        const ballPxX = b._x_m * SCALE;
-        const polePxX = POLE_X; // вже в пікселях
-        if (Math.abs(ballPxX - polePxX) < POLE_RADIUS_PX + BALL_RADIUS) {
-          console.log('[POLE_PX] HIT at x=' + ballPxX.toFixed(0) + ' vs pole=' + polePxX.toFixed(0));
-          const pushDir = ballPxX < polePxX ? -1 : 1;
-          b._x_m = (polePxX + pushDir * (POLE_RADIUS_PX + BALL_RADIUS + 1)) / SCALE;
-          b.vx = -b.vx * 0.65;
-          b.vy *= 0.9;
-        }
-
-        // Pixel-space floor (тільки для позиції, відскок у basket-physics-engine)
-        if (b.y + BALL_RADIUS >= GY) {
-          b.y = GY - BALL_RADIUS;
-          b._y_m = (GY - BALL_RADIUS) / SCALE;
-          // Не змінювати vy тут — це робить physics engine в checkAllCollisions
-        }
-
         checkGoalEntry(b, C);
         b._physTick++;
         b._accumulator -= FIXED_DT;
@@ -1089,6 +1067,36 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       if (b.rimHitTimer > 0) b.rimHitTimer--;
       b.x = b._x_m * SCALE;
       b.y = b._y_m * SCALE;
+
+      // 🚨 ПІДЛОГА: реалістичний відскок накаченого м'яча (ПІСЛЯ конвертації)
+      if (b.y + BALL_RADIUS >= GY) {
+        b.y = GY - BALL_RADIUS;
+        b._y_m = (GY - BALL_RADIUS) / SCALE;
+
+        const absVy = Math.abs(b.vy);
+        if (absVy > 0.3) {
+          b.vy = -absVy * 0.62; // відскок вгору
+          b.vx = b.vx * 0.80; // тертя горизонтально
+          b.bounceCount = (b.bounceCount || 0) + 1;
+          if (b.bounceCount >= 5) {
+            b.vx = 0; b.vy = 0; b.state = 'missed';
+          }
+        } else {
+          b.vx *= 0.85;
+          if (Math.abs(b.vx) < 0.05) {
+            b.vx = 0; b.vy = 0; b.state = 'missed';
+          }
+        }
+      }
+
+      // 🚨 ЩИТ: відскок від щита (ПІСЛЯ конвертації)
+      if (b.x + BALL_RADIUS >= BOARD_FACE) {
+        b.x = BOARD_FACE - BALL_RADIUS;
+        b._x_m = (BOARD_FACE - BALL_RADIUS) / SCALE;
+        b.vx = -Math.abs(b.vx) * 0.65; // відскок назад
+        b.vy = b.vy * 0.85;
+        b.hitBackboard = true;
+      }
 
       if (b.state === 'missed' && !b.outcome) {
         if (b.rimContacts === 0) {
@@ -1156,7 +1164,17 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         _inRimZone: false,
       };
 
-
+      // 🚨 ТЕСТОВИЙ ЛОГ: Діагностика кидку
+      console.log('[THROW]', {
+        vx: vx_m.toFixed(2),
+        vy: vy_m.toFixed(2),
+        angle: (ss.lockedAngle * 180/Math.PI).toFixed(1) + '°',
+        startX: px.toFixed(0),
+        startY: py.toFixed(0),
+        hoopX: HOOP_X.toFixed(0),
+        hoopY: HOOP_Y.toFixed(0),
+        distToHoop: distToHoop.toFixed(0),
+      });
 
       ss.phase = 'flying';
 
@@ -1675,8 +1693,8 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
 
     function drawAimArrow(px: number, py: number, angle: number) {
       const hx = px, hy = py - 52*scaleY;
-      // 🚨 РОЗШИРЕННЯ: Стрілка з 88 до 200px для кращої видимості
-      const ex = hx + Math.cos(angle) * 200*scaleX, ey = hy + Math.sin(angle) * 200*scaleY;
+      // 🚨 РОЗШИРЕННЯ: Стрілка вдвічі довша (400px для кращої видимості)
+      const ex = hx + Math.cos(angle) * 400*scaleX, ey = hy + Math.sin(angle) * 400*scaleY;
       ctx.strokeStyle = '#ffdd00';
       ctx.lineWidth = 2;
       ctx.setLineDash([7, 4]);
@@ -2664,7 +2682,10 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         if (ss.phase === null || ss.phase === "pickup_wait") {
           ss.phase = "aiming";
           const behindBoard = (p.x - 15*scaleX) < BOARD_FACE;
-          ss.aimAngle = behindBoard ? -0.1 : -Math.PI*0.72;
+          // 🚨 ВИПРАВЛЕННЯ: Обидва кути повинні бути вверх (від'ємні в canvas coords)
+          // behindBoard: -0.6 rad ≈ -34° (більш мілкий дугу)
+          // normal: -Math.PI*0.72 ≈ -129° (висока дуга)
+          ss.aimAngle = behindBoard ? -0.6 : -Math.PI*0.72;
           ss.aimDir = behindBoard ? -1 : 1;
           ss.lockedAngle = null;
           ss.idealTraj = null;
