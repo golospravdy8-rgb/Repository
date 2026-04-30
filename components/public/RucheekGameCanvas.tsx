@@ -844,6 +844,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         HOOP_X_M: HOOP_X / SCALE, HOOP_Y_M: HOOP_Y / SCALE,
         BOARD_X_M: BOARD_FACE / SCALE, BOARD_TOP_M: BOARD_TOP / SCALE,
         BOARD_BOT_M: BOARD_BOT / SCALE, GROUND_Y_M: GY / SCALE,
+        POLE_X_M: POLE_X / SCALE, // Стійка для колізії
       };
 
       while (b._accumulator >= FIXED_DT && b.state === 'flying') {

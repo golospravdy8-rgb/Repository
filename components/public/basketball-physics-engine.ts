@@ -10,6 +10,7 @@ export interface PhysicsConstantsM {
   RIM_TUBE_R_M: number; NET_ZONE_DEPTH_M: number; E_RIM: number; MU_RIM: number;
   Cd: number; Cm: number; OMEGA_DECAY: number;
   HOOP_X_M: number; HOOP_Y_M: number; BOARD_X_M: number; BOARD_TOP_M: number; BOARD_BOT_M: number; GROUND_Y_M: number;
+  POLE_X_M?: number; // Стійка X координата (опціонально)
 }
 
 export interface BallStateM {
@@ -95,8 +96,28 @@ function checkBackboardCollision(b: BallStateM, C: PhysicsConstantsM): void {
   }
 }
 
+function checkPoleCollision(b: BallStateM, C: PhysicsConstantsM): void {
+  // 🚨 ВИПРАВЛЕННЯ 2: Колізія зі стійкою (вертикальний циліндр)
+  if (!C.POLE_X_M) return; // Стійка не визначена
+
+  const POLE_HALF_WIDTH = 0.05; // Половина ширини стійки в метрах (~10px для SCALE 100)
+  const dx = b._x_m - C.POLE_X_M;
+
+  // Перевіряємо чи м'яч торкається стійки
+  if (Math.abs(dx) < POLE_HALF_WIDTH + C.BALL_RADIUS_M) {
+    // М'яч торкнувся стійки — відштовхнемо його назад до гравців
+    const pushDir = dx > 0 ? 1 : -1;
+    b._x_m = C.POLE_X_M + pushDir * (POLE_HALF_WIDTH + C.BALL_RADIUS_M + 0.01);
+
+    // Відскок з поглинанням енергії
+    b.vx = -b.vx * 0.7;
+    b.vy *= 0.9;
+  }
+}
+
 export function checkAllCollisions(b: BallStateM, dt: number, C: PhysicsConstantsM): void {
   checkBackboardCollision(b, C);
+  checkPoleCollision(b, C);
   const ccdF = sweepSphereVsSphere(b, { x: C.HOOP_X_M + C.RIM_RADIUS_M, y: C.HOOP_Y_M }, C.RIM_TUBE_R_M + C.BALL_RADIUS_M, dt);
   const ccdB = sweepSphereVsSphere(b, { x: C.HOOP_X_M - C.RIM_RADIUS_M, y: C.HOOP_Y_M }, C.RIM_TUBE_R_M + C.BALL_RADIUS_M, dt);
   const isFront = ccdF.hit && (!ccdB.hit || ccdF.t <= ccdB.t);
@@ -113,40 +134,63 @@ export function checkAllCollisions(b: BallStateM, dt: number, C: PhysicsConstant
   }
   if (b._y_m + C.BALL_RADIUS_M >= C.GROUND_Y_M) {
     b._y_m = C.GROUND_Y_M - C.BALL_RADIUS_M;
-    if (Math.abs(b.vy) > 0.8) {
-      b.vy = -b.vy * 0.60;
-      b.vx *= 0.75;
+
+    // 🚨 ВИПРАВЛЕННЯ 1: Реалістичний відскок від підлоги (NBA баскетбольний м'яч)
+    const FLOOR_RESTITUTION = 0.62; // Стандартна упругість NBA м'яча
+    const FLOOR_FRICTION = 0.4;
+
+    if (Math.abs(b.vy) > 0.5) {
+      // М'яч має досить енергії для відскоку
+      b.vy = -b.vy * FLOOR_RESTITUTION; // Відскок вгору з поглинанням енергії
+      b.vx = b.vx * (1 - FLOOR_FRICTION); // Тертя сповільнює горизонтальну швидкість
+      b.omega *= 0.7; // Spin зменшується при контакті
       b.bounceCount = (b.bounceCount || 0) + 1;
-      if ((b.bounceCount || 0) >= 4) { b.vx = 0; b.vy = 0; b.state = 'missed'; }
-    } else { b.vx = 0; b.vy = 0; b.state = 'missed'; }
+
+      // Після 4 відскоків м'яч вважається зупиненим
+      if ((b.bounceCount || 0) >= 4) {
+        b.vx = 0; b.vy = 0; b.state = 'missed';
+      }
+    } else {
+      // М'яч мало енергії — зупиняється
+      b.vy = 0;
+      b.vx *= 0.85;
+      if (Math.abs(b.vx) < 0.1) {
+        b.vx = 0;
+        b.state = 'missed'; // М'яч повністю зупинений на підлозі
+      }
+    }
   }
 }
 
 export function checkGoalEntry(b: BallStateM, C: PhysicsConstantsM): boolean {
-  if (b.scoredGoal || b.vy <= 0) return false;
-  // Note: In canvas coordinates, Y increases downward, so vy > 0 means falling down toward net
+  // 🚨 ВИПРАВЛЕННЯ 3 & 4: Спрощена надійна логіка детекції голу
+  if (b.scoredGoal) return false;
 
-  // ВИПРАВЛЕННЯ: Вікно попадання = 95% від rimRadius (дозволяє торкання краю)
-  // RIM_RADIUS_M тепер = 0.6м (відповідає HOOP_R=27px)
-  // scoreWindow = 0.6 * 0.95 = 0.57м = ~26px (реалістично для баскетболу)
-  const dx = b._x_m - C.HOOP_X_M;
-  const scoreWindow = C.RIM_RADIUS_M * 0.95; // Вікно попадання
-  if (Math.abs(dx) >= scoreWindow || b._y_m < C.HOOP_Y_M || b._y_m > C.HOOP_Y_M + C.NET_ZONE_DEPTH_M) return false;
+  // М'яч ПОВИНЕН рухатись вниз (в canvas coords: vy > 0)
+  if (b.vy <= 0) return false;
 
-  // 🚨 АНТИ-ЗАСТРЯГАННЯ: Якщо м'яч торкнувся кільця > 3 разів, це miss
-  const speed = Math.sqrt(b.vx * b.vx + b.vy * b.vy);
-  if (b.rimContacts > 3 && speed < 1.0) {
-    b.scoredGoal = true;
-    b.state = 'missed';
-    return false;
-  }
+  // М'яч має бути в зоні кільця по X (±90% від радіуса)
+  const dx = Math.abs(b._x_m - C.HOOP_X_M);
+  if (dx > C.RIM_RADIUS_M * 0.9) return false;
 
+  // М'яч має бути на висоті кільця (±0.6м вертикальна зона)
+  const dy = b._y_m - C.HOOP_Y_M;
+  if (dy < 0 || dy > 0.6) return false;
+
+  // ГОЛ! Відеограємо результат
   b.scoredGoal = true;
   b.state = 'scored';
-  const rc = b.rimContacts, ang = Math.atan2(Math.abs(b.vy), Math.abs(b.vx)) * (180 / Math.PI);
-  if (rc === 0) b.outcome = Math.abs(dx) < 0.04 && ang > 35 ? 'swish' : 'rattle_in';
-  else if (rc <= 4) b.outcome = b.hitBackboard ? 'bank' : 'rattle_in';
-  else b.outcome = b.hitBackboard ? 'bank' : 'rattle_in';
+
+  // Визначити тип гола
+  const rc = b.rimContacts || 0;
+  if (rc === 0) {
+    b.outcome = 'swish'; // Прямо без дотику кільця
+  } else if (rc <= 2) {
+    b.outcome = 'rattle_in'; // Один-два торкання — нормально
+  } else {
+    b.outcome = 'rattle_in'; // Більше торкань — щастя
+  }
+
   return true;
 }
 
