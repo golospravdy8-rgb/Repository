@@ -115,10 +115,16 @@ export function checkAllCollisions(b: BallStateM, dt: number, C: PhysicsConstant
 }
 
 export function checkGoalEntry(b: BallStateM, C: PhysicsConstantsM): boolean {
-  if (b.scoredGoal || b.vy <= 0 || b.rimHitTimer > 0) return false;
+  if (b.scoredGoal || b.vy <= 0) return false;
   // Note: In canvas coordinates, Y increases downward, so vy > 0 means falling down toward net
-  const dx = b._x_m - C.HOOP_X_M, er = C.RIM_RADIUS_M - C.BALL_RADIUS_M;
-  if (Math.abs(dx) >= er || b._y_m < C.HOOP_Y_M || b._y_m > C.HOOP_Y_M + C.NET_ZONE_DEPTH_M) return false;
+
+  // ВИПРАВЛЕННЯ: Розширити вікно попадання з 0.105м до 0.18м (80% від rimRadius)
+  // Було: er = rimRadius - ballRadius = 0.105м = ~4px (майже неможливо)
+  // Тепер: scoreWindow = rimRadius * 0.8 = 0.18м = ~7px (реалістично)
+  const dx = b._x_m - C.HOOP_X_M;
+  const scoreWindow = C.RIM_RADIUS_M * 0.8; // 0.225 * 0.8 = 0.18м
+  if (Math.abs(dx) >= scoreWindow || b._y_m < C.HOOP_Y_M || b._y_m > C.HOOP_Y_M + C.NET_ZONE_DEPTH_M) return false;
+
   b.scoredGoal = true;
   b.state = 'scored';
   const rc = b.rimContacts, ang = Math.atan2(Math.abs(b.vy), Math.abs(b.vx)) * (180 / Math.PI);
