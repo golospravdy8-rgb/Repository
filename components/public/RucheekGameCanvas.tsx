@@ -897,7 +897,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
 
       // Use physics engine for realistic launch velocity
       // Power is determined by cursor position (shotCursorPos is 0-1 normalized)
-      const shotPower = shotCursorPos * 200; // Convert to 0-200% scale
+      const shotPower = shotCursorPos * 100; // Convert to 0-100% scale (not 0-200)
 
       const launchParams = {
         angle: ss.lockedAngle,
@@ -928,6 +928,17 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       });
 
       // 🎯 DIAGNOSTIC: Throw calibration logging
+      // Обчислити теоретичний час падіння до кільця
+      const dx_m = hoopX_m - px_m;
+      const dy_m = hoopY_m - py_m;
+      const disc = vy_m*vy_m - 2*9.81*(py_m - hoopY_m);
+      let t_to_hoop = -1, x_at_hoop = -1, error_m = -1;
+      if (disc >= 0) {
+        t_to_hoop = (-vy_m + Math.sqrt(disc)) / 9.81;
+        x_at_hoop = px_m + vx_m * t_to_hoop;
+        error_m = Math.abs(x_at_hoop - hoopX_m);
+      }
+
       console.log('[THROW CALIBRATION]', {
         angle_deg: (ss.lockedAngle * 180/Math.PI).toFixed(1),
         dist_m: distToHoop_m.toFixed(2),
@@ -935,6 +946,10 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         vx: vx_m.toFixed(2),
         vy: vy_m.toFixed(2),
         power_percent: shotPower.toFixed(1),
+        t_to_hoop: t_to_hoop >= 0 ? t_to_hoop.toFixed(3) + 's' : 'invalid',
+        x_at_hoop_m: x_at_hoop >= 0 ? x_at_hoop.toFixed(2) : 'invalid',
+        hoop_x_m: hoopX_m.toFixed(2),
+        error_m: error_m >= 0 ? error_m.toFixed(3) : 'invalid',
         SCALE: SCALE.toFixed(1),
         startX_px: px.toFixed(0),
         startY_px: py.toFixed(0),
@@ -1866,9 +1881,10 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         }
 
         if (ss.phase === 'aiming') {
+          // 🔥 FIX: Use 50% power for aiming preview (neutral arc)
           const launchParams = {
             angle: ss.aimAngle,
-            power: Math.min(200, 10 * 20),
+            power: 50,  // 50% power for preview (not hardcoded formula)
             accuracy: 85,
             distToHoop: Math.hypot(HOOP_X - sx, HOOP_Y - sy),
             playerX: sx,
@@ -1884,10 +1900,15 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
 
         if (ss.phase === 'charging') {
           if (ss.idealTraj) drawTrajPts(ss.idealTraj, 'rgba(255,230,0,0.75)', [6, 5], 1.9);
-          const curSpd = 5 + (ss.power / 100) * 11;
+
+          // 🔥 FIX: Use physics-based power calculation from idealPower
+          // markerPosRef.current oscillates 0-1, map to power 0-100%
+          const markerNorm = markerPosRef.current || 0.5;
+          const shotPowerPercent = markerNorm * 100;
+
           const launchParams = {
             angle: ss.aimAngle,
-            power: Math.min(200, curSpd * 20),
+            power: shotPowerPercent,  // 0-100%, not 0-200 with arbitrary formula
             accuracy: 85,
             distToHoop: Math.hypot(HOOP_X - sx, HOOP_Y - sy),
             playerX: sx,
@@ -1900,7 +1921,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           const idealEnd = ss.idealTraj ? ss.idealTraj[ss.idealTraj.length - 1] : { x: HOOP_X, y: HOOP_Y };
           const curEnd = pts[pts.length - 1];
           const endDiff = Math.hypot(curEnd.x - idealEnd.x, curEnd.y - idealEnd.y);
-          const spdDiff = Math.abs(curSpd - ss.idealSpeed);
+          const spdDiff = Math.abs(shotPowerPercent - (ss.idealPower || 0.5) * 100);
           const matchPct = Math.max(0, Math.min(100, 100 - spdDiff * 13 - endDiff * 0.3));
           let tColor;
           if (matchPct > 92) tColor = 'rgba(0,255,170,0.9)';
@@ -2476,9 +2497,18 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           const distToHoop = Math.hypot(HOOP_X - px, HOOP_Y - py);
           const maxDist = Math.hypot(W, H);
           ss_ideal_power = 50 + (distToHoop / maxDist) * 50;
+
+          // 🔥 FIX: Convert idealSpd (m/s) to power percentage using physics formula
+          // idealSpd from computeIdealSpeed is in m/s
+          // computeLaunchVelocityMeters: ls = idealSpeed * (0.4 + power_norm * 0.8)
+          // At power=100%: ls = idealSpeed * 1.2
+          // So: idealSpd corresponds to power ≈ 100%
+          const MAX_SPEED = 18.0;
+          const idealPowerPercent = Math.max(0.1, Math.min(1.0, idealSpd / MAX_SPEED)) * 100;
+
           const launchParams = {
             angle: ss.lockedAngle,
-            power: Math.min(200, idealSpd * 20),
+            power: idealPowerPercent,  // 0-100%, not hardcoded formula
             accuracy: 85,
             distToHoop,
             playerX: px,
@@ -2499,7 +2529,6 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           const heightDiff_m = (HOOP_Y - py) / SCALE;
           const distToHoop_m = Math.hypot(HOOP_X - px, HOOP_Y - py) / SCALE;
           const physicalIdealSpeed = computeIdealSpeed(distToHoop_m, ss.lockedAngle, heightDiff_m);
-          const MAX_SPEED = 18.0;  // з THROW_CONSTANTS
           ss.idealPower = Math.max(0.1, Math.min(1.0, physicalIdealSpeed / MAX_SPEED));
 
           // Reset marker for distance indicator
