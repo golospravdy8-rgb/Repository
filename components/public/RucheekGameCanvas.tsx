@@ -28,7 +28,6 @@ import {
   checkAllCollisions,
   checkGoalEntry,
   checkGateScoring,
-  computeIdealVelocity,
   sweepSphereVsSphere,
   type PhysicsConstantsM,
 } from "./basketball-physics-engine";
@@ -2410,18 +2409,17 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           markerDirRef.current = 1;
         } else if (ss.phase === "charging") {
           // 🎯 КЛІК 3: КИДОК З ЧИСТОЇ МЕТРИКИ
+          // Мяч повинен рухатись РОВНО з тією ж швидкістю що й v_ideal (червона дуга)
 
           const theta3 = -ss.lockedAngle;
           const hx_m3 = (p.x - 15*scaleX) / SCALE;
           const hy_m3 = (p.y - 52*scaleY) / SCALE;
-          const dx_m3 = HOOP_X / SCALE - hx_m3;
-          const dy_m3 = HOOP_Y / SCALE - hy_m3;
-          const v_ideal3 = computeIdealVelocity(dx_m3, dy_m3, theta3);
-          const power_factor = 0.5 + markerPosRef.current * 1.0;
-          const v_real = v_ideal3 * power_factor;
 
-          const vx_m = Math.cos(theta3) * v_real;
-          const vy_m = -Math.sin(theta3) * v_real;
+          // 🎯 ГАРАНТІЯ: Швидкість = 4.0 + power * 14.0 (та сама формула що й для idealPower)
+          const launch_speed = 4.0 + markerPosRef.current * 14.0;  // 4-18 м/с
+
+          const vx_m = Math.cos(theta3) * launch_speed;
+          const vy_m = -Math.sin(theta3) * launch_speed;
 
           ss.ball = {
             _x_m: hx_m3, _y_m: hy_m3,
@@ -2445,13 +2443,12 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           ss.lockedAngle = null;
 
           console.log('[SHOT 3 LAUNCH]', {
-            cursor_pos: markerPosRef.current.toFixed(2),
-            v_ideal: v_ideal3.toFixed(2),
-            v_real: v_real.toFixed(2),
-            power_factor: power_factor.toFixed(2),
+            marker_pos_0_1: markerPosRef.current.toFixed(3),
+            launch_speed_ms: launch_speed.toFixed(2),
             vx_m: vx_m.toFixed(2),
             vy_m: vy_m.toFixed(2),
             theta_deg: (theta3 * 180/Math.PI).toFixed(1),
+            expected_ideal_power: ((launch_speed - 4.0) / 14.0).toFixed(3),
           });
 
         }

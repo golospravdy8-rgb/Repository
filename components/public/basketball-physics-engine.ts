@@ -344,15 +344,6 @@ export function simulateTrajectory(p: {
   return pts;
 }
 
-export function computeIdealVelocity(dx_m: number, dy_m: number, theta: number): number {
-  const g = 9.81;
-  const c = Math.cos(theta);
-  const t = Math.tan(theta);
-  const d = 2 * c * c * (dx_m * t - dy_m);
-  if (d <= 0.01) return 10.0;
-  return Math.max(4, Math.min(18, Math.sqrt(g * dx_m * dx_m / d)));
-}
-
 export function updateOscillator(cp: number, a: number = 0.3, f: number = 2.5): number {
   const t = (Date.now() % 10000) / 10000;
   return cp + a * Math.sin(t * f * Math.PI * 2);
