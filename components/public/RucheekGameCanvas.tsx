@@ -408,35 +408,15 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
     const MIN_BALL_SPEED = 5.0;
     const MAX_BALL_SPEED = 16.0;
 
-    function calculateBallSpeedFromPower(powerPercent: number): number {
-      // Power scale: 0-200% → Speed: 5-16 m/s
-      const clampedPower = Math.max(0, Math.min(200, powerPercent));
-      const speedMultiplier = clampedPower / 200;
-      return MIN_BALL_SPEED + (MAX_BALL_SPEED - MIN_BALL_SPEED) * speedMultiplier;
-    }
-
-    // НОВАЯ СИСТЕМА КОЛІЖІЙ: 5 різних результатів кидка
-    // ETAP 5: Determine realistic hit type (DIRECT/ARC/SWISH) based on accuracy and position
+    // ETAP 5: Determine net swing animation type based on ball hit characteristics
     function determineHitType(accuracy: number, dx: number, dy: number, dist: number): string {
-      // DIRECT: 60% (accuracy affects probability)
-      // ARC: 25% (ball bounces off rim)
-      // SWISH: 15% (pure net catch)
-
+      // Only used for net swing animation, not physics determination
       const horizontalDist = Math.abs(dx);
-      const NET_ZONE = HOOP_RADIUS - BALL_RADIUS;  // 10px
-      const RIM_EDGE = HOOP_RADIUS;  // 22px
+      const NET_ZONE = HOOP_RADIUS - BALL_RADIUS;
+      const RIM_EDGE = HOOP_RADIUS;
 
-      // Pure center → SWISH (if accuracy >= 90%)
-      if (dist < NET_ZONE && accuracy >= 90) {
-        return 'SWISH';
-      }
-
-      // Near rim edge → ARC (ball bounces)
-      if (horizontalDist > NET_ZONE && horizontalDist <= RIM_EDGE && accuracy >= 75) {
-        return 'ARC';
-      }
-
-      // Default to DIRECT for most cases
+      if (dist < NET_ZONE && accuracy >= 90) return 'SWISH';
+      if (horizontalDist > NET_ZONE && horizontalDist <= RIM_EDGE && accuracy >= 75) return 'ARC';
       return 'DIRECT';
     }
 
@@ -455,32 +435,6 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       return 200;
     }
 
-    function calculateIdealPowerByExactDistance(distToHoop: number): number {
-      // Professional calibration: distance → ideal power (0-200%)
-      const maxDist = Math.hypot(W, H);
-      const distFraction = distToHoop / maxDist;
-
-      let idealPower;
-
-      if (distFraction <= 0.15) {
-        // Very close (0-15%)
-        idealPower = 30 + (distFraction / 0.15) * 20;
-      } else if (distFraction <= 0.35) {
-        // Close (15-35%)
-        idealPower = 50 + ((distFraction - 0.15) / 0.20) * 20;
-      } else if (distFraction <= 0.55) {
-        // Mid-range (35-55%)
-        idealPower = 70 + ((distFraction - 0.35) / 0.20) * 50;
-      } else if (distFraction <= 0.80) {
-        // Three-point (55-80%)
-        idealPower = 120 + ((distFraction - 0.55) / 0.25) * 50;
-      } else {
-        // Deep (80%+)
-        idealPower = 170 + ((distFraction - 0.80) / 0.20) * 30;
-      }
-
-      return Math.max(30, Math.min(200, Math.round(idealPower)));
-    }
 
     // Game logic functions from original demo
     function hitTestPlayer(mx: number, my: number, px: number, py: number) {
@@ -498,44 +452,6 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       gs.flashes.push({ text, x, y, color, alpha: 1, dy: 0 });
     }
 
-    function simTraj(sx: number, sy: number, angle: number, speed: number, maxSteps: number) {
-      const pts = [{ x: sx, y: sy }];
-      let x = sx, y = sy, vx = Math.cos(angle) * speed, vy = Math.sin(angle) * speed;
-      for (let i = 0; i < (maxSteps || 95); i++) {
-        vy += G;
-        x += vx;
-        y += vy;
-        pts.push({ x, y });
-        if (y > GY || x < 0 || x > W) break;
-      }
-      return pts;
-    }
-
-    function getIdealAngleForDistance(distToHoop: number) {
-      const distFraction = distToHoop / Math.hypot(W, H);
-      let angleRange = { min: -0.60, ideal: -0.70, max: -0.80 };
-
-      if (distFraction > 0.5) {
-        angleRange = { min: -0.75, ideal: -0.87, max: -0.98 };
-      }
-      if (distFraction > 0.75) {
-        angleRange = { min: -0.85, ideal: -0.93, max: -1.02 };
-      }
-      return angleRange;
-    }
-
-    function calculateGreenZoneBands(distToHoop: number) {
-      const distFraction = distToHoop / Math.hypot(W, H);
-      let tolerance;
-      if (distFraction <= 0.3) {
-        tolerance = 5;
-      } else if (distFraction <= 0.6) {
-        tolerance = 8;
-      } else {
-        tolerance = 7;
-      }
-      return tolerance;
-    }
 
     // NEW: Calculate ideal power based on distance (0-200% scale)
     function calculateIdealPowerByDistance(playerX: number, playerY: number, maxDist: number = realMaxDistance): number {
@@ -2317,38 +2233,42 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           const dx_m = hoopX_m - headX_m;
           const dy_m = hoopY_m - headY_m;
 
-          const g = 9.81;
           const theta = -ss.lockedAngle;  // canvas угол (від'ємне = вгору) → математичний
 
           // 🎯 ГАРАНТОВАНА ДУГА: Знайти швидкість яка доводить м'яч найближче до кільця
+          // Використовуємо simulateTrajectory для точного симулювання (та сама фізика що й в гру)
           let bestV = 8.0;
           let bestDist = 9999;
+          let bestTraj: Array<{ x: number; y: number }> = [];
 
           for (let v = 4.0; v <= 18.0; v += 0.15) {
             const vx_test = Math.cos(theta) * v;
             const vy_test = -Math.sin(theta) * v;
 
-            // Симулювати на короткий час
-            let tx = headX_m, ty = headY_m;
-            let tvx = vx_test, tvy = vy_test;
-            const dt = 1/120;
+            const traj = simulateTrajectory({
+              vx_m: vx_test,
+              vy_m: vy_test,
+              x0_m: headX_m,
+              y0_m: headY_m,
+              scale: SCALE,
+              groundY_m: groundY_m,
+              hoopX_m: hoopX_m,
+              hoopY_m: hoopY_m,
+            });
 
-            for (let i = 0; i < 300; i++) {
-              tx += tvx * dt;
-              ty += tvy * dt;
-              tvy += g * dt;
-
-              // Перевірити відстань до кільця
-              const dx_test = tx - hoopX_m;
-              const dy_test = ty - hoopY_m;
+            // Знайти мінімальну відстань до кільця по траєкторії
+            for (const pt of traj) {
+              const x_m = pt.x / SCALE;
+              const y_m = pt.y / SCALE;
+              const dx_test = x_m - hoopX_m;
+              const dy_test = y_m - hoopY_m;
               const dist = Math.sqrt(dx_test*dx_test + dy_test*dy_test);
 
               if (dist < bestDist) {
                 bestDist = dist;
                 bestV = v;
+                bestTraj = traj;
               }
-
-              if (ty > groundY_m) break;
             }
           }
 
@@ -2392,6 +2312,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
               dy: Math.round(ss.idealTraj[ss.idealTraj.length-1].y - HOOP_Y),
             } : 'no arc',
             bestDist_m: bestDist.toFixed(4),
+            v_ideal_used: v_ideal.toFixed(3),
           });
 
           ss.phase = "charging";
