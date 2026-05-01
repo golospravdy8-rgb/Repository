@@ -865,8 +865,8 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         if (p.status === 'eliminated') continue;
         if (ss.phase === 'aiming') {
           ss.aimAngle += ss.aimDir * 0.022;
-          if (ss.aimAngle > -0.08) { ss.aimAngle = -0.08; ss.aimDir = -1; }
-          if (ss.aimAngle < -Math.PI * 0.75) { ss.aimAngle = -Math.PI * 0.75; ss.aimDir = 1; }
+          if (ss.aimAngle > -0.02) { ss.aimAngle = -0.02; ss.aimDir = -1; }
+          if (ss.aimAngle < -Math.PI * 0.5) { ss.aimAngle = -Math.PI * 0.5; ss.aimDir = 1; }
         }
         if (ss.phase === 'charging') {
           // Oscillate distance indicator marker with arcade-style difficulty
@@ -1697,6 +1697,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       for (let i = 0; i < gs.players.length; i++) {
         const p = gs.players[i], ss = gs.shootStates[i];
         if (p.status === 'eliminated') continue;
+        const isMine = i === 0;
         const sx = p.x - 15*scaleX, sy = p.y - 55*scaleY;
         const danger = ss.inDanger || false;
 
@@ -1757,30 +1758,6 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           }
 
           // СИНЯ ДИНАМІЧНА ДУГА (поточна сила)
-          const curPower = markerPosRef.current;  // 0-1
-          const v_cur = (ss.idealVelocity || 10) * (0.5 + curPower * 1.0);
-          const theta2 = -ss.lockedAngle;
-          const hx_m2 = sx / SCALE;
-          const hy_m2 = (p.y - 52*scaleY) / SCALE;
-          const dynArc = simulateTrajectory({
-            vx_m: Math.cos(theta2) * v_cur,
-            vy_m: -Math.sin(theta2) * v_cur,
-            x0_m: hx_m2, y0_m: hy_m2,
-            scale: SCALE, groundY_m: GY / SCALE
-          });
-          if (dynArc.length > 2) {
-            ctx.save();
-            ctx.strokeStyle = 'rgba(100,150,255,0.7)';
-            ctx.lineWidth = 2;
-            ctx.setLineDash([5, 4]);
-            ctx.beginPath();
-            ctx.moveTo(dynArc[0].x, dynArc[0].y);
-            for (let k = 1; k < dynArc.length; k++) ctx.lineTo(dynArc[k].x, dynArc[k].y);
-            ctx.stroke();
-            ctx.setLineDash([]);
-            ctx.restore();
-          }
-
           // ШКАЛА СИЛИ
           const bx = p.x + 30*scaleX, bTop = p.y - 90*scaleY;
           const bW = 14*scaleX, bH = 90*scaleY;
@@ -1800,7 +1777,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
 
         }
 
-        if (ss.ball && ss.phase === 'flying') {
+        if (isMine && ss.ball && ss.phase === 'flying') {
 
           ctx.save();
           ctx.translate(ss.ball.x, ss.ball.y);
@@ -1810,7 +1787,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         } else if (ss.ball) {
 
         }
-        if (ss.ball && ss.phase === 'auto_run') {
+        if (isMine && ss.ball && ss.phase === 'auto_run') {
           ctx.save();
           // ETAP 5: ENHANCED DRIBBLE BOUNCE ANIMATION - More realistic (12-15px, 120ms cycle)
           const dribbleTime = (Date.now() % 120) / 120;  // 0-1 cycle in 120ms
@@ -1841,7 +1818,6 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         drawStick(p.x, p.y, pose, p.rf, danger, p.color);
 
         const kills = p.kills || 0;
-        const isMine = i === 0;
         if (kills > 0) {
           ctx.fillStyle = '#ff6644';
           ctx.font = `bold ${11*scaleX}px sans-serif`;
