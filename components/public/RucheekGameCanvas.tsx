@@ -128,9 +128,6 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
 
   // Power Meter System refs and state
   const powerMeterRef = useRef<PowerMeterSystem | null>(null);
-  const meterElementRef = useRef<HTMLDivElement | null>(null);
-  const [meterVisible, setMeterVisible] = useState(false);
-  const [greenLinePosition, setGreenLinePosition] = useState(180);
 
   useEffect(() => {
     // SYSTEM STARTUP: Verify physics is pure
@@ -419,17 +416,6 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
     const MIN_BALL_SPEED = 5.0;
     const MAX_BALL_SPEED = 16.0;
 
-    // ETAP 5: Determine net swing animation type based on ball hit characteristics
-    function determineHitType(accuracy: number, dx: number, dy: number, dist: number): string {
-      // Only used for net swing animation, not physics determination
-      const horizontalDist = Math.abs(dx);
-      const NET_ZONE = HOOP_RADIUS - BALL_RADIUS;
-      const RIM_EDGE = HOOP_RADIUS;
-
-      if (dist < NET_ZONE && accuracy >= 90) return 'SWISH';
-      if (horizontalDist > NET_ZONE && horizontalDist <= RIM_EDGE && accuracy >= 75) return 'ARC';
-      return 'DIRECT';
-    }
 
     function getHoopInsideDepth(ballX: number, ballY: number, hoopX: number, hoopY: number): number {
       const dx = ballX - hoopX;
@@ -484,60 +470,6 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         idealPower = 150 + ((distFraction - 0.85) / 0.15) * 40;
       }
       return Math.max(30, Math.min(200, Math.round(idealPower)));
-    }
-
-    // NEW: Calculate green zone tolerance percentage based on distance
-    function calculateGreenZoneTolerance(distFraction: number): number {
-      if (distFraction <= 0.3) {
-        return 5; // Close: ±5%
-      } else if (distFraction <= 0.6) {
-        return 8; // Mid: ±8%
-      } else if (distFraction <= 0.85) {
-        return 7; // Three-point: ±7%
-      } else {
-        return 6; // Deep: ±6%
-      }
-    }
-
-    // NEW: Draw dynamic power meter with distance-based green zone
-    function drawDynamicPowerMeter(ctx: any, x: number, y: number, width: number, height: number, currentPower: number, idealPower: number, tolerance: number) {
-      const fillHeight = (currentPower / 200) * height;
-      const idealY = y + height - (idealPower / 200) * height;
-      const toleranceHeight = (tolerance * 2 / 100) * height;
-
-      // Background
-      ctx.fillStyle = 'rgba(0,0,0,0.85)';
-      ctx.fillRect(x, y, width, height);
-      ctx.strokeStyle = '#555';
-      ctx.lineWidth = 1;
-      ctx.strokeRect(x, y, width, height);
-
-      // Green zone (dynamic position based on ideal power)
-      ctx.fillStyle = 'rgba(68,255,68,0.5)';
-      ctx.fillRect(x, idealY - toleranceHeight / 2, width, toleranceHeight);
-
-      // Current power fill
-      const clr = currentPower > 92 ? '#00ffaa' : currentPower > 85 ? '#44cc44' : currentPower > 55 ? '#ffcc00' : '#e05545';
-      ctx.fillStyle = clr;
-      ctx.fillRect(x, y + height - fillHeight, width, fillHeight);
-
-      // Current power indicator line
-      ctx.strokeStyle = '#fff';
-      ctx.lineWidth = 2.5;
-      ctx.beginPath();
-      ctx.moveTo(x - 5, y + height - fillHeight);
-      ctx.lineTo(x + width + 5, y + height - fillHeight);
-      ctx.stroke();
-
-      // Ideal power line (dashed)
-      ctx.setLineDash([3, 3]);
-      ctx.strokeStyle = 'rgba(100,255,100,0.75)';
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.moveTo(x - 3, idealY);
-      ctx.lineTo(x + width + 3, idealY);
-      ctx.stroke();
-      ctx.setLineDash([]);
     }
 
     function calculateIdealMarkerPos(
@@ -819,48 +751,22 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         }
       }
 
-      // FIX 4 + ETAP 7: ACCURACY DISPLAY with perfect release highlight
+      // Pure physics scoring - no accuracy UI
       const ss = gs.shootStates[idx];
-      const accuracy = ss.powerMeterResult?.accuracy || 100;
-      const distMeters = (ss.distToHoop ? (ss.distToHoop / 140).toFixed(1) : '?');  // 140px = 1m
+      const distMeters = (ss.distToHoop ? (ss.distToHoop / 140).toFixed(1) : '?');
 
-      // ETAP 7: Special message for perfect 100% accuracy (green line hit)
-      let flashText: string;
-      let flashColor = '#44cc44';  // Default green
-      if (accuracy >= 95) {
-        flashText = `🎯 100% ІДЕАЛЬНО! ${distMeters}m | ПРЯМЕ ПОПАДАННЯ`;
-        flashColor = '#00ff00';  // Bright green for perfect release
-      } else {
-        const accuracyText = accuracy >= 85 ? '⭐' : accuracy >= 75 ? '🟢' : accuracy >= 65 ? '🟡' : '🔴';
-        flashText = `${accuracyText} ПОПАВ! +1 (${distMeters}m, ${Math.round(accuracy)}%)`;
-      }
+      let flashText = `✅ ГІОЛ! +1 (${distMeters}m)`;
+      let flashColor = '#44ff44';
 
-      // Bank shot indicator
-      if (ss.ball?.hitBackboard) {
-        flashText += ' 🏦 BANK!';
-        if (ss.ball.outcome === 'bank') {
-          flashColor = '#ff8800';  // Orange for bank shot
-        }
+      if (ss.ball?.outcome === 'bank') {
+        flashText = `🏦 BANK! +1 (${distMeters}m)`;
+        flashColor = '#ff8800';
       }
 
       addFlash(flashText, HOOP_X + 55*scaleX, HOOP_Y - 45*scaleY, flashColor);
 
-      // ETAP 5: Determine hit type and set net swing animation
       const ball = ss.ball;
-      let hitType = 'DIRECT';
-      let netDuration = 200;  // ms
-      if (ball) {
-        const dx = ball.x - HOOP_X;
-        const dy = ball.y - HOOP_Y;
-        const dist = Math.hypot(dx, dy);
-        hitType = determineHitType(accuracy, dx, dy, dist);
-
-        // Different net swing durations for each type
-        if (hitType === 'DIRECT') netDuration = 200;
-        else if (hitType === 'ARC') netDuration = 300;
-        else if (hitType === 'SWISH') netDuration = 100;
-      }
-      gs.netSwing = { type: hitType, startTime: Date.now(), duration: netDuration };
+      gs.netSwing = { type: 'DIRECT', startTime: Date.now(), duration: 200 };
 
       gs.netShake = true;
       gs.netShakeEnd = Date.now() + 700;
@@ -1224,27 +1130,8 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       const px = p.x - 15*scaleX, py = p.y - 55*scaleY;
       const distToHoop = Math.hypot(HOOP_X - px, HOOP_Y - py);
 
-      // Get dynamic ideal power and tolerance based on distance
-      const distFraction = distToHoop / realMaxDistance;
-      const idealPower = calculateIdealPowerByDistance(px, py, realMaxDistance);
-      const tolerance = calculateGreenZoneTolerance(distFraction);
+      // Pure physics - no arcade meter UI
 
-      // Use new dynamic power meter drawer
-      drawDynamicPowerMeter(ctx, bx, by, bw, bh, pwr, idealPower, tolerance);
-
-      // Power percentage label
-      const clr = matchPct > 92 ? '#00ffaa' : matchPct > 85 ? '#44cc44' : matchPct > 55 ? '#ffcc00' : '#e05545';
-      ctx.fillStyle = clr;
-      ctx.font = `bold ${11*scaleX}px sans-serif`;
-      ctx.textAlign = 'center';
-      ctx.fillText(Math.round(pwr) + '%', bx + bw / 2, by - 7*scaleY);
-
-      // Distance indicator
-      ctx.fillStyle = 'rgba(150,200,255,0.8)';
-      ctx.font = `${8*scaleX}px sans-serif`;
-      ctx.textAlign = 'center';
-      const distPercent = Math.round(distFraction * 100);
-      ctx.fillText(`${distPercent}% dist`, bx + bw / 2, by + bh + 12*scaleY);
     }
 
     function drawBasket() {
@@ -2287,11 +2174,6 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           ss.powerDir = 1;
 
           const tolerance = 0.08;  // ±8% от идеальной силы (в 0-1 scale)
-          const pMin = Math.max(0, ss.idealPower - tolerance);
-          const pMax = Math.min(1, ss.idealPower + tolerance);
-          ss.greenZoneMin = pMin;
-          ss.greenZoneMax = pMax;
-          ss.greenZonePos = ss.idealPower;
 
           markerPosRef.current = ss.idealPower;
           markerDirRef.current = 1;
@@ -2565,7 +2447,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       goalCount: 0,
     };
     gs.players.push(newPlayer);
-    gs.shootStates.push({ phase:null,aimAngle:-Math.PI*0.98,aimDir:1,power:0,powerDir:1,ball:null,lockedAngle:null,idealTraj:null,idealSpeed:10,runTarget:null,inDanger:false,greenZonePos:0.5,powerMeterResult:null,accuracy:0 });
+    gs.shootStates.push({ phase:null,aimAngle:-Math.PI*0.98,aimDir:1,power:0,powerDir:1,ball:null,lockedAngle:null,idealTraj:null,idealSpeed:10,runTarget:null,inDanger:false });
 
     // 🔥 КРИТИЧНО: Регистрируем гравца на Firebase (joinGame) с реальными координатами
     joinGame(gameRoomId, playerIdRef.current, name, positionIndex, newPlayer.x, newPlayer.y)

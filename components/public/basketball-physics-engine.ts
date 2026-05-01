@@ -101,6 +101,9 @@ function applyRimImpulse(b: BallStateM, ccd: CcdResult, C: PhysicsConstantsM): v
   b.vy += J_n * ccd.ny - J_t * ccd.nx;
   b.omega *= 0.70;
 
+  // Tangential damping: realistic rim friction on lateral velocity
+  b.vx *= 0.8;
+
   // 🏀 RIM CAPTURE: Low speed + inside rim zone → ball settles
   const speed = Math.sqrt(b.vx * b.vx + b.vy * b.vy);
   const spin_magnitude = Math.abs(b.omega);
@@ -168,7 +171,11 @@ export function checkAllCollisions(b: BallStateM, dt: number, C: PhysicsConstant
   checkBackboardCollision(b, C);
   checkPoleCollision(b, C);
 
-  // 🏀 8-POINT RIM COLLISION SYSTEM
+  // 🏀 8-POINT RIM COLLISION SYSTEM WITH REALISTIC TOLERANCE
+  // Rim tolerance = 0.015m (15mm) simulates rim flex, ball compression, real-world imperfections
+  const RIM_TOLERANCE = 0.015;
+  const EFFECTIVE_RIM_RADIUS = C.RIM_RADIUS_M * 1.08 + RIM_TOLERANCE;
+
   // Проверяем только боковые точки (|cos(angle)| > 0.25 = дужки слева и справа)
   const NUM_RIM_POINTS = 8;
   let bestCcd: CcdResult | null = null;
@@ -182,8 +189,8 @@ export function checkAllCollisions(b: BallStateM, dt: number, C: PhysicsConstant
     // Пропускаем точки сверху и снизу (| cosA | < 0.25 = верх и низ эллипса)
     if (Math.abs(cosA) < 0.25) continue;
 
-    const rimX = C.HOOP_X_M + cosA * C.RIM_RADIUS_M;
-    const rimY = C.HOOP_Y_M + sinA * C.RIM_RADIUS_M * 0.3;
+    const rimX = C.HOOP_X_M + cosA * EFFECTIVE_RIM_RADIUS;
+    const rimY = C.HOOP_Y_M + sinA * EFFECTIVE_RIM_RADIUS * 0.3;
 
     const ccd = sweepSphereVsSphere(
       b,
@@ -426,7 +433,7 @@ export interface BallPhysicsResult { newVx: number; newVy: number; newRot: numbe
 export interface CollisionType { type: string; }
 
 export const PHYSICS_CONSTANTS = {
-  GRAVITY: 0.42, DRAG_COEFFICIENT: 0.0008, RIM_RESTITUTION: 0.45, RIM_FRICTION: 0.42,
+  GRAVITY: 0.42, DRAG_COEFFICIENT: 0.0008, RIM_RESTITUTION: 0.35, RIM_FRICTION: 0.42,
   BACKBOARD_RESTITUTION_X: 0.55, BACKBOARD_RESTITUTION_Y: 0.70, FLOOR_RESTITUTION: 0.60, FLOOR_FRICTION: 0.75,
   MIN_BOUNCE_SPEED: 0.3, MAX_BOUNCES: 4, BALL_RADIUS: 10, SPIN_DAMPING: 0.97, SPIN_EFFECT_MAGNITUDE: 0.003,
   SPIN_DECAY_RATE: 0.25, MAGNUS_COEFFICIENT: 0.06, BACKBOARD_RESTITUTION: 0.35, BACKBOARD_FRICTION: 0.3,
