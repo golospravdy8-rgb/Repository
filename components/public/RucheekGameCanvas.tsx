@@ -2386,25 +2386,19 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           ss.idealTraj = null;
           ss.lockedAngle = null;
 
-          console.log('[LAUNCH DIAGNOSTIC]', {
-            lockedAngle_rad: ss.lockedAngle,
-            theta_rad: theta3,
-            theta_deg: (theta3 * 180 / Math.PI).toFixed(1),
-            ss_power: markerPosRef.current.toFixed(4),
-            idealPower: ss.idealPower?.toFixed(4),
-            greenZonePos: ss.greenZonePos?.toFixed(4),
-            idealVelocity_ms: ss.idealVelocity?.toFixed(3),
-            launch_speed_computed: launch_speed.toFixed(3),
-            SCALE: SCALE,
-            head_px: { x: Math.round(p.x - 15*scaleX), y: Math.round(p.y - 52*scaleY) },
-            hoop_px: { x: Math.round(HOOP_X), y: Math.round(HOOP_Y) },
-            head_m: { x: hx_m3.toFixed(3), y: hy_m3.toFixed(3) },
-            hoop_m: { x: (HOOP_X/SCALE).toFixed(3), y: (HOOP_Y/SCALE).toFixed(3) },
-            ball_x_px: (hx_m3 * SCALE).toFixed(1),
-            ball_y_px: (hy_m3 * SCALE).toFixed(1),
-            vx_m: vx_m.toFixed(3),
-            vy_m: vy_m.toFixed(3),
-          });
+          if (typeof window !== 'undefined') {
+            setTimeout(() => {
+              console.log('[LAUNCH DIAGNOSTIC]', {
+                theta_deg: (theta3 * 180 / Math.PI).toFixed(1),
+                ss_power: markerPosRef.current.toFixed(4),
+                idealPower: ss.idealPower?.toFixed(4),
+                idealVelocity_ms: ss.idealVelocity?.toFixed(3),
+                launch_speed_computed: launch_speed.toFixed(3),
+                vx_m: vx_m.toFixed(3),
+                vy_m: vy_m.toFixed(3),
+              });
+            }, 0);
+          }
 
         }
       } else {

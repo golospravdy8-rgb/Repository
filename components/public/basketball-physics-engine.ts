@@ -38,11 +38,9 @@ export interface RimCollisionResult { newVx: number; newVy: number; outcome: str
 export interface BackboardCollisionResult { newVx: number; newVy: number; bounced: boolean; }
 
 export function integratePhysics(b: BallStateM, dt: number, C: PhysicsConstantsM): void {
-  const speed = Math.sqrt(b.vx * b.vx + b.vy * b.vy);
-  const dragAcc = C.Cd * speed;
-  const ax = -dragAcc * b.vx - C.Cm * b.omega * b.vy;
-  const ay = C.GRAVITY - dragAcc * b.vy + C.Cm * b.omega * b.vx;
-  b._x_m += b.vx * dt + 0.5 * ax * dt * dt;
+  const ax = 0;
+  const ay = C.GRAVITY;
+  b._x_m += b.vx * dt;
   b._y_m += b.vy * dt + 0.5 * ay * dt * dt;
   b.vx += ax * dt;
   b.vy += ay * dt;
@@ -323,25 +321,13 @@ export function simulateTrajectory(p: {
   hoopX_m?: number; hoopY_m?: number;
 }): Array<{ x: number; y: number }> {
   const g = 9.81, dt = 1/120;
-  const Cd = 0.004;  // Same as C.Cd in integratePhysics
-  const Cm = 0.000045;  // Same as C.Cm in integratePhysics (set omega=0 for ideal arc)
   const pts: {x:number,y:number}[] = [];
   let x = p.x0_m, y = p.y0_m, vx = p.vx_m, vy = p.vy_m;
-  const omega = 0;  // No spin for ideal arc calculation (simplified)
 
   for (let i = 0; i < 600; i++) {
-    // Apply physics: drag + gravity (magnus=0 since omega=0)
-    const speed = Math.sqrt(vx * vx + vy * vy);
-    const dragAcc = Cd * speed;
-    const ax = -dragAcc * vx;  // Drag on X
-    const ay = g - dragAcc * vy;  // Gravity - drag on Y (same sign as integratePhysics)
-
-    // Verlet integration (same as integratePhysics)
-    x += vx * dt + 0.5 * ax * dt * dt;
-    y += vy * dt + 0.5 * ay * dt * dt;
-    vx += ax * dt;
-    vy += ay * dt;
-
+    x += vx * dt;
+    y += vy * dt;
+    vy += g * dt;
     pts.push({ x: x * p.scale, y: y * p.scale });
 
     // Stop if reached hoop
