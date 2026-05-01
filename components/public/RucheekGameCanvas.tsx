@@ -2425,7 +2425,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
             _x_m: hx_m3, _y_m: hy_m3,
             vx: vx_m, vy: vy_m,
             omega: 0,
-            x: p.x - 15*scaleX, y: p.y - 55*scaleY,
+            x: hx_m3 * SCALE, y: hy_m3 * SCALE,  // пиксели = метри × SCALE (синхронізовано з _x_m/_y_m)
             rot: 0, spin: 0,
             _accumulator: 0, _physTick: 0, _checkpoints: [],
             _scale: SCALE,
@@ -2442,13 +2442,24 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           ss.idealTraj = null;
           ss.lockedAngle = null;
 
-          console.log('[SHOT 3 LAUNCH]', {
-            marker_pos_0_1: markerPosRef.current.toFixed(3),
-            launch_speed_ms: launch_speed.toFixed(2),
-            vx_m: vx_m.toFixed(2),
-            vy_m: vy_m.toFixed(2),
-            theta_deg: (theta3 * 180/Math.PI).toFixed(1),
-            expected_ideal_power: ((launch_speed - 4.0) / 14.0).toFixed(3),
+          console.log('[LAUNCH DIAGNOSTIC]', {
+            lockedAngle_rad: ss.lockedAngle,
+            theta_rad: theta3,
+            theta_deg: (theta3 * 180 / Math.PI).toFixed(1),
+            ss_power: markerPosRef.current.toFixed(4),
+            idealPower: ss.idealPower?.toFixed(4),
+            greenZonePos: ss.greenZonePos?.toFixed(4),
+            idealVelocity_ms: ss.idealVelocity?.toFixed(3),
+            launch_speed_computed: launch_speed.toFixed(3),
+            SCALE: SCALE,
+            head_px: { x: Math.round(p.x - 15*scaleX), y: Math.round(p.y - 52*scaleY) },
+            hoop_px: { x: Math.round(HOOP_X), y: Math.round(HOOP_Y) },
+            head_m: { x: hx_m3.toFixed(3), y: hy_m3.toFixed(3) },
+            hoop_m: { x: (HOOP_X/SCALE).toFixed(3), y: (HOOP_Y/SCALE).toFixed(3) },
+            ball_x_px: (hx_m3 * SCALE).toFixed(1),
+            ball_y_px: (hy_m3 * SCALE).toFixed(1),
+            vx_m: vx_m.toFixed(3),
+            vy_m: vy_m.toFixed(3),
           });
 
         }
