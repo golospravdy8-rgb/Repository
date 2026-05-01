@@ -2279,24 +2279,28 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           const vx_ideal = Math.cos(theta) * v_ideal;
           const vy_ideal = -Math.sin(theta) * v_ideal;
 
-          // 📊 DETAILED BESTV SEARCH DIAGNOSTICS
-          console.log('[BEST_V_SEARCH]', {
-            bestV: bestV.toFixed(2),
-            bestDist_m: bestDist.toFixed(3),
-            theta_deg: (theta * 180/Math.PI).toFixed(1),
-            headX_m: headX_m.toFixed(3),
-            headY_m: headY_m.toFixed(3),
-            hoopX_m: hoopX_m.toFixed(3),
-            hoopY_m: hoopY_m.toFixed(3),
-            dx_m: (hoopX_m - headX_m).toFixed(3),
-            dy_m: (hoopY_m - headY_m).toFixed(3),
-            idealPower: ss.idealPower?.toFixed(4),
-            reachesHoop: (bestDist < 0.5) ? '✅ YES' : '❌ NO - MISSES',
-            vx_ideal: vx_ideal.toFixed(3),
-            vy_ideal: vy_ideal.toFixed(3),
-            vx_sign: vx_ideal < 0 ? '✅ LEFT (correct)' : '❌ RIGHT (wrong)',
-            vy_sign: vy_ideal < 0 ? '✅ UP (correct)' : '❌ DOWN (wrong)',
-          });
+          // 📊 DETAILED BESTV SEARCH DIAGNOSTICS (logged to browser console on Click 1)
+          if (typeof window !== 'undefined') {
+            setTimeout(() => {
+              console.log('[BEST_V_SEARCH]', {
+                bestV: bestV.toFixed(2),
+                bestDist_m: bestDist.toFixed(3),
+                theta_deg: (theta * 180/Math.PI).toFixed(1),
+                headX_m: headX_m.toFixed(3),
+                headY_m: headY_m.toFixed(3),
+                hoopX_m: hoopX_m.toFixed(3),
+                hoopY_m: hoopY_m.toFixed(3),
+                dx_m: (hoopX_m - headX_m).toFixed(3),
+                dy_m: (hoopY_m - headY_m).toFixed(3),
+                idealPower: ss.idealPower?.toFixed(4),
+                reachesHoop: (bestDist < 0.5) ? '✅ YES' : '❌ NO - MISSES',
+                vx_ideal: vx_ideal.toFixed(3),
+                vy_ideal: vy_ideal.toFixed(3),
+                vx_sign: vx_ideal < 0 ? '✅ LEFT (correct)' : '❌ RIGHT (wrong)',
+                vy_sign: vy_ideal < 0 ? '✅ UP (correct)' : '❌ DOWN (wrong)',
+              });
+            }, 0);
+          }
 
           // Генерировать дугу через simulateTrajectory з гарантією досягнення кільця
           ss.idealTraj = simulateTrajectory({
