@@ -865,8 +865,9 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         if (p.status === 'eliminated') continue;
         if (ss.phase === 'aiming') {
           ss.aimAngle += ss.aimDir * 0.022;
-          if (ss.aimAngle > -0.02) { ss.aimAngle = -0.02; ss.aimDir = -1; }
-          if (ss.aimAngle < -Math.PI * 0.5) { ss.aimAngle = -Math.PI * 0.5; ss.aimDir = 1; }
+          // Меж: від горизонталі вліво (-π*0.98) до вертикалі вгору (-π/2)
+          if (ss.aimAngle < -Math.PI * 0.98) { ss.aimAngle = -Math.PI * 0.98; ss.aimDir = 1; }
+          if (ss.aimAngle > -Math.PI * 0.5) { ss.aimAngle = -Math.PI * 0.5; ss.aimDir = -1; }
         }
         if (ss.phase === 'charging') {
           // Oscillate distance indicator marker with arcade-style difficulty
@@ -2230,7 +2231,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         if (saved.shootStates && saved.shootStates.length > 0) {
           gs.shootStates = saved.shootStates.map((ss: any) => ({
             phase: ss.phase,
-            aimAngle: ss.aimAngle || -Math.PI * 0.72,
+            aimAngle: ss.aimAngle || -Math.PI * 0.98,
             aimDir: 1,
             power: ss.power || 0,
             powerDir: 1,
@@ -2295,10 +2296,10 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           ss.phase = "aiming";
           const behindBoard = (p.x - 15*scaleX) < BOARD_FACE;
           // 🚨 ВИПРАВЛЕННЯ: Обидва кути повинні бути вверх (від'ємні в canvas coords)
-          // behindBoard: -0.6 rad ≈ -34° (більш мілкий дугу)
-          // normal: -Math.PI*0.72 ≈ -129° (висока дуга)
-          ss.aimAngle = behindBoard ? -0.6 : -Math.PI*0.72;
-          ss.aimDir = behindBoard ? -1 : 1;
+          // Стрілка рухається від горизонталі вліво до вертикалі вгору
+          // (0° = вправо, -π/2 = вгору, -π = вліво)
+          ss.aimAngle = -Math.PI * 0.98;  // старт: майже горизонталь вліво
+          ss.aimDir = 1;  // до вертикалі (вгору)
           ss.lockedAngle = null;
           ss.idealTraj = null;
           p.status = "shooting";
@@ -2638,7 +2639,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       goalCount: 0,
     };
     gs.players.push(newPlayer);
-    gs.shootStates.push({ phase:null,aimAngle:-Math.PI*0.72,aimDir:1,power:0,powerDir:1,ball:null,lockedAngle:null,idealTraj:null,idealSpeed:10,runTarget:null,inDanger:false,greenZonePos:0.5,powerMeterResult:null,accuracy:0 });
+    gs.shootStates.push({ phase:null,aimAngle:-Math.PI*0.98,aimDir:1,power:0,powerDir:1,ball:null,lockedAngle:null,idealTraj:null,idealSpeed:10,runTarget:null,inDanger:false,greenZonePos:0.5,powerMeterResult:null,accuracy:0 });
 
     // 🔥 КРИТИЧНО: Регистрируем гравца на Firebase (joinGame) с реальными координатами
     joinGame(gameRoomId, playerIdRef.current, name, positionIndex, newPlayer.x, newPlayer.y)
