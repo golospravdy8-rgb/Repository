@@ -323,15 +323,28 @@ export function simulateTrajectory(p: {
   hoopX_m?: number; hoopY_m?: number;
 }): Array<{ x: number; y: number }> {
   const g = 9.81, dt = 1/120;
+  const Cd = 0.004;  // Same as C.Cd in integratePhysics
+  const Cm = 0.000045;  // Same as C.Cm in integratePhysics (set omega=0 for ideal arc)
   const pts: {x:number,y:number}[] = [];
   let x = p.x0_m, y = p.y0_m, vx = p.vx_m, vy = p.vy_m;
+  const omega = 0;  // No spin for ideal arc calculation (simplified)
+
   for (let i = 0; i < 600; i++) {
-    x += vx * dt;
-    y += vy * dt;
-    vy += g * dt;
+    // Apply physics: drag + gravity (magnus=0 since omega=0)
+    const speed = Math.sqrt(vx * vx + vy * vy);
+    const dragAcc = Cd * speed;
+    const ax = -dragAcc * vx;  // Drag on X
+    const ay = g - dragAcc * vy;  // Gravity - drag on Y (same sign as integratePhysics)
+
+    // Verlet integration (same as integratePhysics)
+    x += vx * dt + 0.5 * ax * dt * dt;
+    y += vy * dt + 0.5 * ay * dt * dt;
+    vx += ax * dt;
+    vy += ay * dt;
+
     pts.push({ x: x * p.scale, y: y * p.scale });
 
-    // Зупинити якщо попали в кільце
+    // Stop if reached hoop
     if (p.hoopX_m && p.hoopY_m) {
       if (Math.abs(x - p.hoopX_m) < 0.15 && Math.abs(y - p.hoopY_m) < 0.25 && vy > 0) {
         pts.push({ x: p.hoopX_m * p.scale, y: p.hoopY_m * p.scale });
