@@ -2319,26 +2319,48 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           const dy_m = hoopY_m - headY_m;
 
           const g = 9.81;
-          const theta = -ss.lockedAngle;  // canvas угол (от'ємне = вгору) → математический
-          const cosT = Math.cos(theta);
-          const tanT = Math.tan(theta);
-          const denom = 2 * cosT * cosT * (dx_m * tanT - dy_m);
+          const theta = -ss.lockedAngle;  // canvas угол (від'ємне = вгору) → математичний
 
-          let v_ideal: number;
-          if (denom > 0.01) {
-            v_ideal = Math.sqrt(g * dx_m * dx_m / denom);
-            v_ideal = Math.max(4.0, Math.min(18.0, v_ideal));
-          } else {
-            v_ideal = 10.0;
+          // 🎯 ГАРАНТОВАНА ДУГА: Знайти швидкість яка доводить м'яч найближче до кільця
+          let bestV = 8.0;
+          let bestDist = 9999;
+
+          for (let v = 4.0; v <= 18.0; v += 0.15) {
+            const vx_test = Math.cos(theta) * v;
+            const vy_test = -Math.sin(theta) * v;
+
+            // Симулювати на короткий час
+            let tx = headX_m, ty = headY_m;
+            let tvx = vx_test, tvy = vy_test;
+            const dt = 1/120;
+
+            for (let i = 0; i < 300; i++) {
+              tx += tvx * dt;
+              ty += tvy * dt;
+              tvy += g * dt;
+
+              // Перевірити відстань до кільця
+              const dx_test = tx - hoopX_m;
+              const dy_test = ty - hoopY_m;
+              const dist = Math.sqrt(dx_test*dx_test + dy_test*dy_test);
+
+              if (dist < bestDist) {
+                bestDist = dist;
+                bestV = v;
+              }
+
+              if (ty > groundY_m) break;
+            }
           }
 
-          ss.idealVelocity = v_ideal;  // в м/с
-          ss.idealPower = Math.max(0.05, Math.min(0.95, (v_ideal - 4.0) / 14.0));  // нормализовано 0-1
+          const v_ideal = bestV;
+          ss.idealVelocity = v_ideal;
+          ss.idealPower = Math.max(0.05, Math.min(0.95, (v_ideal - 4.0) / 14.0));
 
           const vx_ideal = Math.cos(theta) * v_ideal;
-          const vy_ideal = -Math.sin(theta) * v_ideal;  // от'ємне = вгору
+          const vy_ideal = -Math.sin(theta) * v_ideal;
 
-          // Генерировать дугу через simulateTrajectory (все в метрах входе, пикселях выходе)
+          // Генерировать дугу через simulateTrajectory з гарантією досягнення кільця
           ss.idealTraj = simulateTrajectory({
             vx_m: vx_ideal,
             vy_m: vy_ideal,
@@ -2346,17 +2368,31 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
             y0_m: headY_m,
             scale: SCALE,
             groundY_m: groundY_m,
+            hoopX_m: hoopX_m,
+            hoopY_m: hoopY_m,
           });
 
-          console.log('[IDEAL ARC GENERATED]', {
-            v_ideal_ms: v_ideal.toFixed(2),
-            idealPower_0_1: ss.idealPower.toFixed(2),
-            points: ss.idealTraj.length,
-            start_px: ss.idealTraj[0] ? {x: ss.idealTraj[0].x.toFixed(0), y: ss.idealTraj[0].y.toFixed(0)} : null,
-            end_px: ss.idealTraj.length > 0 ? {x: ss.idealTraj[ss.idealTraj.length-1].x.toFixed(0), y: ss.idealTraj[ss.idealTraj.length-1].y.toFixed(0)} : null,
-            hoop_px: {x: HOOP_X.toFixed(0), y: HOOP_Y.toFixed(0)},
-            dx_m: dx_m.toFixed(2), dy_m: dy_m.toFixed(2),
+          console.log('[ARC DIAGNOSTIC]', {
+            head_px: {x: Math.round(headX_m*SCALE), y: Math.round(headY_m*SCALE)},
+            hoop_px: {x: Math.round(HOOP_X), y: Math.round(HOOP_Y)},
+            dx_m: dx_m.toFixed(3),
+            dy_m: dy_m.toFixed(3),
             theta_deg: (theta * 180/Math.PI).toFixed(1),
+            v_ideal: v_ideal.toFixed(3),
+            vx_ideal: vx_ideal.toFixed(3),
+            vy_ideal: vy_ideal.toFixed(3),
+          });
+
+          console.log('[ARC END]', {
+            arc_length: ss.idealTraj?.length,
+            arc_first: ss.idealTraj?.[0],
+            arc_last: ss.idealTraj?.[ss.idealTraj?.length - 1],
+            hoop: {x: HOOP_X, y: HOOP_Y},
+            error_px: ss.idealTraj?.length > 0 ? {
+              dx: Math.round(ss.idealTraj[ss.idealTraj.length-1].x - HOOP_X),
+              dy: Math.round(ss.idealTraj[ss.idealTraj.length-1].y - HOOP_Y),
+            } : 'no arc',
+            bestDist_m: bestDist.toFixed(4),
           });
 
           ss.phase = "charging";

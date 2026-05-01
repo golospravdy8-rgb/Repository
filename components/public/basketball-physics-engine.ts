@@ -320,6 +320,7 @@ export function simulateTrajectory(p: {
   vx_m: number; vy_m: number;
   x0_m: number; y0_m: number;
   scale: number; groundY_m: number;
+  hoopX_m?: number; hoopY_m?: number;
 }): Array<{ x: number; y: number }> {
   const g = 9.81, dt = 1/120;
   const pts: {x:number,y:number}[] = [];
@@ -329,6 +330,15 @@ export function simulateTrajectory(p: {
     y += vy * dt;
     vy += g * dt;
     pts.push({ x: x * p.scale, y: y * p.scale });
+
+    // Зупинити якщо попали в кільце
+    if (p.hoopX_m && p.hoopY_m) {
+      if (Math.abs(x - p.hoopX_m) < 0.15 && Math.abs(y - p.hoopY_m) < 0.25 && vy > 0) {
+        pts.push({ x: p.hoopX_m * p.scale, y: p.hoopY_m * p.scale });
+        break;
+      }
+    }
+
     if (y > p.groundY_m + 0.5) break;
   }
   return pts;
