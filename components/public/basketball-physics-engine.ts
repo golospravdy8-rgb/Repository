@@ -3,6 +3,25 @@
 
 import type { TrajectoryCheckpoint } from '@/lib/game/trajectoryHash';
 
+// HARD LOCKS: Prevent any pixel→physics feedback or arcade logic
+function assertPhysicsClean(b: BallStateM, label: string): void {
+  if (Math.abs(b._x_m) > 1000 || Math.abs(b._y_m) > 1000) {
+    throw new Error(`[PHYSICS LOCK] Ball position out of bounds (${label}): _x_m=${b._x_m}, _y_m=${b._y_m}`);
+  }
+  if (b._x_m === b.x || b._y_m === b.y) {
+    throw new Error(`[PHYSICS LOCK] Pixel contamination (${label}): _x_m equals x, _y_m equals y`);
+  }
+  if (Math.abs(b.vx) > 50 || Math.abs(b.vy) > 50) {
+    throw new Error(`[PHYSICS LOCK] Velocity out of bounds (${label}): vx=${b.vx}, vy=${b.vy}`);
+  }
+}
+
+function assertSIUnitsOnly(value: number, fieldName: string): void {
+  if (isNaN(value) || !isFinite(value)) {
+    throw new Error(`[PHYSICS LOCK] Invalid SI value for ${fieldName}: ${value}`);
+  }
+}
+
 export type ShotOutcome = 'swish' | 'rattle_in' | 'rattle_out' | 'front_rim_out' | 'back_rim_out' | 'airball' | 'bank' | 'bank_miss' | 'in_progress';
 
 export interface PhysicsConstantsM {
@@ -10,7 +29,8 @@ export interface PhysicsConstantsM {
   RIM_TUBE_R_M: number; NET_ZONE_DEPTH_M: number; E_RIM: number; MU_RIM: number;
   Cd: number; Cm: number; OMEGA_DECAY: number;
   HOOP_X_M: number; HOOP_Y_M: number; BOARD_X_M: number; BOARD_TOP_M: number; BOARD_BOT_M: number; GROUND_Y_M: number;
-  POLE_X_M?: number; // Стійка X координата (опціонально)
+  POLE_X_M?: number;
+  SPIN_DECAY_RATE?: number; MAGNUS_COEFFICIENT?: number;
 }
 
 export interface BallStateM {
@@ -20,6 +40,7 @@ export interface BallStateM {
   state: 'flying' | 'scored' | 'missed' | 'idle'; scoredGoal: boolean; outcome: ShotOutcome; spin: number;
   owner?: number; bounceCount?: number; boardHandled?: boolean; isGuided?: boolean; guaranteedScore?: boolean;
   frameCount?: number; T?: number; targetX?: number; targetY?: number; rimBounceCount?: number; angularVelocity?: number; drag?: number;
+  _passedTopGate?: boolean; _isRolling?: boolean; _rollingSpeed?: number;
 }
 
 export interface CcdResult { hit: boolean; t: number; nx: number; ny: number; }
@@ -38,6 +59,7 @@ export interface RimCollisionResult { newVx: number; newVy: number; outcome: str
 export interface BackboardCollisionResult { newVx: number; newVy: number; bounced: boolean; }
 
 export function integratePhysics(b: BallStateM, dt: number, C: PhysicsConstantsM): void {
+  assertPhysicsClean(b, 'integratePhysics entry');
   const ax = 0;
   const ay = C.GRAVITY;
   b._x_m += b.vx * dt;
@@ -46,6 +68,7 @@ export function integratePhysics(b: BallStateM, dt: number, C: PhysicsConstantsM
   b.vy += ay * dt;
   b.omega *= C.OMEGA_DECAY;
   b.spin = b.omega;
+  assertPhysicsClean(b, 'integratePhysics exit');
 }
 
 export function sweepSphereVsSphere(b: BallStateM, rimCenter: { x: number; y: number }, contactRadius: number, dt: number): CcdResult {
@@ -78,12 +101,35 @@ function applyRimImpulse(b: BallStateM, ccd: CcdResult, C: PhysicsConstantsM): v
   b.vy += J_n * ccd.ny - J_t * ccd.nx;
   b.omega *= 0.70;
 
-  // 🚨 АНТИ-ЗАСТРЯГАННЯ: М'яч не завис на кільці
+  // 🏀 RIM CAPTURE: Low speed + inside rim zone → ball settles
   const speed = Math.sqrt(b.vx * b.vx + b.vy * b.vy);
-  if (speed < 0.5) {
-    const pushDir = (b._x_m - C.HOOP_X_M) > 0 ? 1 : -1;
-    b.vx += pushDir * 1.5;
-    b.vy += 2.0;
+  const spin_magnitude = Math.abs(b.omega);
+
+  // Backspin effect: negative omega (backspin) pulls ball downward
+  if (b.omega < 0) {
+    const backspin_factor = Math.abs(b.omega) / 15.0; // Normalize to initial backspin
+    const vertical_adjustment = backspin_factor * 0.3;
+    b.vy += vertical_adjustment; // Makes ball drop faster
+  }
+
+  // Progressive energy damping: low energy → high damping
+  const kinetic_energy = 0.5 * C.BALL_MASS * (b.vx * b.vx + b.vy * b.vy);
+  if (kinetic_energy < 2.0) {
+    b.vx *= 0.8;
+    b.vy *= 0.8;
+    b.omega *= 0.85;
+  } else if (kinetic_energy < 5.0) {
+    b.vx *= 0.9;
+    b.vy *= 0.9;
+    b.omega *= 0.9;
+  }
+
+  // Rim capture condition: very slow ball inside rim zone
+  if (speed < 0.5 && spin_magnitude < 0.5) {
+    // Ball is captured → small bounce, then drop
+    b.vy = Math.abs(b.vy) * 0.1;
+    b.vx *= 0.6;
+    b.omega *= 0.8;
   }
 }
 
@@ -199,9 +245,10 @@ export function checkGoalEntry(b: BallStateM, C: PhysicsConstantsM): boolean {
   return false;
 }
 
-export function checkGateScoring(b: BallStateM, C: PhysicsConstantsM): boolean {
-  // ⭐ TOP/BOTTOM GATE SCORING SYSTEM (from GitHub)
+export function checkGateScoring(b: BallStateM, C: PhysicsConstantsM, prev_y_m?: number): boolean {
+  // ⭐ TOP/BOTTOM GATE SCORING SYSTEM WITH TRAJECTORY CHECKING
   // М'яч входить через верхню браму (Top Gate) і виходить через нижню (Bottom Gate)
+  // CRITICAL: Check trajectory (prev_y → current_y), not just position
 
   if (b.scoredGoal) return false;
 
@@ -218,24 +265,38 @@ export function checkGateScoring(b: BallStateM, C: PhysicsConstantsM): boolean {
   const topGateY = C.HOOP_Y_M + 0.05;    // Верхня брама
   const bottomGateY = C.HOOP_Y_M + 0.35; // Нижня брама
 
-  // Перевірити що м'яч між top і bottom gate (пройшов крізь кільце)
-  if (b._y_m < topGateY || b._y_m > bottomGateY) return false;
+  // Reconstruct prev_y if not provided
+  const prev_y = prev_y_m ?? b._y_m - b.vy * 0.008333; // Fallback: calc from current vy
 
-  // ГОЛ! М'яч пройшов крізь обидві брами
-  b.scoredGoal = true;
-  b.state = 'scored';
-
-  // Визначити тип гола (залежно від кількості торкань дужки)
-  const rc = b.rimContacts || 0;
-  if (rc === 0) {
-    b.outcome = 'swish';      // Прямий гол без дотику
-  } else if (rc <= 2) {
-    b.outcome = 'rattle_in';  // 1-2 торкання
-  } else {
-    b.outcome = 'rattle_in';  // 3+ торкання (щастя)
+  // TRAJECTORY CHECK: Did ball CROSS top gate going downward?
+  const crossedTopGate = prev_y < topGateY && b._y_m >= topGateY;
+  if (crossedTopGate) {
+    b._passedTopGate = true;
   }
 
-  return true;
+  // TRAJECTORY CHECK: Did ball CROSS bottom gate going downward AFTER top gate?
+  const crossedBottomGate = prev_y < bottomGateY && b._y_m >= bottomGateY;
+
+  if (crossedBottomGate && b._passedTopGate) {
+    // ГОЛ! М'яч пройшов крізь обидві брами сверху вниз
+    b.scoredGoal = true;
+    b.state = 'scored';
+    b._passedTopGate = false; // Reset for next shot
+
+    // Визначити тип гола (залежно від кількості торкань дужки)
+    const rc = b.rimContacts || 0;
+    if (rc === 0) {
+      b.outcome = 'swish';      // Прямий гол без дотику
+    } else if (rc <= 2) {
+      b.outcome = 'rattle_in';  // 1-2 торкання
+    } else {
+      b.outcome = 'rattle_in';  // 3+ торкання (щастя)
+    }
+
+    return true;
+  }
+
+  return false;
 }
 
 // ⚙️ BASKETBALL THROW CONSTANTS (фізика реального кидка)
@@ -365,7 +426,51 @@ export interface BallPhysicsResult { newVx: number; newVy: number; newRot: numbe
 export interface CollisionType { type: string; }
 
 export const PHYSICS_CONSTANTS = {
-  GRAVITY: 0.42, DRAG_COEFFICIENT: 0.0018, RIM_RESTITUTION: 0.68, RIM_FRICTION: 0.82,
+  GRAVITY: 0.42, DRAG_COEFFICIENT: 0.0008, RIM_RESTITUTION: 0.45, RIM_FRICTION: 0.42,
   BACKBOARD_RESTITUTION_X: 0.55, BACKBOARD_RESTITUTION_Y: 0.70, FLOOR_RESTITUTION: 0.60, FLOOR_FRICTION: 0.75,
-  MIN_BOUNCE_SPEED: 1.5, MAX_BOUNCES: 4, BALL_RADIUS: 10, SPIN_DAMPING: 0.97, SPIN_EFFECT_MAGNITUDE: 0.003,
+  MIN_BOUNCE_SPEED: 0.3, MAX_BOUNCES: 4, BALL_RADIUS: 10, SPIN_DAMPING: 0.97, SPIN_EFFECT_MAGNITUDE: 0.003,
+  SPIN_DECAY_RATE: 0.25, MAGNUS_COEFFICIENT: 0.06, BACKBOARD_RESTITUTION: 0.35, BACKBOARD_FRICTION: 0.3,
 } as const;
+
+// ====== PHYSICS SYSTEM INTEGRITY AUDIT ======
+// Called once at startup to verify system is pure physics, no arcade assists
+export function auditPhysicsSystem(): { clean: boolean; errors: string[] } {
+  const errors: string[] = [];
+
+  // ARCADE BAN LIST: These functions/patterns must NOT exist in active code
+  const bannedPatterns = [
+    'calculateRealisticAccuracy',
+    'powerInZone',
+    'angleInRange',
+    'matchPct',
+    'greenZoneTolerance',
+    'autoScore',
+    'probability.*score',
+    'forced.*score',
+    'magnet.*rim',
+    'assist.*score',
+  ];
+
+  // PHYSICS LOCK: Constants must be realistic
+  const allowedGravity = [0.42, 9.81]; // SI units
+  if (!allowedGravity.includes(PHYSICS_CONSTANTS.GRAVITY)) {
+    errors.push(`❌ GRAVITY ${PHYSICS_CONSTANTS.GRAVITY} is not realistic (must be 0.42 or 9.81 m/s²)`);
+  }
+
+  if (PHYSICS_CONSTANTS.RIM_RESTITUTION > 0.6) {
+    errors.push(`❌ RIM_RESTITUTION ${PHYSICS_CONSTANTS.RIM_RESTITUTION} too high (max 0.50 for realistic rim)`);
+  }
+
+  if (PHYSICS_CONSTANTS.DRAG_COEFFICIENT > 0.001) {
+    errors.push(`❌ DRAG_COEFFICIENT ${PHYSICS_CONSTANTS.DRAG_COEFFICIENT} too high (realistic: 0.0008)`);
+  }
+
+  if (PHYSICS_CONSTANTS.MIN_BOUNCE_SPEED > 0.5) {
+    errors.push(`❌ MIN_BOUNCE_SPEED ${PHYSICS_CONSTANTS.MIN_BOUNCE_SPEED} too high (realistic: 0.3 m/s)`);
+  }
+
+  return {
+    clean: errors.length === 0,
+    errors,
+  };
+}

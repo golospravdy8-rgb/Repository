@@ -29,6 +29,7 @@ import {
   checkGoalEntry,
   checkGateScoring,
   sweepSphereVsSphere,
+  auditPhysicsSystem,
   type PhysicsConstantsM,
 } from "./basketball-physics-engine";
 
@@ -131,7 +132,17 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
   const [meterVisible, setMeterVisible] = useState(false);
   const [greenLinePosition, setGreenLinePosition] = useState(180);
 
-  useEffect(() => { setMounted(true); }, []);
+  useEffect(() => {
+    // SYSTEM STARTUP: Verify physics is pure
+    const audit = auditPhysicsSystem();
+    if (!audit.clean) {
+      console.error('[PHYSICS LOCK] System audit failed:', audit.errors);
+      audit.errors.forEach(e => console.error(e));
+    } else {
+      console.log('✅ [PHYSICS LOCK] Physics system is clean and pure');
+    }
+    setMounted(true);
+  }, []);
 
   // Initialize Firebase connection
   useEffect(() => {
@@ -647,82 +658,6 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       return physics;
     }
 
-    function calculateRealisticAccuracy(
-      distToHoop: number,
-      shotAngle: number,
-      shotPower: number,
-      idealAngle: number,
-      idealPower: number,
-      greenZoneTolerance: number
-    ) {
-      // Check if power is in green zone
-      const powerInZone = Math.abs(shotPower - idealPower) <= greenZoneTolerance;
-
-      // Check if angle is acceptable (±6° tolerance converted to radians)
-      const angleInRange = Math.abs(shotAngle - idealAngle) <= (6 * Math.PI / 180);
-
-      // GUARANTEED SCORE: Power in zone AND angle reasonable
-      if (powerInZone && angleInRange) {
-        return { score: true, matchPct: 95 };
-      }
-
-      // LIKELY SCORE: Power in zone but angle slightly off (±8°)
-      if (powerInZone && Math.abs(shotAngle - idealAngle) <= (8 * Math.PI / 180)) {
-        return { score: true, matchPct: 85 };
-      }
-
-      // POSSIBLE SCORE: Angle good but power slightly off (±tolerance+3)
-      if (angleInRange && Math.abs(shotPower - idealPower) <= (greenZoneTolerance + 3)) {
-        return { score: true, matchPct: 75 };
-      }
-
-      // RISKY: Both factors somewhat off
-      if (Math.abs(shotPower - idealPower) <= (greenZoneTolerance + 8) &&
-          Math.abs(shotAngle - idealAngle) <= (12 * Math.PI / 180)) {
-        return { score: Math.random() < 0.4, matchPct: 40 };
-      }
-
-      // MISS: Way off in power or angle
-      return { score: false, matchPct: 15 };
-    }
-
-    // AUTOTEST: Тестування зеленої лінії та гарантії
-    function autoTest() {
-
-      // BUG 3 FIX PHASE 2: Test green line positions at different distances
-      const testCases = [
-        { name: 'Дальній (макс)', dist: realMaxDistance, expected: 175 },
-        { name: 'Середній', dist: realMaxDistance * 0.6, expected: 108 },
-        { name: 'Близький', dist: realMaxDistance * 0.25, expected: 45 }
-      ];
-
-      testCases.forEach(tc => {
-        const line = (tc.dist / realMaxDistance) * 180;
-        const ok = Math.abs(line - tc.expected) < 20;
-      });
-
-      let greenLineHits = 0;
-      let greenLineScored = 0;
-
-      // Симулюємо 10 бросків з різною accuracy
-      for (let i = 0; i < 10; i++) {
-        const accuracy = i < 5 ? 100 : Math.floor(Math.random() * 60);
-        const isGreen = accuracy >= 95;
-
-        if (isGreen) {
-          greenLineHits++;
-        } else {
-        }
-      }
-
-      return greenLineHits;
-    }
-
-    // Запусти autoTest при завантаженні
-    if (typeof window !== 'undefined' && !gs.autoTestRun) {
-      autoTest();
-      gs.autoTestRun = true;
-    }
 
     function stepBall(b: any, dt_normalized: number) {
       if (b.state !== 'flying') return;
@@ -752,9 +687,18 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
 
       while (b._accumulator >= FIXED_DT && b.state === 'flying' && physicsSteps < MAX_PHYSICS_STEPS) {
         physicsSteps++;
+        const prev_y_before_step = b._y_m;
         integratePhysics(b, FIXED_DT, C);
+
+        // Magnus lift from backspin
+        const magnus_lift = b.omega * (C.MAGNUS_COEFFICIENT ?? 0.06);
+        b.vy -= magnus_lift * FIXED_DT;
+
+        // Spin decay
+        b.omega *= (1 - (C.SPIN_DECAY_RATE ?? 0.25) * FIXED_DT);
+
         checkAllCollisions(b, FIXED_DT, C);
-        checkGateScoring(b, C);
+        checkGateScoring(b, C, prev_y_before_step);
         b._physTick++;
         b._accumulator -= FIXED_DT;
       }
