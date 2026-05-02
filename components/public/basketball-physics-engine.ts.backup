@@ -1,0 +1,776 @@
+// Professional basketball physics engine — meter-space with 120Hz Verlet integration
+// All physics in SI units (meters, m/s, m/s², rad/s) with CCD for rim collisions
+
+import type { TrajectoryCheckpoint } from '@/lib/game/trajectoryHash';
+
+// HARD LOCKS: Prevent any pixel→physics feedback or arcade logic
+function assertPhysicsClean(b: BallStateM, label: string): void {
+  if (Math.abs(b._x_m) > 1000 || Math.abs(b._y_m) > 1000) {
+    throw new Error(`[PHYSICS LOCK] Ball position out of bounds (${label}): _x_m=${b._x_m}, _y_m=${b._y_m}`);
+  }
+  if (b._x_m === b.x || b._y_m === b.y) {
+    throw new Error(`[PHYSICS LOCK] Pixel contamination (${label}): _x_m equals x, _y_m equals y`);
+  }
+  if (Math.abs(b.vx) > 50 || Math.abs(b.vy) > 50) {
+    throw new Error(`[PHYSICS LOCK] Velocity out of bounds (${label}): vx=${b.vx}, vy=${b.vy}`);
+  }
+}
+
+function assertSIUnitsOnly(value: number, fieldName: string): void {
+  if (isNaN(value) || !isFinite(value)) {
+    throw new Error(`[PHYSICS LOCK] Invalid SI value for ${fieldName}: ${value}`);
+  }
+}
+
+export type ShotOutcome = 'swish' | 'rattle_in' | 'rattle_out' | 'front_rim_out' | 'back_rim_out' | 'airball' | 'bank' | 'bank_miss' | 'in_progress';
+
+export interface PhysicsConstantsM {
+  GRAVITY: number; BALL_MASS: number; BALL_RADIUS_M: number; RIM_RADIUS_M: number;
+  RIM_TUBE_R_M: number; NET_ZONE_DEPTH_M: number; E_RIM: number; MU_RIM: number;
+  Cd: number; Cm: number; OMEGA_DECAY: number;
+  HOOP_X_M: number; HOOP_Y_M: number; BOARD_X_M: number; BOARD_TOP_M: number; BOARD_BOT_M: number; GROUND_Y_M: number;
+  POLE_X_M?: number;
+  SPIN_DECAY_RATE?: number; MAGNUS_COEFFICIENT?: number;
+}
+
+export interface BallStateM {
+  _x_m: number; _y_m: number; vx: number; vy: number; omega: number; _accumulator: number; _physTick: number;
+  _checkpoints: TrajectoryCheckpoint[]; _scale: number; rimContacts: number; rimContactMask: number;
+  hitBackboard: boolean; rimHitTimer: number; x: number; y: number; rot: number;
+  state: 'flying' | 'scored' | 'missed' | 'idle'; scoredGoal: boolean; outcome: ShotOutcome; spin: number;
+  owner?: number; bounceCount?: number; boardHandled?: boolean; isGuided?: boolean; guaranteedScore?: boolean;
+  frameCount?: number; T?: number; targetX?: number; targetY?: number; rimBounceCount?: number; angularVelocity?: number; drag?: number;
+  _passedTopGate?: boolean; _isRolling?: boolean; _rollingSpeed?: number;
+  // Dwell contact: when ball is "in contact" with rim for micro-contact phase
+  _dwellFrames?: number; // How many frames ball is in soft contact (0 = not in dwell)
+  _dwellNormal?: { nx: number; ny: number }; // Contact normal for dwell phase
+  _dwellPos?: { x: number; y: number }; // Contact position for dwell phase
+  _contactRimAngle?: number; // Current rim contact angle (for continuous point tracking)
+  _lastPenetration?: number; // Last frame's penetration depth (for spring force calculation)
+}
+
+export interface CcdResult { hit: boolean; t: number; nx: number; ny: number; }
+
+export interface BallPhysicsState { x: number; y: number; vx: number; vy: number; rot: number; spin: number; drag: number; bounceCount: number; rimBounceCount: number; }
+
+export interface LaunchParams {
+  // Old interface (legacy, still supported for backward compat)
+  angle?: number; power?: number; accuracy?: number; distToHoop?: number; playerX?: number; playerY?: number; hoopX?: number; hoopY?: number; scaleX?: number;
+  // New metric interface (preferred)
+  vx_m?: number; vy_m?: number; x0_m?: number; y0_m?: number; scale?: number; groundY_m?: number;
+}
+
+export interface RimCollisionResult { newVx: number; newVy: number; outcome: string; shouldScore: boolean; }
+
+export interface BackboardCollisionResult { newVx: number; newVy: number; bounced: boolean; }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// CONSTRAINT SOLVER OVERLAY (PGS) — Parallel to impulse engine
+// ═══════════════════════════════════════════════════════════════════════════
+
+export interface ContactManifoldPoint {
+  x: number;              // Contact point on rim (world space)
+  y: number;
+  nx: number;             // Contact normal (rim→ball, outward)
+  ny: number;
+  penetration: number;    // > 0 = ball overlapping rim
+  vx_rel: number;         // Relative velocity at contact point
+  vy_rel: number;
+  separation_v: number;   // Normal component: vn_rel = (vx_rel·nx + vy_rel·ny)
+}
+
+export interface ContactManifold {
+  points: ContactManifoldPoint[];  // 1-4 contact points
+  rimAngle: number;               // For tracking continuous contact
+  dwellFrames: number;            // How many frames ball in contact
+}
+
+export function integratePhysics(b: BallStateM, dt: number, C: PhysicsConstantsM): void {
+  assertPhysicsClean(b, 'integratePhysics entry');
+  const ax = 0;
+  const ay = C.GRAVITY;
+  b._x_m += b.vx * dt;
+  b._y_m += b.vy * dt + 0.5 * ay * dt * dt;
+  b.vx += ax * dt;
+  b.vy += ay * dt;
+  b.omega *= C.OMEGA_DECAY;
+  b.spin = b.omega;
+  assertPhysicsClean(b, 'integratePhysics exit');
+}
+
+export function sweepSphereVsSphere(b: BallStateM, rimCenter: { x: number; y: number }, contactRadius: number, dt: number): CcdResult {
+  const rx = b._x_m - rimCenter.x, ry = b._y_m - rimCenter.y, vx = b.vx, vy = b.vy;
+  const a = vx * vx + vy * vy;
+  if (a < 1e-12) return { hit: false, t: 0, nx: 0, ny: 0 };
+  const b_c = 2 * (rx * vx + ry * vy), c_c = rx * rx + ry * ry - contactRadius * contactRadius;
+  const disc = b_c * b_c - 4 * a * c_c;
+  if (disc < 0) return { hit: false, t: 0, nx: 0, ny: 0 };
+  const sqD = Math.sqrt(disc), t1 = (-b_c - sqD) / (2 * a), t2 = (-b_c + sqD) / (2 * a);
+  let t = -1;
+  if (t1 >= 1e-6 && t1 <= dt) t = t1;
+  else if (t2 >= 1e-6 && t2 <= dt) t = t2;
+  else return { hit: false, t: 0, nx: 0, ny: 0 };
+  const cx = rx + vx * t, cy = ry + vy * t, dist = Math.sqrt(cx * cx + cy * cy) || 1;
+  const nx = cx / dist, ny = cy / dist, vR = b.vx * nx + b.vy * ny;
+  if (vR >= 0) return { hit: false, t: 0, nx: 0, ny: 0 };
+  return { hit: true, t, nx, ny };
+}
+
+function calculatePenetrationDepth(b: BallStateM, rimPoint: { x: number; y: number }, C: PhysicsConstantsM): number {
+  // 📏 REAL GEOMETRY: Distance from ball center to rim point
+  // Penetration = (BALL_R + RIM_TUBE_R) - distance
+  // This is the actual deformation amount
+
+  const dx = b._x_m - rimPoint.x;
+  const dy = b._y_m - rimPoint.y;
+  const dist = Math.sqrt(dx * dx + dy * dy);
+  const minDist = C.BALL_RADIUS_M + C.RIM_TUBE_R_M;
+
+  return Math.max(0, minDist - dist);
+}
+
+function findContinuousContactPoint(b: BallStateM, ccd: CcdResult, C: PhysicsConstantsM): { x: number; y: number; angle: number } {
+  // 🎯 PERSISTENT CONTACT: Find the contact point on rim that ball is touching
+  // Instead of recomputing contact each frame, track the angle on the rim circle
+
+  // Determine contact angle from CCD normal
+  const angle = Math.atan2(ccd.ny, ccd.nx);
+
+  // Contact point on rim
+  const rimX = C.HOOP_X_M + Math.cos(angle) * C.RIM_RADIUS_M;
+  const rimY = C.HOOP_Y_M + Math.sin(angle) * C.RIM_RADIUS_M;
+
+  return { x: rimX, y: rimY, angle };
+}
+
+function enterDwellContact(b: BallStateM, ccd: CcdResult, C: PhysicsConstantsM): void {
+  // 📍 DWELL ENTRY: Mark contact, no velocity correction
+  // PGS solver will generate all impulses in post-processing phase
+
+  // Initialize dwell state
+  b._dwellFrames = 2;  // Will be processed by solver next frame
+  b._dwellNormal = { nx: ccd.nx, ny: ccd.ny };
+
+  // Velocity stays unchanged — solver will correct it
+}
+
+function dwellPhaseContact(b: BallStateM, ccd: CcdResult, rimContact: { x: number; y: number; angle: number }, C: PhysicsConstantsM): boolean {
+  // 📊 DWELL STATE TRACKING: No velocity correction (PGS handles that)
+  // Only tracks contact duration and exit condition
+
+  if (!b._dwellFrames || b._dwellFrames <= 0) return false;
+
+  // Calculate penetration for exit condition check
+  const penetrationDepth = calculatePenetrationDepth(b, rimContact, C);
+  b._lastPenetration = penetrationDepth;
+
+  // Track if ball is rolling (for solver's rolling constraint)
+  const vt_mag = Math.sqrt((b.vx * b.vx) + (b.vy * b.vy));
+  const v_rolling = Math.abs(b.omega) * C.BALL_RADIUS_M;
+  b._isRolling = Math.abs(vt_mag - v_rolling) < 0.15;
+
+  // Exit condition: separation or negligible penetration
+  const vn = b.vx * ccd.nx + b.vy * ccd.ny;
+  if (vn > 0.08 || penetrationDepth < 0.0005) {
+    b._dwellFrames = 0;
+    b._isRolling = false;
+    return false;
+  }
+
+  b._dwellFrames--;
+  return b._dwellFrames > 0;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// CONTINUOUS CONTACT MODEL: Penalty Force (soft contact) instead of instant impulse
+// ═══════════════════════════════════════════════════════════════════════════
+
+// ═══════════════════════════════════════════════════════════════════════════
+// RIM CONTACT PHYSICS — Clean single-point contact model
+// ═══════════════════════════════════════════════════════════════════════════
+
+export function solveRimContact(
+  b: BallStateM,
+  rimCenter: { x: number; y: number },
+  contactNormal: { nx: number; ny: number },
+  penetration: number,
+  C: PhysicsConstantsM
+): void {
+  // Rim contact = direct impulse-based response
+  // No penalty forces, no complexity — just clean physics
+
+  if (penetration < 0.0001) return;  // No real contact
+
+  // Calculate relative velocity at contact point
+  const contactRadius = C.BALL_RADIUS_M;
+  const rx = rimCenter.x - b._x_m;  // Vector from ball center to contact
+  const ry = rimCenter.y - b._y_m;
+
+  const vx_rel = b.vx + b.omega * (-ry);
+  const vy_rel = b.vy + b.omega * rx;
+  const vn = vx_rel * contactNormal.nx + vy_rel * contactNormal.ny;
+
+  // Restitution (energy loss per bounce)
+  const e = C.E_RIM;
+
+  // Normal impulse: J = -(1 + e) * vn
+  const J_n = Math.max(0, -(1 + e) * vn / (1 + (contactRadius * contactRadius) / (C.BALL_MASS)));
+
+  // Apply impulse to velocity
+  b.vx += J_n * contactNormal.nx / C.BALL_MASS;
+  b.vy += J_n * contactNormal.ny / C.BALL_MASS;
+
+  // Apply torque (spin from contact)
+  const tau = rx * (J_n * contactNormal.ny) - ry * (J_n * contactNormal.nx);
+  b.omega += tau / (0.4 * C.BALL_MASS * contactRadius * contactRadius);
+
+  // Friction: limit tangential motion
+  const tx = -contactNormal.ny;
+  const ty = contactNormal.nx;
+  const vt = vx_rel * tx + vy_rel * ty;
+  const f = C.MU_RIM * J_n;
+  const J_t = Math.max(-f, Math.min(f, -vt / (1 + (contactRadius * contactRadius) / (C.BALL_MASS))));
+
+  b.vx += J_t * tx / C.BALL_MASS;
+  b.vy += J_t * ty / C.BALL_MASS;
+  b.omega += (rx * (J_t * ty) - ry * (J_t * tx)) / (0.4 * C.BALL_MASS * contactRadius * contactRadius);
+}
+
+function applyRimImpulse(b: BallStateM, ccd: CcdResult, C: PhysicsConstantsM): void {
+  // ⚡ IMPULSE LAYER: Generate contact data ONLY — do NOT modify velocity
+  // Continuous contact solver is the sole velocity modifier (eliminates dual-correction conflict)
+
+  // This function now only logs/tracks contact for manifold building
+  // All velocity correction happens in solveContinuousContact()
+
+  // Mark that contact occurred (for dwell state tracking)
+  if (!b._dwellFrames || b._dwellFrames <= 0) {
+    b._dwellFrames = 1;  // Mark in dwell (continuous contact will handle correction)
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// CONSTRAINT SOLVER: Builds contact manifold and applies PGS corrections
+// ═══════════════════════════════════════════════════════════════════════════
+
+function buildContactManifold(
+  b: BallStateM,
+  rimContacts: { ccd: CcdResult; rimPoint: { x: number; y: number; angle: number } }[],
+  C: PhysicsConstantsM
+): ContactManifold[] {
+  // 📋 Build contact manifold from CCD results
+  // Each contact becomes 1-4 constraint points (simplified: using 1 point per contact)
+
+  const manifolds: ContactManifold[] = [];
+
+  for (const contact of rimContacts) {
+    const rimPt = contact.rimPoint;
+    const ccd = contact.ccd;
+
+    // Calculate penetration (real geometry-based)
+    const penetration = calculatePenetrationDepth(b, rimPt, C);
+    if (penetration < 0.0001) continue;  // Skip negligible
+
+    // Relative velocity at contact point
+    const r_x = rimPt.x - b._x_m;
+    const r_y = rimPt.y - b._y_m;
+    const vx_rel = b.vx + b.omega * (-r_y);  // v + ω × r
+    const vy_rel = b.vy + b.omega * r_x;
+    const vn = vx_rel * ccd.nx + vy_rel * ccd.ny;
+
+    manifolds.push({
+      points: [{
+        x: rimPt.x,
+        y: rimPt.y,
+        nx: ccd.nx,
+        ny: ccd.ny,
+        penetration,
+        vx_rel,
+        vy_rel,
+        separation_v: vn
+      }],
+      rimAngle: contact.rimPoint.angle,
+      dwellFrames: b._dwellFrames || 0
+    });
+  }
+
+  return manifolds;
+}
+
+function solveContactsWithPGS(
+  b: BallStateM,
+  manifolds: ContactManifold[],
+  C: PhysicsConstantsM,
+  iterations: number = 6
+): void {
+  // 🔧 SOLE VELOCITY CORRECTOR: PGS is the only place where velocity/omega changes
+  // Impulse layer only generates contact data, solver applies all corrections
+
+  const inv_mass = 1 / C.BALL_MASS;
+  const inv_inertia = 1 / (0.4 * C.BALL_MASS * C.BALL_RADIUS_M * C.BALL_RADIUS_M);
+  const mu_rim = 0.65;
+
+  for (let iter = 0; iter < iterations; iter++) {
+    for (const manifold of manifolds) {
+      for (const pt of manifold.points) {
+        // ══════════════════════════════════════════════════════════════
+        // [1] NORMAL CONSTRAINT: Separation + Restitution
+        // ══════════════════════════════════════════════════════════════
+        const r_x = pt.x - b._x_m;
+        const r_y = pt.y - b._y_m;
+        const r_cross_n = r_x * (-pt.ny) - r_y * pt.nx;
+
+        // Current relative velocity
+        const vx_rel = b.vx + b.omega * (-r_y);
+        const vy_rel = b.vy + b.omega * r_x;
+        const vn_rel = vx_rel * pt.nx + vy_rel * pt.ny;
+
+        // Restitution: angle-based (side grips, top bounces)
+        const verticalness = Math.abs(pt.ny);
+        const E_contact = 0.35 + verticalness * 0.15;
+
+        // Bias: strong penetration correction (solver is only corrector)
+        const penetration_bias = -0.9 * Math.max(0, pt.penetration - 0.0005);
+        const restitution_bias = -E_contact * vn_rel;
+
+        const J_n_num = -(vn_rel + penetration_bias + restitution_bias);
+        const denom = inv_mass + r_cross_n * r_cross_n * inv_inertia;
+        const J_n = Math.max(0, J_n_num / denom);
+
+        // Apply normal impulse (sphere velocity + angular velocity)
+        b.vx += J_n * pt.nx * inv_mass;
+        b.vy += J_n * pt.ny * inv_mass;
+        b.omega += J_n * r_cross_n * inv_inertia;
+
+        // ══════════════════════════════════════════════════════════════
+        // [2] FRICTION CONSTRAINT: Coulomb Model
+        // ══════════════════════════════════════════════════════════════
+        const tx = -pt.ny;
+        const ty = pt.nx;
+
+        // Recalculate relative velocity after normal impulse
+        const vx_rel_fric = b.vx + b.omega * (-r_y);
+        const vy_rel_fric = b.vy + b.omega * r_x;
+        const vt_rel = vx_rel_fric * tx + vy_rel_fric * ty;
+
+        // Friction impulse cap
+        const J_t_max = mu_rim * Math.max(0, J_n);  // Only friction from contact force
+
+        let J_t = 0;
+        if (Math.abs(vt_rel) < 0.08) {
+          // Static friction: remove tangential motion completely
+          J_t = -vt_rel / denom;
+          J_t = Math.max(-J_t_max, Math.min(J_t_max, J_t));
+        } else {
+          // Kinetic friction: full cap
+          J_t = -Math.sign(vt_rel) * J_t_max;
+        }
+
+        // Apply friction impulse
+        b.vx += J_t * tx * inv_mass;
+        b.vy += J_t * ty * inv_mass;
+        b.omega += J_t * r_cross_n * inv_inertia;
+
+        // ══════════════════════════════════════════════════════════════
+        // [3] ROLLING CONSTRAINT (Last, weakest): ω·R = v_tangent
+        // ══════════════════════════════════════════════════════════════
+        const vt_mag_final = Math.sqrt(vx_rel_fric * vx_rel_fric + vy_rel_fric * vy_rel_fric);
+        const v_roll_target = Math.abs(b.omega) * C.BALL_RADIUS_M;
+        const roll_error = Math.abs(vt_mag_final - v_roll_target);
+
+        if (roll_error < 0.15 && vt_mag_final > 0.05) {
+          // Ball is in rolling state: weakly enforce rolling constraint
+          const target_omega = vt_mag_final / C.BALL_RADIUS_M;
+          const omega_error = target_omega - b.omega;
+          b.omega += omega_error * 0.2;  // 20% blend (weak, natural)
+        }
+      }
+    }
+  }
+}
+
+function checkBackboardCollision(b: BallStateM, C: PhysicsConstantsM): void {
+  if (b.boardHandled || b.vx >= 0) return;
+  const bx = b._x_m, face = C.BOARD_X_M;
+  if (bx - C.BALL_RADIUS_M <= face && bx >= face - 0.1 && b._y_m >= C.BOARD_TOP_M && b._y_m <= C.BOARD_BOT_M) {
+    b.boardHandled = true;
+    b.hitBackboard = true;
+    b._x_m = face + C.BALL_RADIUS_M;
+    b.vx = -b.vx * 0.66;  // Backboard bounciness (GitHub)
+    b.vy = b.vy * 0.62;   // 1 - 0.38 friction (GitHub)
+  }
+}
+
+function checkPoleCollision(b: BallStateM, C: PhysicsConstantsM): void {
+  // 🚨 ВИПРАВЛЕННЯ 2: Колізія зі стійкою (вертикальний циліндр)
+  if (C.POLE_X_M === undefined || C.POLE_X_M === null) return; // Стійка не визначена
+
+  const POLE_HALF_WIDTH = 0.05; // Половина ширини стійки в метрах (~10px для SCALE 100)
+  const dx = b._x_m - C.POLE_X_M;
+
+  // Перевіряємо чи м'яч торкається стійки
+  if (Math.abs(dx) < POLE_HALF_WIDTH + C.BALL_RADIUS_M) {
+    // М'яч торкнувся стійки — відштовхнемо його назад до гравців
+    const pushDir = dx > 0 ? 1 : -1;
+    b._x_m = C.POLE_X_M + pushDir * (POLE_HALF_WIDTH + C.BALL_RADIUS_M + 0.01);
+
+    // Відскок з поглинанням енергії
+    b.vx = -b.vx * 0.7;
+    b.vy *= 0.9;
+  }
+}
+
+export function checkAllCollisions(b: BallStateM, dt: number, C: PhysicsConstantsM): void {
+  checkBackboardCollision(b, C);
+  checkPoleCollision(b, C);
+
+  // 🏀 REALISTIC RIM COLLISION SYSTEM
+  // Pure physics: circle rim (0.225m radius, FIBA standard)
+  // Rim tolerance = 0.015m (15mm) simulates rim flex, ball compression, real-world imperfections
+  // Visual ellipse is just projection — doesn't affect physics calculation
+  const RIM_TOLERANCE = 0.015;
+  const EFFECTIVE_RIM_RADIUS = C.RIM_RADIUS_M * 1.08 + RIM_TOLERANCE;
+
+  // 24-POINT FULL COVERAGE (15° apart, ~0.27m spacing at rim)
+  const NUM_RIM_POINTS = 24;
+
+  // MULTI-COLLISION LOOP: Up to 4 contacts per timestep
+  let remainingTime = dt;
+  let contactsThisFrame = 0;
+  const MAX_RIM_CONTACTS_PER_FRAME = 4;
+  const rimContactsList: { ccd: CcdResult; rimPoint: { x: number; y: number; angle: number } }[] = [];
+
+  while (remainingTime > 1e-6 && contactsThisFrame < MAX_RIM_CONTACTS_PER_FRAME) {
+    let bestCcd: CcdResult | null = null;
+    let bestT = remainingTime;
+    let bestRimIndex = -1;
+
+    // Find earliest collision across all rim points
+    for (let i = 0; i < NUM_RIM_POINTS; i++) {
+      const angle = (i / NUM_RIM_POINTS) * Math.PI * 2;
+      const cosA = Math.cos(angle);
+      const sinA = Math.sin(angle);
+
+      // PERFECT CIRCLE: physics uses true 3D rim geometry
+      const rimX = C.HOOP_X_M + cosA * EFFECTIVE_RIM_RADIUS;
+      const rimY = C.HOOP_Y_M + sinA * EFFECTIVE_RIM_RADIUS;
+
+      const ccd = sweepSphereVsSphere(
+        b,
+        { x: rimX, y: rimY },
+        C.RIM_TUBE_R_M + C.BALL_RADIUS_M,
+        remainingTime
+      );
+
+      if (ccd.hit && ccd.t < bestT) {
+        bestCcd = ccd;
+        bestT = ccd.t;
+        bestRimIndex = i;
+      }
+    }
+
+    if (!bestCcd || !bestCcd.hit) break; // No collision found
+
+    // Integrate to collision point
+    integratePhysics(b, bestCcd.t, C);
+
+    // Find continuous contact point on rim
+    const rimContact = findContinuousContactPoint(b, bestCcd, C);
+    b._contactRimAngle = rimContact.angle;
+
+    // Check if ball is already in dwell (continuing contact)
+    if (b._dwellFrames && b._dwellFrames > 0) {
+      // Continue dwell: apply spring + friction + rolling
+      const stillInContact = dwellPhaseContact(b, bestCcd, rimContact, C);
+      if (!stillInContact) {
+        break; // Exit from rim collision loop
+      }
+    } else {
+      // NEW IMPACT: Start dwell phase with impact impulse
+      enterDwellContact(b, bestCcd, C);
+    }
+
+    // Collect contact for constraint solver
+    rimContactsList.push({ ccd: bestCcd, rimPoint: rimContact });
+
+    b.rimContacts++;
+    contactsThisFrame++;
+
+    // Track front/back rim contact
+    const rimX = bestCcd.nx > 0 ? 1 : -1;
+    if (rimX > 0) b.rimContactMask |= 0b001;
+    else b.rimContactMask |= 0b010;
+    b.rimHitTimer = 18;
+
+    // Prepare for next contact check
+    remainingTime -= bestCcd.t;
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // CONTINUOUS CONTACT SOLVER: Penalty force model (soft contact physics)
+  // ═══════════════════════════════════════════════════════════════
+  if (rimContactsList.length > 0) {
+    const manifolds = buildContactManifold(b, rimContactsList, C);
+    if (manifolds.length > 0) {
+      solveContinuousContact(b, manifolds, C, dt);  // Penalty force model with stick/slip
+    }
+  }
+
+  // PURE PHYSICS: No artificial rolling capture
+  // Rolling develops naturally from friction and spin interaction
+  // (removed forced omega adjustment)
+
+  // Integrate remaining time (if any)
+  if (remainingTime > 1e-6) {
+    integratePhysics(b, remainingTime, C);
+  }
+  if (b._y_m + C.BALL_RADIUS_M >= C.GROUND_Y_M) {
+    b._y_m = C.GROUND_Y_M - C.BALL_RADIUS_M;
+
+    // 🚨 ВИПРАВЛЕННЯ 1: Реалістичний відскок від підлоги (NBA баскетбольний м'яч)
+    const FLOOR_RESTITUTION = 0.62; // Стандартна упругість NBA м'яча
+    const FLOOR_FRICTION = 0.4;
+
+    if (Math.abs(b.vy) > 0.5) {
+      // М'яч має досить енергії для відскоку
+      b.vy = -b.vy * FLOOR_RESTITUTION; // Відскок вгору з поглинанням енергії
+      b.vx = b.vx * (1 - FLOOR_FRICTION); // Тертя сповільнює горизонтальну швидкість
+      b.omega *= 0.7; // Spin зменшується при контакті
+      b.bounceCount = (b.bounceCount || 0) + 1;
+
+      // Після 4 відскоків м'яч вважається зупиненим
+      if ((b.bounceCount || 0) >= 4) {
+        b.vx = 0; b.vy = 0; b.state = 'missed';
+      }
+    } else {
+      // М'яч мало енергії — зупиняється
+      b.vy = 0;
+      b.vx *= 0.85;
+      if (Math.abs(b.vx) < 0.1) {
+        b.vx = 0;
+        b.state = 'missed'; // М'яч повністю зупинений на підлозі
+      }
+    }
+  }
+}
+
+export function checkGoalEntry(b: BallStateM, C: PhysicsConstantsM): boolean {
+  // Deprecated: replaced by checkGateScoring (Top/Bottom Gate system)
+  return false;
+}
+
+export function checkGateScoring(b: BallStateM, C: PhysicsConstantsM, prev_y_m?: number): boolean {
+  // ⭐ TOP/BOTTOM GATE SCORING SYSTEM WITH TRAJECTORY CHECKING
+  // М'яч входить через верхню браму (Top Gate) і виходить через нижню (Bottom Gate)
+  // CRITICAL: Check trajectory (prev_y → current_y), not just position
+
+  if (b.scoredGoal) return false;
+
+  // М'яч ПОВИНЕН рухатись ВНИЗ (в canvas coords: vy > 0)
+  if (b.vy <= 0) return false;
+
+  // ширина воріт (85% від радіуса дужки)
+  const gateHalfWidth = C.RIM_RADIUS_M * 0.85;
+  const dx = Math.abs(b._x_m - C.HOOP_X_M);
+  if (dx > gateHalfWidth) return false;
+
+  // TOP GATE: м'яч входить зверху (трохи вище центру)
+  // BOTTOM GATE: м'яч виходить знизу (0.35м нижче центру)
+  const topGateY = C.HOOP_Y_M + 0.05;    // Верхня брама
+  const bottomGateY = C.HOOP_Y_M + 0.35; // Нижня брама
+
+  // Reconstruct prev_y if not provided
+  const prev_y = prev_y_m ?? b._y_m - b.vy * 0.008333; // Fallback: calc from current vy
+
+  // TRAJECTORY CHECK: Did ball CROSS top gate going downward?
+  const crossedTopGate = prev_y < topGateY && b._y_m >= topGateY;
+  if (crossedTopGate) {
+    b._passedTopGate = true;
+  }
+
+  // TRAJECTORY CHECK: Did ball CROSS bottom gate going downward AFTER top gate?
+  const crossedBottomGate = prev_y < bottomGateY && b._y_m >= bottomGateY;
+
+  if (crossedBottomGate && b._passedTopGate) {
+    // ГОЛ! М'яч пройшов крізь обидві брами сверху вниз
+    b.scoredGoal = true;
+    b.state = 'scored';
+    b._passedTopGate = false; // Reset for next shot
+
+    // Визначити тип гола (залежно від кількості торкань дужки)
+    const rc = b.rimContacts || 0;
+    if (rc === 0) {
+      b.outcome = 'swish';      // Прямий гол без дотику
+    } else if (rc <= 2) {
+      b.outcome = 'rattle_in';  // 1-2 торкання
+    } else {
+      b.outcome = 'rattle_in';  // 3+ торкання (щастя)
+    }
+
+    return true;
+  }
+
+  return false;
+}
+
+// ⚙️ BASKETBALL THROW CONSTANTS (фізика реального кидка)
+export const THROW_CONSTANTS = {
+  GRAVITY: 9.81,           // м/с²
+  MAX_THROW_SPEED: 18.0,   // м/с (максимум)
+  MIN_THROW_SPEED: 4.0,    // м/с (мінімум)
+  COURT_LENGTH_M: 15.0,    // довжина корту (SCALE basis)
+  ARC_FACTOR: 1.15,        // множник для дуги (вище = більша дуга)
+  POWER_SCALE: 0.8,        // power 100% = 80% від ідеальної швидкості + запас
+  GREEN_ZONE_WIDTH: 0.12,  // ширина зеленої зони (±6% від ідеалу)
+};
+
+// Фізична формула ідеальної швидкості кидка
+// v = sqrt(g * d² / (2 * cos²(θ) * (d*tan(θ) - h)))
+// де: d = горизонтальна відстань, θ = кут від горизонталі, h = різниця висот
+export function computeIdealSpeed(
+  distToHoop_m: number,
+  angle: number,        // від горизонталі (від'ємне = вгору)
+  heightDiff_m: number  // HOOP_Y_M - player_Y_M (позитивне якщо кільце нижче)
+): number {
+  const g = THROW_CONSTANTS.GRAVITY;
+  const theta = -angle;  // angle від'ємне у canvas, нам потрібне позитивне
+  const cosT = Math.cos(theta);
+  const sinT = Math.sin(theta);
+  const tanT = Math.tan(theta);
+
+  const numerator = g * distToHoop_m * distToHoop_m;
+  const denominator = 2 * cosT * cosT * (distToHoop_m * tanT - heightDiff_m);
+
+  if (denominator <= 0) return THROW_CONSTANTS.MIN_THROW_SPEED;
+
+  const v2 = numerator / denominator;
+  if (v2 <= 0) return THROW_CONSTANTS.MIN_THROW_SPEED;
+
+  const v = Math.sqrt(v2);
+  return Math.max(THROW_CONSTANTS.MIN_THROW_SPEED, Math.min(THROW_CONSTANTS.MAX_THROW_SPEED, v));
+}
+
+export function computeLaunchVelocityMeters(p: { angle: number; power: number; accuracy: number; distToHoop_m: number; px_m?: number; py_m?: number; heightDiff_m?: number }): { vx_m: number; vy_m: number; omega: number } {
+  // Обчислити ідеальну швидкість фізично
+  const heightDiff = p.heightDiff_m || 0;
+  const idealSpeed = computeIdealSpeed(p.distToHoop_m, p.angle, heightDiff);
+
+  // Power масштабуємо від 0-100 (не 0-200)
+  // 100% power = 80% від ідеальної швидкості (з запасом)
+  // 0% power = 40% від ідеальної швидкості
+  const powerNorm = Math.max(0, Math.min(1, p.power / 100));
+  const speedMultiplier = 0.4 + powerNorm * THROW_CONSTANTS.POWER_SCALE;
+  const ls = idealSpeed * speedMultiplier;
+
+  const vx_m = Math.cos(p.angle) * ls;
+  const vy_m = Math.sin(p.angle) * ls;
+
+  // Calculate backspin based on angle (high arc = backspin)
+  const angleDeg = p.angle * (180 / Math.PI);
+  let omega = angleDeg > 55 ? -(0.8 + (angleDeg - 55) * 0.01) : 0.2 + (50 - angleDeg) * 0.01;
+
+  return { vx_m, vy_m, omega };
+}
+
+export function stepPhysics(): void {}
+export function computeRimCollision(): RimCollisionResult { return { newVx: 0, newVy: 0, outcome: 'MISS', shouldScore: false }; }
+export function computeBackboardCollision(): BackboardCollisionResult { return { newVx: 0, newVy: 0, bounced: false }; }
+export function computeFloorBounce(b: BallPhysicsState): BallPhysicsState { return b; }
+
+
+export function simulateTrajectory(p: {
+  vx_m: number; vy_m: number;
+  x0_m: number; y0_m: number;
+  scale: number; groundY_m: number;
+  hoopX_m?: number; hoopY_m?: number;
+}): Array<{ x: number; y: number }> {
+  const g = 9.81, dt = 1/120;
+  const pts: {x:number,y:number}[] = [];
+  let x = p.x0_m, y = p.y0_m, vx = p.vx_m, vy = p.vy_m;
+
+  for (let i = 0; i < 600; i++) {
+    x += vx * dt;
+    y += vy * dt;
+    vy += g * dt;
+    pts.push({ x: x * p.scale, y: y * p.scale });
+
+    // Stop if reached hoop
+    if (p.hoopX_m && p.hoopY_m) {
+      if (Math.abs(x - p.hoopX_m) < 0.15 && Math.abs(y - p.hoopY_m) < 0.25 && vy > 0) {
+        pts.push({ x: p.hoopX_m * p.scale, y: p.hoopY_m * p.scale });
+        break;
+      }
+    }
+
+    if (y > p.groundY_m + 0.5) break;
+  }
+  return pts;
+}
+
+export function updateOscillator(cp: number, a: number = 0.3, f: number = 2.5): number {
+  const t = (Date.now() % 10000) / 10000;
+  return cp + a * Math.sin(t * f * Math.PI * 2);
+}
+
+export interface BallPhysicsResult { newVx: number; newVy: number; newRot: number; state: string; outcome: string; }
+export interface CollisionType { type: string; }
+
+export const PHYSICS_CONSTANTS = {
+  GRAVITY: 9.81, DRAG_COEFFICIENT: 0.0008, RIM_RESTITUTION: 0.35, RIM_FRICTION: 0.42,
+  BACKBOARD_RESTITUTION_X: 0.55, BACKBOARD_RESTITUTION_Y: 0.70, FLOOR_RESTITUTION: 0.60, FLOOR_FRICTION: 0.75,
+  MIN_BOUNCE_SPEED: 0.3, MAX_BOUNCES: 4, BALL_RADIUS: 10, SPIN_DAMPING: 0.97, SPIN_EFFECT_MAGNITUDE: 0.003,
+  SPIN_DECAY_RATE: 0.25, MAGNUS_COEFFICIENT: 0.06, BACKBOARD_RESTITUTION: 0.35, BACKBOARD_FRICTION: 0.3,
+  RIM_RADIUS_M_VISUAL: 0.45, RIM_TUBE_R_M_VISUAL: 0.0833,
+} as const;
+
+// ====== PHYSICS SYSTEM INTEGRITY AUDIT ======
+// Called once at startup to verify system is pure physics, no arcade assists
+export function auditPhysicsSystem(): { clean: boolean; errors: string[] } {
+  const errors: string[] = [];
+
+  // ARCADE BAN LIST: These functions/patterns must NOT exist in active code
+  const bannedPatterns = [
+    'calculateRealisticAccuracy',
+    'powerInZone',
+    'angleInRange',
+    'matchPct',
+    'greenZoneTolerance',
+    'autoScore',
+    'probability.*score',
+    'forced.*score',
+    'magnet.*rim',
+    'assist.*score',
+  ];
+
+  // PHYSICS LOCK: Constants must be realistic SI units only
+  const allowedGravity = [9.81]; // SI units only
+  if (!allowedGravity.includes(PHYSICS_CONSTANTS.GRAVITY)) {
+    errors.push(`❌ GRAVITY ${PHYSICS_CONSTANTS.GRAVITY} is not SI units (must be 9.81 m/s²)`);
+  }
+
+  // Continuous contact model (penalty force) is primary contact mechanism
+  if (RIM_MATERIAL.stiffness < 5000 || RIM_MATERIAL.stiffness > 15000) {
+    errors.push(`⚠️  RIM_MATERIAL.stiffness ${RIM_MATERIAL.stiffness} outside typical range (5000-15000 N/m)`);
+  }
+
+  if (RIM_MATERIAL.damping < 100 || RIM_MATERIAL.damping > 300) {
+    errors.push(`⚠️  RIM_MATERIAL.damping ${RIM_MATERIAL.damping} outside typical range (100-300 N·s/m)`);
+  }
+
+  if (PHYSICS_CONSTANTS.RIM_RESTITUTION > 0.6) {
+    errors.push(`❌ RIM_RESTITUTION ${PHYSICS_CONSTANTS.RIM_RESTITUTION} too high (max 0.50 for realistic rim)`);
+  }
+
+  if (PHYSICS_CONSTANTS.DRAG_COEFFICIENT > 0.001) {
+    errors.push(`❌ DRAG_COEFFICIENT ${PHYSICS_CONSTANTS.DRAG_COEFFICIENT} too high (realistic: 0.0008)`);
+  }
+
+  if (PHYSICS_CONSTANTS.MIN_BOUNCE_SPEED > 0.5) {
+    errors.push(`❌ MIN_BOUNCE_SPEED ${PHYSICS_CONSTANTS.MIN_BOUNCE_SPEED} too high (realistic: 0.3 m/s)`);
+  }
+
+  return {
+    clean: errors.length === 0,
+    errors,
+  };
+}

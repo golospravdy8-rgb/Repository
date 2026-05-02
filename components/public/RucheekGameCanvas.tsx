@@ -18,10 +18,6 @@ import {
 import { ref, get, remove, set } from "firebase/database";
 import { getFirebaseDatabase } from "@/lib/firebase";
 import {
-  stepPhysics,
-  computeRimCollision,
-  computeBackboardCollision,
-  computeFloorBounce,
   simulateTrajectory,
   PHYSICS_CONSTANTS,
   integratePhysics,
@@ -101,6 +97,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
     otherPlayers: [] as any[], // ✅ MULTIPLAYER: Other players
     leaderboard: [] as any[], // ✅ MULTIPLAYER: Leaderboard
     currentTurn: 0, // ✅ MULTIPLAYER: Current turn index
+    debugPhysicsCircle: false, // DEBUG: Show true physics rim circle
   });
   const playerIdRef = useRef<string>(
     typeof window !== 'undefined'
@@ -360,9 +357,6 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
     const GY = GY_ORIG * scaleY;
     groundYRef.current = GY;
     const SCALE = Math.min(W, H) / 15.0;
-    // Real gravity: 9.81 m/s² = 0.095 px/frame² at 35px=1m, 60fps
-    // Гравітація: зменшена на 15% для красивішої параболи (0.12 * 0.85 = 0.102)
-    const G = 0.102;
     // Restitution coefficients for realistic bouncing
     const RESTITUTION_RIM = 0.55;      // дужка — средний отскок
     const RESTITUTION_BACKBOARD = 0.45; // щит — мягкий отскок
@@ -450,146 +444,6 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
     }
 
 
-    // NEW: Calculate ideal power based on distance (0-200% scale)
-    function calculateIdealPowerByDistance(playerX: number, playerY: number, maxDist: number = realMaxDistance): number {
-      const distToHoop = Math.hypot(HOOP_X - playerX, HOOP_Y - playerY);
-      const distFraction = distToHoop / maxDist;
-
-      let idealPower;
-      if (distFraction <= 0.3) {
-        // Close range: 20% → 50% power
-        idealPower = 30 + (distFraction / 0.3) * 20;
-      } else if (distFraction <= 0.6) {
-        // Mid range: 30-60% → 95-100% power
-        idealPower = 50 + ((distFraction - 0.3) / 0.3) * 50;
-      } else if (distFraction <= 0.85) {
-        // Three-point: 60-85% → 150% power
-        idealPower = 100 + ((distFraction - 0.6) / 0.25) * 50;
-      } else {
-        // Deep range: 85%+ → 190% power
-        idealPower = 150 + ((distFraction - 0.85) / 0.15) * 40;
-      }
-      return Math.max(30, Math.min(200, Math.round(idealPower)));
-    }
-
-    function calculateIdealMarkerPos(
-      px: number, py: number,
-      hx: number, hy: number,
-      angleDeg: number
-    ): number {
-      const angleRad = Math.abs(angleDeg) * Math.PI / 180;
-      const dx = hx - px;
-      const dy = hy - py;
-      const distToHoop = Math.hypot(dx, dy);
-      const cosA = Math.cos(angleRad);
-      const sinA = Math.sin(angleRad);
-      const absDx = Math.abs(dx);
-      const absDy = Math.abs(dy);
-      const hoopAbove = hy < py;
-      const denom = hoopAbove
-        ? (absDy + absDx * (sinA / cosA))
-        : (absDx * (sinA / cosA) - absDy);
-      if (denom <= 0) return 0.5;
-      const v0sq = (G * absDx * absDx) / (2 * cosA * cosA * denom);
-      if (v0sq <= 0) return 0.5;
-      const v0 = Math.sqrt(v0sq);
-      const baseSpeed = 10 + (distToHoop / 500) * 8;
-      const powerMultiplier = v0 / baseSpeed;
-      const markerPos = (powerMultiplier - 0.3) / 1.7;
-      return Math.max(0.05, Math.min(0.95, markerPos));
-    }
-
-    // Self-test: verify ideal marker reaches hoop for various player positions
-    if (!(window as any).__sweetSpotTested) {
-      (window as any).__sweetSpotTested = true;
-      const testAngleDeg = 72; // Default aim angle in degrees
-      const testPositions = [
-        { px: P_START, py: P_START_Y, name: 'Default' },
-        { px: P_START - P_STEP, py: P_START_Y, name: 'Player 2' },
-        { px: P_START - 2 * P_STEP, py: P_START_Y, name: 'Player 3' }
-      ];
-      testPositions.forEach(pos => {
-        const idealPos = calculateIdealMarkerPos(pos.px, pos.py, HOOP_X, HOOP_Y, testAngleDeg);
-        const shotPower = idealPos * 200;
-        const dist = Math.hypot(HOOP_X - pos.px, HOOP_Y - pos.py);
-        const baseSpeed = 10 + (dist / 500) * 8;
-        const pm = 0.3 + (shotPower / 200) * 1.7;
-        const launchSpeed = baseSpeed * pm;
-        const ar = testAngleDeg * Math.PI / 180;
-        const vx0 = -Math.cos(ar) * launchSpeed;
-        const vy0 = -Math.sin(ar) * launchSpeed;
-        let bx = pos.px, by = pos.py, vx = vx0, vy = vy0;
-        let closestDist = Infinity;
-        for (let f = 0; f < 500; f++) {
-          vy += G;
-          bx += vx; by += vy;
-          const d = Math.hypot(bx - HOOP_X, by - HOOP_Y);
-          if (d < closestDist) closestDist = d;
-          if (bx < HOOP_X - 50) break;
-        }
-        const status = closestDist < 30 ? '✅' : '❌';
-      });
-    }
-
-    function getShootingPhysicsForDistance(distToHoop: number) {
-      const maxDist = Math.hypot(W, H);
-      const distFraction = distToHoop / maxDist;
-
-      let physics = {
-        minPowerRequired: 35,
-        idealPower: 50,
-        maxPowerUseful: 70,
-        tolerance: 5,
-        estimatedSpeed: 6.5,
-        optimalAngle: 38,
-        angleTolerance: 4
-      };
-
-      if (distFraction < 0.30) {
-        physics = {
-          minPowerRequired: 35,
-          idealPower: 50,
-          maxPowerUseful: 70,
-          tolerance: 8,
-          estimatedSpeed: 6.5,
-          optimalAngle: 38,
-          angleTolerance: 4
-        };
-      } else if (distFraction < 0.60) {
-        physics = {
-          minPowerRequired: 55,
-          idealPower: 70,
-          maxPowerUseful: 85,
-          tolerance: 7,
-          estimatedSpeed: 8.0,
-          optimalAngle: 44,
-          angleTolerance: 3.5
-        };
-      } else if (distFraction < 0.85) {
-        physics = {
-          minPowerRequired: 75,
-          idealPower: 88,
-          maxPowerUseful: 98,
-          tolerance: 6,
-          estimatedSpeed: 9.5,
-          optimalAngle: 50,
-          angleTolerance: 3
-        };
-      } else {
-        physics = {
-          minPowerRequired: 90,
-          idealPower: 98,
-          maxPowerUseful: 100,
-          tolerance: 5,
-          estimatedSpeed: 11.0,
-          optimalAngle: 53,
-          angleTolerance: 2.5
-        };
-      }
-
-      return physics;
-    }
-
 
     function stepBall(b: any, dt_normalized: number) {
       if (b.state !== 'flying') return;
@@ -600,15 +454,21 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       const frameMs = dt_normalized * (1000/60);
       b._accumulator = Math.min(b._accumulator + frameMs/1000, 3 * FIXED_DT);
 
+      // ⭐ RIM GEOMETRY SYNCHRONIZATION: Physics & Visual Match
+      // 🔒 PERFECT CIRCLE: Visual and physics are identical (1:1 rule)
+      // RIM_RX == RIM_RY == HOOP_R (no ellipse compression)
+      const RIM_RX_M = (HOOP_R / SCALE);
+      const RIM_RY_M = (HOOP_R / SCALE);  // PERFECT CIRCLE (no 0.28 compression)
+
       const C: PhysicsConstantsM = {
         GRAVITY: 9.81, BALL_MASS: 0.623, BALL_RADIUS_M: 0.12,
-        RIM_RADIUS_M: 0.6,  // Збільшено щоб відповідати HOOP_R=27px (вся 10px)
-        RIM_TUBE_R_M: 0.023, NET_ZONE_DEPTH_M: 0.8,
-        E_RIM: 0.82, MU_RIM: 0.25, Cd: 0.004, Cm: 0.000045, OMEGA_DECAY: 0.985,
+        RIM_RADIUS_M: RIM_RX_M,  // X-radius (horizontal)
+        RIM_TUBE_R_M: (5 * scaleX) / SCALE, NET_ZONE_DEPTH_M: 0.8,
+        E_RIM: 0.45, MU_RIM: 0.65, Cd: 0.004, Cm: 0.000045, OMEGA_DECAY: 0.985,
         HOOP_X_M: HOOP_X / SCALE, HOOP_Y_M: HOOP_Y / SCALE,
         BOARD_X_M: BOARD_FACE / SCALE, BOARD_TOP_M: BOARD_TOP / SCALE,
         BOARD_BOT_M: BOARD_BOT / SCALE, GROUND_Y_M: GY / SCALE,
-        POLE_X_M: POLE_X / SCALE, // Стійка для колізії
+        POLE_X_M: POLE_X / SCALE,
       };
 
       // 🔴 КРИТИЧНО: Обмеження на кількість фізичних ітерацій за кадр
@@ -630,6 +490,8 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         b.omega *= (1 - (C.SPIN_DECAY_RATE ?? 0.25) * FIXED_DT);
 
         checkAllCollisions(b, FIXED_DT, C);
+        // ✅ PHYSICS-BASED SCORING: Ball must cross top→bottom gates naturally
+        // This is real physics, not arcade auto-poppping
         checkGateScoring(b, C, prev_y_before_step);
         b._physTick++;
         b._accumulator -= FIXED_DT;
@@ -1207,15 +1069,29 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       ctx.stroke();
 
       // ── ПЕРЕМЕННЫЕ ПЕРСПЕКТИВЫ ───────────────────
-      const RIM_RX = HOOP_R;
-      const RIM_RY = HOOP_R * 0.28;
+      // 🔒 SYNC FIX 2026-05-02: Отделить shake для визуала от физического центра
+      // PHYSICS: Центр остаётся STATIC (для коллизий)
+      // RENDER: Центр может двигаться (для shake анимации)
       const SHX = sh * 0.3;
       const SHY = sh * 0.15;
-      const cx = HOOP_X + SHX;
-      const cy = HOOP_Y + SHY;
+
+      // 🔒 ФИЗИЧЕСКИЙ ЦЕНТР (для коллизии, не трясится)
+      const cx_physics = HOOP_X;
+      const cy_physics = HOOP_Y;
+
+      // 👁️ ВИЗУАЛЬНЫЙ ЦЕНТР (с shake для анимации)
+      const cx = cx_physics + SHX;
+      const cy = cy_physics + SHY;
+
+      // Горизонтальное кольцо (проекция в side-view)
+      // 🔒 SYNC FIX 2026-05-02: Убрали 0.25× компрессию — используем идеальный круг
+      // Физика использует RIM_RX_M == RIM_RY_M (идеальный круг в SI)
+      // Теперь визуал тоже использует идеальный круг для 100% синхронизации
+      const rimRadiusX_px = HOOP_R;           // 27 px (горизонтальная ось)
+      const rimRadiusY_px = HOOP_R;           // 27 px (вертикальная ось = горизонтальной) ✅ PERFECT CIRCLE
 
       // ── КРЕПЛЕНИЕ — ГОРИЗОНТАЛЬНАЯ ПОЛКА ───────
-      const rimRightX = cx + RIM_RX + SHX;
+      const rimRightX = cx + rimRadiusX_px + SHX;
       const bracketY = cy + SHY;
 
       // Нижняя горизонтальная труба (основное крепление)
@@ -1254,27 +1130,49 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       ctx.lineWidth = 1 * scaleX;
       ctx.stroke();
 
-      // ── 1. ЗАДНЯЯ ДУГА (верхняя, рисуется ДО сетки) ──────────
+      // ── 1. ГОРИЗОНТАЛЬНОЕ КОЛЬЦО (правильная проекция side-view) ──────────
+      // Физика: кольцо = горизонтальный круг в 3D
+      // Визуал: в side-view это эллипс (сплющен вертикально)
+      // rimRadiusX_px и rimRadiusY_px уже определены выше
+
       const RIM_TUBE = 5 * scaleX;
 
-      // Тень
-      ctx.beginPath();
-      ctx.ellipse(cx, cy + 1.5*scaleY, RIM_RX, RIM_RY, 0, Math.PI, 0);
-      ctx.strokeStyle = 'rgba(60,0,0,0.6)';
+      // Градиент металла (горизонтальный)
+      const rimGrad = ctx.createLinearGradient(
+        cx - rimRadiusX_px, cy,
+        cx + rimRadiusX_px, cy
+      );
+      rimGrad.addColorStop(0,   "#aa4400");
+      rimGrad.addColorStop(0.3, "#ff7700");
+      rimGrad.addColorStop(0.5, "#ff9933");
+      rimGrad.addColorStop(0.7, "#ff7700");
+      rimGrad.addColorStop(1,   "#aa4400");
+
+      // Тень (под кольцом)
+      ctx.save();
+      ctx.globalAlpha = 0.3;
+      ctx.strokeStyle = 'rgba(60,0,0,0.8)';
       ctx.lineWidth = RIM_TUBE * 2.0;
-      ctx.stroke();
-      // Тёмный слой
       ctx.beginPath();
-      ctx.ellipse(cx, cy, RIM_RX, RIM_RY, 0, Math.PI, 0);
-      ctx.strokeStyle = '#8B1500';
-      ctx.lineWidth = RIM_TUBE * 1.3;
+      ctx.ellipse(cx, cy + 2*scaleY, rimRadiusX_px, rimRadiusY_px, 0, 0, Math.PI * 2);
       ctx.stroke();
-      // Основной цвет
+      ctx.restore();
+
+      // Основное кольцо (горизонтальный эллипс)
+      ctx.lineWidth = RIM_TUBE * 0.85;
+      ctx.strokeStyle = rimGrad;
       ctx.beginPath();
-      ctx.ellipse(cx, cy, RIM_RX, RIM_RY, 0, Math.PI, 0);
-      ctx.strokeStyle = '#B82010';
-      ctx.lineWidth = RIM_TUBE * 0.9;
+      ctx.ellipse(cx, cy, rimRadiusX_px, rimRadiusY_px, 0, 0, Math.PI * 2);
       ctx.stroke();
+
+      // Внутренний эффект объёма (труба)
+      ctx.globalAlpha = 0.18;
+      ctx.lineWidth = RIM_TUBE * 0.55;
+      ctx.strokeStyle = '#cc3300';
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, rimRadiusX_px * 0.78, rimRadiusY_px * 0.78, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.globalAlpha = 1.0;
 
       // ── 2. СЕТКА — трапеция, 3 цвета ─────────────────────────
       // Calculate net swing displacement
@@ -1297,15 +1195,20 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         if (progress >= 1) gs.netSwing.type = null;
       }
 
-      const netBottom = cy + HOOP_R * 1.5 + (netSwing || 0) * scaleY;
-      const NET_TOP_HALF = RIM_RX * 0.95;   // верх широкий
-      const NET_BOT_HALF = RIM_RX * 0.30;   // низ узкий (трапеция)
+      // 🔒 SYNC FIX 2026-05-02: netBottom должна совпадать с физической gate
+      // Physics: bottomGateY = HOOP_Y_M + 0.35m (35cm ниже центра)
+      // При SCALE = min(W,H)/15.0: 0.35m × SCALE = 35px (когда SCALE=100)
+      const GATE_DEPTH_M = 0.35;  // Из basketball-physics-engine.ts:273
+      const GATE_DEPTH_PX = GATE_DEPTH_M * SCALE;  // В пиксели
+      const netBottom = cy + GATE_DEPTH_PX + (netSwing || 0);
+      const NET_TOP_HALF = rimRadiusX_px * 0.95;   // верх широкий
+      const NET_BOT_HALF = rimRadiusX_px * 0.30;   // низ узкий (трапеция)
 
       // Вертикальные нити — 11 штук по эллипсу
       for (let i = 0; i <= 10; i++) {
         const t = i / 10;
         const topX = cx + (t - 0.5) * 2 * NET_TOP_HALF;
-        const topY = cy + RIM_RY * Math.cos(Math.PI * t) * 0.3;
+        const topY = cy + rimRadiusY_px * Math.cos(Math.PI * t) * 0.3;
         const botX = cx + (t - 0.5) * 2 * NET_BOT_HALF;
         const botY = netBottom;
 
@@ -1339,9 +1242,9 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       ];
       for (let j = 0; j < 5; j++) {
         const t = (j + 1) / 5;
-        const rowY = cy + RIM_RY + (netBottom - cy - RIM_RY) * t;
+        const rowY = cy + rimRadiusY_px + (netBottom - cy - rimRadiusY_px) * t;
         const rowHalfW = NET_TOP_HALF * (1 - t) + NET_BOT_HALF * t;
-        const rowRY = RIM_RY * (1 - t * 0.75) * 0.25;
+        const rowRY = rimRadiusY_px * (1 - t * 0.75) * 0.25;
         ctx.beginPath();
         ctx.ellipse(cx, rowY, rowHalfW, Math.max(rowRY, 1*scaleY),
                     0, 0, Math.PI * 2);
@@ -1350,67 +1253,52 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         ctx.stroke();
       }
 
-      // ── 3. ПЕРЕДНЯЯ ДУГА (рисуется ПОСЛЕ сетки — поверх) ─────
-      // Тень под передней дугой
+      // ── 3. ПЕРЕДНЯЯ ДУГА (фронтальный вид кольца) ─────
+      // Верхняя половина кольца (рисуется поверх сетки)
+      ctx.lineWidth = RIM_TUBE * 0.9;
+      ctx.strokeStyle = rimGrad;
       ctx.beginPath();
-      ctx.ellipse(cx, cy + 2.5*scaleY, RIM_RX, RIM_RY, 0, 0, Math.PI);
-      ctx.strokeStyle = 'rgba(40,0,0,0.65)';
-      ctx.lineWidth = RIM_TUBE * 2.2;
-      ctx.stroke();
-      // Тёмный слой
-      ctx.beginPath();
-      ctx.ellipse(cx, cy, RIM_RX, RIM_RY, 0, 0, Math.PI);
-      ctx.strokeStyle = '#8B1500';
-      ctx.lineWidth = RIM_TUBE * 1.6;
-      ctx.stroke();
-      // Средний тон
-      ctx.beginPath();
-      ctx.ellipse(cx, cy, RIM_RX, RIM_RY, 0, 0, Math.PI);
-      ctx.strokeStyle = '#CC2200';
-      ctx.lineWidth = RIM_TUBE * 1.2;
-      ctx.stroke();
-      // Яркий верхний слой
-      ctx.beginPath();
-      ctx.ellipse(cx, cy, RIM_RX, RIM_RY, 0, 0, Math.PI);
-      ctx.strokeStyle = '#FF3311';
-      ctx.lineWidth = RIM_TUBE * 0.7;
-      ctx.stroke();
-      // Блик на передней дуге
-      ctx.beginPath();
-      ctx.ellipse(cx, cy - 0.5*scaleY,
-                  RIM_RX * 0.65, RIM_RY * 0.55,
-                  0, Math.PI * 0.18, Math.PI * 0.82);
-      ctx.strokeStyle = 'rgba(255,180,140,0.50)';
-      ctx.lineWidth = 2.5 * scaleX;
+      ctx.ellipse(cx, cy, rimRadiusX_px, rimRadiusY_px, 0, 0, Math.PI);
       ctx.stroke();
 
-      // Кружки дужек (передних) — ближние к нам
+      // Блик на верхней дуге (металл отражает свет)
+      ctx.globalAlpha = 0.35;
+      ctx.lineWidth = 2 * scaleX;
+      ctx.strokeStyle = 'rgba(255,200,150,0.8)';
+      ctx.beginPath();
+      ctx.ellipse(cx, cy - rimRadiusY_px * 0.4,
+                  rimRadiusX_px * 0.6, rimRadiusY_px * 0.4,
+                  0, 0, Math.PI);
+      ctx.stroke();
+      ctx.globalAlpha = 1.0;
+
+      // Кружки дужек (передних) — крепления кольца
       // Левая дужка
       ctx.beginPath();
-      ctx.arc(cx - RIM_RX + SHX, cy + SHY, 5.5*scaleX, 0, Math.PI*2);
+      ctx.arc(cx - rimRadiusX_px + SHX, cy + SHY, 5.5*scaleX, 0, Math.PI*2);
       ctx.fillStyle = '#8B1500';
       ctx.fill();
       ctx.beginPath();
-      ctx.arc(cx - RIM_RX + SHX, cy + SHY, 4*scaleX, 0, Math.PI*2);
+      ctx.arc(cx - rimRadiusX_px + SHX, cy + SHY, 4*scaleX, 0, Math.PI*2);
       ctx.fillStyle = '#DD2200';
       ctx.fill();
       ctx.beginPath();
-      ctx.arc(cx - RIM_RX + SHX - 1.5*scaleX,
+      ctx.arc(cx - rimRadiusX_px + SHX - 1.5*scaleX,
               cy + SHY - 2*scaleY, 2*scaleX, 0, Math.PI*2);
       ctx.fillStyle = 'rgba(255,190,150,0.55)';
       ctx.fill();
 
       // Правая дужка
       ctx.beginPath();
-      ctx.arc(cx + RIM_RX + SHX, cy + SHY, 5.5*scaleX, 0, Math.PI*2);
+      ctx.arc(cx + rimRadiusX_px + SHX, cy + SHY, 5.5*scaleX, 0, Math.PI*2);
       ctx.fillStyle = '#8B1500';
       ctx.fill();
       ctx.beginPath();
-      ctx.arc(cx + RIM_RX + SHX, cy + SHY, 4*scaleX, 0, Math.PI*2);
+      ctx.arc(cx + rimRadiusX_px + SHX, cy + SHY, 4*scaleX, 0, Math.PI*2);
       ctx.fillStyle = '#DD2200';
       ctx.fill();
       ctx.beginPath();
-      ctx.arc(cx + RIM_RX + SHX - 1.5*scaleX,
+      ctx.arc(cx + rimRadiusX_px + SHX - 1.5*scaleX,
               cy + SHY - 2*scaleY, 2*scaleX, 0, Math.PI*2);
       ctx.fillStyle = 'rgba(255,190,150,0.55)';
       ctx.fill();
@@ -1423,6 +1311,68 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         ctx.beginPath();
         ctx.ellipse(HOOP_X, HOOP_Y, HOOP_R + 14*scaleX, 11*scaleY, 0, 0, Math.PI * 2);
         ctx.fill();
+      }
+
+      // ═════════════════════════════════════════════
+      // 🔍 DEBUG OVERLAY: HOOP SYNC VISUALIZATION
+      // Toggle: gsRef.current.debugPhysicsCircle = true
+      // ═════════════════════════════════════════════
+      if (gs.debugPhysicsCircle) {
+        ctx.save();
+        ctx.globalAlpha = 0.45;
+
+        // 🟢 ФИЗИЧЕСКИЙ ЦЕНТР И РАДИУС (идеальный круг)
+        const cx_phys = HOOP_X;
+        const cy_phys = HOOP_Y;
+        const phys_radius_px = HOOP_R;  // 27 px
+
+        ctx.strokeStyle = '#00FF00';
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.arc(cx_phys, cy_phys, phys_radius_px, 0, Math.PI * 2);
+        ctx.stroke();
+
+        // Центральная точка (зелёная)
+        ctx.fillStyle = '#00FF00';
+        ctx.beginPath();
+        ctx.arc(cx_phys, cy_phys, 5, 0, Math.PI * 2);
+        ctx.fill();
+
+        // 📐 GATE TOP И BOTTOM (жёлтые линии)
+        const topGateY_px = cy_phys + (0.05 * SCALE);     // +5cm
+        const botGateY_px = cy_phys + (0.35 * SCALE);     // +35cm
+
+        ctx.strokeStyle = '#FFFF00';
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([5, 5]);
+
+        // TOP GATE (верхние ворота)
+        ctx.beginPath();
+        ctx.moveTo(cx_phys - 50*scaleX, topGateY_px);
+        ctx.lineTo(cx_phys + 50*scaleX, topGateY_px);
+        ctx.stroke();
+
+        // BOTTOM GATE (нижние ворота)
+        ctx.beginPath();
+        ctx.moveTo(cx_phys - 50*scaleX, botGateY_px);
+        ctx.lineTo(cx_phys + 50*scaleX, botGateY_px);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // ТЕКСТ ИНСТРУКЦИИ
+        ctx.fillStyle = '#00FF00';
+        ctx.font = `bold 12px monospace`;
+        ctx.textAlign = 'left';
+        ctx.fillText(`🔒 Physics R=${HOOP_R}px`, cx_phys + 60, cy_phys - 20);
+
+        ctx.fillStyle = '#FFFF00';
+        ctx.fillText(`⬆ Top Gate: ${topGateY_px.toFixed(0)}px`, 10, 25);
+        ctx.fillText(`⬇ Bot Gate: ${botGateY_px.toFixed(0)}px`, 10, 40);
+
+        ctx.fillStyle = '#FF6666';
+        ctx.fillText(`Shake offset: SHX=${SHX.toFixed(1)}, SHY=${SHY.toFixed(1)}`, 10, 55);
+
+        ctx.restore();
       }
 
       ctx.globalAlpha = 1;
@@ -2013,6 +1963,14 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
     }
 
     // Pusher doesn't require connection reconnect logic (pub/sub handles it)
+
+    // DEBUG MODE: Press 'D' to toggle physics rim circle visualization
+    document.addEventListener("keydown", (e: KeyboardEvent) => {
+      if (e.key.toLowerCase() === 'd') {
+        gs.debugPhysicsCircle = !gs.debugPhysicsCircle;
+        console.log(`🔵 Physics Debug Circle: ${gs.debugPhysicsCircle ? '✅ ON' : '❌ OFF'}`);
+      }
+    });
 
     // Double-click tracking for instant ball grab
     let lastClickTime = 0;

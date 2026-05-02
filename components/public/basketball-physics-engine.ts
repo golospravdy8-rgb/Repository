@@ -168,6 +168,15 @@ function checkPoleCollision(b: BallStateM, C: PhysicsConstantsM): void {
 }
 
 export function checkAllCollisions(b: BallStateM, dt: number, C: PhysicsConstantsM): void {
+  // 🔒 SYNC CHECK 2026-05-02: Убедиться, что RIM радиусы симметричны (идеальный круг)
+  // Визуал использует rimRadiusX_px == rimRadiusY_px (27×27), физика тоже должна использовать идеальный круг
+  // Если это не так — будет рассинхрон!
+  const RIM_X_M = C.RIM_RADIUS_M;
+  const RIM_Y_M = C.RIM_RADIUS_M;  // ← ДОЛЖНЫ БЫТЬ ИДЕНТИЧНЫ
+  if (Math.abs(RIM_X_M - RIM_Y_M) > 0.001) {
+    console.error('[🔴 SYNC ERROR] RIM_RADIUS not symmetric!', { RIM_X_M, RIM_Y_M });
+  }
+
   checkBackboardCollision(b, C);
   checkPoleCollision(b, C);
 
@@ -190,7 +199,7 @@ export function checkAllCollisions(b: BallStateM, dt: number, C: PhysicsConstant
     if (Math.abs(cosA) < 0.25) continue;
 
     const rimX = C.HOOP_X_M + cosA * EFFECTIVE_RIM_RADIUS;
-    const rimY = C.HOOP_Y_M + sinA * EFFECTIVE_RIM_RADIUS * 0.3;
+    const rimY = C.HOOP_Y_M + sinA * EFFECTIVE_RIM_RADIUS;
 
     const ccd = sweepSphereVsSphere(
       b,

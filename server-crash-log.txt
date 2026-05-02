@@ -1,0 +1,25 @@
+
+> basket-lviv@0.1.0 dev:safe
+> node scripts/dev-safe.js
+
+🔧 [DEV:SAFE] Starting safe development server on port 3006...
+
+🔍 Scanning for processes on ports 3006-3012...
+✨ Port cleanup complete!
+
+🚀 Starting unified Next.js + Colyseus development server...
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📍 Main App  → http://localhost:3006
+📡 WebSocket → ws://localhost:3006
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+▶ Starting Next.js development server...
+  ▲ Next.js 14.2.35
+  - Local:        http://localhost:3006
+  - Environments: .env.local, .env
+  - Experiments (use with caution):
+    · cpus
+
+ ✓ Starting...
+ ✓ Ready in 3.9s

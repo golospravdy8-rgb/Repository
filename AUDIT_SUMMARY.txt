@@ -1,0 +1,140 @@
+═══════════════════════════════════════════════════════════════════════════════
+                    FRONT-END FEELING AUDIT: QUICK SUMMARY
+═══════════════════════════════════════════════════════════════════════════════
+
+SCORED EVALUATION (0–10 scale)
+
+Realism:              4/10  ❌ Arcade physics on flat ellipse
+Readability:          7/10  ✅ Visual is clear, contact feedback missing
+Physical Feeling:     5/10  ⚠️  Bouncy, silent, no impact sensation
+
+═══════════════════════════════════════════════════════════════════════════════
+
+WHAT PREVENTS "REAL RIM" FEELING?
+
+Ranked by Impact:
+
+1. INVISIBLE CONTACT POINT (CRITICAL) — Impact: -3/10
+   Visual contact (Y=314px) ≠ Physics contact (Y=337px)
+   Breaks fairness perception
+   Fix: Ellipse-Space Physics (scale Y in physics)
+
+2. NO IMPACT FEEDBACK (HIGH) — Impact: -2/10
+   Silent (no sound), invisible (no flash), no vibration, no particles
+   Ball hits rim with zero sensory feedback
+   Fix: Add contact effects (sound, flash, vibration)
+
+3. RESTITUTION TOO HIGH (MEDIUM) — Impact: -1.5/10
+   E_RIM=0.82 (bounces 82% energy back)
+   Real rim: 0.45–0.55 (bounces 45–55%)
+   Result: Takes 5+ bounces to settle (should be 2–3)
+   Fix: Lower to 0.50–0.55
+
+4. FLAT RIM RENDERING (MEDIUM) — Impact: -1/10
+   No 3D tube thickness, no highlights, no depth
+   Looks like 2D line instead of metal tube
+   Fix: Multi-layer rendering with shadows/highlights
+
+5. ELLIPSE COMPRESSION (MINOR) — Impact: -0.5/10
+   Current 0.28× very aggressive
+   Better: 0.32× (slightly rounder)
+   Fix: Adjust RIM_RY constant
+
+═══════════════════════════════════════════════════════════════════════════════
+
+VISUAL QUALITY ASSESSMENT
+
+✅ Ellipse Perspective (0.28×)
+   Matches real basketball rim viewed head-on
+   Score: 8/10
+
+❌ Contact Sensation
+   NO visual feedback when ball hits rim (CRITICAL)
+   Silent, no flash, no vibration
+   Score: 2/10
+
+⚠️ Ball Behavior
+   Bounces too much (arcade-tuned)
+   Settles eventually (but takes too long)
+   Score: 5/10
+
+❌ Visual Artifacts
+   Offset visible at top/bottom (22.5px gap)
+   Imperceptible at sides (3px)
+   Score: 2/10
+
+═══════════════════════════════════════════════════════════════════════════════
+
+CLASSIFICATION
+
+Current: SEMI-REALISTIC ARCADE
+
+Looks arcade (bright colors, glowing effects)
+Plays arcade (bouncy physics, high energy)
+Engine: Semi-realistic (gravity + spin, SI units)
+Feels: Arcade (silent, invisible contact, no feedback)
+
+═══════════════════════════════════════════════════════════════════════════════
+
+ROOT CAUSE
+
+System is optimized for ARCADE GAMEPLAY, not realistic basketball feel.
+
+Arcade tuning:
+  • High bounce (E_RIM=0.82) — exciting bounces
+  • No impact feedback — focus on visuals
+  • Invisible contact — doesn't matter in arcade
+  • Flat rim — faster rendering
+
+For REAL FEEL, need opposite tuning.
+
+═══════════════════════════════════════════════════════════════════════════════
+
+ROADMAP TO REAL RIM FEELING
+
+Phase 1 (IMMEDIATE): Fix Contact Point
+  Implement Ellipse-Space Physics
+  Impact: +3/10 trust, +1/10 realism
+
+Phase 2 (IMPORTANT): Add Impact Feedback
+  Sound (rim "ping"), Flash, Vibration, Particles
+  Impact: +2/10 feeling, +1/10 realism
+
+Phase 3 (MODERATE): Tune Physics
+  E_RIM: 0.82 → 0.50 (settle faster)
+  MU_RIM: 0.25 → 0.35 (more damping)
+  Impact: +1.5/10 realism
+
+Phase 4 (NICE): Enhance Rim Depth
+  Multi-layer rendering (3D appearance)
+  Impact: +0.5/10 visual authenticity
+
+Current:  4–5/10
+With P1+P2+P3: 8–9/10 (Near-realistic)
+
+═══════════════════════════════════════════════════════════════════════════════
+
+MUST DO vs NICE TO DO
+
+MUST (fixes foundation):
+  1. Fix invisible contact point
+  2. Add impact feedback (sound + flash)
+
+SHOULD (improves feel):
+  3. Lower bounce energy
+
+NICE TO DO (polish):
+  4. Rim depth rendering
+  5. Ellipse compression fine-tune
+
+═══════════════════════════════════════════════════════════════════════════════
+
+Final Scores:
+
+  Realism:            4/10 (Arcade-tuned physics)
+  Readability:        7/10 (Clear visual, poor feedback)
+  Physical Feeling:   5/10 (Bouncy, silent, no impact)
+
+Target with fixes:    8–9/10 (Near-realistic)
+
+═══════════════════════════════════════════════════════════════════════════════
