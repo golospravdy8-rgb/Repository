@@ -454,15 +454,19 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       const frameMs = dt_normalized * (1000/60);
       b._accumulator = Math.min(b._accumulator + frameMs/1000, 3 * FIXED_DT);
 
-      // ⭐ RIM GEOMETRY SYNCHRONIZATION: Physics & Visual Match
-      // 🔒 PERFECT CIRCLE: Visual and physics are identical (1:1 rule)
-      // RIM_RX == RIM_RY == HOOP_R (no ellipse compression)
-      const RIM_RX_M = (HOOP_R / SCALE);
-      const RIM_RY_M = (HOOP_R / SCALE);  // PERFECT CIRCLE (no 0.28 compression)
+      // ⭐ RIM GEOMETRY SYNCHRONIZATION: Physics ↔ Visual
+      // 🔒 ЭЛЛИПТИЧЕСКОЕ КОЛЬЦО: Визуал и физика идентичны
+      // Горизонтально: полный радиус (27px = 0.27m)
+      // Вертикально: сжато 0.25× (6.75px = 0.0675m)
+      // ЭТО совпадает с 3D side-view перспективой
+      const RIM_RX_M = (HOOP_R / SCALE);              // 0.27m (горизонтально, полный)
+      const RIM_RY_M = (HOOP_R * 0.25 / SCALE);      // 0.0675m (вертикально, сжато как 0.25×)
 
       const C: PhysicsConstantsM = {
         GRAVITY: 9.81, BALL_MASS: 0.623, BALL_RADIUS_M: 0.12,
-        RIM_RADIUS_M: RIM_RX_M,  // X-radius (horizontal)
+        RIM_RADIUS_M: RIM_RX_M,  // X-radius (horizontal) — для обратной совместимости
+        RIM_RX_M: RIM_RX_M,      // 🔒 Горизонтальный радиус (полный, 0.27m)
+        RIM_RY_M: RIM_RY_M,      // 🔒 Вертикальный радиус (сжатый, 0.0675m = 0.25×)
         RIM_TUBE_R_M: (5 * scaleX) / SCALE, NET_ZONE_DEPTH_M: 0.8,
         E_RIM: 0.45, MU_RIM: 0.65, Cd: 0.004, Cm: 0.000045, OMEGA_DECAY: 0.985,
         HOOP_X_M: HOOP_X / SCALE, HOOP_Y_M: HOOP_Y / SCALE,
@@ -1084,11 +1088,12 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       const cy = cy_physics + SHY;
 
       // Горизонтальное кольцо (проекция в side-view)
-      // 🔒 SYNC FIX 2026-05-02: Убрали 0.25× компрессию — используем идеальный круг
-      // Физика использует RIM_RX_M == RIM_RY_M (идеальный круг в SI)
-      // Теперь визуал тоже использует идеальный круг для 100% синхронизации
-      const rimRadiusX_px = HOOP_R;           // 27 px (горизонтальная ось)
-      const rimRadiusY_px = HOOP_R;           // 27 px (вертикальная ось = горизонтальной) ✅ PERFECT CIRCLE
+      // 🔒 ВИЗУАЛ: эллипс (side-view перспектива 3D кольца)
+      // Горизонтально: полный радиус (видим его всегда)
+      // Вертикально: сжато (3D перспектива, видим его под углом)
+      // ФИЗИКА будет синхронизирована под ЭТУ эллиптическую геометрию!
+      const rimRadiusX_px = HOOP_R;           // 27 px (горизонтальная ось, полная)
+      const rimRadiusY_px = HOOP_R * 0.25;   // 6.75 px (вертикальная ось, сжата как sin(15°))
 
       // ── КРЕПЛЕНИЕ — ГОРИЗОНТАЛЬНАЯ ПОЛКА ───────
       const rimRightX = cx + rimRadiusX_px + SHX;
@@ -1195,12 +1200,10 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         if (progress >= 1) gs.netSwing.type = null;
       }
 
-      // 🔒 SYNC FIX 2026-05-02: netBottom должна совпадать с физической gate
-      // Physics: bottomGateY = HOOP_Y_M + 0.35m (35cm ниже центра)
-      // При SCALE = min(W,H)/15.0: 0.35m × SCALE = 35px (когда SCALE=100)
-      const GATE_DEPTH_M = 0.35;  // Из basketball-physics-engine.ts:273
-      const GATE_DEPTH_PX = GATE_DEPTH_M * SCALE;  // В пиксели
-      const netBottom = cy + GATE_DEPTH_PX + (netSwing || 0);
+      // 🔒 ВИЗУАЛЬНАЯ ГЕОМЕТРИЯ СЕТКИ: горизонтальный хвост эллипса
+      // Визуальное дно сетки = HOOP_Y + HOOP_R × 1.5 (40.5px)
+      // (НЕ совпадает с физическими gates, это ОК — разные системы)
+      const netBottom = cy + HOOP_R * 1.5 + (netSwing || 0);
       const NET_TOP_HALF = rimRadiusX_px * 0.95;   // верх широкий
       const NET_BOT_HALF = rimRadiusX_px * 0.30;   // низ узкий (трапеция)
 

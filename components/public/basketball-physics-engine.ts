@@ -30,6 +30,7 @@ export interface PhysicsConstantsM {
   Cd: number; Cm: number; OMEGA_DECAY: number;
   HOOP_X_M: number; HOOP_Y_M: number; BOARD_X_M: number; BOARD_TOP_M: number; BOARD_BOT_M: number; GROUND_Y_M: number;
   POLE_X_M?: number;
+  RIM_RX_M?: number; RIM_RY_M?: number;  // 🔒 Elliptical rim (for sync with visual)
   SPIN_DECAY_RATE?: number; MAGNUS_COEFFICIENT?: number;
 }
 
@@ -168,22 +169,25 @@ function checkPoleCollision(b: BallStateM, C: PhysicsConstantsM): void {
 }
 
 export function checkAllCollisions(b: BallStateM, dt: number, C: PhysicsConstantsM): void {
-  // 🔒 SYNC CHECK 2026-05-02: Убедиться, что RIM радиусы симметричны (идеальный круг)
-  // Визуал использует rimRadiusX_px == rimRadiusY_px (27×27), физика тоже должна использовать идеальный круг
-  // Если это не так — будет рассинхрон!
-  const RIM_X_M = C.RIM_RADIUS_M;
-  const RIM_Y_M = C.RIM_RADIUS_M;  // ← ДОЛЖНЫ БЫТЬ ИДЕНТИЧНЫ
-  if (Math.abs(RIM_X_M - RIM_Y_M) > 0.001) {
-    console.error('[🔴 SYNC ERROR] RIM_RADIUS not symmetric!', { RIM_X_M, RIM_Y_M });
+  // 🔒 SYNC CHECK 2026-05-02: RIM радиусы должны быть эллиптическими
+  // Визуал использует rimRadiusX_px = 27px, rimRadiusY_px = 6.75px (0.25× compression)
+  // Физика должна использовать RIM_RX_M = 0.27m, RIM_RY_M = 0.0675m (идентично!)
+  const RIM_RX_M = C.RIM_RX_M || C.RIM_RADIUS_M;  // Fallback для обратной совместимости
+  const RIM_RY_M = C.RIM_RY_M || C.RIM_RADIUS_M;
+  if (Math.abs((RIM_RY_M / RIM_RX_M) - 0.25) > 0.01) {
+    console.warn('[⚠️ SYNC] RIM compression ratio not 0.25:', { RIM_RX_M, RIM_RY_M, ratio: RIM_RY_M / RIM_RX_M });
   }
 
   checkBackboardCollision(b, C);
   checkPoleCollision(b, C);
 
-  // 🏀 8-POINT RIM COLLISION SYSTEM WITH REALISTIC TOLERANCE
+  // 🏀 8-POINT RIM COLLISION SYSTEM WITH REALISTIC TOLERANCE & ELLIPTICAL SHAPE
   // Rim tolerance = 0.015m (15mm) simulates rim flex, ball compression, real-world imperfections
   const RIM_TOLERANCE = 0.015;
-  const EFFECTIVE_RIM_RADIUS = C.RIM_RADIUS_M * 1.08 + RIM_TOLERANCE;
+
+  // Tolerances для эллиптического кольца
+  const EFFECTIVE_RIM_RX = RIM_RX_M * 1.08 + RIM_TOLERANCE;
+  const EFFECTIVE_RIM_RY = RIM_RY_M * 1.08 + RIM_TOLERANCE;
 
   // Проверяем только боковые точки (|cos(angle)| > 0.25 = дужки слева и справа)
   const NUM_RIM_POINTS = 8;
@@ -198,8 +202,9 @@ export function checkAllCollisions(b: BallStateM, dt: number, C: PhysicsConstant
     // Пропускаем точки сверху и снизу (| cosA | < 0.25 = верх и низ эллипса)
     if (Math.abs(cosA) < 0.25) continue;
 
-    const rimX = C.HOOP_X_M + cosA * EFFECTIVE_RIM_RADIUS;
-    const rimY = C.HOOP_Y_M + sinA * EFFECTIVE_RIM_RADIUS;
+    // 🔒 Эллиптическое кольцо: X радиус полный, Y радиус сжатый
+    const rimX = C.HOOP_X_M + cosA * EFFECTIVE_RIM_RX;
+    const rimY = C.HOOP_Y_M + sinA * EFFECTIVE_RIM_RY;
 
     const ccd = sweepSphereVsSphere(
       b,
@@ -271,8 +276,10 @@ export function checkGateScoring(b: BallStateM, C: PhysicsConstantsM, prev_y_m?:
   // М'яч ПОВИНЕН рухатись ВНИЗ (в canvas coords: vy > 0)
   if (b.vy <= 0) return false;
 
-  // ширина воріт (85% від радіуса дужки)
-  const gateHalfWidth = C.RIM_RADIUS_M * 0.85;
+  // ширина воріт (85% від горизонтального радіуса дужки)
+  // 🔒 Используем RIM_RX_M (горизонтальный радиус), не RIM_RADIUS_M
+  const RIM_RX_M = C.RIM_RX_M || C.RIM_RADIUS_M;
+  const gateHalfWidth = RIM_RX_M * 0.85;
   const dx = Math.abs(b._x_m - C.HOOP_X_M);
   if (dx > gateHalfWidth) return false;
 
