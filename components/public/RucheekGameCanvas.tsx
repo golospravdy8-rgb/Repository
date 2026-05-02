@@ -454,19 +454,15 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       const frameMs = dt_normalized * (1000/60);
       b._accumulator = Math.min(b._accumulator + frameMs/1000, 3 * FIXED_DT);
 
-      // ⭐ RIM GEOMETRY SYNCHRONIZATION: Physics ↔ Visual
-      // 🔒 ЭЛЛИПТИЧЕСКОЕ КОЛЬЦО: Визуал и физика идентичны
-      // Горизонтально: полный радиус (27px = 0.27m)
-      // Вертикально: сжато 0.25× (6.75px = 0.0675m)
-      // ЭТО совпадает с 3D side-view перспективой
-      const RIM_RX_M = (HOOP_R / SCALE);              // 0.27m (горизонтально, полный)
-      const RIM_RY_M = (HOOP_R * 0.25 / SCALE);      // 0.0675m (вертикально, сжато как 0.25×)
+      // ⭐ RIM GEOMETRY: Physics ↔ Visual SEPARATION
+      // 🔒 ФИЗИКА: идеальный круг в горизонтальной плоскости (SI метры)
+      // Радиус физической коллизии = HOOP_R в пикселях, масштабировано в метры
+      // 👁️  ВИЗУАЛ: эллипс (side-view 3D проекция) — ТОЛЬКО для отрисовки
+      const RIM_RADIUS_M = (HOOP_R / SCALE);  // ~0.227m — идеальный круг для физики
 
       const C: PhysicsConstantsM = {
         GRAVITY: 9.81, BALL_MASS: 0.623, BALL_RADIUS_M: 0.12,
-        RIM_RADIUS_M: RIM_RX_M,  // X-radius (horizontal) — для обратной совместимости
-        RIM_RX_M: RIM_RX_M,      // 🔒 Горизонтальный радиус (полный, 0.27m)
-        RIM_RY_M: RIM_RY_M,      // 🔒 Вертикальный радиус (сжатый, 0.0675m = 0.25×)
+        RIM_RADIUS_M: RIM_RADIUS_M,  // 🔒 Идеальный круг (одно значение!)
         RIM_TUBE_R_M: (5 * scaleX) / SCALE, NET_ZONE_DEPTH_M: 0.8,
         E_RIM: 0.45, MU_RIM: 0.65, Cd: 0.004, Cm: 0.000045, OMEGA_DECAY: 0.985,
         HOOP_X_M: HOOP_X / SCALE, HOOP_Y_M: HOOP_Y / SCALE,
