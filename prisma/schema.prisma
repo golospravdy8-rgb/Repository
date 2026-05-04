@@ -261,12 +261,15 @@ model News {
 }
 
 model AdminUser {
-  id       Int     @id @default(autoincrement())
-  email    String  @unique
-  password String
-  name     String
-  hp       Int     @default(0)
-  hpLogs   HpLog[]
+  id            Int     @id @default(autoincrement())
+  email         String  @unique
+  password      String
+  name          String
+  hp            Int     @default(0)
+  referralCode  String? @unique
+  referredBy    Int?
+  referralCount Int     @default(0)
+  hpLogs        HpLog[]
 }
 
 model HpLog {
@@ -279,6 +282,17 @@ model HpLog {
 
   @@index([userId])
   @@index([createdAt])
+}
+
+model ReferralLog {
+  id         Int       @id @default(autoincrement())
+  referrerId Int
+  refereeId  Int
+  createdAt  DateTime  @default(now())
+
+  @@unique([referrerId, refereeId])
+  @@index([referrerId])
+  @@index([refereeId])
 }
 
 model SiteSettings {
