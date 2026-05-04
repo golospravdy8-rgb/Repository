@@ -31,6 +31,17 @@ async function main() {
     },
   });
 
+  // Add registration HP bonus
+  await prisma.$transaction([
+    prisma.adminUser.update({
+      where: { id: admin.id },
+      data: { hp: { increment: 25 } },
+    }),
+    prisma.hpLog.create({
+      data: { userId: admin.id, points: 25, reason: "registration" },
+    }),
+  ]);
+
   console.log("✅ Admin user created successfully!");
   console.log("");
   console.log("📋 Login credentials:");
@@ -38,6 +49,7 @@ async function main() {
   console.log(`   Password: ${password}`);
   console.log("");
   console.log(`🌐 Admin panel: http://localhost:3006/admin/dashboard`);
+  console.log(`💰 HP: +25 (registration bonus)`);
 }
 
 main()
