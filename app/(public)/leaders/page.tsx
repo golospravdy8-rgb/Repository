@@ -15,7 +15,7 @@ export default async function LeadersPage({ searchParams }: { searchParams: { ag
 
   const boxScores = season
     ? await prisma.boxScore.findMany({
-        where: { game: { seasonId: season.id, status: "FINAL" } },
+        where: { game: { seasonId: season.id, status: { in: ["FINAL", "LIVE"] } } },
         include: {
           player: { select: { firstName: true, lastName: true, photoUrl: true } },
           team: { select: { name: true, shortName: true } },
