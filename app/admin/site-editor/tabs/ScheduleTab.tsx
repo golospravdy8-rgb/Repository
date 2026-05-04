@@ -495,6 +495,13 @@ export default function ScheduleTab({ games, teams }: { games: GameRow[]; teams:
                 </div>
               </>
             )}
+            {form.status === "FINAL" && editingId && (
+              <div className="col-span-2 bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <p className="text-xs text-blue-700 font-semibold mb-2">
+                  💡 Підказка: Після збереження гри як FINAL, статистика гравців можна додати через Live Tracker або вручну в БД.
+                </p>
+              </div>
+            )}
           </div>
           <div className="flex gap-2">
             <button
@@ -505,6 +512,19 @@ export default function ScheduleTab({ games, teams }: { games: GameRow[]; teams:
             >
               {editingId ? "Зберегти" : "Додати матч"}
             </button>
+            {editingId && form.status !== "FINAL" && (
+              <button
+                onClick={() => {
+                  setForm((f) => ({ ...f, status: "FINAL" }));
+                  setTimeout(() => handleSave(), 0);
+                }}
+                disabled={pending}
+                className="px-4 py-2 rounded-lg text-sm font-bold text-white"
+                style={{ backgroundColor: "#10b981" }}
+              >
+                ✓ Завершити гру
+              </button>
+            )}
             <button
               onClick={() => { setShowForm(false); setEditingId(null); }}
               className="px-4 py-2 rounded-lg text-sm border text-gray-600"
