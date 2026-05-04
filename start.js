@@ -82,15 +82,14 @@ setTimeout(() => {
 
   log.info("Starting Next.js (Ctrl+C to stop)\n");
 
-  // Start server using npx (most portable method)
-  // Use shell: true on Windows to handle npx.cmd properly
+  // Start server: on Windows use shell with npx.cmd, on Unix use direct binary
   const server = spawn(
-    "npx",
+    isWindows ? "npx.cmd" : "npx",
     ["next", "dev", "-p", "3006"],
     {
       cwd: projectDir,
       stdio: "inherit",
-      shell: isWindows ? true : false,
+      shell: isWindows,
       env: {
         ...process.env,
         NODE_ENV: "development",

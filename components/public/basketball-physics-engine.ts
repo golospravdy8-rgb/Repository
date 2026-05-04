@@ -2,6 +2,7 @@
 // All physics in SI units (meters, m/s, m/s², rad/s) with CCD for rim collisions
 
 import type { TrajectoryCheckpoint } from '@/lib/game/trajectoryHash';
+import { RIM, PIXELS_PER_METER } from '@/lib/game/rimConstants';
 
 // HARD LOCKS: Prevent any pixel→physics feedback or arcade logic
 function assertPhysicsClean(b: BallStateM, label: string): void {
@@ -19,6 +20,28 @@ function assertPhysicsClean(b: BallStateM, label: string): void {
 function assertSIUnitsOnly(value: number, fieldName: string): void {
   if (isNaN(value) || !isFinite(value)) {
     throw new Error(`[PHYSICS LOCK] Invalid SI value for ${fieldName}: ${value}`);
+  }
+}
+
+/**
+ * ✅ RIM ALIGNMENT VALIDATION
+ * Verifies that physics rim is correctly sized (0.225m, not pixel-derived)
+ */
+export function validateRimAlignment(C: PhysicsConstantsM): void {
+  const FIBA_RIM_RADIUS_M = 0.225;  // Official FIBA specification
+  const tolerance = 0.01;  // ±1cm tolerance
+
+  if (Math.abs(C.RIM_RADIUS_M - FIBA_RIM_RADIUS_M) > tolerance) {
+    console.error(
+      `❌ RIM SIZE MISMATCH: Physics rim is ${C.RIM_RADIUS_M.toFixed(3)}m (should be ${FIBA_RIM_RADIUS_M}m)\n` +
+      `This will cause visual-physics desync and gameplay issues!`
+    );
+  } else {
+    console.log(
+      `✅ Rim physics synchronized: ${C.RIM_RADIUS_M.toFixed(3)}m (FIBA compliant)\n` +
+      `   Rim tube radius: ${C.RIM_TUBE_R_M.toFixed(4)}m (collision buffer)\n` +
+      `   Effective collision radius: ${(C.RIM_RADIUS_M + C.RIM_TUBE_R_M + 0.001).toFixed(3)}m`
+    );
   }
 }
 
@@ -40,7 +63,7 @@ export interface BallStateM {
   state: 'flying' | 'scored' | 'missed' | 'idle'; scoredGoal: boolean; outcome: ShotOutcome; spin: number;
   owner?: number; bounceCount?: number; boardHandled?: boolean; isGuided?: boolean; guaranteedScore?: boolean;
   frameCount?: number; T?: number; targetX?: number; targetY?: number; rimBounceCount?: number; angularVelocity?: number; drag?: number;
-  _passedTopGate?: boolean; _isRolling?: boolean; _rollingSpeed?: number;
+  _passedTopGate?: boolean; _isRolling?: boolean; _rollingSpeed?: number; _scored?: boolean;
 }
 
 export interface CcdResult { hit: boolean; t: number; nx: number; ny: number; }
@@ -167,58 +190,64 @@ function checkPoleCollision(b: BallStateM, C: PhysicsConstantsM): void {
   }
 }
 
+/**
+ * ⭐ RIM COLLISION DETECTION (ШАГ 3)
+ * Two-sphere collision (left rim + right rim)
+ * КРИТИЧНО: между ободами NO COLLISION — мяч свободно проходит
+ */
+export function checkRimCollision(
+  b: BallStateM,
+  C: PhysicsConstantsM
+): boolean {
+  const TUBE_R = 0.02;  // радиус обода 2cm
+  const minD   = TUBE_R + C.BALL_RADIUS_M;  // касание = сумма радиусов
+
+  const rims = [
+    { x: C.HOOP_X_M - C.RIM_RADIUS_M, y: C.HOOP_Y_M },  // левый обод
+    { x: C.HOOP_X_M + C.RIM_RADIUS_M, y: C.HOOP_Y_M },  // правый обод
+  ];
+
+  let hasCollision = false;
+
+  for (const rim of rims) {
+    const dx   = b._x_m - rim.x;
+    const dy   = b._y_m - rim.y;
+    const dist = Math.hypot(dx, dy);
+
+    if (dist < minD && dist > 0.0001) {
+      const nx = dx / dist;
+      const ny = dy / dist;
+      const vn = b.vx * nx + b.vy * ny;
+
+      if (vn < 0) {  // только если летит К ободу
+        const e    = 0.55;
+        const mu   = 0.20;
+        const vt_x = b.vx - vn * nx;
+        const vt_y = b.vy - vn * ny;
+        b.vx = -e * vn * nx + (1 - mu) * vt_x;
+        b.vy = -e * vn * ny + (1 - mu) * vt_y;
+        hasCollision = true;
+      }
+      // Вытолкнуть из обода чтобы не застревал
+      const overlap = minD - dist;
+      b._x_m += nx * overlap;
+      b._y_m += ny * overlap;
+    }
+  }
+
+  return hasCollision;
+}
+
 export function checkAllCollisions(b: BallStateM, dt: number, C: PhysicsConstantsM): void {
   checkBackboardCollision(b, C);
   checkPoleCollision(b, C);
 
-  // 🏀 8-POINT RIM COLLISION SYSTEM WITH REALISTIC TOLERANCE
-  // 🔒 ФИЗИКА: идеальный круг в горизонтальной плоскости (SI метры)
-  // Визуал может быть эллипсом, но физика работает на КРУГЕ
-  // Rim tolerance = 0.015m (15mm) simulates rim flex, ball compression, real-world imperfections
-  const RIM_TOLERANCE = 0.015;
-  const EFFECTIVE_RIM_RADIUS = C.RIM_RADIUS_M * 1.08 + RIM_TOLERANCE;
-
-  // Проверяем только боковые точки (|cos(angle)| > 0.25 = дужки слева и справа)
-  const NUM_RIM_POINTS = 8;
-  let bestCcd: CcdResult | null = null;
-  let bestT = dt;
-
-  for (let i = 0; i < NUM_RIM_POINTS; i++) {
-    const angle = (i / NUM_RIM_POINTS) * Math.PI * 2;
-    const cosA = Math.cos(angle);
-    const sinA = Math.sin(angle);
-
-    // Пропускаем точки сверху и снизу (| cosA | < 0.25 = верх и низ)
-    if (Math.abs(cosA) < 0.25) continue;
-
-    // 🔒 КРУГЛОЕ кольцо: одинаковый радиус во все стороны
-    const rimX = C.HOOP_X_M + cosA * EFFECTIVE_RIM_RADIUS;
-    const rimY = C.HOOP_Y_M + sinA * EFFECTIVE_RIM_RADIUS;
-
-    const ccd = sweepSphereVsSphere(
-      b,
-      { x: rimX, y: rimY },
-      C.RIM_TUBE_R_M + C.BALL_RADIUS_M,
-      dt
-    );
-
-    if (ccd.hit && ccd.t < bestT) {
-      bestCcd = ccd;
-      bestT = ccd.t;
-    }
-  }
-
-  if (bestCcd && bestCcd.hit) {
-    integratePhysics(b, bestCcd.t, C);
-    applyRimImpulse(b, bestCcd, C);
+  // 🏀 RIM COLLISION DETECTION (ШАГ 5: двухсферный коллайдер)
+  // КРИТИЧНО: счить контакты ТОЛЬКО при реальной коллизии, не каждый кадр!
+  const hadRimCollision = checkRimCollision(b, C);
+  if (hadRimCollision) {
     b.rimContacts++;
-    // Determine front/back based on X position of rim
-    const rimX = bestCcd.nx > 0 ? 1 : -1; // nx = normal X direction
-    if (rimX > 0) b.rimContactMask |= 0b001;
-    else b.rimContactMask |= 0b010;
     b.rimHitTimer = 18;
-    const rem = dt - bestCcd.t;
-    if (rem > 1e-6) integratePhysics(b, rem, C);
   }
   if (b._y_m + C.BALL_RADIUS_M >= C.GROUND_Y_M) {
     b._y_m = C.GROUND_Y_M - C.BALL_RADIUS_M;
@@ -250,8 +279,32 @@ export function checkAllCollisions(b: BallStateM, dt: number, C: PhysicsConstant
   }
 }
 
+/**
+ * ⭐ SCORING CYLINDER (ШАГ 6)
+ * Guaranteed score for ideal trajectories
+ * Ball crosses rim going downward, inside hoop horizontally
+ */
+export function checkScoring(
+  b: BallStateM,
+  prevY_m: number,
+  C: PhysicsConstantsM
+): boolean {
+  if (b._scored) return false;
+
+  const crossedRim = prevY_m <= C.HOOP_Y_M && b._y_m > C.HOOP_Y_M;
+  const movingDown = b.vy > 0;
+  // Цилиндр = 88% от радиуса кольца (зазор для реализма)
+  const insideHoop = Math.abs(b._x_m - C.HOOP_X_M) < C.RIM_RADIUS_M * 0.88;
+
+  if (crossedRim && movingDown && insideHoop) {
+    b._scored = true;
+    return true;
+  }
+  return false;
+}
+
 export function checkGoalEntry(b: BallStateM, C: PhysicsConstantsM): boolean {
-  // Deprecated: replaced by checkGateScoring (Top/Bottom Gate system)
+  // Deprecated: replaced by checkScoringCylinder + checkGateScoring
   return false;
 }
 

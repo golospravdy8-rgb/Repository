@@ -34,6 +34,7 @@ model Team {
   substitutions  GameSubstitution[]
   onCourt        GameOnCourt[]
   standing       Standing?
+  groupTeams     GroupTeam[]
   season         Season                @relation(fields: [seasonId], references: [id])
 }
 
@@ -54,11 +55,42 @@ model Player {
   achievements     PlayerAchievement[]
 }
 
+model Tour {
+  id       Int    @id @default(autoincrement())
+  name     String
+  order    Int    @default(0)
+  ageGroup String
+  games    Game[]
+
+  @@unique([ageGroup, order])
+  @@index([ageGroup])
+}
+
+model Group {
+  id         Int         @id @default(autoincrement())
+  name       String
+  ageGroup   String
+  groupTeams GroupTeam[]
+
+  @@index([ageGroup])
+}
+
+model GroupTeam {
+  id      Int   @id @default(autoincrement())
+  groupId Int
+  teamId  Int
+  group   Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  team    Team  @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, teamId])
+}
+
 model Game {
   id                    Int                   @id @default(autoincrement())
   seasonId              Int
   homeTeamId            Int
   awayTeamId            Int
+  tourId                Int?
   scheduledAt           DateTime
   status                String                @default("SCHEDULED")
   quarter               Int                   @default(1)
@@ -81,7 +113,7 @@ model Game {
   awayBiggestLead       Int                   @default(0)
   awayBiggestRun        Int                   @default(0)
 
-  // FIBA protocol fields
+  // FIBA protocol fields (old, for backward compat)
   commissioner          String?
   referee1              String?
   referee2              String?
@@ -89,13 +121,39 @@ model Game {
   venue                 String?
   round                 String?
 
+  // FIBA protocol fields (new)
+  referee               String?
+  umpire1               String?
+  umpire2               String?
+  scorer                String?
+  assistantScorer       String?
+  timer                 String?
+  shotClockOperator     String?
+  gameNumber            String?
+  protest               Boolean               @default(false)
+  protestNote           String?
+
+  // Play-off fields
+  stage                 String?               // 'group' | 'semifinal' | 'final' | 'third_place'
+  sourceA               String?               // "A1", "B2", "Winner SF1"
+  sourceB               String?               // "B1", "A2", "Winner SF2"
+
+  // Play-off match details (for editing in admin panel)
+  playoffTeamA          String?               // Team A name
+  playoffTeamB          String?               // Team B name
+  playoffScoreA         Int?                  // Team A score
+  playoffScoreB         Int?                  // Team B score
+
   boxScores             BoxScore[]
   awayTeam              Team                  @relation("AwayTeam", fields: [awayTeamId], references: [id])
   homeTeam              Team                  @relation("HomeTeam", fields: [homeTeamId], references: [id])
   season                Season                @relation(fields: [seasonId], references: [id])
+  tour                  Tour?                 @relation(fields: [tourId], references: [id], onDelete: SetNull)
   events                GameEvent[]
   substitutions         GameSubstitution[]
   onCourt               GameOnCourt[]
+  protocolOverrides     ProtocolOverride[]
+  protocolAuditLogs     ProtocolAuditLog[]
 }
 
 model GameEvent {
@@ -664,3 +722,77 @@ model ParentSession {
 
   @@index([token])
 }
+
+model ProtocolOverride {
+  id        Int      @id @default(autoincrement())
+  gameId    Int
+  fieldPath String
+  oldValue  String?
+  newValue  String?
+  reason    String   @default("")
+  createdAt DateTime @default(now())
+  createdBy String   @default("admin")
+  game      Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
+  @@index([gameId])
+}
+
+model ProtocolAuditLog {
+  id        Int      @id @default(autoincrement())
+  gameId    Int
+  action    String
+  details   String   @default("")
+  createdAt DateTime @default(now())
+  createdBy String   @default("admin")
+  game      Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
+  @@index([gameId])
+}
+
+// Плей-офф (независимо от Game)
+model Playoff {
+  id                String   @id @default(cuid())
+  ageGroup          String   // "younger" | "older" | "u16"
+
+  // ПОЛУФИНАЛ 1
+  semifinal1TeamA   String?
+  semifinal1TeamB   String?
+  semifinal1ScoreA  Int?
+  semifinal1ScoreB  Int?
+
+  // ПОЛУФИНАЛ 2
+  semifinal2TeamA   String?
+  semifinal2TeamB   String?
+  semifinal2ScoreA  Int?
+  semifinal2ScoreB  Int?
+
+  // ФИНАЛ
+  finalTeamA        String?
+  finalTeamB        String?
+  finalScoreA       Int?
+  finalScoreB       Int?
+
+  // ЗА 3 МІСЦЕ
+  thirdPlaceTeamA   String?
+  thirdPlaceTeamB   String?
+  thirdPlaceScoreA  Int?
+  thirdPlaceScoreB  Int?
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@unique([ageGroup])  // Одна запись на ageGroup
+}
+
+// Таблицы соревнований (независимо от Game и Playoff)
+model GroupTables {
+  id        String   @id @default(cuid())
+  ageGroup  String   // "younger" | "older" | "u16"
+  groupA    String[] // JSON array of team names
+  groupB    String[] // JSON array of team names
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([ageGroup])  // Одна запись на ageGroup
+}
+

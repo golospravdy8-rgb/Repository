@@ -53,7 +53,9 @@ export interface SaveHandle {
 
 export type TeamRow = { id: number; name: string; shortName: string; logoUrl: string | null; ageGroup: string; _count: { players: number } };
 export type PlayerRow = { id: number; firstName: string; lastName: string; number: number; position: string | null; photoUrl: string | null; teamId: number; team: { name: string; shortName: string } };
-export type GameRow = { id: number; homeTeamId: number; awayTeamId: number; scheduledAt: Date; status: string; homeScore: number; awayScore: number; homeTeam: { id: number; name: string; shortName: string; logoUrl: string | null; seasonId: number }; awayTeam: { id: number; name: string; shortName: string; logoUrl: string | null; seasonId: number } };
+export type GameRow = { id: number; homeTeamId: number; awayTeamId: number; scheduledAt: Date; status: string; homeScore: number; awayScore: number; tourId: number | null; stage: string | null; sourceA: string | null; sourceB: string | null; playoffTeamA: string | null; playoffTeamB: string | null; playoffScoreA: number | null; playoffScoreB: number | null; homeTeam: { id: number; name: string; shortName: string; logoUrl: string | null; seasonId: number }; awayTeam: { id: number; name: string; shortName: string; logoUrl: string | null; seasonId: number } };
+export type Tour = { id: number; name: string; order: number; ageGroup: string };
+export type Group = { id: number; name: string; ageGroup: string; groupTeams: Array<{ id: number; groupId: number; teamId: number; team: { id: number; name: string; shortName: string } }> };
 export type NewsRow = { id: number; title: string; slug: string; content: string; category: string | null; isPublished: boolean; publishedAt: Date; imageUrl: string | null };
 export type ShopProductRow = { id: number; name: string; description: string; price: number; oldPrice: number | null; category: string; emoji: string; badge: string | null; imageUrl: string | null; sizes: string | null; inStock: boolean; sortOrder: number; showInChat: boolean; chatPriority: boolean };
 

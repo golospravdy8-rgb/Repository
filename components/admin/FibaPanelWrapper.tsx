@@ -12,6 +12,16 @@ interface Game {
   referee3?: string | null;
   venue?: string | null;
   round?: string | null;
+  referee?: string | null;
+  umpire1?: string | null;
+  umpire2?: string | null;
+  scorer?: string | null;
+  assistantScorer?: string | null;
+  timer?: string | null;
+  shotClockOperator?: string | null;
+  gameNumber?: string | null;
+  protest?: boolean | null;
+  protestNote?: string | null;
   homeTeam: {
     id: number;
     name: string;
@@ -97,6 +107,16 @@ export default function FibaPanelWrapper({ game }: FibaPanelWrapperProps) {
                 referee3: game.referee3,
                 venue: game.venue,
                 round: game.round,
+                referee: game.referee,
+                umpire1: game.umpire1,
+                umpire2: game.umpire2,
+                scorer: game.scorer,
+                assistantScorer: game.assistantScorer,
+                timer: game.timer,
+                shotClockOperator: game.shotClockOperator,
+                gameNumber: game.gameNumber,
+                protest: game.protest,
+                protestNote: game.protestNote,
               }}
               hideCloseButton={true}
             />

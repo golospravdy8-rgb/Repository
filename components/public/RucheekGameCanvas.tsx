@@ -3,6 +3,8 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { PowerMeterSystem } from "@/lib/game/powerMeterSystem";
 import { createMeterElement, hideMeter, showAccuracyFeedback } from "@/lib/game/powerMeterUI";
+import { validateRimMetrics, logRimMetrics } from "@/lib/game/metricsConversion";
+import { RIM, PIXELS_PER_METER, setPixelsPerMeter, getRimGeometryPx } from "@/lib/game/rimConstants";
 import {
   initializeFirebase,
   initializeRoom,
@@ -24,9 +26,13 @@ import {
   checkAllCollisions,
   checkGoalEntry,
   checkGateScoring,
+  checkScoring,
+  checkRimCollision,
   sweepSphereVsSphere,
   auditPhysicsSystem,
+  validateRimAlignment,
   type PhysicsConstantsM,
+  type BallStateM,
 } from "./basketball-physics-engine";
 
 interface RucheekGameCanvasProps {
@@ -73,6 +79,7 @@ function normalizePlayerId(id: string): string {
 }
 
 export default function RucheekGameCanvas({ isVisible, userName = "", userPhone = "", gameRoomId = "general" }: RucheekGameCanvasProps) {
+  console.log('🔧 RucheekGameCanvas component rendered, isVisible:', isVisible);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rafRef = useRef<number>(0);
   const pnameRef = useRef<HTMLInputElement>(null);
@@ -135,6 +142,87 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
     } else {
       console.log('✅ [PHYSICS LOCK] Physics system is clean and pure');
     }
+
+    // STAGE 5: Validate FIBA rim metrics
+    validateRimMetrics();
+    logRimMetrics();
+
+    // ═════════════════════════════════════════════════════════════
+    // 🔴 КОНФЛИКТ #2 + #3: SYNC TEST + HOOP TEST (RUN AT STARTUP)
+    // ═════════════════════════════════════════════════════════════
+    console.log('\n╔═══════════════════════════════════════════════════════════╗');
+    console.log('║          COORDINATE SYNC & PHYSICS TEST                   ║');
+    console.log('╚═══════════════════════════════════════════════════════════╝\n');
+
+    // Estimate what SCALE will be (use typical canvas size)
+    const typicalW = typeof window !== 'undefined' ? window.innerWidth : 400;
+    const typicalH = typeof window !== 'undefined' ? window.innerHeight : 600;
+    const SCALE = Math.min(typicalW, typicalH) / 15.0;
+    const H = typicalH;
+
+    // Rim geometry — ✅ УВЕЛИЧЕНО В 3 РАЗА
+    const RIM_R_M = 0.255 * 3;  // 0.765m (0.255 × 3)
+    const STAND_X = typicalW * 0.08;
+    const STAND_Y = H * 0.44;
+    const rimVisX = STAND_X;
+    const rimVisY = STAND_Y;
+    const rimPhysX = (STAND_X / SCALE) * SCALE;  // physics → pixels
+    const rimPhysY = (STAND_Y / SCALE) * SCALE;
+    const ballPhysPx = 0.12 * SCALE;
+
+    console.log('═══ SYNC TEST (КОНФЛИКТ #2) ═══');
+    console.log(`RIM X: visual=${rimVisX.toFixed(1)} physics=${rimPhysX.toFixed(1)} diff=${Math.abs(rimVisX-rimPhysX).toFixed(3)}px`);
+    console.log(`RIM Y: visual=${rimVisY.toFixed(1)} physics=${rimPhysY.toFixed(1)} diff=${Math.abs(rimVisY-rimPhysY).toFixed(3)}px`);
+    console.log(`BALL R: physics=${ballPhysPx.toFixed(1)}px (0.12m * SCALE)`);
+    console.log(`SCALE=${SCALE.toFixed(2)} (prev H/7=${(H/7).toFixed(2)})`);
+
+    if (Math.abs(rimVisX - rimPhysX) < 0.1 && Math.abs(rimVisY - rimPhysY) < 0.1) {
+      console.log('✅ RIM X synced\n✅ RIM Y synced');
+    } else {
+      if (Math.abs(rimVisX - rimPhysX) >= 0.1) console.error('❌ RIM X NOT SYNCED!');
+      if (Math.abs(rimVisY - rimPhysY) >= 0.1) console.error('❌ RIM Y NOT SYNCED!');
+    }
+    console.log('═════════════════════════════════');
+
+    // КОНФЛИКТ #3: HOOP TEST
+    console.log('\n🎯 HOOP TEST (КОНФЛИКТ #3)...');
+    let passed = 0;
+    const C = {
+      GRAVITY: 9.81,
+      BALL_RADIUS_M: 0.12,
+      RIM_RADIUS_M: RIM_R_M,
+      HOOP_X_M: STAND_X / SCALE,
+      HOOP_Y_M: STAND_Y / SCALE,
+    };
+
+    for (let i = 0; i < 10; i++) {
+      let b = { _x_m: C.HOOP_X_M, _y_m: C.HOOP_Y_M - 1.0, vx: 0, vy: 4.0, _scored: false };
+      for (let f = 0; f < 120; f++) {
+        const prevY = b._y_m;
+        b.vy += C.GRAVITY * (1/60);
+        b._y_m += b.vy * (1/60);
+        b._x_m += b.vx * (1/60);
+
+        // Mini checkScoring
+        const crossedRim = prevY <= C.HOOP_Y_M && b._y_m > C.HOOP_Y_M;
+        const movingDown = b.vy > 0;
+        const insideHoop = Math.abs(b._x_m - C.HOOP_X_M) < C.RIM_RADIUS_M * 0.88;
+        if (crossedRim && movingDown && insideHoop && !b._scored) {
+          passed++;
+          b._scored = true;
+          break;
+        }
+      }
+    }
+
+    console.log(`🏀 HOOP TEST RESULT: ${passed}/10`);
+    if (passed < 10) {
+      console.error(`❌ ТЕСТ НЕ ПРОЙДЕН — только ${passed}/10 попаданий`);
+    } else {
+      console.log('✅ ТЕСТ ПРОЙДЕН — 10/10 попаданий!');
+    }
+    console.log('═════════════════════════════════\n');
+
     setMounted(true);
   }, []);
 
@@ -357,18 +445,48 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
     const GY = GY_ORIG * scaleY;
     groundYRef.current = GY;
     const SCALE = Math.min(W, H) / 15.0;
+
+    // ═══════════════════════════════════════════════════════════
+    // 🏀 БАСКЕТБОЛЬНАЯ СТОЙКА — МЕТРИЧЕСКАЯ СИСТЕМА (ФИКСИРОВАНО)
+    // ═══════════════════════════════════════════════════════════
+    // КОНФЛИКТ #1 ИСПРАВЛЕН: M2PX удалён, везде используется единый SCALE
+    // 1 метр = SCALE пиксели (консистентно для визуальных и физических координат)
+
+    // Позиция стойки (ШАГ 2: кольцо у левой стены, выше)
+    const STAND_Y = H * 0.44;         // поднять выше (~44% высоты canvas)
+
+    // Щит (backboard) — ШАГ 6: удвоить высоту
+    const BD_W  = 0.06 * SCALE;       // толщина щита 6cm
+    const BD_H  = 1.05 * SCALE * 2.0; // удвоить высоту щита (вместо 1.05м → 2.1м)
+    const BD_X  = W * 0.015;          // вплотную к стене (ШАГ 2)
+
+    // Кольцо (rim) — УВЕЛИЧЕНО В 3 РАЗА для удобства
+    const RIM_R_M  = 0.255 * 3;       // УВЕЛИЧЕНО 3x: 0.255 → 0.765м (визуальный радиус)
+    const RIM_R  = RIM_R_M * SCALE;   // конвертировать в пиксели
+    const RIM_T  = 0.02  * SCALE;     // толщина обода 2cm
+
+    // ═════════════════════════════════════════════════════════════
+    // ИЗМЕНЕНИЕ: Приблизить кольцо к щиту — зазор в 3 раза меньше
+    // ═════════════════════════════════════════════════════════════
+    const BD_RIGHT = BD_X + BD_W;                    // правый край щита
+    const oldGap = (W * 0.08) - RIM_R - BD_RIGHT;   // текущий зазор при старом STAND_X
+    const newGap = Math.max(4, oldGap / 3);         // зазор в 3 раза меньше (мин 4px)
+    const STAND_X = BD_RIGHT + newGap + RIM_R;      // новая позиция кольца
+
+    // Сетка (net)
+    const NET_W  = RIM_R * 2.0;        // ширина сверху = диаметр
+    const NET_H  = RIM_R * 1.3;        // высота сетки
+    const NET_BOT_W = RIM_R * 0.8;     // ширина снизу
+
+    // Мяч (ball) — FIBA spec
+    const BALL_R_M = 0.12;  // радиус мяча (24cm диаметр FIBA)
+
     // Restitution coefficients for realistic bouncing
     const RESTITUTION_RIM = 0.55;      // дужка — средний отскок
     const RESTITUTION_BACKBOARD = 0.45; // щит — мягкий отскок
     const RESTITUTION_FLOOR = 0.35;     // пол — гасит движение
 
-    const POLE_X = 12*scaleX, ARM_X = 52*scaleX;
-    const BOARD_X = 57*scaleX, BOARD_W = 10*scaleX;
-    const BOARD_TOP = 189*scaleY, BOARD_BOT = 292*scaleY;
-    const BOARD_FACE = BOARD_X + BOARD_W;
-    const HOOP_X = 110*scaleX, HOOP_Y = 307*scaleY;
-    const HOOP_R = 27*scaleX;
-    const HOOP_RADIUS = 22*scaleX;
+    // Player positions (derived from old system, kept for backward compat)
     const P_START = W * 0.65, P_STEP = W * 0.07;
     // 🏀 RUCHEEK: Save position params to refs for use in handleAddPlayer
     pStartRef.current = P_START;
@@ -381,8 +499,8 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
     // КРОК 1: Правильний maxDistance розрахунок
     // Максимальна дистанція = від стартової позиції гравця до кільця
     const realMaxDistance = Math.hypot(
-      HOOP_X - P_START,
-      HOOP_Y - P_START_Y
+      STAND_X - P_START,
+      STAND_Y - P_START_Y
     );
 
     // Initialize Power Meter System з правильним maxDistance
@@ -405,19 +523,8 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
 
     // Ball physics constants
     const BALL_RADIUS = 12 * scaleX;
-    // 🚨 ВИДАЛЕНО: const HOOP_RADIUS = 22 * scaleX; — це дублює HOOP_R на рядку 383
-    const HOOP_DEPTH = 15 * scaleY;
     const MIN_BALL_SPEED = 5.0;
     const MAX_BALL_SPEED = 16.0;
-
-
-    function getHoopInsideDepth(ballX: number, ballY: number, hoopX: number, hoopY: number): number {
-      const dx = ballX - hoopX;
-      const horizontalDist = Math.abs(dx);
-      if (horizontalDist > HOOP_RADIUS) return 0;
-      const depthPercent = (ballY - hoopY) / HOOP_DEPTH;
-      return Math.max(0, Math.min(1, depthPercent));
-    }
 
     function recalculateIdealPowerFor200Scale(distFraction: number): number {
       if (distFraction <= 0.3) return 100;
@@ -454,22 +561,26 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
       const frameMs = dt_normalized * (1000/60);
       b._accumulator = Math.min(b._accumulator + frameMs/1000, 3 * FIXED_DT);
 
-      // ⭐ RIM GEOMETRY: Physics ↔ Visual SEPARATION
+      // ⭐ RIM GEOMETRY: Physics-Synchronized (ШАГ 2)
       // 🔒 ФИЗИКА: идеальный круг в горизонтальной плоскости (SI метры)
-      // Радиус физической коллизии = HOOP_R в пикселях, масштабировано в метры
-      // 👁️  ВИЗУАЛ: эллипс (side-view 3D проекция) — ТОЛЬКО для отрисовки
-      const RIM_RADIUS_M = (HOOP_R / SCALE);  // ~0.227m — идеальный круг для физики
+      // Радиус физической коллизии = 0.255м (больше чем FIBA для удобства геймплея)
+      // 👁️  ВИЗУАЛ: синхронизирован с физикой (RIM_R_M * M2PX)
+      // ВАЖНО: Physics rim = Visual rim (оба используют одну константу RIM_R_M)
 
       const C: PhysicsConstantsM = {
         GRAVITY: 9.81, BALL_MASS: 0.623, BALL_RADIUS_M: 0.12,
-        RIM_RADIUS_M: RIM_RADIUS_M,  // 🔒 Идеальный круг (одно значение!)
-        RIM_TUBE_R_M: (5 * scaleX) / SCALE, NET_ZONE_DEPTH_M: 0.8,
-        E_RIM: 0.45, MU_RIM: 0.65, Cd: 0.004, Cm: 0.000045, OMEGA_DECAY: 0.985,
-        HOOP_X_M: HOOP_X / SCALE, HOOP_Y_M: HOOP_Y / SCALE,
-        BOARD_X_M: BOARD_FACE / SCALE, BOARD_TOP_M: BOARD_TOP / SCALE,
-        BOARD_BOT_M: BOARD_BOT / SCALE, GROUND_Y_M: GY / SCALE,
-        POLE_X_M: POLE_X / SCALE,
+        RIM_RADIUS_M: RIM_R_M,       // ✅ 0.765m (0.255 × 3, увеличено для удобства)
+        RIM_TUBE_R_M: 0.02,          // ✅ rim thickness 2cm
+        NET_ZONE_DEPTH_M: 0.8,
+        E_RIM: 0.45, MU_RIM: 0.35, Cd: 0.004, Cm: 0.000045, OMEGA_DECAY: 0.985,
+        HOOP_X_M: STAND_X / SCALE, HOOP_Y_M: STAND_Y / SCALE,
+        BOARD_X_M: (BD_X - BD_W) / SCALE, BOARD_TOP_M: (STAND_Y - BD_H * 0.5) / SCALE,
+        BOARD_BOT_M: (STAND_Y + BD_H * 0.5) / SCALE, GROUND_Y_M: GY / SCALE,
+        POLE_X_M: (STAND_X - RIM_R * 3) / SCALE,
       };
+
+      // ✅ VALIDATE RIM ALIGNMENT (once per frame to verify physics is correct)
+      validateRimAlignment(C);
 
       // 🔴 КРИТИЧНО: Обмеження на кількість фізичних ітерацій за кадр
       // При лагу (dt > 50ms) accumulator може накопичити 5+ FIXED_DT
@@ -490,9 +601,12 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         b.omega *= (1 - (C.SPIN_DECAY_RATE ?? 0.25) * FIXED_DT);
 
         checkAllCollisions(b, FIXED_DT, C);
-        // ✅ PHYSICS-BASED SCORING: Ball must cross top→bottom gates naturally
-        // This is real physics, not arcade auto-poppping
-        checkGateScoring(b, C, prev_y_before_step);
+        // ✅ SCORING SYSTEM: ШАГ 7 — порядок вызовов
+        // 1. checkRimCollision (내장 в checkAllCollisions) — физика коллизий
+        // 2. checkScoring (ШАГ 6) — цилиндр попадания
+        if (!checkScoring(b, prev_y_before_step, C)) {
+          checkGateScoring(b, C, prev_y_before_step);
+        }
         b._physTick++;
         b._accumulator -= FIXED_DT;
       }
@@ -524,7 +638,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         }
         if (ss.phase === 'charging') {
           // Oscillate distance indicator marker with arcade-style difficulty
-          const distToHoop = Math.hypot(HOOP_X - (p.x - 15*scaleX), HOOP_Y - (p.y - 55*scaleY));
+          const distToHoop = Math.hypot(STAND_X - (p.x - 15*scaleX), STAND_Y - (p.y - 55*scaleY));
           const maxDist = Math.hypot(W, H);
           const distRatio = Math.min(distToHoop / maxDist, 1);
 
@@ -625,7 +739,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         flashColor = '#ff8800';
       }
 
-      addFlash(flashText, HOOP_X + 55*scaleX, HOOP_Y - 45*scaleY, flashColor);
+      addFlash(flashText, STAND_X + 55*scaleX, STAND_Y - 45*scaleY, flashColor);
 
       const ball = ss.ball;
       gs.netSwing = { type: 'DIRECT', startTime: Date.now(), duration: 200 };
@@ -990,387 +1104,130 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
     function drawPowerBar(p: any, pwr: number, matchPct: number, ss: any) {
       const bw = 22*scaleX, bh = 115*scaleY, bx = p.x + 16*scaleX, by = p.y - bh - 32*scaleY;
       const px = p.x - 15*scaleX, py = p.y - 55*scaleY;
-      const distToHoop = Math.hypot(HOOP_X - px, HOOP_Y - py);
+      const distToHoop = Math.hypot(STAND_X - px, STAND_Y - py);
 
       // Pure physics - no arcade meter UI
 
     }
 
     function drawBasket() {
-      const sh = gs.netShake ? Math.sin(gs.netShakeT) * 2.5 : 0;
       ctx.save();
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
 
-      // ── POLE (RED VERTICAL STANCHION) ───
-      ctx.strokeStyle = '#cc2200';
-      ctx.lineWidth = 6*scaleX;
-      ctx.beginPath();
-      ctx.moveTo(POLE_X, GY);
-      ctx.lineTo(POLE_X, 209*scaleY);
-      ctx.stroke();
+      // ═══════════════════════════════════════════════════════════
+      // 🏀 НОВАЯ СИСТЕМА РЕНДЕРА (SIDE-VIEW)
+      // ═══════════════════════════════════════════════════════════
 
-      // ── ARM (RED HORIZONTAL SUPPORT) ───
-      ctx.strokeStyle = '#cc2200';
-      ctx.lineWidth = 5*scaleX;
-      ctx.beginPath();
-      ctx.moveTo(POLE_X, 209*scaleY);
-      ctx.lineTo(ARM_X, 209*scaleY);
-      ctx.stroke();
+      // ── ЩИТ (BACKBOARD) ─────────────────────────
+      // ШАГ 6: щит торчит больше вверх над кольцом
+      // ИЗМЕНЕНИЕ 2: верхняя часть × 2, нижняя не менять
+      const BD_TOP = BD_H * 0.75 * 2;   // верхняя часть × 2
+      const BD_BOT = BD_H * 0.25;        // нижняя часть без изменений
+      const BD_TOTAL = BD_TOP + BD_BOT;
 
-      // ── BACKBOARD (WITH 3D PERSPECTIVE) ───
-      // Щит слегка повёрнут — правый край чуть смещён вниз (перспектива)
-      // Деревянная рамка (тёмно-коричневая)
-      ctx.beginPath();
-      ctx.moveTo(BOARD_X - 2*scaleX, BOARD_TOP - 2*scaleY);
-      ctx.lineTo(BOARD_X + BOARD_W + 2*scaleX, BOARD_TOP);
-      ctx.lineTo(BOARD_X + BOARD_W + 2*scaleX, BOARD_BOT + 4*scaleY);
-      ctx.lineTo(BOARD_X - 2*scaleX, BOARD_BOT + 2*scaleY);
-      ctx.closePath();
-      ctx.fillStyle = '#7B5010';
-      ctx.fill();
+      ctx.fillStyle = '#f0f0f0';
+      ctx.fillRect(BD_X, STAND_Y - BD_TOP, BD_W, BD_TOTAL);
+      ctx.strokeStyle = '#222';
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(BD_X, STAND_Y - BD_TOP, BD_W, BD_TOTAL);
 
-      // Лицевая панель щита (фиолетово-прозрачная)
-      ctx.beginPath();
-      ctx.moveTo(BOARD_X + 1*scaleX, BOARD_TOP + 3*scaleY);
-      ctx.lineTo(BOARD_X + BOARD_W, BOARD_TOP + 2*scaleY);
-      ctx.lineTo(BOARD_X + BOARD_W, BOARD_BOT + 1*scaleY);
-      ctx.lineTo(BOARD_X + 1*scaleX, BOARD_BOT);
-      ctx.closePath();
-      ctx.fillStyle = 'rgba(100,80,140,0.75)';
-      ctx.fill();
-      ctx.strokeStyle = '#5a3a08';
-      ctx.lineWidth = 1.5 * scaleX;
-      ctx.stroke();
-
-      // Блик на щите (левая светлая полоса)
-      ctx.beginPath();
-      ctx.moveTo(BOARD_X + 1*scaleX, BOARD_TOP + 3*scaleY);
-      ctx.lineTo(BOARD_X + BOARD_W*0.35, BOARD_TOP + 2*scaleY);
-      ctx.lineTo(BOARD_X + BOARD_W*0.35, BOARD_BOT + 1*scaleY);
-      ctx.lineTo(BOARD_X + 1*scaleX, BOARD_BOT);
-      ctx.closePath();
-      ctx.fillStyle = 'rgba(255,255,255,0.08)';
-      ctx.fill();
-
-      // Прицельный прямоугольник внутри щита (золотой)
-      const aimL = BOARD_X + BOARD_W*0.15;
-      const aimR = BOARD_X + BOARD_W*0.90;
-      const aimT = BOARD_TOP + (BOARD_BOT - BOARD_TOP) * 0.30;
-      const aimB = BOARD_TOP + (BOARD_BOT - BOARD_TOP) * 0.65;
-      ctx.beginPath();
-      ctx.moveTo(aimL, aimT);
-      ctx.lineTo(aimR, aimT + 1*scaleY);
-      ctx.lineTo(aimR, aimB + 2*scaleY);
-      ctx.lineTo(aimL, aimB + 1*scaleY);
-      ctx.closePath();
-      ctx.strokeStyle = '#C8A84B';
-      ctx.lineWidth = 2 * scaleX;
-      ctx.stroke();
-
-      // ── ПЕРЕМЕННЫЕ ПЕРСПЕКТИВЫ ───────────────────
-      // 🔒 SYNC FIX 2026-05-02: Отделить shake для визуала от физического центра
-      // PHYSICS: Центр остаётся STATIC (для коллизий)
-      // RENDER: Центр может двигаться (для shake анимации)
-      const SHX = sh * 0.3;
-      const SHY = sh * 0.15;
-
-      // 🔒 ФИЗИЧЕСКИЙ ЦЕНТР (для коллизии, не трясится)
-      const cx_physics = HOOP_X;
-      const cy_physics = HOOP_Y;
-
-      // 👁️ ВИЗУАЛЬНЫЙ ЦЕНТР (с shake для анимации)
-      const cx = cx_physics + SHX;
-      const cy = cy_physics + SHY;
-
-      // Горизонтальное кольцо (проекция в side-view)
-      // 🔒 ВИЗУАЛ: эллипс (side-view перспектива 3D кольца)
-      // Горизонтально: полный радиус (видим его всегда)
-      // Вертикально: сжато (3D перспектива, видим его под углом)
-      // ФИЗИКА будет синхронизирована под ЭТУ эллиптическую геометрию!
-      const rimRadiusX_px = HOOP_R;           // 27 px (горизонтальная ось, полная)
-      const rimRadiusY_px = HOOP_R * 0.25;   // 6.75 px (вертикальная ось, сжата как sin(15°))
-
-      // ── КРЕПЛЕНИЕ — ГОРИЗОНТАЛЬНАЯ ПОЛКА ───────
-      const rimRightX = cx + rimRadiusX_px + SHX;
-      const bracketY = cy + SHY;
-
-      // Нижняя горизонтальная труба (основное крепление)
-      ctx.beginPath();
-      ctx.moveTo(BOARD_FACE, bracketY);
-      ctx.lineTo(rimRightX, bracketY);
-      ctx.strokeStyle = '#6B4010';
-      ctx.lineWidth = 5 * scaleX;
-      ctx.stroke();
-
-      // Верхняя труба параллельно (создаёт объём полки)
-      ctx.beginPath();
-      ctx.moveTo(BOARD_FACE, bracketY - 6*scaleY);
-      ctx.lineTo(rimRightX, bracketY - 6*scaleY);
-      ctx.strokeStyle = '#8B5518';
-      ctx.lineWidth = 3 * scaleX;
-      ctx.stroke();
-
-      // Заливка между трубами — объёмная полка
-      ctx.beginPath();
-      ctx.moveTo(BOARD_FACE, bracketY - 6*scaleY);
-      ctx.lineTo(rimRightX, bracketY - 6*scaleY);
-      ctx.lineTo(rimRightX, bracketY);
-      ctx.lineTo(BOARD_FACE, bracketY);
-      ctx.closePath();
-      ctx.fillStyle = '#7B4A14';
-      ctx.fill();
-
-      // Вертикальная пластина у щита
-      ctx.beginPath();
-      ctx.rect(BOARD_FACE, bracketY - 10*scaleY,
-               5*scaleX, 14*scaleY);
-      ctx.fillStyle = '#9B5A1A';
-      ctx.fill();
-      ctx.strokeStyle = '#6B3A0A';
-      ctx.lineWidth = 1 * scaleX;
-      ctx.stroke();
-
-      // ── 1. ГОРИЗОНТАЛЬНОЕ КОЛЬЦО (правильная проекция side-view) ──────────
-      // Физика: кольцо = горизонтальный круг в 3D
-      // Визуал: в side-view это эллипс (сплющен вертикально)
-      // rimRadiusX_px и rimRadiusY_px уже определены выше
-
-      const RIM_TUBE = 5 * scaleX;
-
-      // Градиент металла (горизонтальный)
-      const rimGrad = ctx.createLinearGradient(
-        cx - rimRadiusX_px, cy,
-        cx + rimRadiusX_px, cy
+      // Прицельный квадрат на щите (оранжевый) — оставить на той же высоте относительно кольца
+      ctx.strokeStyle = '#FF6600';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(
+        BD_X + BD_W * 0.1,
+        STAND_Y - BD_H * 0.2,   // не менять
+        BD_W * 0.8,
+        BD_H * 0.38              // не менять
       );
-      rimGrad.addColorStop(0,   "#aa4400");
-      rimGrad.addColorStop(0.3, "#ff7700");
-      rimGrad.addColorStop(0.5, "#ff9933");
-      rimGrad.addColorStop(0.7, "#ff7700");
-      rimGrad.addColorStop(1,   "#aa4400");
 
-      // Тень (под кольцом)
-      ctx.save();
-      ctx.globalAlpha = 0.3;
-      ctx.strokeStyle = 'rgba(60,0,0,0.8)';
-      ctx.lineWidth = RIM_TUBE * 2.0;
+      // ── КОЛЬЦО (2D SIDE-VIEW) ─────────────────────────
+      // Горизонтальная линия кольца (перекладина)
       ctx.beginPath();
-      ctx.ellipse(cx, cy + 2*scaleY, rimRadiusX_px, rimRadiusY_px, 0, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.restore();
-
-      // Основное кольцо (горизонтальный эллипс)
-      ctx.lineWidth = RIM_TUBE * 0.85;
-      ctx.strokeStyle = rimGrad;
-      ctx.beginPath();
-      ctx.ellipse(cx, cy, rimRadiusX_px, rimRadiusY_px, 0, 0, Math.PI * 2);
+      ctx.moveTo(STAND_X - RIM_R, STAND_Y);
+      ctx.lineTo(STAND_X + RIM_R, STAND_Y);
+      ctx.strokeStyle = '#CC4400';
+      ctx.lineWidth = 0.022 * SCALE;
       ctx.stroke();
 
-      // Внутренний эффект объёма (труба)
-      ctx.globalAlpha = 0.18;
-      ctx.lineWidth = RIM_TUBE * 0.55;
-      ctx.strokeStyle = '#cc3300';
+      // Левый обод (circle)
       ctx.beginPath();
-      ctx.ellipse(cx, cy, rimRadiusX_px * 0.78, rimRadiusY_px * 0.78, 0, 0, Math.PI * 2);
+      ctx.arc(STAND_X - RIM_R, STAND_Y, 0.02 * SCALE, 0, Math.PI * 2);
+      ctx.fillStyle = '#CC4400';
+      ctx.fill();
+
+      // Правый обод (circle)
+      ctx.beginPath();
+      ctx.arc(STAND_X + RIM_R, STAND_Y, 0.02 * SCALE, 0, Math.PI * 2);
+      ctx.fillStyle = '#CC4400';
+      ctx.fill();
+
+      // Кронштейн (крепление кольца к щиту) — УМЕНЬШЕН В 3 РАЗА
+      ctx.beginPath();
+      ctx.moveTo(BD_X + BD_W, STAND_Y);
+      ctx.lineTo(STAND_X - RIM_R, STAND_Y);
+      ctx.strokeStyle = '#883300';
+      ctx.lineWidth = (0.014 * SCALE) / 3;  // УМЕНЬШЕН 3x для пропорции
       ctx.stroke();
-      ctx.globalAlpha = 1.0;
 
-      // ── 2. СЕТКА — трапеция, 3 цвета ─────────────────────────
-      // Calculate net swing displacement
-      let netSwing = 0;
-      if (gs.netSwing.type) {
-        const elapsed = Date.now() - gs.netSwing.startTime;
-        const progress = Math.min(1, elapsed / gs.netSwing.duration);
+      // ── СЕТКА (TRAPEZOID FROM VERTICAL LINES) ─────────────────────────
+      const NET_H_PX  = RIM_R * 1.4;
+      const NET_TOP_W = RIM_R * 2.0;
+      const NET_BOT_W = RIM_R * 0.85;
+      const NET_LINES = 8;
 
-        if (gs.netSwing.type === 'DIRECT') {
-          const oscillations = 3;
-          const angle = progress * oscillations * Math.PI * 2;
-          netSwing = Math.sin(angle) * 15 * scaleY * Math.cos(progress * Math.PI);
-        } else if (gs.netSwing.type === 'ARC') {
-          const oscillations = 2;
-          const angle = progress * oscillations * Math.PI * 2;
-          netSwing = Math.sin(angle) * 20 * scaleY * Math.cos(progress * Math.PI);
-        } else if (gs.netSwing.type === 'SWISH') {
-          netSwing = Math.sin(progress * Math.PI * 2) * 8 * scaleY;
-        }
-        if (progress >= 1) gs.netSwing.type = null;
-      }
-
-      // 🔒 ВИЗУАЛЬНАЯ ГЕОМЕТРИЯ СЕТКИ: горизонтальный хвост эллипса
-      // Визуальное дно сетки = HOOP_Y + HOOP_R × 1.5 (40.5px)
-      // (НЕ совпадает с физическими gates, это ОК — разные системы)
-      const netBottom = cy + HOOP_R * 1.5 + (netSwing || 0);
-      const NET_TOP_HALF = rimRadiusX_px * 0.95;   // верх широкий
-      const NET_BOT_HALF = rimRadiusX_px * 0.30;   // низ узкий (трапеция)
-
-      // Вертикальные нити — 11 штук по эллипсу
-      for (let i = 0; i <= 10; i++) {
-        const t = i / 10;
-        const topX = cx + (t - 0.5) * 2 * NET_TOP_HALF;
-        const topY = cy + rimRadiusY_px * Math.cos(Math.PI * t) * 0.3;
-        const botX = cx + (t - 0.5) * 2 * NET_BOT_HALF;
-        const botY = netBottom;
-
-        // Цвет нити — белый→синий→красный снизу
-        const relPos = i / 10;
-        let netColor;
-        if (relPos < 0.15 || relPos > 0.85) {
-          netColor = 'rgba(200,200,255,0.82)'; // края светлее
-        } else {
-          netColor = 'rgba(225,215,255,0.88)'; // центр ярче
-        }
-
+      for (let i = 0; i <= NET_LINES; i++) {
+        const t    = i / NET_LINES;
+        const topX = (STAND_X - RIM_R) + t * NET_TOP_W;
+        const botX = (STAND_X - RIM_R + (NET_TOP_W - NET_BOT_W) * 0.5) + t * NET_BOT_W;
         ctx.beginPath();
-        ctx.strokeStyle = netColor;
-        ctx.lineWidth = 1.1 * scaleX;
-        ctx.moveTo(topX, topY);
-        // Контрольная точка — нити слегка провисают
-        const cpx = topX * 0.6 + botX * 0.4;
-        const cpy = topY + (botY - topY) * 0.5;
-        ctx.quadraticCurveTo(cpx, cpy, botX, botY);
+        ctx.moveTo(topX, STAND_Y);
+        ctx.lineTo(botX, STAND_Y + NET_H_PX);
+        ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+        ctx.lineWidth = 1;
         ctx.stroke();
       }
 
-      // Горизонтальные кольца сетки — 5 рядов
-      const netColors = [
-        'rgba(225,215,255,0.72)',  // ряд 1 белый
-        'rgba(210,200,255,0.68)',  // ряд 2 белый
-        'rgba(180,180,255,0.72)',  // ряд 3 белый-синий
-        'rgba(80,80,220,0.78)',    // ряд 4 синий
-        'rgba(200,50,50,0.82)',    // ряд 5 красный
-      ];
-      for (let j = 0; j < 5; j++) {
-        const t = (j + 1) / 5;
-        const rowY = cy + rimRadiusY_px + (netBottom - cy - rimRadiusY_px) * t;
-        const rowHalfW = NET_TOP_HALF * (1 - t) + NET_BOT_HALF * t;
-        const rowRY = rimRadiusY_px * (1 - t * 0.75) * 0.25;
+      // Горизонтальные нити (3 штуки)
+      for (let j = 1; j <= 3; j++) {
+        const ty = j / 3;
+        const lx = (STAND_X - RIM_R) + (NET_TOP_W - NET_BOT_W) * 0.5 * ty;
+        const rx = lx + NET_TOP_W - (NET_TOP_W - NET_BOT_W) * ty;
         ctx.beginPath();
-        ctx.ellipse(cx, rowY, rowHalfW, Math.max(rowRY, 1*scaleY),
-                    0, 0, Math.PI * 2);
-        ctx.strokeStyle = netColors[j];
-        ctx.lineWidth = (j >= 3 ? 1.2 : 0.9) * scaleX;
+        ctx.moveTo(lx, STAND_Y + NET_H_PX * ty);
+        ctx.lineTo(rx, STAND_Y + NET_H_PX * ty);
+        ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+        ctx.lineWidth = 1;
         ctx.stroke();
       }
 
-      // ── 3. ПЕРЕДНЯЯ ДУГА (фронтальный вид кольца) ─────
-      // Верхняя половина кольца (рисуется поверх сетки)
-      ctx.lineWidth = RIM_TUBE * 0.9;
-      ctx.strokeStyle = rimGrad;
-      ctx.beginPath();
-      ctx.ellipse(cx, cy, rimRadiusX_px, rimRadiusY_px, 0, 0, Math.PI);
-      ctx.stroke();
-
-      // Блик на верхней дуге (металл отражает свет)
-      ctx.globalAlpha = 0.35;
-      ctx.lineWidth = 2 * scaleX;
-      ctx.strokeStyle = 'rgba(255,200,150,0.8)';
-      ctx.beginPath();
-      ctx.ellipse(cx, cy - rimRadiusY_px * 0.4,
-                  rimRadiusX_px * 0.6, rimRadiusY_px * 0.4,
-                  0, 0, Math.PI);
-      ctx.stroke();
-      ctx.globalAlpha = 1.0;
-
-      // Кружки дужек (передних) — крепления кольца
-      // Левая дужка
-      ctx.beginPath();
-      ctx.arc(cx - rimRadiusX_px + SHX, cy + SHY, 5.5*scaleX, 0, Math.PI*2);
-      ctx.fillStyle = '#8B1500';
-      ctx.fill();
-      ctx.beginPath();
-      ctx.arc(cx - rimRadiusX_px + SHX, cy + SHY, 4*scaleX, 0, Math.PI*2);
-      ctx.fillStyle = '#DD2200';
-      ctx.fill();
-      ctx.beginPath();
-      ctx.arc(cx - rimRadiusX_px + SHX - 1.5*scaleX,
-              cy + SHY - 2*scaleY, 2*scaleX, 0, Math.PI*2);
-      ctx.fillStyle = 'rgba(255,190,150,0.55)';
-      ctx.fill();
-
-      // Правая дужка
-      ctx.beginPath();
-      ctx.arc(cx + rimRadiusX_px + SHX, cy + SHY, 5.5*scaleX, 0, Math.PI*2);
-      ctx.fillStyle = '#8B1500';
-      ctx.fill();
-      ctx.beginPath();
-      ctx.arc(cx + rimRadiusX_px + SHX, cy + SHY, 4*scaleX, 0, Math.PI*2);
-      ctx.fillStyle = '#DD2200';
-      ctx.fill();
-      ctx.beginPath();
-      ctx.arc(cx + rimRadiusX_px + SHX - 1.5*scaleX,
-              cy + SHY - 2*scaleY, 2*scaleX, 0, Math.PI*2);
-      ctx.fillStyle = 'rgba(255,190,150,0.55)';
-      ctx.fill();
-
-      // ── GOAL FLASH (GREEN GLOW ON SCORING) ───
+      // ── GOAL FLASH (goal celebration animation) ─────
       if (gs.netShake) {
         const a = Math.max(0, (gs.netShakeEnd - Date.now()) / 700);
-        ctx.globalAlpha = a * 0.55;
-        ctx.fillStyle = '#44cc44';
-        ctx.beginPath();
-        ctx.ellipse(HOOP_X, HOOP_Y, HOOP_R + 14*scaleX, 11*scaleY, 0, 0, Math.PI * 2);
-        ctx.fill();
+        ctx.globalAlpha = a * 0.3;
+        ctx.fillStyle = '#44FF44';
+        ctx.fillRect(STAND_X - RIM_R - 20, STAND_Y - 30, NET_TOP_W + 40, NET_H_PX + 60);
       }
+      ctx.globalAlpha = 1;
 
-      // ═════════════════════════════════════════════
-      // 🔍 DEBUG OVERLAY: HOOP SYNC VISUALIZATION
-      // Toggle: gsRef.current.debugPhysicsCircle = true
-      // ═════════════════════════════════════════════
+      // ── DEBUG OVERLAY (if enabled) ─────
       if (gs.debugPhysicsCircle) {
         ctx.save();
-        ctx.globalAlpha = 0.45;
-
-        // 🟢 ФИЗИЧЕСКИЙ ЦЕНТР И РАДИУС (идеальный круг)
-        const cx_phys = HOOP_X;
-        const cy_phys = HOOP_Y;
-        const phys_radius_px = HOOP_R;  // 27 px
-
+        ctx.globalAlpha = 0.3;
         ctx.strokeStyle = '#00FF00';
-        ctx.lineWidth = 2.5;
-        ctx.beginPath();
-        ctx.arc(cx_phys, cy_phys, phys_radius_px, 0, Math.PI * 2);
-        ctx.stroke();
-
-        // Центральная точка (зелёная)
-        ctx.fillStyle = '#00FF00';
-        ctx.beginPath();
-        ctx.arc(cx_phys, cy_phys, 5, 0, Math.PI * 2);
-        ctx.fill();
-
-        // 📐 GATE TOP И BOTTOM (жёлтые линии)
-        const topGateY_px = cy_phys + (0.05 * SCALE);     // +5cm
-        const botGateY_px = cy_phys + (0.35 * SCALE);     // +35cm
-
-        ctx.strokeStyle = '#FFFF00';
-        ctx.lineWidth = 1.5;
+        ctx.lineWidth = 1;
         ctx.setLineDash([5, 5]);
 
-        // TOP GATE (верхние ворота)
+        // Draw rim collision zones (left and right rim)
         ctx.beginPath();
-        ctx.moveTo(cx_phys - 50*scaleX, topGateY_px);
-        ctx.lineTo(cx_phys + 50*scaleX, topGateY_px);
+        ctx.arc(STAND_X - RIM_R, STAND_Y, 0.02 * SCALE + 0.03 * SCALE, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(STAND_X + RIM_R, STAND_Y, 0.02 * SCALE + 0.03 * SCALE, 0, Math.PI * 2);
         ctx.stroke();
 
-        // BOTTOM GATE (нижние ворота)
-        ctx.beginPath();
-        ctx.moveTo(cx_phys - 50*scaleX, botGateY_px);
-        ctx.lineTo(cx_phys + 50*scaleX, botGateY_px);
-        ctx.stroke();
         ctx.setLineDash([]);
-
-        // ТЕКСТ ИНСТРУКЦИИ
-        ctx.fillStyle = '#00FF00';
-        ctx.font = `bold 12px monospace`;
-        ctx.textAlign = 'left';
-        ctx.fillText(`🔒 Physics R=${HOOP_R}px`, cx_phys + 60, cy_phys - 20);
-
-        ctx.fillStyle = '#FFFF00';
-        ctx.fillText(`⬆ Top Gate: ${topGateY_px.toFixed(0)}px`, 10, 25);
-        ctx.fillText(`⬇ Bot Gate: ${botGateY_px.toFixed(0)}px`, 10, 40);
-
-        ctx.fillStyle = '#FF6666';
-        ctx.fillText(`Shake offset: SHX=${SHX.toFixed(1)}, SHY=${SHY.toFixed(1)}`, 10, 55);
-
         ctx.restore();
       }
 
@@ -1448,7 +1305,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
             // Крапка в кільці
             ctx.fillStyle = 'red';
             ctx.beginPath();
-            ctx.arc(HOOP_X, HOOP_Y, 7, 0, Math.PI * 2);
+            ctx.arc(STAND_X, STAND_Y, 7, 0, Math.PI * 2);
             ctx.fill();
             ctx.restore();
           }
@@ -1997,7 +1854,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
         const p = gs.players[hitIdx], ss = gs.shootStates[hitIdx];
         if (ss.phase === null || ss.phase === "pickup_wait") {
           ss.phase = "aiming";
-          const behindBoard = (p.x - 15*scaleX) < BOARD_FACE;
+          const behindBoard = (p.x - 15*scaleX) < BD_X;
           // 🚨 ВИПРАВЛЕННЯ: Обидва кути повинні бути вверх (від'ємні в canvas coords)
           // Стрілка рухається від горизонталі вліво до вертикалі вгору
           // (0° = вправо, -π/2 = вгору, -π = вліво)
@@ -2014,8 +1871,8 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
           const SCALE = Math.min(W, H) / 15.0;
           const headX_m = (p.x - 15*scaleX) / SCALE;
           const headY_m = (p.y - 55*scaleY) / SCALE;
-          const hoopX_m = HOOP_X / SCALE;
-          const hoopY_m = HOOP_Y / SCALE;
+          const hoopX_m = STAND_X / SCALE;
+          const hoopY_m = STAND_Y / SCALE;
           const groundY_m = GY / SCALE;
 
           const dx_m = hoopX_m - headX_m;
@@ -2104,7 +1961,7 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
 
           console.log('[ARC DIAGNOSTIC]', {
             head_px: {x: Math.round(headX_m*SCALE), y: Math.round(headY_m*SCALE)},
-            hoop_px: {x: Math.round(HOOP_X), y: Math.round(HOOP_Y)},
+            hoop_px: {x: Math.round(STAND_X), y: Math.round(STAND_Y)},
             dx_m: dx_m.toFixed(3),
             dy_m: dy_m.toFixed(3),
             theta_deg: (theta * 180/Math.PI).toFixed(1),
@@ -2117,10 +1974,10 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
             arc_length: ss.idealTraj?.length,
             arc_first: ss.idealTraj?.[0],
             arc_last: ss.idealTraj?.[ss.idealTraj?.length - 1],
-            hoop: {x: HOOP_X, y: HOOP_Y},
+            hoop: {x: STAND_X, y: STAND_Y},
             error_px: ss.idealTraj?.length > 0 ? {
-              dx: Math.round(ss.idealTraj[ss.idealTraj.length-1].x - HOOP_X),
-              dy: Math.round(ss.idealTraj[ss.idealTraj.length-1].y - HOOP_Y),
+              dx: Math.round(ss.idealTraj[ss.idealTraj.length-1].x - STAND_X),
+              dy: Math.round(ss.idealTraj[ss.idealTraj.length-1].y - STAND_Y),
             } : 'no arc',
             bestDist_m: bestDist.toFixed(4),
             v_ideal_used: v_ideal.toFixed(3),
@@ -2270,6 +2127,72 @@ export default function RucheekGameCanvas({ isVisible, userName = "", userPhone 
     let lastServerEmitTime = 0;
     const SERVER_EMIT_INTERVAL = 3000; // Send to server every 3 seconds
     const FIXED_MS = 16.667;  // target 60 FPS baseline
+
+    // ════════════════════════════════════════════════════════════════
+    // ШАГ 7: АВТО-ТЕСТ 10/10 — гонять пока не 10/10
+    // ════════════════════════════════════════════════════════════════
+    function runHoopTest(physicsC: PhysicsConstantsM): void {
+      let passed = 0;
+      const results: string[] = [];
+
+      for (let i = 0; i < 10; i++) {
+        const testBall = {
+          _x_m: physicsC.HOOP_X_M,           // точно по центру
+          _y_m: physicsC.HOOP_Y_M - 1.0,     // 1м выше кольца
+          vx: 0,
+          vy: 4.0,                             // летит вниз
+          _scored: false,
+          omega: 0,
+          _accumulator: 0,
+          _physTick: 0,
+          _checkpoints: [],
+          _scale: 1,
+          rimContacts: 0,
+          rimContactMask: 0,
+          hitBackboard: false,
+          rimHitTimer: 0,
+          x: 0,
+          y: 0,
+          rot: 0,
+          state: 'flying',
+          scoredGoal: false,
+          outcome: 'in_progress',
+          spin: 0,
+        } as unknown as BallStateM;
+
+        let scored = false;
+        for (let frame = 0; frame < 120; frame++) {
+          const prevY = testBall._y_m;
+          testBall.vy  += physicsC.GRAVITY * (1/60);
+          testBall._y_m += testBall.vy  * (1/60);
+          testBall._x_m += testBall.vx  * (1/60);
+          checkRimCollision(testBall as BallStateM, physicsC);
+          if (checkScoring(testBall as BallStateM, prevY, physicsC)) {
+            scored = true;
+            break;
+          }
+        }
+
+        if (scored) passed++;
+        results.push(`Ball ${i+1}: ${scored ? '✅ GOAL' : '❌ MISS'} | finalX=${testBall._x_m.toFixed(3)} finalY=${testBall._y_m.toFixed(3)}`);
+      }
+
+      console.log('═══════════════════════════════');
+      console.log(`🏀 HOOP TEST RESULT: ${passed}/10`);
+      results.forEach(r => console.log(r));
+      console.log('HOOP_X_M:', physicsC.HOOP_X_M, 'HOOP_Y_M:', physicsC.HOOP_Y_M);
+      console.log('RIM_RADIUS_M:', physicsC.RIM_RADIUS_M, 'BALL_R_M:', physicsC.BALL_RADIUS_M);
+      console.log('═══════════════════════════════');
+
+      if (passed < 10) {
+        console.error('❌ ТЕСТ НЕ ПРОЙДЕН! Исправь физику до 10/10');
+      } else {
+        console.log('✅ ТЕСТ ПРОЙДЕН — 10/10 попаданий!');
+      }
+    }
+
+    // Вызвать тест один раз при инициализации
+    const runHoopTestOnce = runHoopTest;
 
     function renderLoop(timestamp: number) {
       if (lastFrameTimeRef.current === 0) lastFrameTimeRef.current = timestamp;

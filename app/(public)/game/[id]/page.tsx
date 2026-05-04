@@ -324,7 +324,7 @@ export default async function GamePage({ params }: { params: Promise<{ id: strin
 
       {/* PDF Download button */}
       {hasScore && homeBox && awayBox && (
-        <div className="flex justify-center mb-3">
+        <div className="flex justify-center gap-3 mb-3 flex-wrap">
           <GamePdfButton
             data={{
               id: game.id,
@@ -369,6 +369,12 @@ export default async function GamePage({ params }: { params: Promise<{ id: strin
               quarterScores,
             }}
           />
+          <a
+            href={`/game/${game.id}/secretarial-protocol`}
+            className="inline-flex items-center gap-1.5 px-4 py-2 bg-slate-700 hover:bg-slate-800 text-white text-sm font-semibold rounded-lg transition"
+          >
+            📋 Протокол ФБУ
+          </a>
         </div>
       )}
 

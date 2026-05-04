@@ -287,6 +287,46 @@ export async function addFoulUnsportsmanlike(gameId: number, teamId: number, pla
   revalidatePath(`/admin/games/${gameId}`);
 }
 
+export async function addFoulDisqualifying(gameId: number, teamId: number, playerId: number) {
+  await requireAuth();
+  const game = await prisma.game.findUnique({ where: { id: gameId } });
+  if (!game || game.status !== "LIVE") throw new Error("Game not live");
+  await prisma.gameEvent.create({
+    data: { gameId, teamId, playerId, type: "FOUL_DISQUALIFYING", quarter: game.quarter },
+  });
+  const existing = await prisma.boxScore.findFirst({ where: { gameId, playerId } });
+  if (existing) {
+    await prisma.boxScore.update({ where: { id: existing.id }, data: { fouls: { increment: 1 } } });
+  } else {
+    await prisma.boxScore.create({ data: { gameId, playerId, teamId, fouls: 1 } });
+  }
+  revalidatePath(`/admin/games/${gameId}`);
+}
+
+export async function addCoachFoul(gameId: number, teamId: number, playerId: number) {
+  await requireAuth();
+  const game = await prisma.game.findUnique({ where: { id: gameId } });
+  if (!game || game.status !== "LIVE") throw new Error("Game not live");
+  await prisma.gameEvent.create({
+    data: { gameId, teamId, playerId, type: "FOUL_COACH", quarter: game.quarter },
+  });
+  revalidatePath(`/admin/games/${gameId}`);
+}
+
+export async function toggleIsStarter(gameId: number, playerId: number, isStarter: boolean) {
+  await requireAuth();
+  const existing = await prisma.boxScore.findFirst({ where: { gameId, playerId } });
+  if (existing) {
+    await prisma.boxScore.update({ where: { id: existing.id }, data: { isStarter } });
+  } else {
+    const player = await prisma.player.findUnique({ where: { id: playerId }, select: { teamId: true } });
+    if (player) {
+      await prisma.boxScore.create({ data: { gameId, playerId, teamId: player.teamId, isStarter } });
+    }
+  }
+  revalidatePath(`/admin/games/${gameId}`);
+}
+
 async function syncAchievements(playerId: number): Promise<string[]> {
   const [allBoxScores, existingAchievements] = await Promise.all([
     prisma.boxScore.findMany({
@@ -345,7 +385,7 @@ export async function undoLastEvent(gameId: number) {
   }
 
   // Reverse stat events
-  const statMap: Record<string, "rebounds" | "reboundsOff" | "reboundsDef" | "assists" | "steals" | "blocks" | "fouls" | "turnovers" | "missedFg2" | "missedFg3" | "missedFt"> = {
+  const statMap: Record<string, "rebounds" | "reboundsOff" | "reboundsDef" | "assists" | "steals" | "blocks" | "fouls" | "turnovers" | "missedFg2" | "missedFg3" | "missedFt" | null> = {
     REBOUND: "rebounds",
     REBOUND_OFF: "reboundsOff",
     REBOUND_DEF: "reboundsDef",
@@ -355,6 +395,8 @@ export async function undoLastEvent(gameId: number) {
     FOUL: "fouls",
     FOUL_TECHNICAL: "fouls",
     FOUL_UNSPORTSMANLIKE: "fouls",
+    FOUL_DISQUALIFYING: "fouls",
+    FOUL_COACH: null,
     TURNOVER: "turnovers",
     MISS_2P: "missedFg2",
     MISS_3P: "missedFg3",

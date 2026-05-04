@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition, useEffect, useRef, useCallback } from "react";
-import { nextQuarter, endGame, startGame, undoLastEvent, addAssist, addSteal, addReboundOff, addReboundDef, addBlock, addTurnover, addMissFt, addMissFg2, addMissFg3, addFoul, addFoulTechnical, addFoulUnsportsmanlike, addScoreWithType, addSubstitution } from "@/actions/game";
+import { nextQuarter, endGame, startGame, undoLastEvent, addAssist, addSteal, addReboundOff, addReboundDef, addBlock, addTurnover, addMissFt, addMissFg2, addMissFg3, addFoul, addFoulTechnical, addFoulUnsportsmanlike, addFoulDisqualifying, addCoachFoul, toggleIsStarter, addScoreWithType, addSubstitution } from "@/actions/game";
 import type { Game, Team, Player, GameEvent } from "@prisma/client";
 
 type GameWithAll = Game & {
@@ -20,7 +20,28 @@ function formatTime(seconds: number) {
   return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
-function RosterPanel({ players, teamId, team, onCourtIds, selectedId, onSelect, isHome }: {
+function getPlayerFoulCount(events: GameEvent[], playerId: number, foulType?: string) {
+  if (foulType) {
+    return events.filter(e => e.playerId === playerId && e.type === foulType).length;
+  }
+  return events.filter(e =>
+    e.playerId === playerId &&
+    (e.type === "FOUL" || e.type === "FOUL_UNSPORTSMANLIKE" || e.type === "FOUL_TECHNICAL" || e.type === "FOUL_DISQUALIFYING")
+  ).length;
+}
+
+function getTeamFoulCount(events: GameEvent[], teamId: number, quarter: number, foulType?: string) {
+  if (foulType) {
+    return events.filter(e => e.teamId === teamId && e.quarter === quarter && e.type === foulType).length;
+  }
+  return events.filter(e =>
+    e.teamId === teamId &&
+    e.quarter === quarter &&
+    (e.type === "FOUL" || e.type === "FOUL_UNSPORTSMANLIKE" || e.type === "FOUL_TECHNICAL" || e.type === "FOUL_DISQUALIFYING")
+  ).length;
+}
+
+function RosterPanel({ players, teamId, team, onCourtIds, selectedId, onSelect, isHome, events, game }: {
   players: Player[];
   teamId: number;
   team: Team;
@@ -28,6 +49,8 @@ function RosterPanel({ players, teamId, team, onCourtIds, selectedId, onSelect, 
   selectedId: number | null;
   onSelect: (id: number) => void;
   isHome: boolean;
+  events: GameEvent[];
+  game: GameWithAll;
 }) {
   const onCourt = players.filter(p => onCourtIds.has(p.id));
   const bench = players.filter(p => !onCourtIds.has(p.id));
@@ -69,36 +92,61 @@ function RosterPanel({ players, teamId, team, onCourtIds, selectedId, onSelect, 
         ● На паркеті ({onCourt.length})
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: "0px" }}>
-        {onCourt.map(p => (
-          <button
-            key={p.id}
-            onClick={() => onSelect(p.id)}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "3px",
-              padding: "4px 8px",
-              borderRadius: "1px",
-              cursor: "pointer",
-              background: selectedId === p.id ? (isHome ? "#163a5c" : "#fed7aa") : "transparent",
-              transition: "background .1s",
-              width: "100%",
-              border: "none",
-              fontSize: "10px",
-              textAlign: "left",
-              color: isHome ? (selectedId === p.id ? "#5ab3f4" : "#c8d8e8") : (selectedId === p.id ? "#92400e" : "#374151"),
-              minHeight: "32px",
-              margin: 0,
-              overflow: "hidden"
-            }}
-          >
-            <span style={{ width: "4px", height: "4px", borderRadius: "50%", background: isHome ? "#2ecc71" : "#059669", flexShrink: 0 }} />
-            <span style={{ minWidth: "18px", fontWeight: 700, fontSize: "16px" }}>#{p.number}</span>
-            <span style={{ fontSize: "15px" }}>
-              {p.lastName} {p.firstName[0]}.
-            </span>
-          </button>
-        ))}
+        {onCourt.map(p => {
+          const foulCount = getPlayerFoulCount(events, p.id);
+          return (
+            <button
+              key={p.id}
+              onClick={() => onSelect(p.id)}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "2px",
+                padding: "2px 4px",
+                borderRadius: "1px",
+                cursor: "pointer",
+                background: selectedId === p.id ? (isHome ? "#163a5c" : "#fed7aa") : "transparent",
+                transition: "background .1s",
+                width: "100%",
+                border: "none",
+                fontSize: "10px",
+                textAlign: "left",
+                color: isHome ? (selectedId === p.id ? "#5ab3f4" : "#c8d8e8") : (selectedId === p.id ? "#92400e" : "#374151"),
+                minHeight: "24px",
+                margin: 0,
+                overflow: "hidden"
+              }}
+            >
+              <span style={{ width: "4px", height: "4px", borderRadius: "50%", background: isHome ? "#2ecc71" : "#059669", flexShrink: 0 }} />
+              <span style={{ minWidth: "18px", fontWeight: 700, fontSize: "16px" }}>#{p.number}</span>
+              <span style={{ fontSize: "15px" }}>
+                {p.lastName}
+              </span>
+              {/* Foul indicators — 5 squares */}
+              <div style={{ display: "flex", gap: "2px", marginLeft: "auto", flexShrink: 0 }}>
+                {[0, 1, 2, 3, 4].map(i => (
+                  <div
+                    key={i}
+                    style={{
+                      width: "6px",
+                      height: "6px",
+                      borderRadius: "1px",
+                      background: foulCount > i ? "#ef4444" : "#3a3a3a",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: "5px",
+                      fontWeight: "bold",
+                      color: foulCount > i ? "#fff" : "#666"
+                    }}
+                  >
+                    {foulCount === 5 && i === 4 ? "F" : ""}
+                  </div>
+                ))}
+              </div>
+            </button>
+          );
+        })}
       </div>
 
       {/* Лавка */}
@@ -112,36 +160,87 @@ function RosterPanel({ players, teamId, team, onCourtIds, selectedId, onSelect, 
       }}>
         ○ Лавка ({bench.length})
       </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: "0px" }}>
-        {bench.map(p => (
-          <button
-            key={p.id}
-            onClick={() => onSelect(p.id)}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "3px",
-              padding: "4px 8px",
-              borderRadius: "1px",
-              cursor: "pointer",
-              background: selectedId === p.id ? (isHome ? "#163a5c" : "#fed7aa") : "transparent",
-              width: "100%",
-              border: "none",
-              fontSize: "10px",
-              textAlign: "left",
-              color: isHome ? (selectedId === p.id ? "#5ab3f4" : "#c8d8e8") : (selectedId === p.id ? "#92400e" : "#6b7280"),
-              minHeight: "32px",
-              margin: 0,
-              overflow: "hidden"
-            }}
-          >
-            <span style={{ width: "4px", height: "4px", borderRadius: "50%", background: isHome ? "#2a4060" : "#d1d5db", flexShrink: 0 }} />
-            <span style={{ minWidth: "18px", fontWeight: 700, fontSize: "16px" }}>#{p.number}</span>
-            <span style={{ fontSize: "15px" }}>
-              {p.lastName} {p.firstName[0]}.
-            </span>
-          </button>
-        ))}
+      <div style={{ display: "flex", flexDirection: "column", gap: "0px", flex: 1, overflowY: "auto" }}>
+        {bench.map(p => {
+          const foulCount = getPlayerFoulCount(events, p.id);
+          return (
+            <button
+              key={p.id}
+              onClick={() => onSelect(p.id)}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "2px",
+                padding: "2px 4px",
+                borderRadius: "1px",
+                cursor: "pointer",
+                background: selectedId === p.id ? (isHome ? "#163a5c" : "#fed7aa") : "transparent",
+                width: "100%",
+                border: "none",
+                fontSize: "10px",
+                textAlign: "left",
+                color: isHome ? (selectedId === p.id ? "#5ab3f4" : "#c8d8e8") : (selectedId === p.id ? "#92400e" : "#6b7280"),
+                minHeight: "24px",
+                margin: 0,
+                overflow: "hidden"
+              }}
+            >
+              <span style={{ width: "4px", height: "4px", borderRadius: "50%", background: isHome ? "#2a4060" : "#d1d5db", flexShrink: 0 }} />
+              <span style={{ minWidth: "18px", fontWeight: 700, fontSize: "16px" }}>#{p.number}</span>
+              <span style={{ fontSize: "15px" }}>
+                {p.lastName}
+              </span>
+              {/* Foul indicators — 5 squares */}
+              <div style={{ display: "flex", gap: "2px", marginLeft: "auto", flexShrink: 0 }}>
+                {[0, 1, 2, 3, 4].map(i => (
+                  <div
+                    key={i}
+                    style={{
+                      width: "6px",
+                      height: "6px",
+                      borderRadius: "1px",
+                      background: foulCount > i ? "#ef4444" : "#3a3a3a",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: "5px",
+                      fontWeight: "bold",
+                      color: foulCount > i ? "#fff" : "#666"
+                    }}
+                  >
+                    {foulCount === 5 && i === 4 ? "F" : ""}
+                  </div>
+                ))}
+              </div>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Team Foul Indicators — внизу колонки */}
+      <div style={{ background: isHome ? "#0d1520" : "#f3f4f6", padding: "4px 3px", borderTop: "1px solid " + (isHome ? "#1a2e40" : "#e5e7eb"), display: "flex", gap: "4px", justifyContent: "center", fontSize: "9px", color: isHome ? "#3a6fa5" : "#6b7280" }}>
+        {[1, 2, 3, 4, 5].map(i => {
+          const teamFouls = getTeamFoulCount(events, teamId, 1);
+          return (
+            <div
+              key={i}
+              style={{
+                width: "18px",
+                height: "18px",
+                borderRadius: "2px",
+                background: teamFouls >= i ? (teamFouls >= 5 ? (isHome ? "#dc2626" : "#dc2626") : (isHome ? "#f97316" : "#f97316")) : (isHome ? "#1a3a50" : "#e5e7eb"),
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontWeight: "bold",
+                color: teamFouls >= i ? "#fff" : (isHome ? "#666" : "#999"),
+                fontSize: "9px"
+              }}
+            >
+              {i}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -288,8 +387,40 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
           <div style={{ fontSize: 32, fontWeight: "700", color: "#fff", lineHeight: 1 }}>
             {game.homeScore} : {game.awayScore}
           </div>
-          <div style={{ fontSize: 28, fontWeight: "700", color: "#fff", marginTop: 4, lineHeight: 1 }}>
-            {formatTime(timeLeft)}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, marginTop: 4 }}>
+            <button
+              onClick={() => setTimeLeft(prev => Math.max(0, prev - 60))}
+              disabled={!isLive}
+              style={{
+                padding: "2px 6px",
+                fontSize: 12,
+                fontWeight: "600",
+                border: "none",
+                borderRadius: 2,
+                cursor: isLive ? "pointer" : "not-allowed",
+                background: isLive ? "#1a3a50" : "#1a2e40",
+                color: isLive ? "#5ab3f4" : "#4a7fa5",
+                opacity: isLive ? 1 : 0.5
+              }}
+            >−1хв</button>
+            <div style={{ fontSize: 28, fontWeight: "700", color: "#fff", minWidth: "80px" }}>
+              {formatTime(timeLeft)}
+            </div>
+            <button
+              onClick={() => setTimeLeft(prev => prev + 60)}
+              disabled={!isLive}
+              style={{
+                padding: "2px 6px",
+                fontSize: 12,
+                fontWeight: "600",
+                border: "none",
+                borderRadius: 2,
+                cursor: isLive ? "pointer" : "not-allowed",
+                background: isLive ? "#1a3a50" : "#1a2e40",
+                color: isLive ? "#5ab3f4" : "#4a7fa5",
+                opacity: isLive ? 1 : 0.5
+              }}
+            >+1хв</button>
           </div>
           <div style={{ fontSize: 14, fontWeight: "700", color: "#5ab3f4", marginTop: 2 }}>
             {game.quarter} чверть
@@ -405,15 +536,19 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
         height: "100%"
       }}>
         {/* LEFT — Home Players */}
-        <RosterPanel
-          players={homePlayers}
-          teamId={game.homeTeamId}
-          team={game.homeTeam}
-          onCourtIds={onCourtHome}
-          selectedId={selectedPlayerId}
-          onSelect={setSelectedPlayerId}
-          isHome={true}
-        />
+        <div style={{ display: "flex", flexDirection: "column", minHeight: 0, gap: 0 }}>
+          <RosterPanel
+            players={homePlayers}
+            teamId={game.homeTeamId}
+            team={game.homeTeam}
+            onCourtIds={onCourtHome}
+            selectedId={selectedPlayerId}
+            onSelect={setSelectedPlayerId}
+            isHome={true}
+            events={game.events}
+            game={game}
+          />
+        </div>
 
         {/* CENTER — 5 рядів кнопок з правильними пропорціями */}
         <div style={{
@@ -510,11 +645,27 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
               disabled={disabled}
               style={{ flex:1, height:"100%", background: disabled ? "#1a2e40" : "#2d1a00", color: disabled ? "#4a7fa5" : "#f4cc5a", fontSize:30, fontWeight:700, border:"none", borderRadius:3, cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.5 : 1 }}
             >Втрата</button>
+            {/* 4 Foul type buttons */}
             <button
               onClick={() => selectedPlayerId && runAction(() => addFoul(game.id, selectedTeamId, selectedPlayerId))}
               disabled={disabled}
-              style={{ flex:1.5, height:"100%", background: disabled ? "#1a2e40" : "#2d0808", color: disabled ? "#4a7fa5" : "#f47a7a", fontSize:30, fontWeight:700, border:"none", borderRadius:3, cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.5 : 1 }}
-            >Фол персональний</button>
+              style={{ flex:0.7, height:"100%", background: disabled ? "#1a2e40" : "#2d0808", color: disabled ? "#4a7fa5" : "#f47a7a", fontSize:28, fontWeight:700, border:"none", borderRadius:3, cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.5 : 1 }}
+            >Фол П</button>
+            <button
+              onClick={() => selectedPlayerId && runAction(() => addFoulUnsportsmanlike(game.id, selectedTeamId, selectedPlayerId))}
+              disabled={disabled}
+              style={{ flex:0.7, height:"100%", background: disabled ? "#1a2e40" : "#2d0808", color: disabled ? "#4a7fa5" : "#f47a7a", fontSize:28, fontWeight:700, border:"none", borderRadius:3, cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.5 : 1 }}
+            >Неспорт.</button>
+            <button
+              onClick={() => selectedPlayerId && runAction(() => addFoulTechnical(game.id, selectedTeamId, selectedPlayerId))}
+              disabled={disabled}
+              style={{ flex:0.7, height:"100%", background: disabled ? "#1a2e40" : "#2d0808", color: disabled ? "#4a7fa5" : "#f47a7a", fontSize:28, fontWeight:700, border:"none", borderRadius:3, cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.5 : 1 }}
+            >Техніч.</button>
+            <button
+              onClick={() => selectedPlayerId && runAction(() => addFoulDisqualifying(game.id, selectedTeamId, selectedPlayerId))}
+              disabled={disabled}
+              style={{ flex:0.7, height:"100%", background: disabled ? "#1a2e40" : "#8b0000", color: disabled ? "#4a7fa5" : "#ffaaaa", fontSize:28, fontWeight:700, border:"none", borderRadius:3, cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.5 : 1 }}
+            >Дискв.</button>
           </div>
 
           {/* РЯД 4 — великий flex:2 */}
@@ -536,11 +687,6 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
             >Блокшот</button>
             <div style={{ width:1, background:"#1a2e40" }} />
             <button
-              onClick={() => selectedPlayerId && runAction(() => addFoulTechnical(game.id, selectedTeamId, selectedPlayerId))}
-              disabled={disabled}
-              style={{ flex:0.7, height:"100%", background: disabled ? "#1a2e40" : "#2d0808", color: disabled ? "#4a7fa5" : "#f47a7a", fontSize:28, fontWeight:700, border:"none", borderRadius:3, cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.5 : 1 }}
-            >Технічний</button>
-            <button
               onClick={() => {
                 if (selectedPlayerId) {
                   setShowFoulShootingModal(true);
@@ -549,6 +695,11 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
               disabled={disabled}
               style={{ flex:0.7, height:"100%", background: disabled ? "#1a2e40" : "#2d0808", color: disabled ? "#4a7fa5" : "#f47a7a", fontSize:28, fontWeight:700, border:"none", borderRadius:3, cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.5 : 1 }}
             >Командний</button>
+            <button
+              onClick={() => selectedPlayerId && runAction(() => addCoachFoul(game.id, selectedTeamId, selectedPlayerId))}
+              disabled={disabled}
+              style={{ flex:0.7, height:"100%", background: disabled ? "#1a2e40" : "#2d0808", color: disabled ? "#4a7fa5" : "#f47a7a", fontSize:28, fontWeight:700, border:"none", borderRadius:3, cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.5 : 1 }}
+            >Тренеру</button>
           </div>
 
           {/* РЯД 5 — вузький 36px */}
@@ -574,15 +725,19 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
         </div>
 
         {/* RIGHT — Away Players */}
-        <RosterPanel
-          players={awayPlayers}
-          teamId={game.awayTeamId}
-          team={game.awayTeam}
-          onCourtIds={onCourtAway}
-          selectedId={selectedPlayerId}
-          onSelect={setSelectedPlayerId}
-          isHome={false}
-        />
+        <div style={{ display: "flex", flexDirection: "column", minHeight: 0, gap: 0 }}>
+          <RosterPanel
+            players={awayPlayers}
+            teamId={game.awayTeamId}
+            team={game.awayTeam}
+            onCourtIds={onCourtAway}
+            selectedId={selectedPlayerId}
+            onSelect={setSelectedPlayerId}
+            isHome={false}
+            events={game.events}
+            game={game}
+          />
+        </div>
       </div>
 
       {/* ACTION LOG — vertical list */}

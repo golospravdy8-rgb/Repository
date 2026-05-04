@@ -24,14 +24,20 @@ npm run dev
 
 **Exact command that works on Windows/macOS/Linux:**
 ```bash
+npm run dev
+# or directly:
 node start.js
 ```
 
 This script:
 - ✅ Kills zombie processes on ports 3006-3012
-- ✅ Starts `npx next dev -p 3006`
-- ✅ Shows colored status logs
+- ✅ Automatically detects Windows/Linux and uses `npx.cmd` or `npx`
+- ✅ Starts Next.js dev server on port 3006
+- ✅ Shows colored status logs with URLs
 - ✅ Auto-handles Ctrl+C graceful shutdown
+
+**How it works on Windows:**
+The script uses `npx.cmd` (native Windows command) instead of `npx` to avoid shell compatibility issues.
 
 **Open browser:** http://localhost:3006
 

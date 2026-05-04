@@ -120,6 +120,10 @@ export async function createGame(data: {
   homeScore: number;
   awayScore: number;
   ageGroup?: string;
+  tourId?: number | null;
+  stage?: string | null;
+  sourceA?: string | null;
+  sourceB?: string | null;
 }) {
   await requireAuth();
   const ag = data.ageGroup ?? "younger";
@@ -140,6 +144,10 @@ export async function createGame(data: {
       homeScore: data.homeScore,
       awayScore: data.awayScore,
       quarter: data.status === "FINAL" ? 4 : 1,
+      tourId: data.tourId ? Number(data.tourId) : null,
+      stage: data.stage || null,
+      sourceA: data.sourceA || null,
+      sourceB: data.sourceB || null,
     },
   });
   if (data.status === "FINAL") await recalcStandings();
@@ -159,6 +167,14 @@ export async function updateGame(
     homeScore: number;
     awayScore: number;
     ageGroup?: string;
+    tourId?: number | null;
+    stage?: string | null;
+    sourceA?: string | null;
+    sourceB?: string | null;
+    playoffTeamA?: string | null;
+    playoffTeamB?: string | null;
+    playoffScoreA?: number | null;
+    playoffScoreB?: number | null;
   }
 ) {
   await requireAuth();
@@ -172,6 +188,14 @@ export async function updateGame(
       homeScore: data.homeScore,
       awayScore: data.awayScore,
       quarter: data.status === "FINAL" ? 4 : 1,
+      tourId: data.tourId ? Number(data.tourId) : null,
+      stage: data.stage || null,
+      sourceA: data.sourceA || null,
+      sourceB: data.sourceB || null,
+      playoffTeamA: data.playoffTeamA || null,
+      playoffTeamB: data.playoffTeamB || null,
+      playoffScoreA: data.playoffScoreA || null,
+      playoffScoreB: data.playoffScoreB || null,
     },
   });
   await recalcStandings();
