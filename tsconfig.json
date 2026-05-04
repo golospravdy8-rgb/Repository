@@ -43,6 +43,7 @@
     "packages/**",
     "prisma/**",
     "scripts/**",
-    "tests/**"
+    "tests/**",
+    "src/socketServer.ts"
   ]
 }
