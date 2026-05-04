@@ -4,6 +4,7 @@ import { useState, useTransition, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createGame, updateGame, deleteGame } from "@/actions/admin-data";
 import type { GameRow, TeamRow, Tour, Group } from "../SiteEditorClient";
+import BoxScoreEditor from "@/components/admin/BoxScoreEditor";
 
 const STATUSES = ["SCHEDULED", "LIVE", "FINAL"];
 const STATUS_LABELS: Record<string, string> = { SCHEDULED: "Заплановано", LIVE: "Live", FINAL: "Фінал" };
@@ -221,6 +222,43 @@ export default function ScheduleTab({ games, teams }: { games: GameRow[]; teams:
         const message = err instanceof Error ? err.message : "Невідома помилка при збереженні матчу";
         setError(message);
         console.error("Error saving game:", err);
+      }
+    });
+  };
+
+  const handleFinishGame = () => {
+    setError(null);
+    if (!form.homeTeamId || !form.awayTeamId || !form.scheduledAt) {
+      setError("Заповніть обов'язкові поля: команди та дату");
+      return;
+    }
+    const finalData = {
+      homeTeamId: Number(form.homeTeamId),
+      awayTeamId: Number(form.awayTeamId),
+      scheduledAt: new Date(form.scheduledAt).toISOString(),
+      status: "FINAL",
+      homeScore: Number(form.homeScore),
+      awayScore: Number(form.awayScore),
+      ageGroup: ageFilter,
+      tourId: form.tourId ? Number(form.tourId) : null,
+      stage: form.stage || null,
+      sourceA: form.sourceA || null,
+      sourceB: form.sourceB || null,
+    };
+    startTransition(async () => {
+      try {
+        if (editingId) {
+          await updateGame(editingId, finalData);
+        }
+        setForm(EMPTY_FORM);
+        setEditingId(null);
+        setShowForm(false);
+        setError(null);
+        router.refresh();
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Невідома помилка при завершенні матчу";
+        setError(message);
+        console.error("Error finishing game:", err);
       }
     });
   };
@@ -514,10 +552,7 @@ export default function ScheduleTab({ games, teams }: { games: GameRow[]; teams:
             </button>
             {editingId && form.status !== "FINAL" && (
               <button
-                onClick={() => {
-                  setForm((f) => ({ ...f, status: "FINAL" }));
-                  setTimeout(() => handleSave(), 0);
-                }}
+                onClick={handleFinishGame}
                 disabled={pending}
                 className="px-4 py-2 rounded-lg text-sm font-bold text-white"
                 style={{ backgroundColor: "#10b981" }}
@@ -533,6 +568,15 @@ export default function ScheduleTab({ games, teams }: { games: GameRow[]; teams:
             </button>
           </div>
         </div>
+      )}
+
+      {/* BoxScore Editor - shown when game is FINAL and being edited */}
+      {editingId && form.status === "FINAL" && (
+        <BoxScoreEditor
+          gameId={editingId}
+          homeTeamId={Number(form.homeTeamId)}
+          awayTeamId={Number(form.awayTeamId)}
+        />
       )}
 
       {/* Upcoming */}
