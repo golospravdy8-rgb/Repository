@@ -96,7 +96,7 @@ export default function GameCard({ game }: { game: GameWithTeams }) {
                 color: homeWins ? "#0f172a" : "#94a3b8",
                 overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
               }}>
-                {game.homeTeam.name.charAt(0).toUpperCase() + game.homeTeam.name.slice(1, 3)}
+                {game.homeTeam.shortName || game.homeTeam.name}
               </span>
             </div>
             <span style={{
@@ -121,7 +121,7 @@ export default function GameCard({ game }: { game: GameWithTeams }) {
                 color: awayWins ? "#f97316" : "#94a3b8",
                 overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
               }}>
-                {game.awayTeam.name.charAt(0).toUpperCase() + game.awayTeam.name.slice(1, 3)}
+                {game.awayTeam.shortName || game.awayTeam.name}
               </span>
             </div>
             <span style={{

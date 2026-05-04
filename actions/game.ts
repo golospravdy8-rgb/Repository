@@ -61,14 +61,13 @@ export async function addScore(
     }),
   ]);
 
-  // TODO: playerAchievement model not in schema yet
-  // const newAchievements = await syncAchievements(playerId);
+  const newAchievements = await syncAchievements(playerId);
 
   revalidatePath(`/game/${gameId}`);
   revalidatePath(`/admin/games/${gameId}`);
   revalidatePath(`/logos/players/${playerId}`);
 
-  return { newAchievements: [] };
+  return { newAchievements };
 }
 
 export async function addFoul(gameId: number, teamId: number, playerId: number) {

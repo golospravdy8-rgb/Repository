@@ -7,11 +7,13 @@ export interface Badge {
 }
 
 export const BADGES: Badge[] = [
-  { id: "top-scorer",   name: "Снайпер",       icon: "🏀", description: "Набрав 20+ очок в одній грі",    color: "#f97316" },
-  { id: "team-player",  name: "Командний гравець", icon: "🤝", description: "5+ асистів в одній грі",    color: "#3b82f6" },
-  { id: "defender",     name: "Захисник",       icon: "🛡",  description: "3+ перехоплень в одній грі",  color: "#22c55e" },
-  { id: "rebounder",    name: "Підбирач",       icon: "💪", description: "10+ підборів в одній грі",     color: "#8b5cf6" },
-  { id: "iron-man",     name: "Залізна людина", icon: "🦾", description: "Зіграв 5+ ігор",               color: "#ef4444" },
+  { id: "top-scorer",      name: "Снайпер",           icon: "🏀", description: "Набрав 20+ очок в одній грі",                    color: "#f97316" },
+  { id: "team-player",     name: "Командний гравець", icon: "🤝", description: "5+ асистів в одній грі",                        color: "#3b82f6" },
+  { id: "defender",        name: "Захисник",          icon: "🛡",  description: "3+ перехоплень в одній грі",                  color: "#22c55e" },
+  { id: "rebounder",       name: "Підбирач",          icon: "💪", description: "10+ підборів в одній грі",                     color: "#8b5cf6" },
+  { id: "iron-defense",    name: "Залізний захист",   icon: "🦾", description: "5+ блокшотів в одній грі",                     color: "#ef4444" },
+  { id: "triple-double",   name: "Трипл-дабл",        icon: "⭐", description: "10+ очок + підборів + передач в одній грі",     color: "#fbbf24" },
+  { id: "iron-man",        name: "Залізна людина",    icon: "💎", description: "Зіграв 5+ ігор",                               color: "#06b6d4" },
 ];
 
 export function calculateRating(
@@ -50,11 +52,13 @@ export function checkNewAchievements(
 
   const hasGame = (fn: (bs: typeof boxScores[0]) => boolean) => boxScores.some(fn);
 
-  if (!unlocked.has("top-scorer")  && hasGame((bs) => bs.points >= 20))    newBadges.push("top-scorer");
-  if (!unlocked.has("team-player") && hasGame((bs) => bs.assists >= 5))    newBadges.push("team-player");
-  if (!unlocked.has("defender")    && hasGame((bs) => bs.steals >= 3))     newBadges.push("defender");
-  if (!unlocked.has("rebounder")   && hasGame((bs) => bs.rebounds >= 10))  newBadges.push("rebounder");
-  if (!unlocked.has("iron-man")    && boxScores.length >= 5)               newBadges.push("iron-man");
+  if (!unlocked.has("top-scorer")    && hasGame((bs) => bs.points >= 20))                                    newBadges.push("top-scorer");
+  if (!unlocked.has("team-player")   && hasGame((bs) => bs.assists >= 5))                                    newBadges.push("team-player");
+  if (!unlocked.has("defender")      && hasGame((bs) => bs.steals >= 3))                                     newBadges.push("defender");
+  if (!unlocked.has("rebounder")     && hasGame((bs) => bs.rebounds >= 10))                                  newBadges.push("rebounder");
+  if (!unlocked.has("iron-defense")  && hasGame((bs) => bs.blocks >= 5))                                     newBadges.push("iron-defense");
+  if (!unlocked.has("triple-double") && hasGame((bs) => bs.points >= 10 && bs.rebounds >= 10 && bs.assists >= 10)) newBadges.push("triple-double");
+  if (!unlocked.has("iron-man")      && boxScores.length >= 5)                                               newBadges.push("iron-man");
 
   return newBadges;
 }

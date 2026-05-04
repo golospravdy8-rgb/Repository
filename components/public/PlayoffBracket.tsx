@@ -77,7 +77,6 @@ export const PlayoffBracket: React.FC<PlayoffBracketProps> = ({ playoff }) => {
       <div className="space-y-6">
         {/* ПОЛУФИНАЛЫ */}
         <div>
-          <h3 className="text-lg font-bold mb-3 text-blue-800">🎯 ПОЛУФІНАЛІ</h3>
           <MatchRow
             label="ПІВФІНАЛ 1"
             teamA={playoff.semifinal1TeamA}
