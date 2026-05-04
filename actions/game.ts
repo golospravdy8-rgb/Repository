@@ -330,7 +330,7 @@ async function syncAchievements(playerId: number): Promise<string[]> {
   const [allBoxScores, existingAchievements] = await Promise.all([
     prisma.boxScore.findMany({
       where: { playerId },
-      select: { points: true, rebounds: true, assists: true, steals: true, blocks: true },
+      include: { game: { select: { scheduledAt: true } } },
     }),
     prisma.playerAchievement.findMany({
       where: { playerId },
@@ -339,7 +339,7 @@ async function syncAchievements(playerId: number): Promise<string[]> {
   ]);
 
   const alreadyUnlocked = new Set(existingAchievements.map((a) => a.badgeId));
-  const newBadgeIds = checkNewAchievements(allBoxScores, Array.from(alreadyUnlocked));
+  const newBadgeIds = checkNewAchievements(allBoxScores as any, Array.from(alreadyUnlocked));
 
   if (newBadgeIds.length > 0) {
     await prisma.playerAchievement.createMany({

@@ -13,6 +13,7 @@ export const BADGES: Badge[] = [
   { id: "rebounder",       name: "Підбирач",          icon: "💪", description: "10+ підборів в одній грі",                     color: "#8b5cf6" },
   { id: "iron-defense",    name: "Залізний захист",   icon: "🦾", description: "5+ блокшотів в одній грі",                     color: "#ef4444" },
   { id: "triple-double",   name: "Трипл-дабл",        icon: "⭐", description: "10+ очок + підборів + передач в одній грі",     color: "#fbbf24" },
+  { id: "stable",          name: "Стабільний",        icon: "📈", description: "10+ очок у 3 іграх поспіль",                    color: "#06b6d4" },
   { id: "iron-man",        name: "Залізна людина",    icon: "💎", description: "Зіграв 5+ ігор",                               color: "#06b6d4" },
 ];
 
@@ -44,7 +45,10 @@ export function getRatingTier(rating: number): "gold" | "silver" | "bronze" {
 }
 
 export function checkNewAchievements(
-  boxScores: { points: number; rebounds: number; assists: number; steals: number; blocks: number }[],
+  boxScores: (
+    { points: number; rebounds: number; assists: number; steals: number; blocks: number } &
+    { game?: { scheduledAt: Date } }
+  )[],
   alreadyUnlocked: string[]
 ): string[] {
   const unlocked = new Set(alreadyUnlocked);
@@ -59,6 +63,22 @@ export function checkNewAchievements(
   if (!unlocked.has("iron-defense")  && hasGame((bs) => bs.blocks >= 5))                                     newBadges.push("iron-defense");
   if (!unlocked.has("triple-double") && hasGame((bs) => bs.points >= 10 && bs.rebounds >= 10 && bs.assists >= 10)) newBadges.push("triple-double");
   if (!unlocked.has("iron-man")      && boxScores.length >= 5)                                               newBadges.push("iron-man");
+
+  // Stable: 10+ points in 3 consecutive games
+  if (!unlocked.has("stable")) {
+    const sorted = boxScores
+      .filter(bs => bs.game?.scheduledAt)
+      .sort((a, b) => new Date(a.game!.scheduledAt).getTime() - new Date(b.game!.scheduledAt).getTime());
+
+    let streak = 0;
+    for (const bs of sorted) {
+      streak = bs.points >= 10 ? streak + 1 : 0;
+      if (streak >= 3) {
+        newBadges.push("stable");
+        break;
+      }
+    }
+  }
 
   return newBadges;
 }

@@ -261,10 +261,24 @@ model News {
 }
 
 model AdminUser {
-  id       Int    @id @default(autoincrement())
-  email    String @unique
+  id       Int     @id @default(autoincrement())
+  email    String  @unique
   password String
   name     String
+  hp       Int     @default(0)
+  hpLogs   HpLog[]
+}
+
+model HpLog {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  points    Int
+  reason    String
+  createdAt DateTime @default(now())
+  user      AdminUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([createdAt])
 }
 
 model SiteSettings {

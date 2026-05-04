@@ -9,9 +9,65 @@ export async function GET(req: NextRequest) {
   try {
     const ageGroup = req.nextUrl.searchParams.get("ageGroup") || "younger";
 
-    const playoff = await prisma.playoff.findUnique({
+    // First try to get stored playoff data
+    let playoff = await prisma.playoff.findUnique({
       where: { ageGroup },
     });
+
+    // If no stored data, fetch from games with playoff stages
+    if (!playoff) {
+      const season = await prisma.season.findFirst({
+        where: { isActive: true, ageGroup },
+      });
+
+      if (season) {
+        const [semifinal1, semifinal2, final, thirdPlace] = await Promise.all([
+          prisma.game.findFirst({
+            where: { seasonId: season.id, stage: "semifinal", sourceA: "A1" },
+            include: { homeTeam: true, awayTeam: true },
+            orderBy: { scheduledAt: "asc" },
+          }),
+          prisma.game.findFirst({
+            where: { seasonId: season.id, stage: "semifinal", sourceA: "B1" },
+            include: { homeTeam: true, awayTeam: true },
+            orderBy: { scheduledAt: "asc" },
+          }),
+          prisma.game.findFirst({
+            where: { seasonId: season.id, stage: "final" },
+            include: { homeTeam: true, awayTeam: true },
+            orderBy: { scheduledAt: "asc" },
+          }),
+          prisma.game.findFirst({
+            where: { seasonId: season.id, stage: "third_place" },
+            include: { homeTeam: true, awayTeam: true },
+            orderBy: { scheduledAt: "asc" },
+          }),
+        ]);
+
+        playoff = {
+          id: "generated",
+          ageGroup,
+          semifinal1TeamA: semifinal1?.homeTeam.name || null,
+          semifinal1TeamB: semifinal1?.awayTeam.name || null,
+          semifinal1ScoreA: semifinal1?.status === "FINAL" ? semifinal1.homeScore : null,
+          semifinal1ScoreB: semifinal1?.status === "FINAL" ? semifinal1.awayScore : null,
+          semifinal2TeamA: semifinal2?.homeTeam.name || null,
+          semifinal2TeamB: semifinal2?.awayTeam.name || null,
+          semifinal2ScoreA: semifinal2?.status === "FINAL" ? semifinal2.homeScore : null,
+          semifinal2ScoreB: semifinal2?.status === "FINAL" ? semifinal2.awayScore : null,
+          finalTeamA: final?.homeTeam.name || null,
+          finalTeamB: final?.awayTeam.name || null,
+          finalScoreA: final?.status === "FINAL" ? final.homeScore : null,
+          finalScoreB: final?.status === "FINAL" ? final.awayScore : null,
+          thirdPlaceTeamA: thirdPlace?.homeTeam.name || null,
+          thirdPlaceTeamB: thirdPlace?.awayTeam.name || null,
+          thirdPlaceScoreA: thirdPlace?.status === "FINAL" ? thirdPlace.homeScore : null,
+          thirdPlaceScoreB: thirdPlace?.status === "FINAL" ? thirdPlace.awayScore : null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        };
+      }
+    }
 
     return NextResponse.json(playoff || null);
   } catch (error) {

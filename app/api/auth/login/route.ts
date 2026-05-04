@@ -26,6 +26,27 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
     }
 
+    // HP: Check if user can get daily login bonus (24h cooldown)
+    const lastHpLog = await prisma.hpLog.findFirst({
+      where: { userId: user.id, reason: "daily_login" },
+      orderBy: { createdAt: "desc" },
+    });
+
+    const now = new Date();
+    const canGetBonus = !lastHpLog || (now.getTime() - lastHpLog.createdAt.getTime()) > 24 * 60 * 60 * 1000;
+
+    if (canGetBonus) {
+      await prisma.$transaction([
+        prisma.adminUser.update({
+          where: { id: user.id },
+          data: { hp: { increment: 15 } },
+        }),
+        prisma.hpLog.create({
+          data: { userId: user.id, points: 15, reason: "daily_login" },
+        }),
+      ]);
+    }
+
     const secret = getJwtSecret();
 
     // Create JWT token
