@@ -624,3 +624,37 @@ export async function recalcGameEfficiency(gameId: number) {
   revalidatePath(`/admin/games/${gameId}`);
   revalidatePath(`/game/${gameId}`);
 }
+
+export async function addTimeout(gameId: number, teamId: number) {
+  await requireAuth();
+
+  const game = await prisma.game.findUnique({ where: { id: gameId } });
+  if (!game || game.status !== "LIVE") throw new Error("Game not live");
+
+  const isHome = game.homeTeamId === teamId;
+  const currentTimeouts = isHome ? game.homeTimeouts : game.awayTimeouts;
+
+  if (currentTimeouts >= 5) throw new Error("Maximum timeouts reached");
+
+  await prisma.$transaction([
+    prisma.game.update({
+      where: { id: gameId },
+      data: isHome
+        ? { homeTimeouts: { increment: 1 } }
+        : { awayTimeouts: { increment: 1 } },
+    }),
+    prisma.gameEvent.create({
+      data: {
+        gameId,
+        teamId,
+        type: "TIMEOUT",
+        quarter: game.quarter,
+      },
+    }),
+  ]);
+
+  revalidatePath(`/admin/games/${gameId}`);
+  revalidatePath(`/game/${gameId}`);
+
+  return { success: true, homeTimeouts: isHome ? currentTimeouts + 1 : game.homeTimeouts, awayTimeouts: isHome ? game.awayTimeouts : currentTimeouts + 1 };
+}

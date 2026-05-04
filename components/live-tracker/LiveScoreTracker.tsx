@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition, useEffect, useRef, useCallback } from "react";
-import { nextQuarter, endGame, startGame, undoLastEvent, addAssist, addSteal, addReboundOff, addReboundDef, addBlock, addTurnover, addMissFt, addMissFg2, addMissFg3, addFoul, addFoulTechnical, addFoulUnsportsmanlike, addFoulDisqualifying, addCoachFoul, toggleIsStarter, addScoreWithType, addSubstitution } from "@/actions/game";
+import { nextQuarter, endGame, startGame, undoLastEvent, addAssist, addSteal, addReboundOff, addReboundDef, addBlock, addTurnover, addMissFt, addMissFg2, addMissFg3, addFoul, addFoulTechnical, addFoulUnsportsmanlike, addFoulDisqualifying, addCoachFoul, toggleIsStarter, addScoreWithType, addSubstitution, addTimeout } from "@/actions/game";
 import type { Game, Team, Player, GameEvent } from "@prisma/client";
 
 type GameWithAll = Game & {
@@ -372,13 +372,24 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
         {/* Home Team */}
         <div>
           <div style={{ fontSize: 18, fontWeight: 700, color: "#ffffff" }}>{game.homeTeam.name}</div>
-          <div style={{ display: "flex", gap: 8, marginTop: 2 }}>
+          <div style={{ display: "flex", gap: 8, marginTop: 2, alignItems: "center" }}>
             <span style={{ fontSize: 13, color: "#6b8caa" }}>
               ФОЛ: <b style={{ color: "#e8a030" }}>{homeFouls}</b>/4
             </span>
-            <span style={{ fontSize: 13, color: "#6b8caa" }}>
-              ТО: <b style={{ color: "#e8a030" }}>{homeTimeouts}</b>/2
-            </span>
+            <div style={{ display: "flex", gap: 3 }}>
+              {[0, 1, 2, 3, 4].map(i => (
+                <div
+                  key={i}
+                  style={{
+                    width: 10,
+                    height: 10,
+                    borderRadius: "50%",
+                    background: i < game.homeTimeouts ? "#f4cc5a" : "#3a4a5a",
+                    border: "1px solid #2a3a4a"
+                  }}
+                />
+              ))}
+            </div>
           </div>
         </div>
 
@@ -430,9 +441,22 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
         {/* Away Team */}
         <div style={{ textAlign: "right" }}>
           <div style={{ fontSize: 18, fontWeight: 700, color: "#ffffff" }}>{game.awayTeam.name}</div>
-          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 2 }}>
+          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 2, alignItems: "center" }}>
             <span style={{ fontSize: 13, color: "#6b8caa" }}>ФОЛ: 0/4</span>
-            <span style={{ fontSize: 13, color: "#6b8caa" }}>ТО: 2/2</span>
+            <div style={{ display: "flex", gap: 3 }}>
+              {[0, 1, 2, 3, 4].map(i => (
+                <div
+                  key={i}
+                  style={{
+                    width: 10,
+                    height: 10,
+                    borderRadius: "50%",
+                    background: i < game.awayTimeouts ? "#f4cc5a" : "#3a4a5a",
+                    border: "1px solid #2a3a4a"
+                  }}
+                />
+              ))}
+            </div>
           </div>
         </div>
       </header>
@@ -564,12 +588,19 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
             >Наст чверть</button>
             <button
               onClick={() => {
-                if (selectedPlayerId && isLive && homeTimeouts > 0) {
-                  setHomeTimeouts(p => Math.max(0, p - 1));
+                if (!selectedPlayerId) {
+                  alert("Спочатку виберіть гравця");
+                  return;
+                }
+                const player = [...game.homeTeam.players, ...game.awayTeam.players].find(p => p.id === selectedPlayerId);
+                if (player) {
+                  startTransition(async () => {
+                    await addTimeout(game.id, player.teamId);
+                  });
                 }
               }}
-              disabled={!selectedPlayerId || !isLive || homeTimeouts === 0}
-              style={{ flex:1, height:"100%", background: (!selectedPlayerId || !isLive || homeTimeouts === 0) ? "#1a2e40" : "#3a2500", color: (!selectedPlayerId || !isLive || homeTimeouts === 0) ? "#4a7fa5" : "#f4cc5a", fontSize:26, fontWeight:600, border:"none", borderRadius:3, cursor: (!selectedPlayerId || !isLive || homeTimeouts === 0) ? "not-allowed" : "pointer", opacity: (!selectedPlayerId || !isLive || homeTimeouts === 0) ? 0.5 : 1 }}
+              disabled={!selectedPlayerId || !isLive || (game.homeTeamId === game.homeTeam.players.find(p => p.id === selectedPlayerId)?.teamId ? game.homeTimeouts >= 5 : game.awayTimeouts >= 5)}
+              style={{ flex:1, height:"100%", background: (!selectedPlayerId || !isLive) ? "#1a2e40" : "#3a2500", color: (!selectedPlayerId || !isLive) ? "#4a7fa5" : "#f4cc5a", fontSize:26, fontWeight:600, border:"none", borderRadius:3, cursor: (!selectedPlayerId || !isLive) ? "not-allowed" : "pointer", opacity: (!selectedPlayerId || !isLive) ? 0.5 : 1 }}
             >Тайм-аут</button>
             <button
               onClick={() => startTransition(() => undoLastEvent(game.id))}

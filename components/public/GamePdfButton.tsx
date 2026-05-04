@@ -45,9 +45,9 @@ export interface GamePdfData {
   awayBox: TeamBox;
   quarterScores: { quarter: number; home: number; away: number }[];
   commissioner?: string;
-  referee1?: string;
-  referee2?: string;
-  referee3?: string;
+  referee?: string;
+  umpire1?: string;
+  umpire2?: string;
   venue?: string;
   round?: string;
   homeStats?: {
@@ -310,16 +310,16 @@ function buildProtocolHTML(data: GamePdfData): string {
           </div>
           <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:16px;">
             <div>
-              <div style="color:#6b7280; font-weight:600; margin-bottom:4px;">Суддя 1:</div>
-              <div style="border-bottom:1px solid #cbd5e1; height:20px; color:#1f2937;">${data.referee1 || "_______________"}</div>
+              <div style="color:#6b7280; font-weight:600; margin-bottom:4px;">Головний суддя:</div>
+              <div style="border-bottom:1px solid #cbd5e1; height:20px; color:#1f2937;">${data.referee || "_______________"}</div>
             </div>
             <div>
-              <div style="color:#6b7280; font-weight:600; margin-bottom:4px;">Суддя 2:</div>
-              <div style="border-bottom:1px solid #cbd5e1; height:20px; color:#1f2937;">${data.referee2 || "_______________"}</div>
+              <div style="color:#6b7280; font-weight:600; margin-bottom:4px;">Арбітр 1:</div>
+              <div style="border-bottom:1px solid #cbd5e1; height:20px; color:#1f2937;">${data.umpire1 || "_______________"}</div>
             </div>
             <div>
-              <div style="color:#6b7280; font-weight:600; margin-bottom:4px;">Суддя 3:</div>
-              <div style="border-bottom:1px solid #cbd5e1; height:20px; color:#1f2937;">${data.referee3 || "_______________"}</div>
+              <div style="color:#6b7280; font-weight:600; margin-bottom:4px;">Арбітр 2:</div>
+              <div style="border-bottom:1px solid #cbd5e1; height:20px; color:#1f2937;">${data.umpire2 || "_______________"}</div>
             </div>
           </div>
         </div>

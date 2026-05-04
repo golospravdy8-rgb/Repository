@@ -26,9 +26,6 @@ export async function updateGameInfo(gameId: number, data: {
       where: { id: gameId },
       data: {
         commissioner: data.commissioner || null,
-        referee1: data.referee || data.referee1 || null,
-        referee2: data.umpire1 || data.referee2 || null,
-        referee3: data.umpire2 || data.referee3 || null,
         referee: data.referee || null,
         umpire1: data.umpire1 || null,
         umpire2: data.umpire2 || null,

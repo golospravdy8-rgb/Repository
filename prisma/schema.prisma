@@ -144,6 +144,10 @@ model Game {
   playoffScoreA         Int?                  // Team A score
   playoffScoreB         Int?                  // Team B score
 
+  // Timeouts
+  homeTimeouts          Int                   @default(0)
+  awayTimeouts          Int                   @default(0)
+
   boxScores             BoxScore[]
   awayTeam              Team                  @relation("AwayTeam", fields: [awayTeamId], references: [id])
   homeTeam              Team                  @relation("HomeTeam", fields: [homeTeamId], references: [id])
