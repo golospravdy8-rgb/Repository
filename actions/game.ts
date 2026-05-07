@@ -33,6 +33,7 @@ export async function addScore(
 
   const isHome = game.homeTeamId === teamId;
 
+  // Wrap all mutations in transaction for atomicity
   await prisma.$transaction([
     prisma.game.update({
       where: { id: gameId },
@@ -125,9 +126,12 @@ export async function nextQuarter(gameId: number) {
 export async function endGame(gameId: number) {
   await requireAuth();
 
-  const game = await prisma.game.update({
-    where: { id: gameId },
-    data: { status: "FINAL" },
+  // Wrap game status update in transaction
+  const game = await prisma.$transaction(async (tx) => {
+    return await tx.game.update({
+      where: { id: gameId },
+      data: { status: "FINAL" },
+    });
   });
 
   await recalcStandingsForSeason(game.seasonId);
@@ -633,33 +637,35 @@ export async function addScoreWithType(
       })
     : calculateEfficiency({ points });
 
-  // Execute all updates
-  await prisma.game.update({ where: { id: gameId }, data: gameUpdateData });
-  await prisma.gameEvent.create({
-    data: { gameId, teamId, playerId, type: "POINTS", points, quarter: game.quarter, eventSubtype },
-  });
-
-  const scoringBoxScoreExisting = await prisma.boxScore.findFirst({
-    where: { gameId, playerId },
-  });
-  if (scoringBoxScoreExisting) {
-    await prisma.boxScore.update({
-      where: { id: scoringBoxScoreExisting.id },
-      data: { points: { increment: points }, efficiency: scoringPlayerEfficiency },
+  // Execute all updates in atomic transaction
+  await prisma.$transaction(async (tx) => {
+    await tx.game.update({ where: { id: gameId }, data: gameUpdateData });
+    await tx.gameEvent.create({
+      data: { gameId, teamId, playerId, type: "POINTS", points, quarter: game.quarter, eventSubtype },
     });
-  } else {
-    await prisma.boxScore.create({
-      data: { gameId, playerId, teamId, points, efficiency: scoringPlayerEfficiency },
-    });
-  }
 
-  // Execute all +/- updates
-  for (const op of updateOnCourtOps) {
-    await op();
-  }
-  for (const op of updateOpponentOps) {
-    await op();
-  }
+    const scoringBoxScoreExisting = await tx.boxScore.findFirst({
+      where: { gameId, playerId },
+    });
+    if (scoringBoxScoreExisting) {
+      await tx.boxScore.update({
+        where: { id: scoringBoxScoreExisting.id },
+        data: { points: { increment: points }, efficiency: scoringPlayerEfficiency },
+      });
+    } else {
+      await tx.boxScore.create({
+        data: { gameId, playerId, teamId, points, efficiency: scoringPlayerEfficiency },
+      });
+    }
+
+    // Execute all +/- updates within transaction
+    for (const op of updateOnCourtOps) {
+      await op();
+    }
+    for (const op of updateOpponentOps) {
+      await op();
+    }
+  });
 
   revalidatePath(`/game/${gameId}`);
   revalidatePath(`/admin/games/${gameId}`);

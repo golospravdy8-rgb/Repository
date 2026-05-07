@@ -169,6 +169,7 @@ model GameEvent {
   points        Int?
   quarter       Int
   eventSubtype  String?  // 'normal', 'fastbreak', 'second_chance', 'off_turnover'
+  idempotencyKey String? @unique // Prevent duplicate events on double-click
   createdAt     DateTime @default(now())
   game          Game     @relation(fields: [gameId], references: [id])
   player        Player?  @relation(fields: [playerId], references: [id])
