@@ -9,12 +9,8 @@ import type { Game, BoxScore, Season } from "@prisma/client";
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage({ searchParams }: { searchParams: { ag?: string } }) {
-  try {
-    await requireAuth();
-  } catch (error) {
-    console.error('[Dashboard] Auth error:', error);
-    throw error;
-  }
+  // Auth check (disabled for testing)
+  await requireAuth();
 
   const ag = searchParams.ag === "older" ? "older" : "younger";
 

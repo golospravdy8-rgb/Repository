@@ -12,34 +12,44 @@ Production-ready Next.js 14 + Firebase + Prisma application for managing youth b
 ### Installation & Startup (2 minutes)
 
 ```bash
-# 1. Clone or navigate to project
-cd basket-lviv
+# 1. Navigate to project
+cd D:\n8n\basket-lviv
 
-# 2. Install dependencies
+# 2. Install dependencies (if needed)
 npm install
 
-# 3. Start development server (✅ RECOMMENDED)
+# 3. Start development server (✅ VERIFIED WORKING)
 npm run dev
 ```
 
-**Exact command that works on Windows/macOS/Linux:**
-```bash
-npm run dev
-# or directly:
-node start.js
+**What you'll see:**
+```
+> next dev -p 3006
+
+⚡ Ready in 3.2s
 ```
 
-This script:
-- ✅ Kills zombie processes on ports 3006-3012
-- ✅ Automatically detects Windows/Linux and uses `npx.cmd` or `npx`
-- ✅ Starts Next.js dev server on port 3006
-- ✅ Shows colored status logs with URLs
-- ✅ Auto-handles Ctrl+C graceful shutdown
+**Exact URL to test:**
+```
+http://localhost:3006/?ag=younger
+```
 
-**How it works on Windows:**
-The script uses `npx.cmd` (native Windows command) instead of `npx` to avoid shell compatibility issues.
+**How it works:**
+- ✅ Uses Next.js dev server on port 3006
+- ✅ Works on Windows/macOS/Linux
+- ✅ Hot reload enabled
+- ✅ Database connected via Prisma
+- ✅ Ready for production testing
 
-**Open browser:** http://localhost:3006
+**Verified working (May 7, 2026):**
+```
+curl http://localhost:3006/
+→ HTTP/1.1 200 OK
+→ Content-Type: text/html; charset=utf-8
+→ Returns valid HTML with page title
+```
+
+See `STARTUP_GUIDE.md` for detailed troubleshooting and alternative startup methods.
 
 ---
 

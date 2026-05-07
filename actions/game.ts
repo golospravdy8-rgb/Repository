@@ -56,11 +56,7 @@ export async function addScore(
       },
     }),
     prisma.boxScore.upsert({
-      where: {
-        id: (
-          await prisma.boxScore.findFirst({ where: { gameId, playerId } })
-        )?.id ?? 0,
-      },
+      where: { gameId_playerId: { gameId, playerId } },
       update: { points: { increment: points } },
       create: { gameId, playerId, teamId, points },
     }),
@@ -159,6 +155,9 @@ export async function endGame(gameId: number) {
     // Recalc standings within same transaction (if it fails, game status rollback too)
     await recalcStandingsForSeason(updatedGame.seasonId, tx);
   });
+
+  // Recalculate efficiency for all players now that game is final
+  await recalcGameEfficiency(gameId);
 
   // Check achievements for all players in the game (outside transaction, safe to fail independently)
   const boxScores = await prisma.boxScore.findMany({
@@ -578,9 +577,18 @@ export async function recalcStandingsForSeason(seasonId: number, tx?: any) {
     }
   }
 
-  const sorted = Object.entries(statsMap).sort(([, a], [, b]) =>
-    b.wins !== a.wins ? b.wins - a.wins : (b.pf - b.pa) - (a.pf - a.pa)
-  );
+  const sorted = Object.entries(statsMap).sort(([, a], [, b]) => {
+    // 1. Sort by win percentage (matches calculateStandings() logic)
+    const winPctA = a.gp > 0 ? a.wins / a.gp : 0;
+    const winPctB = b.gp > 0 ? b.wins / b.gp : 0;
+    if (Math.abs(winPctB - winPctA) > 0.0001) return winPctB - winPctA;
+
+    // 2. If same win %, sort by wins
+    if (b.wins !== a.wins) return b.wins - a.wins;
+
+    // 3. If same wins, sort by point differential
+    return (b.pf - b.pa) - (a.pf - a.pa);
+  });
 
   for (let i = 0; i < sorted.length; i++) {
     const [teamIdStr, s] = sorted[i];
@@ -687,22 +695,6 @@ export async function addScoreWithType(
       gameUpdateData[isHome ? "ptsOffTurnovers" : "awayPtsOffTurnovers"] = { increment: points };
     }
 
-    // Get current box score for scoring player to calculate efficiency
-    console.log(`[addScoreWithType] Calculating efficiency...`);
-    const scoringPlayerEfficiency = await prisma.$transaction(async (tx) => {
-      const currentScoringBoxScore = await tx.boxScore.findFirst({
-        where: { gameId, playerId },
-      });
-
-      return currentScoringBoxScore
-        ? calculateEfficiency({
-            ...currentScoringBoxScore,
-            points: (currentScoringBoxScore.points || 0) + points,
-          })
-        : calculateEfficiency({ points });
-    });
-    console.log(`[addScoreWithType] Efficiency calculated: ${scoringPlayerEfficiency}`);
-
   // Execute all updates in atomic transaction
     console.log(`[addScoreWithType] Starting main transaction...`);
   const txResult = await prisma.$transaction(async (tx) => {
@@ -728,15 +720,22 @@ export async function addScoreWithType(
       });
       console.log(`[addScoreWithType] TX: Scoring box score found:`, scoringBoxScoreExisting?.id);
 
+      // Calculate efficiency INSIDE transaction for consistency
+      let scoringPlayerEfficiency = 0;
       if (scoringBoxScoreExisting) {
-        console.log(`[addScoreWithType] TX: Updating scoring box score...`);
+        scoringPlayerEfficiency = calculateEfficiency({
+          ...scoringBoxScoreExisting,
+          points: (scoringBoxScoreExisting.points || 0) + points,
+        });
+        console.log(`[addScoreWithType] TX: Updating scoring box score with efficiency ${scoringPlayerEfficiency}...`);
         await tx.boxScore.update({
           where: { id: scoringBoxScoreExisting.id },
           data: { points: { increment: points }, efficiency: scoringPlayerEfficiency },
         });
         console.log(`[addScoreWithType] TX: Scoring box score updated`);
       } else {
-        console.log(`[addScoreWithType] TX: Creating new scoring box score...`);
+        scoringPlayerEfficiency = calculateEfficiency({ points });
+        console.log(`[addScoreWithType] TX: Creating new scoring box score with efficiency ${scoringPlayerEfficiency}...`);
         await tx.boxScore.create({
           data: { gameId, playerId, teamId, points, efficiency: scoringPlayerEfficiency },
         });
@@ -809,12 +808,11 @@ export async function addScoreWithType(
   });
     console.log(`[addScoreWithType] Main transaction completed:`, txResult);
 
-    // Temporarily comment out revalidatePath to see if it's causing the hang
-    // revalidatePath(`/game/${gameId}`);
-    // revalidatePath(`/admin/games/${gameId}`);
-    // revalidatePath('/leaders');
-    // revalidatePath('/schedule');
-    // revalidatePath('/standings');
+    revalidatePath(`/game/${gameId}`);
+    revalidatePath(`/admin/games/${gameId}`);
+    revalidatePath('/leaders');
+    revalidatePath('/schedule');
+    revalidatePath('/standings');
 
     console.log(`[addScoreWithType] SUCCESS`);
     return { newAchievements: [] };
