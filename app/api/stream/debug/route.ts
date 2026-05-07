@@ -1,8 +1,8 @@
-export const runtime = 'nodejs'
-export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
-import { NextResponse } from 'next/server'
-import { getSettings } from '@/lib/site-settings'
+import { NextResponse } from 'next/server';
+import { getSettings } from '@/lib/site-settings';
 
 export async function GET() {
   const startTime = Date.now()

@@ -19,14 +19,18 @@ export default function PartnersPage() {
     e.preventDefault();
     setSending(true);
     try {
-      await fetch("http://localhost:3012/api/partner-request", {
+      const res = await fetch("http://localhost:3012/api/partner-request", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
         credentials: "include",
       });
-      setSent(true);
-    } catch {}
+      if (res.ok) {
+        setSent(true);
+      }
+    } catch (err) {
+      console.error("Partner request error:", err);
+    }
     setSending(false);
   }
 

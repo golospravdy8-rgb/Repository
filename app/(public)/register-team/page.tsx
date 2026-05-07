@@ -21,10 +21,16 @@ export default function RegisterTeamPage() {
         body: JSON.stringify({ ...form, playerCount: parseInt(form.playerCount) }),
         credentials: "include",
       });
+      if (!res.ok) {
+        const json = await res.json();
+        setError(json.error || "Помилка");
+        setSubmitting(false);
+        return;
+      }
       const json = await res.json();
-      if (!res.ok) { setError(json.error || "Помилка"); setSubmitting(false); return; }
       setResult(json);
-    } catch {
+    } catch (err) {
+      console.error("Team registration error:", err);
       setError("Не вдалось підключитись до сервера");
     }
     setSubmitting(false);

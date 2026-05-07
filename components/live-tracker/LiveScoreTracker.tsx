@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition, useEffect, useRef, useCallback } from "react";
-import { nextQuarter, endGame, startGame, undoLastEvent, addAssist, addSteal, addReboundOff, addReboundDef, addBlock, addTurnover, addMissFt, addMissFg2, addMissFg3, addFoul, addFoulTechnical, addFoulUnsportsmanlike, addFoulDisqualifying, addCoachFoul, toggleIsStarter, addScoreWithType, addSubstitution, addTimeout } from "@/actions/game";
+import { nextQuarter, endGame, startGame, undoLastEvent, addAssist, addSteal, addReboundOff, addReboundDef, addBlock, addTurnover, addMissFt, addMissFg2, addMissFg3, addFoul, addFoulTechnical, addFoulUnsportsmanlike, addFoulDisqualifying, addCoachFoul, toggleIsStarter, addScoreWithType, addSubstitution, addTimeout, addFreeThrow } from "@/actions/game";
 import type { Game, Team, Player, GameEvent } from "@prisma/client";
 
 type GameWithAll = Game & {
@@ -374,7 +374,7 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
           <div style={{ fontSize: 18, fontWeight: 700, color: "#ffffff" }}>{game.homeTeam.name}</div>
           <div style={{ display: "flex", gap: 8, marginTop: 2, alignItems: "center" }}>
             <span style={{ fontSize: 13, color: "#6b8caa" }}>
-              ФОЛ: <b style={{ color: "#e8a030" }}>{homeFouls}</b>/4
+              Таймаут: <b style={{ color: "#e8a030" }}>{game.homeTimeouts}</b>/5
             </span>
             <div style={{ display: "flex", gap: 3 }}>
               {[0, 1, 2, 3, 4].map(i => (
@@ -442,7 +442,7 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
         <div style={{ textAlign: "right" }}>
           <div style={{ fontSize: 18, fontWeight: 700, color: "#ffffff" }}>{game.awayTeam.name}</div>
           <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 2, alignItems: "center" }}>
-            <span style={{ fontSize: 13, color: "#6b8caa" }}>ФОЛ: 0/4</span>
+            <span style={{ fontSize: 13, color: "#6b8caa" }}>Таймаут: {game.awayTimeouts}/5</span>
             <div style={{ display: "flex", gap: 3 }}>
               {[0, 1, 2, 3, 4].map(i => (
                 <div
@@ -725,7 +725,7 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
               }}
               disabled={disabled}
               style={{ flex:0.7, height:"100%", background: disabled ? "#1a2e40" : "#2d0808", color: disabled ? "#4a7fa5" : "#f47a7a", fontSize:28, fontWeight:700, border:"none", borderRadius:3, cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.5 : 1 }}
-            >Командний</button>
+            >Фол пробивний</button>
             <button
               onClick={() => selectedPlayerId && runAction(() => addCoachFoul(game.id, selectedTeamId, selectedPlayerId))}
               disabled={disabled}
@@ -857,7 +857,7 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
             <div style={{ display: "flex", gap: 8 }}>
               <button
                 onClick={() => {
-                  runAction(() => addFoul(game.id, selectedTeamId, selectedPlayerId));
+                  runAction(() => addFreeThrow(game.id, selectedTeamId, selectedPlayerId, 1));
                   setShowFoulShootingModal(false);
                 }}
                 style={{
@@ -876,7 +876,7 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
               </button>
               <button
                 onClick={() => {
-                  runAction(() => addFoul(game.id, selectedTeamId, selectedPlayerId));
+                  runAction(() => addFreeThrow(game.id, selectedTeamId, selectedPlayerId, 2));
                   setShowFoulShootingModal(false);
                 }}
                 style={{

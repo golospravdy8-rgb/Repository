@@ -20,6 +20,22 @@ export default async function SecretarialProtocolPage({ params }: { params: { id
     },
   });
 
+  // Ensure all FIBA protocol fields are present (they should be from schema)
+  if (game) {
+    game.commissioner = game.commissioner || "";
+    game.referee = game.referee || "";
+    game.umpire1 = game.umpire1 || "";
+    game.umpire2 = game.umpire2 || "";
+    game.scorer = game.scorer || "";
+    game.assistantScorer = game.assistantScorer || "";
+    game.timer = game.timer || "";
+    game.shotClockOperator = game.shotClockOperator || "";
+    game.gameNumber = game.gameNumber || "";
+    game.venue = game.venue || "";
+    game.round = game.round || "";
+    game.protestNote = game.protestNote || "";
+  }
+
   if (!game) notFound();
 
   // Helper to count fouls by type

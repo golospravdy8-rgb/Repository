@@ -76,11 +76,19 @@ export default async function SchedulePage({ searchParams }: { searchParams: { a
     const thirdPlace = playoffGames.filter((g) => g.stage === "third_place");
 
     // Загрузить плей-офф данные
-    const playoffResponse = await fetch(
-      `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3006"}/api/playoff?ageGroup=${ag}`,
-      { cache: "no-store" }
-    );
-    const playoff = await playoffResponse.json();
+    let playoff = null;
+    try {
+      const playoffResponse = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3006"}/api/playoff?ageGroup=${ag}`,
+        { cache: "no-store" }
+      );
+      if (playoffResponse.ok) {
+        playoff = await playoffResponse.json();
+      }
+    } catch (err) {
+      console.error("⚠️ Failed to load playoff data:", err);
+      playoff = null;
+    }
 
     console.log("📥 Schedule page loaded playoff:", playoff);
 

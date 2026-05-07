@@ -23,8 +23,11 @@ export default function ReviewsPage() {
   useEffect(() => {
     (async () => {
       try {
-        const reviews = await fetch("/api/reviews").then(r => r.json());
-        setReviews(reviews);
+        const res = await fetch("/api/reviews");
+        if (res.ok) {
+          const reviews = await res.json();
+          setReviews(reviews);
+        }
       } catch (e) {
         console.error("Failed to fetch reviews:", e);
       }
@@ -38,9 +41,12 @@ export default function ReviewsPage() {
     const checkAdmin = async () => {
       try {
         const res = await fetch("/api/auth/session");
-        const session = await res.json();
-        setIsAdmin(!!session?.user?.isAdmin);
-      } catch {
+        if (res.ok) {
+          const session = await res.json();
+          setIsAdmin(!!session?.user?.isAdmin);
+        }
+      } catch (err) {
+        console.error("Admin check error:", err);
         // Fallback: check cookie
         setIsAdmin(document.cookie.includes("admin_token=ldbl_admin_2025"));
       }
@@ -51,17 +57,22 @@ export default function ReviewsPage() {
   async function save() {
     setErr("");
     if (!author.trim() || !text.trim()) { setErr("Заповніть всі поля"); return; }
-    const res = await fetch("/api/reviews", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ author: author.trim(), text: text.trim() }),
-    });
-    const data = await res.json();
-    if (!res.ok) { setErr(data.error ?? "Помилка сервера"); return; }
-    setReviews(prev => [data, ...prev]);
-    setText("");
-    setMsg("✓ Збережено!");
-    setTimeout(() => setMsg(""), 3000);
+    try {
+      const res = await fetch("/api/reviews", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ author: author.trim(), text: text.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setErr(data.error ?? "Помилка сервера"); return; }
+      setReviews(prev => [data, ...prev]);
+      setText("");
+      setMsg("✓ Збережено!");
+      setTimeout(() => setMsg(""), 3000);
+    } catch (err) {
+      console.error("Save review error:", err);
+      setErr("Помилка мережі");
+    }
   }
 
   async function remove(r: Review) {

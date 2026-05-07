@@ -1,8 +1,9 @@
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createClient } from '@supabase/supabase-js';
-
-export const dynamic = 'force-dynamic';
 
 const AddTeamSchema = z.object({
   name: z.string().min(1, 'Team name is required').max(100, 'Team name is too long'),

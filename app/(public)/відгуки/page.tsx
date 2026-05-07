@@ -18,23 +18,35 @@ export default function ReviewsPage() {
 
   useEffect(() => {
     // Load reviews
-    setLoading(true);
-    fetch("/api/v1/reviews")
-      .then((r) => r.json())
-      .then(setReviews)
-      .finally(() => setLoading(false));
+    (async () => {
+      setLoading(true);
+      try {
+        const r = await fetch("/api/v1/reviews");
+        if (r.ok) {
+          const reviews = await r.json();
+          setReviews(reviews);
+        }
+      } catch (err) {
+        console.error("Failed to fetch reviews:", err);
+      } finally {
+        setLoading(false);
+      }
+    })();
 
     // Check if user is admin (server-side cookie check)
-    fetch("/api/admin/check")
-      .then((r) => r.json())
-      .then((data) => {
-        setIsAdmin(data.isAdmin === true);
-        console.log("[ReviewsPage-UA] isAdmin:", data.isAdmin);
-      })
-      .catch((e) => {
+    (async () => {
+      try {
+        const r = await fetch("/api/admin/check");
+        if (r.ok) {
+          const data = await r.json();
+          setIsAdmin(data.isAdmin === true);
+          console.log("[ReviewsPage-UA] isAdmin:", data.isAdmin);
+        }
+      } catch (e) {
         console.error("[ReviewsPage-UA] Error checking admin:", e);
         setIsAdmin(false);
-      });
+      }
+    })();
   }, []);
 
   async function submit() {
@@ -43,21 +55,26 @@ export default function ReviewsPage() {
       return;
     }
 
-    const res = await fetch("/api/v1/reviews", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ author: author.trim(), text: text.trim() }),
-    });
+    try {
+      const res = await fetch("/api/v1/reviews", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ author: author.trim(), text: text.trim() }),
+      });
 
-    if (res.ok) {
-      const r = await res.json();
-      setReviews((prev) => [r, ...prev]);
-      setText("");
-      setMsg("Відгук збережено!");
-      setTimeout(() => setMsg(""), 3000);
-    } else {
-      const d = await res.json();
-      setMsg(d.error ?? "Помилка");
+      if (res.ok) {
+        const r = await res.json();
+        setReviews((prev) => [r, ...prev]);
+        setText("");
+        setMsg("Відгук збережено!");
+        setTimeout(() => setMsg(""), 3000);
+      } else {
+        const d = await res.json();
+        setMsg(d.error ?? "Помилка");
+      }
+    } catch (err) {
+      console.error("Submit review error:", err);
+      setMsg("Помилка мережі");
     }
   }
 

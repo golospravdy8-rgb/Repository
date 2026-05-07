@@ -33,22 +33,43 @@ export default function VotePage() {
 
   useEffect(() => {
     // Check auth
-    fetch("http://localhost:3012/api/auth/me", { credentials: "include" })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((u) => setUser(u))
-      .catch(() => {});
+    (async () => {
+      try {
+        const r = await fetch("http://localhost:3012/api/auth/me", { credentials: "include" });
+        if (r.ok) {
+          const u = await r.json();
+          setUser(u);
+        }
+      } catch (err) {
+        console.error("Auth check error:", err);
+      }
+    })();
 
     // Load vote state
-    fetch("http://localhost:3012/api/vote/current", { credentials: "include" })
-      .then((r) => r.json())
-      .then(setVoteState)
-      .catch(() => {});
+    (async () => {
+      try {
+        const r = await fetch("http://localhost:3012/api/vote/current", { credentials: "include" });
+        if (r.ok) {
+          const state = await r.json();
+          setVoteState(state);
+        }
+      } catch (err) {
+        console.error("Vote state error:", err);
+      }
+    })();
 
     // Load my vote
-    fetch("http://localhost:3012/api/vote/my-vote", { credentials: "include" })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => { if (d) setMyVote(d.playerId); })
-      .catch(() => {});
+    (async () => {
+      try {
+        const r = await fetch("http://localhost:3012/api/vote/my-vote", { credentials: "include" });
+        if (r.ok) {
+          const d = await r.json();
+          if (d) setMyVote(d.playerId);
+        }
+      } catch (err) {
+        console.error("My vote error:", err);
+      }
+    })();
 
   }, []);
 
@@ -67,8 +88,15 @@ export default function VotePage() {
       if (!res.ok) { setError(json.error || "Помилка"); setVoting(false); return; }
       setMyVote(playerId);
       // Refresh vote state
-      fetch("http://localhost:3012/api/vote/current", { credentials: "include" })
-        .then((r) => r.json()).then(setVoteState).catch(() => {});
+      try {
+        const r = await fetch("http://localhost:3012/api/vote/current", { credentials: "include" });
+        if (r.ok) {
+          const state = await r.json();
+          setVoteState(state);
+        }
+      } catch (err) {
+        console.error("Vote refresh error:", err);
+      }
     } catch {
       setError("Помилка з'єднання");
     }

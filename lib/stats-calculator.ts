@@ -82,8 +82,20 @@ export function calculateLeaderStats(boxScores: BoxScoreWithPlayer[]): LeaderSta
   const stats: LeaderStats[] = [];
   for (const [playerId, data] of Array.from(playerMap.entries())) {
     const g = data.games || 1;
-    const rating = Math.min(99, Math.round(50 + (data.points / g) * 1.8 + (data.rebounds / g) * 1.2 + (data.assists / g) * 1.5 + (data.steals / g) * 2.0 + (data.blocks / g) * 1.8));
+    const ppg = data.points / g;
+    const rpg = data.rebounds / g;
+    const apg = data.assists / g;
+    const spg = data.steals / g;
+    const bpg = data.blocks / g;
+
+    // Rating formula: base 50 + weighted stats
+    // ppg: 1.8x, rpg: 1.2x, apg: 1.5x, spg: 2.0x, bpg: 1.8x
+    const rating = Math.min(99, Math.round(50 + ppg * 1.8 + rpg * 1.2 + apg * 1.5 + spg * 2.0 + bpg * 1.8));
     const tier = getRatingTier(rating);
+
+    // VAL (Value) = PTS + REB + AST + STL + BLK - FOULS (per game)
+    const val = Math.round(((data.points + data.rebounds + data.assists + data.steals + data.blocks - data.fouls) / g) * 10) / 10;
+
     stats.push({
       playerId,
       firstName: data.firstName,
@@ -91,19 +103,23 @@ export function calculateLeaderStats(boxScores: BoxScoreWithPlayer[]): LeaderSta
       teamName: data.teamName,
       teamShortName: data.teamShortName,
       photoUrl: data.photoUrl,
-      ppg: Math.round((data.points / g) * 10) / 10,
-      rpg: Math.round((data.rebounds / g) * 10) / 10,
-      apg: Math.round((data.assists / g) * 10) / 10,
-      spg: Math.round((data.steals / g) * 10) / 10,
-      bpg: Math.round((data.blocks / g) * 10) / 10,
-      val: Math.round(((data.points + data.rebounds + data.assists + data.steals + data.blocks - data.fouls) / g) * 10) / 10,
+      ppg: Math.round(ppg * 10) / 10,
+      rpg: Math.round(rpg * 10) / 10,
+      apg: Math.round(apg * 10) / 10,
+      spg: Math.round(spg * 10) / 10,
+      bpg: Math.round(bpg * 10) / 10,
+      val,
       gamesPlayed: data.games,
       rating,
       tier,
     });
   }
 
-  return stats;
+  // Sort by rating (descending), then by VAL (descending) for tie-breaking
+  return stats.sort((a, b) => {
+    if (b.rating !== a.rating) return b.rating - a.rating;
+    return b.val - a.val;
+  });
 }
 
 type GameWithTeams = Game & {
