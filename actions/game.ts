@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { requireAuth } from "@/lib/require-auth";
 import { checkNewAchievements } from "@/lib/achievements";
+import { validateGameCompletion } from "@/lib/stats-validator";
 
 export async function addPlayer(teamId: number, gameId: number, firstName: string, lastName: string, number: number, position: string) {
   await requireAuth();
@@ -30,6 +31,9 @@ export async function addScore(
 
   const game = await prisma.game.findUnique({ where: { id: gameId } });
   if (!game || game.status !== "LIVE") throw new Error("Game not live");
+  if (teamId !== game.homeTeamId && teamId !== game.awayTeamId) {
+    throw new Error(`Team ${teamId} is not a participant in game ${gameId}`);
+  }
 
   const isHome = game.homeTeamId === teamId;
 
@@ -79,6 +83,9 @@ export async function addFoul(gameId: number, teamId: number, playerId: number) 
 
   const game = await prisma.game.findUnique({ where: { id: gameId } });
   if (!game || game.status !== "LIVE") throw new Error("Game not live");
+  if (teamId !== game.homeTeamId && teamId !== game.awayTeamId) {
+    throw new Error(`Team ${teamId} is not a participant in game ${gameId}`);
+  }
 
   await prisma.$transaction([
     prisma.gameEvent.create({
@@ -96,6 +103,10 @@ export async function addFoul(gameId: number, teamId: number, playerId: number) 
   ]);
 
   revalidatePath(`/admin/games/${gameId}`);
+  revalidatePath(`/game/${gameId}`);
+  revalidatePath('/leaders');
+  revalidatePath('/standings');
+  revalidatePath('/schedule');
 }
 
 export async function nextQuarter(gameId: number) {
@@ -126,15 +137,27 @@ export async function nextQuarter(gameId: number) {
 export async function endGame(gameId: number) {
   await requireAuth();
 
+  // Validate game is in Q4 before allowing end
+  const game = await prisma.game.findUnique({ where: { id: gameId } });
+  if (!game) throw new Error("Game not found");
+  if (game.status !== "LIVE") throw new Error("Game is not live");
+  if (game.quarter < 4) throw new Error(`Cannot end game in Q${game.quarter}. Game must reach Q4 to end.`);
+
+  // Validate that all players have statistics
+  const validation = await validateGameCompletion(gameId);
+  if (!validation.valid) {
+    throw new Error(`Cannot complete game: ${validation.message}`);
+  }
+
   // Wrap game status update AND standings recalc in single atomic transaction
   await prisma.$transaction(async (tx) => {
-    const game = await tx.game.update({
+    const updatedGame = await tx.game.update({
       where: { id: gameId },
       data: { status: "FINAL" },
     });
 
     // Recalc standings within same transaction (if it fails, game status rollback too)
-    await recalcStandingsForSeason(game.seasonId, tx);
+    await recalcStandingsForSeason(updatedGame.seasonId, tx);
   });
 
   // Check achievements for all players in the game (outside transaction, safe to fail independently)
@@ -169,6 +192,8 @@ export async function startGame(gameId: number) {
   });
 
   if (!game) throw new Error("Game not found");
+  if (game.homeTeam.players.length < 5) throw new Error(`Home team has only ${game.homeTeam.players.length} players, need at least 5`);
+  if (game.awayTeam.players.length < 5) throw new Error(`Away team has only ${game.awayTeam.players.length} players, need at least 5`);
 
   // Initialize GameOnCourt for starting 5 players from each team
   const starterOps = [
@@ -190,12 +215,34 @@ export async function startGame(gameId: number) {
     ),
   ];
 
+  // Initialize BoxScore for ALL players (home + away) with 0 values
+  const allPlayers = [...game.homeTeam.players, ...game.awayTeam.players];
+  const boxScoreOps = allPlayers.map((p) =>
+    prisma.boxScore.upsert({
+      where: { gameId_playerId: { gameId, playerId: p.id } },
+      update: {},
+      create: {
+        gameId,
+        playerId: p.id,
+        teamId: p.teamId,
+        points: 0,
+        rebounds: 0,
+        assists: 0,
+        steals: 0,
+        blocks: 0,
+        fouls: 0,
+        turnovers: 0,
+      },
+    })
+  );
+
   await prisma.$transaction([
     prisma.game.update({
       where: { id: gameId },
       data: { status: "LIVE", quarter: 1, homeScore: 0, awayScore: 0 },
     }),
     ...starterOps,
+    ...boxScoreOps,
   ]);
 
   revalidatePath(`/admin/games/${gameId}`);
@@ -211,37 +258,46 @@ async function addStatEvent(
 ): Promise<{ newAchievements: string[] }> {
   const game = await prisma.game.findUnique({ where: { id: gameId } });
   if (!game || game.status !== "LIVE") throw new Error("Game not live");
-
-  await prisma.gameEvent.create({
-    data: { gameId, teamId, playerId, type: eventType, quarter: game.quarter },
-  });
-
-  const existing = await prisma.boxScore.findFirst({ where: { gameId, playerId } });
-
-  // For rebounds (offensive/defensive), also increment the total rebounds field
-  const updateData: any = { [boxScoreField]: { increment: 1 } };
-  if (boxScoreField === "reboundsOff" || boxScoreField === "reboundsDef") {
-    updateData.rebounds = { increment: 1 };
+  if (teamId !== game.homeTeamId && teamId !== game.awayTeamId) {
+    throw new Error(`Team ${teamId} is not a participant in game ${gameId}`);
   }
 
-  if (existing) {
-    await prisma.boxScore.update({
-      where: { id: existing.id },
-      data: updateData,
+  // Wrap GameEvent + BoxScore mutations in atomic transaction
+  await prisma.$transaction(async (tx) => {
+    await tx.gameEvent.create({
+      data: { gameId, teamId, playerId, type: eventType, quarter: game.quarter },
     });
-  } else {
-    const createData: any = { gameId, playerId, teamId, [boxScoreField]: 1 };
+
+    const existing = await tx.boxScore.findFirst({ where: { gameId, playerId } });
+
+    // For rebounds (offensive/defensive), also increment the total rebounds field
+    const updateData: any = { [boxScoreField]: { increment: 1 } };
     if (boxScoreField === "reboundsOff" || boxScoreField === "reboundsDef") {
-      createData.rebounds = 1;
+      updateData.rebounds = { increment: 1 };
     }
-    await prisma.boxScore.create({ data: createData });
-  }
+
+    if (existing) {
+      await tx.boxScore.update({
+        where: { id: existing.id },
+        data: updateData,
+      });
+    } else {
+      const createData: any = { gameId, playerId, teamId, [boxScoreField]: 1 };
+      if (boxScoreField === "reboundsOff" || boxScoreField === "reboundsDef") {
+        createData.rebounds = 1;
+      }
+      await tx.boxScore.create({ data: createData });
+    }
+  });
 
   const newAchievements = await syncAchievements(playerId);
 
   revalidatePath(`/admin/games/${gameId}`);
   revalidatePath(`/game/${gameId}`);
   revalidatePath(`/logos/players/${playerId}`);
+  revalidatePath('/leaders');
+  revalidatePath('/standings');
+  revalidatePath('/schedule');
 
   return { newAchievements: [] };
 }
@@ -300,15 +356,22 @@ export async function addFoulTechnical(gameId: number, teamId: number, playerId:
   await requireAuth();
   const game = await prisma.game.findUnique({ where: { id: gameId } });
   if (!game || game.status !== "LIVE") throw new Error("Game not live");
-  await prisma.gameEvent.create({
-    data: { gameId, teamId, playerId, type: "FOUL_TECHNICAL", quarter: game.quarter },
-  });
-  const existing = await prisma.boxScore.findFirst({ where: { gameId, playerId } });
-  if (existing) {
-    await prisma.boxScore.update({ where: { id: existing.id }, data: { fouls: { increment: 1 } } });
-  } else {
-    await prisma.boxScore.create({ data: { gameId, playerId, teamId, fouls: 1 } });
+  if (teamId !== game.homeTeamId && teamId !== game.awayTeamId) {
+    throw new Error(`Team ${teamId} is not a participant in game ${gameId}`);
   }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.gameEvent.create({
+      data: { gameId, teamId, playerId, type: "FOUL_TECHNICAL", quarter: game.quarter },
+    });
+    const existing = await tx.boxScore.findFirst({ where: { gameId, playerId } });
+    if (existing) {
+      await tx.boxScore.update({ where: { id: existing.id }, data: { fouls: { increment: 1 } } });
+    } else {
+      await tx.boxScore.create({ data: { gameId, playerId, teamId, fouls: 1 } });
+    }
+  });
+
   revalidatePath(`/admin/games/${gameId}`);
 }
 
@@ -316,15 +379,22 @@ export async function addFoulUnsportsmanlike(gameId: number, teamId: number, pla
   await requireAuth();
   const game = await prisma.game.findUnique({ where: { id: gameId } });
   if (!game || game.status !== "LIVE") throw new Error("Game not live");
-  await prisma.gameEvent.create({
-    data: { gameId, teamId, playerId, type: "FOUL_UNSPORTSMANLIKE", quarter: game.quarter },
-  });
-  const existing = await prisma.boxScore.findFirst({ where: { gameId, playerId } });
-  if (existing) {
-    await prisma.boxScore.update({ where: { id: existing.id }, data: { fouls: { increment: 1 } } });
-  } else {
-    await prisma.boxScore.create({ data: { gameId, playerId, teamId, fouls: 1 } });
+  if (teamId !== game.homeTeamId && teamId !== game.awayTeamId) {
+    throw new Error(`Team ${teamId} is not a participant in game ${gameId}`);
   }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.gameEvent.create({
+      data: { gameId, teamId, playerId, type: "FOUL_UNSPORTSMANLIKE", quarter: game.quarter },
+    });
+    const existing = await tx.boxScore.findFirst({ where: { gameId, playerId } });
+    if (existing) {
+      await tx.boxScore.update({ where: { id: existing.id }, data: { fouls: { increment: 1 } } });
+    } else {
+      await tx.boxScore.create({ data: { gameId, playerId, teamId, fouls: 1 } });
+    }
+  });
+
   revalidatePath(`/admin/games/${gameId}`);
 }
 
@@ -332,15 +402,22 @@ export async function addFoulDisqualifying(gameId: number, teamId: number, playe
   await requireAuth();
   const game = await prisma.game.findUnique({ where: { id: gameId } });
   if (!game || game.status !== "LIVE") throw new Error("Game not live");
-  await prisma.gameEvent.create({
-    data: { gameId, teamId, playerId, type: "FOUL_DISQUALIFYING", quarter: game.quarter },
-  });
-  const existing = await prisma.boxScore.findFirst({ where: { gameId, playerId } });
-  if (existing) {
-    await prisma.boxScore.update({ where: { id: existing.id }, data: { fouls: { increment: 1 } } });
-  } else {
-    await prisma.boxScore.create({ data: { gameId, playerId, teamId, fouls: 1 } });
+  if (teamId !== game.homeTeamId && teamId !== game.awayTeamId) {
+    throw new Error(`Team ${teamId} is not a participant in game ${gameId}`);
   }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.gameEvent.create({
+      data: { gameId, teamId, playerId, type: "FOUL_DISQUALIFYING", quarter: game.quarter },
+    });
+    const existing = await tx.boxScore.findFirst({ where: { gameId, playerId } });
+    if (existing) {
+      await tx.boxScore.update({ where: { id: existing.id }, data: { fouls: { increment: 1 } } });
+    } else {
+      await tx.boxScore.create({ data: { gameId, playerId, teamId, fouls: 1 } });
+    }
+  });
+
   revalidatePath(`/admin/games/${gameId}`);
 }
 
@@ -348,23 +425,34 @@ export async function addCoachFoul(gameId: number, teamId: number, playerId: num
   await requireAuth();
   const game = await prisma.game.findUnique({ where: { id: gameId } });
   if (!game || game.status !== "LIVE") throw new Error("Game not live");
-  await prisma.gameEvent.create({
-    data: { gameId, teamId, playerId, type: "FOUL_COACH", quarter: game.quarter },
-  });
+  if (teamId !== game.homeTeamId && teamId !== game.awayTeamId) {
+    throw new Error(`Team ${teamId} is not a participant in game ${gameId}`);
+  }
+
+  await prisma.$transaction([
+    prisma.gameEvent.create({
+      data: { gameId, teamId, playerId, type: "FOUL_COACH", quarter: game.quarter },
+    }),
+  ]);
+
   revalidatePath(`/admin/games/${gameId}`);
 }
 
 export async function toggleIsStarter(gameId: number, playerId: number, isStarter: boolean) {
   await requireAuth();
-  const existing = await prisma.boxScore.findFirst({ where: { gameId, playerId } });
-  if (existing) {
-    await prisma.boxScore.update({ where: { id: existing.id }, data: { isStarter } });
-  } else {
-    const player = await prisma.player.findUnique({ where: { id: playerId }, select: { teamId: true } });
-    if (player) {
-      await prisma.boxScore.create({ data: { gameId, playerId, teamId: player.teamId, isStarter } });
+
+  await prisma.$transaction(async (tx) => {
+    const existing = await tx.boxScore.findFirst({ where: { gameId, playerId } });
+    if (existing) {
+      await tx.boxScore.update({ where: { id: existing.id }, data: { isStarter } });
+    } else {
+      const player = await tx.player.findUnique({ where: { id: playerId }, select: { teamId: true } });
+      if (player) {
+        await tx.boxScore.create({ data: { gameId, playerId, teamId: player.teamId, isStarter } });
+      }
     }
-  }
+  });
+
   revalidatePath(`/admin/games/${gameId}`);
 }
 
@@ -406,55 +494,58 @@ export async function undoLastEvent(gameId: number) {
 
   if (!lastEvent) return;
 
-  // Reverse score change
-  if (lastEvent.type === "POINTS" && lastEvent.points && lastEvent.playerId) {
-    const isHome = game.homeTeamId === lastEvent.teamId;
-    await prisma.game.update({
-      where: { id: gameId },
-      data: isHome
-        ? { homeScore: { decrement: lastEvent.points } }
-        : { awayScore: { decrement: lastEvent.points } },
-    });
-    // Reverse boxScore points
-    const bs = await prisma.boxScore.findFirst({ where: { gameId, playerId: lastEvent.playerId } });
-    if (bs) {
-      await prisma.boxScore.update({
-        where: { id: bs.id },
-        data: { points: { decrement: lastEvent.points } },
+  // Wrap all reversals in atomic transaction
+  await prisma.$transaction(async (tx) => {
+    // Reverse score change
+    if (lastEvent.type === "POINTS" && lastEvent.points && lastEvent.playerId) {
+      const isHome = game.homeTeamId === lastEvent.teamId;
+      await tx.game.update({
+        where: { id: gameId },
+        data: isHome
+          ? { homeScore: { decrement: lastEvent.points } }
+          : { awayScore: { decrement: lastEvent.points } },
       });
+      // Reverse boxScore points
+      const bs = await tx.boxScore.findFirst({ where: { gameId, playerId: lastEvent.playerId } });
+      if (bs) {
+        await tx.boxScore.update({
+          where: { id: bs.id },
+          data: { points: { decrement: lastEvent.points } },
+        });
+      }
     }
-  }
 
-  // Reverse stat events
-  const statMap: Record<string, "rebounds" | "reboundsOff" | "reboundsDef" | "assists" | "steals" | "blocks" | "fouls" | "turnovers" | "missedFg2" | "missedFg3" | "missedFt" | null> = {
-    REBOUND: "rebounds",
-    REBOUND_OFF: "reboundsOff",
-    REBOUND_DEF: "reboundsDef",
-    ASSIST: "assists",
-    STEAL: "steals",
-    BLOCK: "blocks",
-    FOUL: "fouls",
-    FOUL_TECHNICAL: "fouls",
-    FOUL_UNSPORTSMANLIKE: "fouls",
-    FOUL_DISQUALIFYING: "fouls",
-    FOUL_COACH: null,
-    TURNOVER: "turnovers",
-    MISS_2P: "missedFg2",
-    MISS_3P: "missedFg3",
-    MISS_FT: "missedFt",
-  };
-  const field = statMap[lastEvent.type];
-  if (field && lastEvent.playerId) {
-    const bs = await prisma.boxScore.findFirst({ where: { gameId, playerId: lastEvent.playerId } });
-    if (bs) {
-      await prisma.boxScore.update({
-        where: { id: bs.id },
-        data: { [field]: { decrement: 1 } },
-      });
+    // Reverse stat events
+    const statMap: Record<string, "rebounds" | "reboundsOff" | "reboundsDef" | "assists" | "steals" | "blocks" | "fouls" | "turnovers" | "missedFg2" | "missedFg3" | "missedFt" | null> = {
+      REBOUND: "rebounds",
+      REBOUND_OFF: "reboundsOff",
+      REBOUND_DEF: "reboundsDef",
+      ASSIST: "assists",
+      STEAL: "steals",
+      BLOCK: "blocks",
+      FOUL: "fouls",
+      FOUL_TECHNICAL: "fouls",
+      FOUL_UNSPORTSMANLIKE: "fouls",
+      FOUL_DISQUALIFYING: "fouls",
+      FOUL_COACH: null,
+      TURNOVER: "turnovers",
+      MISS_2P: "missedFg2",
+      MISS_3P: "missedFg3",
+      MISS_FT: "missedFt",
+    };
+    const field = statMap[lastEvent.type];
+    if (field && lastEvent.playerId) {
+      const bs = await tx.boxScore.findFirst({ where: { gameId, playerId: lastEvent.playerId } });
+      if (bs) {
+        await tx.boxScore.update({
+          where: { id: bs.id },
+          data: { [field]: { decrement: 1 } },
+        });
+      }
     }
-  }
 
-  await prisma.gameEvent.delete({ where: { id: lastEvent.id } });
+    await tx.gameEvent.delete({ where: { id: lastEvent.id } });
+  });
 
   revalidatePath(`/admin/games/${gameId}`);
   revalidatePath(`/game/${gameId}`);
@@ -547,11 +638,13 @@ export async function addSubstitution(
 export async function updateOnCourt(gameId: number, playerId: number, teamId: number, onCourt: boolean) {
   await requireAuth();
 
-  await prisma.gameOnCourt.upsert({
-    where: { gameId_playerId: { gameId, playerId } },
-    update: { onCourt },
-    create: { gameId, playerId, teamId, onCourt },
-  });
+  await prisma.$transaction([
+    prisma.gameOnCourt.upsert({
+      where: { gameId_playerId: { gameId, playerId } },
+      update: { onCourt },
+      create: { gameId, playerId, teamId, onCourt },
+    }),
+  ]);
 
   revalidatePath(`/admin/games/${gameId}`);
 }
@@ -564,115 +657,171 @@ export async function addScoreWithType(
   points: 1 | 2 | 3,
   eventSubtype: "normal" | "fastbreak" | "second_chance" | "off_turnover" = "normal"
 ): Promise<{ newAchievements: string[] }> {
-  await requireAuth();
+  console.log(`[addScoreWithType] START: gameId=${gameId}, teamId=${teamId}, playerId=${playerId}, points=${points}`);
 
-  const game = await prisma.game.findUnique({ where: { id: gameId } });
-  if (!game || game.status !== "LIVE") throw new Error("Game not live");
+  try {
+    await requireAuth();
+    console.log(`[addScoreWithType] Auth passed`);
 
-  const isHome = game.homeTeamId === teamId;
+    const game = await prisma.game.findUnique({ where: { id: gameId } });
+    console.log(`[addScoreWithType] Game found: ${game?.id}, status=${game?.status}`);
 
-  // Prepare game update data with team stat tracking
-  const gameUpdateData: any = {
-    [isHome ? "homeScore" : "awayScore"]: { increment: points },
-  };
+    if (!game || game.status !== "LIVE") throw new Error("Game not live");
+    if (teamId !== game.homeTeamId && teamId !== game.awayTeamId) {
+      throw new Error(`Team ${teamId} is not a participant in game ${gameId}`);
+    }
 
-  // Track advanced stats based on subtype
-  if (eventSubtype === "fastbreak") {
-    gameUpdateData[isHome ? "ptsFastBreak" : "awayPtsFastBreak"] = { increment: points };
-  } else if (eventSubtype === "second_chance") {
-    gameUpdateData[isHome ? "ptsSecondChance" : "awayPtsSecondChance"] = { increment: points };
-  } else if (eventSubtype === "off_turnover") {
-    gameUpdateData[isHome ? "ptsOffTurnovers" : "awayPtsOffTurnovers"] = { increment: points };
-  }
+    const isHome = game.homeTeamId === teamId;
 
-  // Get current box score for scoring player to calculate efficiency
-  const currentScoringBoxScore = await prisma.boxScore.findFirst({
-    where: { gameId, playerId },
-  });
+    // Prepare game update data with team stat tracking
+    const gameUpdateData: any = {
+      [isHome ? "homeScore" : "awayScore"]: { increment: points },
+    };
 
-  const scoringPlayerEfficiency = currentScoringBoxScore
-    ? calculateEfficiency({
-        ...currentScoringBoxScore,
-        points: (currentScoringBoxScore.points || 0) + points,
-      })
-    : calculateEfficiency({ points });
+    // Track advanced stats based on subtype
+    if (eventSubtype === "fastbreak") {
+      gameUpdateData[isHome ? "ptsFastBreak" : "awayPtsFastBreak"] = { increment: points };
+    } else if (eventSubtype === "second_chance") {
+      gameUpdateData[isHome ? "ptsSecondChance" : "awayPtsSecondChance"] = { increment: points };
+    } else if (eventSubtype === "off_turnover") {
+      gameUpdateData[isHome ? "ptsOffTurnovers" : "awayPtsOffTurnovers"] = { increment: points };
+    }
+
+    // Get current box score for scoring player to calculate efficiency
+    console.log(`[addScoreWithType] Calculating efficiency...`);
+    const scoringPlayerEfficiency = await prisma.$transaction(async (tx) => {
+      const currentScoringBoxScore = await tx.boxScore.findFirst({
+        where: { gameId, playerId },
+      });
+
+      return currentScoringBoxScore
+        ? calculateEfficiency({
+            ...currentScoringBoxScore,
+            points: (currentScoringBoxScore.points || 0) + points,
+          })
+        : calculateEfficiency({ points });
+    });
+    console.log(`[addScoreWithType] Efficiency calculated: ${scoringPlayerEfficiency}`);
 
   // Execute all updates in atomic transaction
-  await prisma.$transaction(async (tx) => {
-    // Update game score
-    await tx.game.update({ where: { id: gameId }, data: gameUpdateData });
+    console.log(`[addScoreWithType] Starting main transaction...`);
+  const txResult = await prisma.$transaction(async (tx) => {
+    try {
+      console.log(`[addScoreWithType] TX: Starting updates...`);
 
-    // Create event
-    await tx.gameEvent.create({
-      data: { gameId, teamId, playerId, type: "POINTS", points, quarter: game.quarter, eventSubtype },
-    });
+      // Update game score
+      console.log(`[addScoreWithType] TX: Updating game score...`);
+      await tx.game.update({ where: { id: gameId }, data: gameUpdateData });
+      console.log(`[addScoreWithType] TX: Game score updated`);
 
-    // Update scoring player's BoxScore
-    const scoringBoxScoreExisting = await tx.boxScore.findFirst({
-      where: { gameId, playerId },
-    });
-    if (scoringBoxScoreExisting) {
-      await tx.boxScore.update({
-        where: { id: scoringBoxScoreExisting.id },
-        data: { points: { increment: points }, efficiency: scoringPlayerEfficiency },
+      // Create event
+      console.log(`[addScoreWithType] TX: Creating game event...`);
+      await tx.gameEvent.create({
+        data: { gameId, teamId, playerId, type: "POINTS", points, quarter: game.quarter, eventSubtype },
       });
-    } else {
-      await tx.boxScore.create({
-        data: { gameId, playerId, teamId, points, efficiency: scoringPlayerEfficiency },
-      });
-    }
+      console.log(`[addScoreWithType] TX: Game event created`);
 
-    // Update +/- for all on-court players (WITHIN TRANSACTION)
-    const onCourtPlayers = await tx.gameOnCourt.findMany({
-      where: { gameId, teamId, onCourt: true },
-    });
-
-    for (const ocp of onCourtPlayers) {
-      const existing = await tx.boxScore.findFirst({
-        where: { gameId, playerId: ocp.playerId },
+      // Update scoring player's BoxScore
+      console.log(`[addScoreWithType] TX: Finding scoring box score...`);
+      const scoringBoxScoreExisting = await tx.boxScore.findFirst({
+        where: { gameId, playerId },
       });
-      if (existing) {
+      console.log(`[addScoreWithType] TX: Scoring box score found:`, scoringBoxScoreExisting?.id);
+
+      if (scoringBoxScoreExisting) {
+        console.log(`[addScoreWithType] TX: Updating scoring box score...`);
         await tx.boxScore.update({
-          where: { id: existing.id },
-          data: { plusMinus: { increment: points } },
+          where: { id: scoringBoxScoreExisting.id },
+          data: { points: { increment: points }, efficiency: scoringPlayerEfficiency },
         });
+        console.log(`[addScoreWithType] TX: Scoring box score updated`);
       } else {
+        console.log(`[addScoreWithType] TX: Creating new scoring box score...`);
         await tx.boxScore.create({
-          data: { gameId, playerId: ocp.playerId, teamId, plusMinus: points },
+          data: { gameId, playerId, teamId, points, efficiency: scoringPlayerEfficiency },
         });
+        console.log(`[addScoreWithType] TX: New scoring box score created`);
       }
-    }
 
-    // Update opponent's on-court players with negative +/- (WITHIN TRANSACTION)
-    const opponentTeamId = isHome ? game.awayTeamId : game.homeTeamId;
-    const opponentOnCourt = await tx.gameOnCourt.findMany({
-      where: { gameId, teamId: opponentTeamId, onCourt: true },
-    });
-
-    for (const ocp of opponentOnCourt) {
-      const existing = await tx.boxScore.findFirst({
-        where: { gameId, playerId: ocp.playerId },
+      // Update +/- for all on-court players (WITHIN TRANSACTION)
+      console.log(`[addScoreWithType] TX: Finding on-court players for team ${teamId}...`);
+      const onCourtPlayers = await tx.gameOnCourt.findMany({
+        where: { gameId, teamId, onCourt: true },
       });
-      if (existing) {
-        await tx.boxScore.update({
-          where: { id: existing.id },
-          data: { plusMinus: { decrement: points } },
+      console.log(`[addScoreWithType] TX: Found ${onCourtPlayers.length} on-court players`);
+
+      for (const ocp of onCourtPlayers) {
+        console.log(`[addScoreWithType] TX: Processing on-court player ${ocp.playerId}...`);
+        const existing = await tx.boxScore.findFirst({
+          where: { gameId, playerId: ocp.playerId },
         });
-      } else {
-        await tx.boxScore.create({
-          data: { gameId, playerId: ocp.playerId, teamId: opponentTeamId, plusMinus: -points },
-        });
+        if (existing) {
+          console.log(`[addScoreWithType] TX: Updating +/- for player ${ocp.playerId}...`);
+          await tx.boxScore.update({
+            where: { id: existing.id },
+            data: { plusMinus: { increment: points } },
+          });
+          console.log(`[addScoreWithType] TX: +/- updated for player ${ocp.playerId}`);
+        } else {
+          console.log(`[addScoreWithType] TX: Creating box score for player ${ocp.playerId}...`);
+          await tx.boxScore.create({
+            data: { gameId, playerId: ocp.playerId, teamId, plusMinus: points },
+          });
+          console.log(`[addScoreWithType] TX: Box score created for player ${ocp.playerId}`);
+        }
       }
+
+      // Update opponent's on-court players with negative +/- (WITHIN TRANSACTION)
+      console.log(`[addScoreWithType] TX: Finding opponent on-court players...`);
+      const opponentTeamId = isHome ? game.awayTeamId : game.homeTeamId;
+      const opponentOnCourt = await tx.gameOnCourt.findMany({
+        where: { gameId, teamId: opponentTeamId, onCourt: true },
+      });
+      console.log(`[addScoreWithType] TX: Found ${opponentOnCourt.length} opponent on-court players`);
+
+      for (const ocp of opponentOnCourt) {
+        console.log(`[addScoreWithType] TX: Processing opponent player ${ocp.playerId}...`);
+        const existing = await tx.boxScore.findFirst({
+          where: { gameId, playerId: ocp.playerId },
+        });
+        if (existing) {
+          console.log(`[addScoreWithType] TX: Decrementing +/- for opponent ${ocp.playerId}...`);
+          await tx.boxScore.update({
+            where: { id: existing.id },
+            data: { plusMinus: { decrement: points } },
+          });
+          console.log(`[addScoreWithType] TX: +/- decremented for opponent ${ocp.playerId}`);
+        } else {
+          console.log(`[addScoreWithType] TX: Creating box score for opponent ${ocp.playerId}...`);
+          await tx.boxScore.create({
+            data: { gameId, playerId: ocp.playerId, teamId: opponentTeamId, plusMinus: -points },
+          });
+          console.log(`[addScoreWithType] TX: Box score created for opponent ${ocp.playerId}`);
+        }
+      }
+
+      console.log(`[addScoreWithType] TX: All updates completed`);
+      return { success: true };
+    } catch (txError) {
+      console.error(`[addScoreWithType] TX ERROR:`, txError);
+      throw txError;
     }
   });
+    console.log(`[addScoreWithType] Main transaction completed:`, txResult);
 
-  revalidatePath(`/game/${gameId}`);
-  revalidatePath(`/admin/games/${gameId}`);
-  revalidatePath('/leaders');
-  revalidatePath('/schedule');
-  revalidatePath('/standings');
+    // Temporarily comment out revalidatePath to see if it's causing the hang
+    // revalidatePath(`/game/${gameId}`);
+    // revalidatePath(`/admin/games/${gameId}`);
+    // revalidatePath('/leaders');
+    // revalidatePath('/schedule');
+    // revalidatePath('/standings');
 
-  return { newAchievements: [] };
+    console.log(`[addScoreWithType] SUCCESS`);
+    return { newAchievements: [] };
+  } catch (error) {
+    console.error(`[addScoreWithType] ERROR:`, error);
+    throw error;
+  }
 }
 
 /** Calculate efficiency score for a player (non-exported utility) */
@@ -741,6 +890,9 @@ export async function addFreeThrow(gameId: number, teamId: number, playerId: num
 
   const game = await prisma.game.findUnique({ where: { id: gameId } });
   if (!game || game.status !== "LIVE") throw new Error("Game not live");
+  if (teamId !== game.homeTeamId && teamId !== game.awayTeamId) {
+    throw new Error(`Team ${teamId} is not a participant in game ${gameId}`);
+  }
 
   const isHome = game.homeTeamId === teamId;
 

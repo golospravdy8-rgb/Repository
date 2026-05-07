@@ -2,7 +2,8 @@
 
 import { useState, useTransition, useEffect, useRef, useCallback } from "react";
 import { nextQuarter, endGame, startGame, undoLastEvent, addAssist, addSteal, addReboundOff, addReboundDef, addBlock, addTurnover, addMissFt, addMissFg2, addMissFg3, addFoul, addFoulTechnical, addFoulUnsportsmanlike, addFoulDisqualifying, addCoachFoul, toggleIsStarter, addScoreWithType, addSubstitution, addTimeout, addFreeThrow } from "@/actions/game";
-import type { Game, Team, Player, GameEvent } from "@prisma/client";
+import type { Game, Team, Player, GameEvent, BoxScore } from "@prisma/client";
+import StatEntryGrid from "./StatEntryGrid";
 
 type GameWithAll = Game & {
   homeTeam: Team & { players: Player[] };
@@ -265,7 +266,8 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
   const [homeTimeouts, setHomeTimeouts] = useState(2);
   const [onCourtHome, setOnCourtHome] = useState<Set<number>>(new Set());
   const [onCourtAway, setOnCourtAway] = useState<Set<number>>(new Set());
-  const [actionPending, setActionPending] = useState(false);
+  const [showGridView, setShowGridView] = useState(false);
+  const [boxScores, setBoxScores] = useState<(BoxScore & { player: Player })[]>([]);
   const [pending, startTransition] = useTransition();
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const quarterRef = useRef(game.quarter);
@@ -326,13 +328,14 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
   const isScheduled = game.status === "SCHEDULED";
 
   const runAction = async (action: () => Promise<any>) => {
-    setActionPending(true);
     try {
-      await action();
+      console.log('[runAction] Starting action...');
+      const result = await action();
+      console.log('[runAction] Action completed:', result);
       setSelectedPlayerId(null);
       setEventType("normal");
-    } finally {
-      setActionPending(false);
+    } catch (error) {
+      console.error('[runAction] Error:', error instanceof Error ? error.message : String(error));
     }
   };
 
@@ -343,7 +346,7 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
   const selectedTeamId = selectedPlayer ? selectedPlayer.teamId : game.homeTeamId;
   const isHomeTeam = selectedTeamId === game.homeTeamId;
 
-  const disabled = !selectedPlayerId || actionPending || pending;
+  const disabled = !selectedPlayerId || pending;
 
   const recentEvents = game.events.slice(0, 10);
 
@@ -544,11 +547,30 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
             >
               Завершити
             </button>
+            <button
+              onClick={() => setShowGridView(!showGridView)}
+              style={{
+                border: "none",
+                borderRadius: 5,
+                padding: "4px 12px",
+                fontSize: 11,
+                fontWeight: "700",
+                cursor: "pointer",
+                background: showGridView ? "#3b82f6" : "#6b7280",
+                color: "#fff",
+                marginLeft: "auto"
+              }}
+            >
+              {showGridView ? "📊 Таблиця" : "👥 Список"}
+            </button>
           </>
         ) : null}
       </div>
 
-      {/* MAIN LAYOUT — 3 колонки */}
+      {/* MAIN LAYOUT — 3 колонки или GRID VIEW */}
+      {showGridView ? (
+        <StatEntryGrid game={game} boxScores={boxScores} />
+      ) : (
       <div style={{
         display: "grid",
         gridTemplateColumns: "200px 1fr 200px",
@@ -770,6 +792,7 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
           />
         </div>
       </div>
+      )}
 
       {/* ACTION LOG — vertical list */}
       <div

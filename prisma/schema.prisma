@@ -234,6 +234,8 @@ model BoxScore {
   game             Game    @relation(fields: [gameId], references: [id])
   player           Player  @relation(fields: [playerId], references: [id])
   team             Team    @relation(fields: [teamId], references: [id])
+
+  @@unique([gameId, playerId])
 }
 
 model Standing {
