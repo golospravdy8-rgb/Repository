@@ -126,17 +126,18 @@ export async function nextQuarter(gameId: number) {
 export async function endGame(gameId: number) {
   await requireAuth();
 
-  // Wrap game status update in transaction
-  const game = await prisma.$transaction(async (tx) => {
-    return await tx.game.update({
+  // Wrap game status update AND standings recalc in single atomic transaction
+  await prisma.$transaction(async (tx) => {
+    const game = await tx.game.update({
       where: { id: gameId },
       data: { status: "FINAL" },
     });
+
+    // Recalc standings within same transaction (if it fails, game status rollback too)
+    await recalcStandingsForSeason(game.seasonId, tx);
   });
 
-  await recalcStandingsForSeason(game.seasonId);
-
-  // Check achievements for all players in the game
+  // Check achievements for all players in the game (outside transaction, safe to fail independently)
   const boxScores = await prisma.boxScore.findMany({
     where: { gameId },
     distinct: ["playerId"],
@@ -459,8 +460,10 @@ export async function undoLastEvent(gameId: number) {
   revalidatePath(`/game/${gameId}`);
 }
 
-export async function recalcStandingsForSeason(seasonId: number) {
-  const games = await prisma.game.findMany({
+export async function recalcStandingsForSeason(seasonId: number, tx?: any) {
+  const prismaClient = tx || prisma;
+
+  const games = await prismaClient.game.findMany({
     where: { seasonId, status: "FINAL" },
   });
 
@@ -491,7 +494,7 @@ export async function recalcStandingsForSeason(seasonId: number) {
   for (let i = 0; i < sorted.length; i++) {
     const [teamIdStr, s] = sorted[i];
     const teamId = Number(teamIdStr);
-    await prisma.standing.upsert({
+    await prismaClient.standing.upsert({
       where: { teamId },
       update: { wins: s.wins, losses: s.losses, pointsFor: s.pf, pointsAgainst: s.pa, gamesPlayed: s.gp, rank: i + 1 },
       create: { teamId, seasonId, wins: s.wins, losses: s.losses, pointsFor: s.pf, pointsAgainst: s.pa, gamesPlayed: s.gp, rank: i + 1 },
@@ -582,49 +585,6 @@ export async function addScoreWithType(
     gameUpdateData[isHome ? "ptsOffTurnovers" : "awayPtsOffTurnovers"] = { increment: points };
   }
 
-  // Update +/- for all on-court players
-  const onCourtPlayers = await prisma.gameOnCourt.findMany({
-    where: { gameId, teamId, onCourt: true },
-  });
-
-  const updateOnCourtOps = onCourtPlayers.map((ocp) => async () => {
-    const existing = await prisma.boxScore.findFirst({
-      where: { gameId, playerId: ocp.playerId },
-    });
-    if (existing) {
-      return prisma.boxScore.update({
-        where: { id: existing.id },
-        data: { plusMinus: { increment: points } },
-      });
-    } else {
-      return prisma.boxScore.create({
-        data: { gameId, playerId: ocp.playerId, teamId, plusMinus: points },
-      });
-    }
-  });
-
-  // Update opponent's on-court players with negative +/-
-  const opponentTeamId = isHome ? game.awayTeamId : game.homeTeamId;
-  const opponentOnCourt = await prisma.gameOnCourt.findMany({
-    where: { gameId, teamId: opponentTeamId, onCourt: true },
-  });
-
-  const updateOpponentOps = opponentOnCourt.map((ocp) => async () => {
-    const existing = await prisma.boxScore.findFirst({
-      where: { gameId, playerId: ocp.playerId },
-    });
-    if (existing) {
-      return prisma.boxScore.update({
-        where: { id: existing.id },
-        data: { plusMinus: { decrement: points } },
-      });
-    } else {
-      return prisma.boxScore.create({
-        data: { gameId, playerId: ocp.playerId, teamId: opponentTeamId, plusMinus: -points },
-      });
-    }
-  });
-
   // Get current box score for scoring player to calculate efficiency
   const currentScoringBoxScore = await prisma.boxScore.findFirst({
     where: { gameId, playerId },
@@ -639,11 +599,15 @@ export async function addScoreWithType(
 
   // Execute all updates in atomic transaction
   await prisma.$transaction(async (tx) => {
+    // Update game score
     await tx.game.update({ where: { id: gameId }, data: gameUpdateData });
+
+    // Create event
     await tx.gameEvent.create({
       data: { gameId, teamId, playerId, type: "POINTS", points, quarter: game.quarter, eventSubtype },
     });
 
+    // Update scoring player's BoxScore
     const scoringBoxScoreExisting = await tx.boxScore.findFirst({
       where: { gameId, playerId },
     });
@@ -658,12 +622,47 @@ export async function addScoreWithType(
       });
     }
 
-    // Execute all +/- updates within transaction
-    for (const op of updateOnCourtOps) {
-      await op();
+    // Update +/- for all on-court players (WITHIN TRANSACTION)
+    const onCourtPlayers = await tx.gameOnCourt.findMany({
+      where: { gameId, teamId, onCourt: true },
+    });
+
+    for (const ocp of onCourtPlayers) {
+      const existing = await tx.boxScore.findFirst({
+        where: { gameId, playerId: ocp.playerId },
+      });
+      if (existing) {
+        await tx.boxScore.update({
+          where: { id: existing.id },
+          data: { plusMinus: { increment: points } },
+        });
+      } else {
+        await tx.boxScore.create({
+          data: { gameId, playerId: ocp.playerId, teamId, plusMinus: points },
+        });
+      }
     }
-    for (const op of updateOpponentOps) {
-      await op();
+
+    // Update opponent's on-court players with negative +/- (WITHIN TRANSACTION)
+    const opponentTeamId = isHome ? game.awayTeamId : game.homeTeamId;
+    const opponentOnCourt = await tx.gameOnCourt.findMany({
+      where: { gameId, teamId: opponentTeamId, onCourt: true },
+    });
+
+    for (const ocp of opponentOnCourt) {
+      const existing = await tx.boxScore.findFirst({
+        where: { gameId, playerId: ocp.playerId },
+      });
+      if (existing) {
+        await tx.boxScore.update({
+          where: { id: existing.id },
+          data: { plusMinus: { decrement: points } },
+        });
+      } else {
+        await tx.boxScore.create({
+          data: { gameId, playerId: ocp.playerId, teamId: opponentTeamId, plusMinus: -points },
+        });
+      }
     }
   });
 
