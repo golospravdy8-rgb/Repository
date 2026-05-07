@@ -60,6 +60,19 @@ export default function GameInfoForm({ gameId, initialData, hideCloseButton }: G
     setLoading(true);
     setMessage(null);
 
+    // Validate FIBA fields for garbage characters
+    const cyrillicGarbage = /^[йцукенгшщзхъфывапролджэячсмитьбю]{2,}$/i;
+    const fieldsToValidate = ['scorer', 'assistantScorer', 'timer', 'referee', 'umpire1', 'umpire2'];
+
+    for (const field of fieldsToValidate) {
+      const val = formData[field as keyof typeof formData];
+      if (val && cyrillicGarbage.test(String(val))) {
+        setMessage({ type: "error", text: `Поле "${field}" містить некоректні дані` });
+        setLoading(false);
+        return;
+      }
+    }
+
     const result = await updateGameInfo(gameId, formData);
     setLoading(false);
 

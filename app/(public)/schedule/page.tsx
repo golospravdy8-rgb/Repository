@@ -67,7 +67,7 @@ export default async function SchedulePage({ searchParams }: { searchParams: { a
 
     // Separate group and playoff games
     const groupGames = sortedGames.filter((g) => !g.stage || g.stage === "group" || g.stage === "groupA" || g.stage === "groupB");
-    const groupAGames = groupGames.filter((g) => g.stage === "groupA");
+    const groupAGames = groupGames.filter((g) => g.stage === "groupA" || g.stage === "group");
     const groupBGames = groupGames.filter((g) => g.stage === "groupB");
     const playoffGames = sortedGames.filter((g) => g.stage && g.stage !== "group" && g.stage !== "groupA" && g.stage !== "groupB");
 

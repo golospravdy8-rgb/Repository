@@ -66,6 +66,9 @@ export async function addScore(
   revalidatePath(`/game/${gameId}`);
   revalidatePath(`/admin/games/${gameId}`);
   revalidatePath(`/logos/players/${playerId}`);
+  revalidatePath('/leaders');
+  revalidatePath('/schedule');
+  revalidatePath('/standings');
 
   return { newAchievements };
 }
@@ -145,6 +148,7 @@ export async function endGame(gameId: number) {
   revalidatePath("/розклад");
   revalidatePath("/змагання");
   revalidatePath("/standings");
+  revalidatePath("/leaders");
   revalidatePath("/");
 }
 
@@ -659,6 +663,9 @@ export async function addScoreWithType(
 
   revalidatePath(`/game/${gameId}`);
   revalidatePath(`/admin/games/${gameId}`);
+  revalidatePath('/leaders');
+  revalidatePath('/schedule');
+  revalidatePath('/standings');
 
   return { newAchievements: [] };
 }
@@ -762,6 +769,9 @@ export async function addFreeThrow(gameId: number, teamId: number, playerId: num
 
   revalidatePath(`/admin/games/${gameId}`);
   revalidatePath(`/game/${gameId}`);
+  revalidatePath('/leaders');
+  revalidatePath('/schedule');
+  revalidatePath('/standings');
 
   return { success: true };
 }
