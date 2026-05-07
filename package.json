@@ -7,7 +7,7 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "node start.js",
+    "dev": "next dev -p 3006",
     "dev:legacy": "tsx watch server.ts",
     "dev:next": "next dev -p 3007",
     "dev:safe": "node scripts/dev-safe.js",
