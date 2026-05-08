@@ -70,7 +70,7 @@ export default async function SchedulePage({ searchParams }: { searchParams: { a
     const groupAGames = groupGames.filter((g) => {
       if (!g.tourId) return false;
       const tour = tours.find(t => t.id === g.tourId);
-      return tour?.name?.includes("А") || g.stage === "groupA" || g.stage === "group" || !g.stage;
+      return tour?.name?.includes("А") || g.stage === "groupA" || g.stage === "group";
     });
     const groupBGames = groupGames.filter((g) => {
       if (!g.tourId) return false;
