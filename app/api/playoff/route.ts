@@ -83,13 +83,50 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const data = await req.json();
+    console.log("📤 POST /api/playoff called with:", JSON.stringify(data, null, 2));
 
     const playoff = await prisma.playoff.upsert({
       where: { ageGroup: data.ageGroup },
-      update: data,
-      create: data,
+      update: {
+        semifinal1TeamA: data.semifinal1TeamA,
+        semifinal1TeamB: data.semifinal1TeamB,
+        semifinal1ScoreA: data.semifinal1ScoreA,
+        semifinal1ScoreB: data.semifinal1ScoreB,
+        semifinal2TeamA: data.semifinal2TeamA,
+        semifinal2TeamB: data.semifinal2TeamB,
+        semifinal2ScoreA: data.semifinal2ScoreA,
+        semifinal2ScoreB: data.semifinal2ScoreB,
+        finalTeamA: data.finalTeamA,
+        finalTeamB: data.finalTeamB,
+        finalScoreA: data.finalScoreA,
+        finalScoreB: data.finalScoreB,
+        thirdPlaceTeamA: data.thirdPlaceTeamA,
+        thirdPlaceTeamB: data.thirdPlaceTeamB,
+        thirdPlaceScoreA: data.thirdPlaceScoreA,
+        thirdPlaceScoreB: data.thirdPlaceScoreB,
+      },
+      create: {
+        ageGroup: data.ageGroup,
+        semifinal1TeamA: data.semifinal1TeamA,
+        semifinal1TeamB: data.semifinal1TeamB,
+        semifinal1ScoreA: data.semifinal1ScoreA,
+        semifinal1ScoreB: data.semifinal1ScoreB,
+        semifinal2TeamA: data.semifinal2TeamA,
+        semifinal2TeamB: data.semifinal2TeamB,
+        semifinal2ScoreA: data.semifinal2ScoreA,
+        semifinal2ScoreB: data.semifinal2ScoreB,
+        finalTeamA: data.finalTeamA,
+        finalTeamB: data.finalTeamB,
+        finalScoreA: data.finalScoreA,
+        finalScoreB: data.finalScoreB,
+        thirdPlaceTeamA: data.thirdPlaceTeamA,
+        thirdPlaceTeamB: data.thirdPlaceTeamB,
+        thirdPlaceScoreA: data.thirdPlaceScoreA,
+        thirdPlaceScoreB: data.thirdPlaceScoreB,
+      },
     });
 
+    console.log("✅ Playoff saved:", JSON.stringify(playoff, null, 2));
     return NextResponse.json(playoff);
   } catch (error) {
     console.error("❌ POST /api/playoff error:", error);

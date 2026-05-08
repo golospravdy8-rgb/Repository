@@ -298,6 +298,7 @@ export default function ScheduleTab({ games, teams }: { games: GameRow[]; teams:
   const savePlayoffMatches = async () => {
     try {
       console.log("🎯 Saving playoff to Playoff table:", manualPlayoff);
+      console.log("📍 Current ageFilter:", ageFilter);
 
       const payload = {
         ageGroup: ageFilter,
@@ -323,6 +324,8 @@ export default function ScheduleTab({ games, teams }: { games: GameRow[]; teams:
         thirdPlaceScoreB: manualPlayoff.third_place.scoreB ? parseInt(manualPlayoff.third_place.scoreB) : null,
       };
 
+      console.log("📤 Sending payload:", JSON.stringify(payload, null, 2));
+
       const response = await fetch("/api/playoff", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -330,15 +333,28 @@ export default function ScheduleTab({ games, teams }: { games: GameRow[]; teams:
       });
 
       if (!response.ok) {
-        throw new Error("Failed to save playoff");
+        const err = await response.json();
+        throw new Error(err.error || "Failed to save playoff");
       }
 
-      console.log("✅ Playoff saved successfully!");
+      const saved = await response.json();
+      console.log("✅ Playoff saved successfully:", JSON.stringify(saved, null, 2));
+
+      // Verify data was saved by fetching immediately
+      const verified = await fetch(`/api/playoff?ageGroup=${ageFilter}`, {
+        cache: "no-store",
+      });
+
+      if (verified.ok) {
+        const data = await verified.json();
+        console.log("✅ Verified playoff data from GET:", JSON.stringify(data, null, 2));
+      }
+
       alert("✅ Плей-офф дані збережені!");
       router.refresh();
     } catch (error) {
       console.error("❌ Error saving playoff:", error);
-      alert("❌ Помилка при збереженні плей-офф");
+      alert("❌ Помилка при збереженні плей-офф: " + (error instanceof Error ? error.message : String(error)));
     }
   };
 

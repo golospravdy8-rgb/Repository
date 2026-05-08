@@ -29,7 +29,18 @@ interface PlayoffBracketProps {
 }
 
 export const PlayoffBracket: React.FC<PlayoffBracketProps> = ({ playoff }) => {
-  if (!playoff) {
+  const hasData = playoff && (
+    playoff.semifinal1TeamA ||
+    playoff.semifinal1TeamB ||
+    playoff.semifinal2TeamA ||
+    playoff.semifinal2TeamB ||
+    playoff.finalTeamA ||
+    playoff.finalTeamB ||
+    playoff.thirdPlaceTeamA ||
+    playoff.thirdPlaceTeamB
+  );
+
+  if (!hasData) {
     return (
       <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-6 mt-8">
         <h2 className="text-xl font-bold mb-4 text-blue-900">🏆 Плей-офф</h2>
