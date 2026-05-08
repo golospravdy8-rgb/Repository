@@ -69,14 +69,6 @@ export default async function SchedulePage({ searchParams }: { searchParams: { a
     const groupGames = sortedGames.filter((g) => !g.stage || g.stage === "group" || g.stage === "groupA" || g.stage === "groupB");
     const groupAGames = groupGames.filter((g) => (g as any).group === "A");
     const groupBGames = groupGames.filter((g) => (g as any).group === "B");
-
-    console.log("📊 Schedule DEBUG:", {
-      totalGames: games.length,
-      groupGames: groupGames.length,
-      groupA: groupAGames.length,
-      groupB: groupBGames.length,
-      groupASample: groupAGames.slice(0, 1).map((g) => ({ id: g.id, group: (g as any).group, teams: `${g.homeTeam.name} vs ${g.awayTeam.name}` })),
-    });
     const playoffGames = sortedGames.filter((g) => g.stage && g.stage !== "group" && g.stage !== "groupA" && g.stage !== "groupB");
 
     const semifinals = playoffGames.filter((g) => g.stage === "semifinal");
