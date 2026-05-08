@@ -774,8 +774,21 @@ export async function addScoreWithType(
           console.log(`[addScoreWithType] TX: +/- updated for player ${ocp.playerId}`);
         } else {
           console.log(`[addScoreWithType] TX: Creating box score for player ${ocp.playerId}...`);
+          // FIX: Initialize all fields for bench players to prevent NULL/undefined
           await tx.boxScore.create({
-            data: { gameId, playerId: ocp.playerId, teamId, plusMinus: points },
+            data: {
+              gameId,
+              playerId: ocp.playerId,
+              teamId,
+              points: 0,
+              rebounds: 0,
+              assists: 0,
+              steals: 0,
+              blocks: 0,
+              fouls: 0,
+              turnovers: 0,
+              plusMinus: points
+            },
           });
           console.log(`[addScoreWithType] TX: Box score created for player ${ocp.playerId}`);
         }
@@ -806,8 +819,21 @@ export async function addScoreWithType(
           console.log(`[addScoreWithType] TX: +/- decremented for opponent ${ocp.playerId}`);
         } else {
           console.log(`[addScoreWithType] TX: Creating box score for opponent ${ocp.playerId}...`);
+          // FIX: Initialize all fields for opponent bench players to prevent NULL/undefined
           await tx.boxScore.create({
-            data: { gameId, playerId: ocp.playerId, teamId: opponentTeamId, plusMinus: -points },
+            data: {
+              gameId,
+              playerId: ocp.playerId,
+              teamId: opponentTeamId,
+              points: 0,
+              rebounds: 0,
+              assists: 0,
+              steals: 0,
+              blocks: 0,
+              fouls: 0,
+              turnovers: 0,
+              plusMinus: -points
+            },
           });
           console.log(`[addScoreWithType] TX: Box score created for opponent ${ocp.playerId}`);
         }
@@ -828,6 +854,10 @@ export async function addScoreWithType(
     revalidatePath('/leaders');
     revalidatePath('/schedule');
     revalidatePath('/standings');
+
+    // FIX: Add small delay to allow cache invalidation to begin before returning
+    // This prevents race condition where Server Component re-renders with stale data
+    await new Promise(resolve => setTimeout(resolve, 50));
 
     console.log(`[addScoreWithType] SUCCESS`);
     return { newAchievements: [] };

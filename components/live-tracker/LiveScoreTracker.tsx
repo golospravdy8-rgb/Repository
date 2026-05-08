@@ -276,8 +276,18 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
   const logContainerRef = useRef<HTMLDivElement>(null);
 
   // Update boxScores when game data changes
+  // FIX: Merge new data instead of replacing, to prevent race condition data loss
   useEffect(() => {
-    setBoxScores(game.boxScores ?? []);
+    if (!game.boxScores) return;
+    setBoxScores(prev => {
+      const merged = [...game.boxScores];
+      prev.forEach(existing => {
+        if (!merged.find(bs => bs.playerId === existing.playerId)) {
+          merged.push(existing);
+        }
+      });
+      return merged;
+    });
   }, [game.boxScores]);
 
   useEffect(() => {
@@ -294,12 +304,13 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
           .map(oc => oc.playerId)
       );
 
-      // Fallback to first 5 if no on-court records in DB (shouldn't happen after startGame fix)
+      // Fallback to ALL players if no on-court records in DB (shouldn't happen after startGame fix)
+      // FIX: Use ALL players, not just first 5
       if (homeOnCourtSet.size === 0) {
-        game.homeTeam.players.slice(0, 5).forEach(p => homeOnCourtSet.add(p.id));
+        game.homeTeam.players.forEach(p => homeOnCourtSet.add(p.id));
       }
       if (awayOnCourtSet.size === 0) {
-        game.awayTeam.players.slice(0, 5).forEach(p => awayOnCourtSet.add(p.id));
+        game.awayTeam.players.forEach(p => awayOnCourtSet.add(p.id));
       }
 
       setOnCourtHome(homeOnCourtSet);
