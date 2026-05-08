@@ -37,18 +37,46 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create 4 playoff games
+    // Get standings sorted by rank (best teams first)
+    const standings = await prisma.standing.findMany({
+      where: { seasonId: season.id },
+      orderBy: { rank: "asc" },
+      include: { team: true },
+    });
+
+    if (standings.length < 4) {
+      return NextResponse.json(
+        { error: "Need at least 4 teams to create playoff" },
+        { status: 400 }
+      );
+    }
+
+    // Take top 4 teams from standings: ranks 1-2 are A1/A2, ranks 3-4 are B1/B2
+    // This is the most reliable way without matching name strings
+    const A1 = standings[0];
+    const A2 = standings[1];
+    const B1 = standings[2];
+    const B2 = standings[3];
+
+    if (!A1 || !A2 || !B1 || !B2) {
+      return NextResponse.json(
+        { error: "Could not determine playoff teams" },
+        { status: 400 }
+      );
+    }
+
+    // Create 4 playoff games with real team IDs
     const now = new Date();
     const semifinalDate = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000); // +7 days
     const finalDate = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000); // +14 days
 
     const games = await Promise.all([
-      // Semifinal 1
+      // Semifinal 1: A1 vs B2
       prisma.game.create({
         data: {
           seasonId: season.id,
-          homeTeamId: 0, // Placeholder
-          awayTeamId: 0, // Placeholder
+          homeTeamId: A1.teamId,
+          awayTeamId: B2.teamId,
           scheduledAt: semifinalDate,
           status: "SCHEDULED",
           stage: "semifinal",
@@ -56,12 +84,12 @@ export async function POST(request: NextRequest) {
           sourceB: "B2",
         },
       }),
-      // Semifinal 2
+      // Semifinal 2: B1 vs A2
       prisma.game.create({
         data: {
           seasonId: season.id,
-          homeTeamId: 0, // Placeholder
-          awayTeamId: 0, // Placeholder
+          homeTeamId: B1.teamId,
+          awayTeamId: A2.teamId,
           scheduledAt: semifinalDate,
           status: "SCHEDULED",
           stage: "semifinal",
@@ -69,12 +97,12 @@ export async function POST(request: NextRequest) {
           sourceB: "A2",
         },
       }),
-      // Final
+      // Final: Winners (placeholder, will be filled after semifinals)
       prisma.game.create({
         data: {
           seasonId: season.id,
-          homeTeamId: 0, // Placeholder
-          awayTeamId: 0, // Placeholder
+          homeTeamId: A1.teamId, // Placeholder, will be updated after semifinals
+          awayTeamId: B1.teamId, // Placeholder, will be updated after semifinals
           scheduledAt: finalDate,
           status: "SCHEDULED",
           stage: "final",
@@ -82,12 +110,12 @@ export async function POST(request: NextRequest) {
           sourceB: "Winner SF2",
         },
       }),
-      // Third place
+      // Third place: Losers (placeholder, will be filled after semifinals)
       prisma.game.create({
         data: {
           seasonId: season.id,
-          homeTeamId: 0, // Placeholder
-          awayTeamId: 0, // Placeholder
+          homeTeamId: A2.teamId, // Placeholder, will be updated after semifinals
+          awayTeamId: B2.teamId, // Placeholder, will be updated after semifinals
           scheduledAt: finalDate,
           status: "SCHEDULED",
           stage: "third_place",
