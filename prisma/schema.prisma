@@ -133,6 +133,9 @@ model Game {
   protest               Boolean               @default(false)
   protestNote           String?
 
+  // Group assignment (A or B for grouping matches on schedule)
+  group                 String?               // "A" or "B"
+
   // Play-off fields
   stage                 String?               // 'group' | 'semifinal' | 'final' | 'third_place'
   sourceA               String?               // "A1", "B2", "Winner SF1"

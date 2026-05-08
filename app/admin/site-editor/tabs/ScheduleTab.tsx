@@ -21,6 +21,7 @@ const EMPTY_FORM = {
   stage: "",
   sourceA: "",
   sourceB: "",
+  group: "",
 };
 
 type TeamRowWithAge = TeamRow & { ageGroup?: string };
@@ -183,14 +184,15 @@ export default function ScheduleTab({ games, teams }: { games: GameRow[]; teams:
       stage: g.stage || "",
       sourceA: g.sourceA || "",
       sourceB: g.sourceB || "",
+      group: (g as any).group || "",
     });
     setShowForm(true);
   };
 
   const handleSave = () => {
     setError(null);
-    if (!form.homeTeamId || !form.awayTeamId || !form.scheduledAt) {
-      setError("Заповніть обов'язкові поля: команди та дату");
+    if (!form.homeTeamId || !form.awayTeamId || !form.scheduledAt || !form.group) {
+      setError("Заповніть обов'язкові поля: команди, дату та групу");
       return;
     }
     const data = {
@@ -205,6 +207,7 @@ export default function ScheduleTab({ games, teams }: { games: GameRow[]; teams:
       stage: form.stage || null,
       sourceA: form.sourceA || null,
       sourceB: form.sourceB || null,
+      group: form.group || null,
     };
     startTransition(async () => {
       try {
@@ -228,8 +231,8 @@ export default function ScheduleTab({ games, teams }: { games: GameRow[]; teams:
 
   const handleFinishGame = () => {
     setError(null);
-    if (!form.homeTeamId || !form.awayTeamId || !form.scheduledAt) {
-      setError("Заповніть обов'язкові поля: команди та дату");
+    if (!form.homeTeamId || !form.awayTeamId || !form.scheduledAt || !form.group) {
+      setError("Заповніть обов'язкові поля: команди, дату та групу");
       return;
     }
     const finalData = {
@@ -244,6 +247,7 @@ export default function ScheduleTab({ games, teams }: { games: GameRow[]; teams:
       stage: form.stage || null,
       sourceA: form.sourceA || null,
       sourceB: form.sourceB || null,
+      group: form.group || null,
     };
     startTransition(async () => {
       try {
@@ -495,6 +499,18 @@ export default function ScheduleTab({ games, teams }: { games: GameRow[]; teams:
               </select>
             </div>
             <div>
+              <label className="text-xs text-gray-500 mb-1 block">Група</label>
+              <select
+                className="w-full border rounded-lg px-3 py-2 text-sm"
+                value={form.group}
+                onChange={(e) => setForm((f) => ({ ...f, group: e.target.value }))}
+              >
+                <option value="">Оберіть групу</option>
+                <option value="A">Група A</option>
+                <option value="B">Група B</option>
+              </select>
+            </div>
+            <div>
               <label className="text-xs text-gray-500 mb-1 block">Стадія гри</label>
               <select
                 className="w-full border rounded-lg px-3 py-2 text-sm"
@@ -502,7 +518,7 @@ export default function ScheduleTab({ games, teams }: { games: GameRow[]; teams:
                 onChange={(e) => setForm((f) => ({ ...f, stage: e.target.value }))}
               >
                 <option value="">Груповий етап</option>
-                <option value="semifinal">Півфінал</option>
+                <option value="semifinal">Półfінал</option>
                 <option value="final">Фінал</option>
                 <option value="third_place">Матч за 3 місце</option>
               </select>
@@ -1194,6 +1210,8 @@ export default function ScheduleTab({ games, teams }: { games: GameRow[]; teams:
                           : new Date(sfMatches[0].scheduledAt).toISOString(),
                         status: sfMatches[0].status,
                         ageGroup: ageFilter,
+                        tourId: sfMatches[0].tourId,
+                        group: (sfMatches[0] as any).group,
                         stage: "semifinal",
                       });
 
@@ -1211,6 +1229,8 @@ export default function ScheduleTab({ games, teams }: { games: GameRow[]; teams:
                           : new Date(sfMatches[1].scheduledAt).toISOString(),
                         status: sfMatches[1].status,
                         ageGroup: ageFilter,
+                        tourId: sfMatches[1].tourId,
+                        group: (sfMatches[1] as any).group,
                         stage: "semifinal",
                       });
                     }
@@ -1230,6 +1250,8 @@ export default function ScheduleTab({ games, teams }: { games: GameRow[]; teams:
                           : new Date(finalMatch.scheduledAt).toISOString(),
                         status: finalMatch.status,
                         ageGroup: ageFilter,
+                        tourId: finalMatch.tourId,
+                        group: (finalMatch as any).group,
                         stage: "final",
                       });
                     }
@@ -1249,6 +1271,8 @@ export default function ScheduleTab({ games, teams }: { games: GameRow[]; teams:
                           : new Date(thirdMatch.scheduledAt).toISOString(),
                         status: thirdMatch.status,
                         ageGroup: ageFilter,
+                        tourId: thirdMatch.tourId,
+                        group: (thirdMatch as any).group,
                         stage: "third_place",
                       });
                     }

@@ -124,6 +124,7 @@ export async function createGame(data: {
   stage?: string | null;
   sourceA?: string | null;
   sourceB?: string | null;
+  group?: string | null;
 }) {
   await requireAuth();
   const ag = data.ageGroup ?? "younger";
@@ -148,6 +149,7 @@ export async function createGame(data: {
       stage: data.stage || null,
       sourceA: data.sourceA || null,
       sourceB: data.sourceB || null,
+      group: data.group || null,
     },
   });
   if (data.status === "FINAL") await recalcStandings();
@@ -171,6 +173,7 @@ export async function updateGame(
     stage?: string | null;
     sourceA?: string | null;
     sourceB?: string | null;
+    group?: string | null;
     playoffTeamA?: string | null;
     playoffTeamB?: string | null;
     playoffScoreA?: number | null;
@@ -192,6 +195,7 @@ export async function updateGame(
       stage: data.stage || null,
       sourceA: data.sourceA || null,
       sourceB: data.sourceB || null,
+      group: data.group || null,
       playoffTeamA: data.playoffTeamA || null,
       playoffTeamB: data.playoffTeamB || null,
       playoffScoreA: data.playoffScoreA || null,
