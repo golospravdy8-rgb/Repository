@@ -24,6 +24,9 @@ export default async function AdminGamePage({ params }: { params: { id: string }
           take: 50,
         },
         onCourt: true,
+        boxScores: {
+          include: { player: true },
+        },
       },
     }).catch(() => null),
     getSettings(["colors.btnBlue", "colors.btnOrange", "colors.btnNavy", "colors.btnRed",

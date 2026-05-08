@@ -12,6 +12,7 @@ type GameWithAll = Game & {
     player: Pick<Player, "firstName" | "lastName" | "number"> | null;
   })[];
   onCourt: Array<{ gameId: number; playerId: number; teamId: number; onCourt: boolean }>;
+  boxScores: (BoxScore & { player: Player })[];
 };
 
 const QUARTER_DURATION = 10 * 60;
@@ -268,11 +269,18 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
   const [onCourtHome, setOnCourtHome] = useState<Set<number>>(new Set());
   const [onCourtAway, setOnCourtAway] = useState<Set<number>>(new Set());
   const [showGridView, setShowGridView] = useState(false);
-  const [boxScores, setBoxScores] = useState<(BoxScore & { player: Player })[]>([]);
+  const [boxScores, setBoxScores] = useState<(BoxScore & { player: Player })[]>(() => game.boxScores || []);
   const [pending, startTransition] = useTransition();
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const quarterRef = useRef(game.quarter);
   const logContainerRef = useRef<HTMLDivElement>(null);
+
+  // Update boxScores when game data changes
+  useEffect(() => {
+    if (game.boxScores && game.boxScores.length > 0) {
+      setBoxScores(game.boxScores);
+    }
+  }, [game.boxScores]);
 
   useEffect(() => {
     if (onCourtHome.size === 0 || onCourtAway.size === 0) {
