@@ -75,16 +75,12 @@ export default async function SchedulePage({ searchParams }: { searchParams: { a
     const finals = playoffGames.filter((g) => g.stage === "final");
     const thirdPlace = playoffGames.filter((g) => g.stage === "third_place");
 
-    // Загрузить плей-офф данные
+    // Загрузить плей-офф данные напрямую из БД (Server Component)
     let playoff = null;
     try {
-      const playoffResponse = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3006"}/api/playoff?ageGroup=${ag}`,
-        { cache: "no-store" }
-      );
-      if (playoffResponse.ok) {
-        playoff = await playoffResponse.json();
-      }
+      playoff = await prisma.playoff.findUnique({
+        where: { ageGroup: ag },
+      });
     } catch (err) {
       console.error("⚠️ Failed to load playoff data:", err);
       playoff = null;
