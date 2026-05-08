@@ -269,10 +269,28 @@ export default function ScheduleTab({ games, teams }: { games: GameRow[]; teams:
     setError(null);
     startTransition(async () => {
       try {
-        const res = await fetch("/api/games/playoff", {
+        const res = await fetch("/api/playoff", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ageGroup: ageFilter }),
+          body: JSON.stringify({
+            ageGroup: ageFilter,
+            semifinal1TeamA: "",
+            semifinal1TeamB: "",
+            semifinal1ScoreA: null,
+            semifinal1ScoreB: null,
+            semifinal2TeamA: "",
+            semifinal2TeamB: "",
+            semifinal2ScoreA: null,
+            semifinal2ScoreB: null,
+            finalTeamA: "",
+            finalTeamB: "",
+            finalScoreA: null,
+            finalScoreB: null,
+            thirdPlaceTeamA: "",
+            thirdPlaceTeamB: "",
+            thirdPlaceScoreA: null,
+            thirdPlaceScoreB: null,
+          }),
         });
         console.log("📱 API response:", res.ok);
         if (res.ok) {
