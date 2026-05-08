@@ -443,6 +443,7 @@ export default async function GamePage({ params }: { params: Promise<{ id: strin
                       <th className="px-1.5 py-1 text-center">ЗПД</th>
                       <th className="px-1.5 py-1 text-center">ПДБ</th>
                       <th className="px-1.5 py-1 text-center">ПЕР</th>
+                      <th className="px-1.5 py-1 text-center">ПРХ</th>
                       <th className="px-1.5 py-1 text-center">ВТ</th>
                       <th className="px-1.5 py-1 text-center">БЛК</th>
                       <th className="px-1.5 py-1 text-center">ФОЛ</th>
@@ -490,6 +491,7 @@ export default async function GamePage({ params }: { params: Promise<{ id: strin
                           <td className="px-1.5 py-1 text-center text-gray-600">{stats.reboundsDef || "-"}</td>
                           <td className="px-1.5 py-1 text-center text-gray-600">{stats.rebounds || "-"}</td>
                           <td className="px-1.5 py-1 text-center text-gray-600">{stats.assists || "-"}</td>
+                          <td className="px-1.5 py-1 text-center text-gray-600">{stats.steals || "-"}</td>
                           <td className="px-1.5 py-1 text-center text-gray-600">{stats.turnovers || "-"}</td>
                           <td className="px-1.5 py-1 text-center text-gray-600">{stats.blocks || "-"}</td>
                           <td className="px-1.5 py-1 text-center text-red-500">{stats.fouls || "-"}</td>
@@ -519,6 +521,7 @@ export default async function GamePage({ params }: { params: Promise<{ id: strin
                       <td className="px-1.5 py-1 text-center text-gray-700">{box.totals.reboundsDef}</td>
                       <td className="px-1.5 py-1 text-center text-gray-700">{box.totals.rebounds}</td>
                       <td className="px-1.5 py-1 text-center text-gray-700">{box.totals.assists}</td>
+                      <td className="px-1.5 py-1 text-center text-gray-700">{box.totals.steals}</td>
                       <td className="px-1.5 py-1 text-center text-gray-700">{box.totals.turnovers}</td>
                       <td className="px-1.5 py-1 text-center text-gray-700">{box.totals.blocks}</td>
                       <td className="px-1.5 py-1 text-center text-red-500">{box.totals.fouls}</td>

@@ -60,13 +60,18 @@ export default function GameInfoForm({ gameId, initialData, hideCloseButton }: G
     setLoading(true);
     setMessage(null);
 
-    // Validate FIBA fields for garbage characters
-    const cyrillicGarbage = /^[йцукенгшщзхъфывапролджэячсмитьбю]{2,}$/i;
+    // Validate FIBA fields - only block spam (repeated characters)
+    const isSpamInput = (val: string) => {
+      if (!val || val.trim().length === 0) return false;
+      if (/(.)\1{3,}/.test(val)) return true;
+      return false;
+    };
+
     const fieldsToValidate = ['scorer', 'assistantScorer', 'timer', 'referee', 'umpire1', 'umpire2'];
 
     for (const field of fieldsToValidate) {
       const val = formData[field as keyof typeof formData];
-      if (val && cyrillicGarbage.test(String(val))) {
+      if (val && isSpamInput(String(val))) {
         setMessage({ type: "error", text: `Поле "${field}" містить некоректні дані` });
         setLoading(false);
         return;
