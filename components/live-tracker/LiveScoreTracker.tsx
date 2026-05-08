@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition, useEffect, useRef, useCallback } from "react";
-import { nextQuarter, endGame, startGame, undoLastEvent, addAssist, addSteal, addReboundOff, addReboundDef, addBlock, addTurnover, addMissFt, addMissFg2, addMissFg3, addFoul, addFoulTechnical, addFoulUnsportsmanlike, addFoulDisqualifying, addCoachFoul, toggleIsStarter, addScoreWithType, addSubstitution, addTimeout, addFreeThrow } from "@/actions/game";
+import { nextQuarter, endGame, startGame, undoLastEvent, addAssist, addSteal, addReboundOff, addReboundDef, addBlock, addTurnover, addMissFt, addMissFg2, addMissFg3, addFoul, addFoulTechnical, addFoulUnsportsmanlike, addFoulDisqualifying, addCoachFoul, toggleIsStarter, addScoreWithType, addSubstitution, addTimeout, addFreeThrow, updatePlayerCourtTimes } from "@/actions/game";
 import type { Game, Team, Player, GameEvent, BoxScore } from "@prisma/client";
 import StatEntryGrid from "./StatEntryGrid";
 
@@ -390,6 +390,21 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
     setTimerRunning(false);
   }, []);
 
+  // Синхронізувати час на площадці з сервером
+  const syncCourtTimesToServer = useCallback(async (trackers: Record<number, PlayerTimeTracker>) => {
+    try {
+      const playerCourtTimes: Record<number, number> = {};
+      Object.entries(trackers).forEach(([playerIdStr, tracker]) => {
+        playerCourtTimes[parseInt(playerIdStr, 10)] = tracker.timeOnCourtSeconds;
+      });
+
+      await updatePlayerCourtTimes(game.id, playerCourtTimes);
+      console.log('[syncCourtTimesToServer] Court times synced:', playerCourtTimes);
+    } catch (error) {
+      console.error('[syncCourtTimesToServer] Error:', error instanceof Error ? error.message : String(error));
+    }
+  }, [game.id]);
+
   const startTimer = useCallback(() => {
     if (intervalRef.current) return;
     setTimerRunning(true);
@@ -420,6 +435,20 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
       });
     }, 1000);
   }, [stopTimer, onCourtHome, onCourtAway]);
+
+  // Periodic sync of court times (every 5 seconds) while timer is running
+  useEffect(() => {
+    if (!timerRunning) return;
+
+    const syncInterval = setInterval(() => {
+      setPlayerTimeTrackers(current => {
+        syncCourtTimesToServer(current);
+        return current;
+      });
+    }, 5000); // Sync every 5 seconds
+
+    return () => clearInterval(syncInterval);
+  }, [timerRunning, syncCourtTimesToServer]);
 
   useEffect(() => {
     return () => {
@@ -459,6 +488,9 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
           enteredAt: currentGameTime,
         };
       }
+
+      // Синхронизировать с сервером после замены
+      syncCourtTimesToServer(updated);
 
       return updated;
     });

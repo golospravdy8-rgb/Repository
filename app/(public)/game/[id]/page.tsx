@@ -12,6 +12,18 @@ function gameTimeToSeconds(gameTime: string | null): number {
   return (min || 0) * 60 + (sec || 0);
 }
 
+/**
+ * Format seconds to MM:SS format for court time display
+ * @param seconds - Total seconds (e.g., 330 = 5:30)
+ * @returns Formatted string MM:SS (e.g., "5:30")
+ */
+function formatCourtTime(seconds: number): string {
+  if (seconds === 0) return "0:00";
+  const minutes = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return `${minutes}:${secs.toString().padStart(2, "0")}`;
+}
+
 function calcPlayerMinutes(
   playerId: number,
   teamId: number,
@@ -176,7 +188,8 @@ export default async function GamePage({ params }: { params: Promise<{ id: strin
         const stats = calcPlayerStats(g.events, bs.playerId);
         // Fallback to stored box score values if no event-based stats
         const pts = stats.points > 0 ? stats.points : bs.points;
-        const minutes = calcPlayerMinutes(bs.playerId, teamId, g.substitutions, bs.isStarter);
+        // Use stored minutesPlayed if available (from admin panel), otherwise calculate from events
+        const minutes = bs.minutesPlayed || calcPlayerMinutes(bs.playerId, teamId, g.substitutions, bs.isStarter);
         return {
           bs,
           stats: { ...stats, points: pts },

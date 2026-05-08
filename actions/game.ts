@@ -1262,3 +1262,42 @@ export async function recalcPlusMinus(gameId: number) {
 
   revalidatePath(`/game/${gameId}`);
 }
+
+/**
+ * Update player court time in BoxScore.minutesPlayed
+ * Called from admin when match is running or at substitution
+ * @param gameId - Game ID
+ * @param playerCourtTimes - Record<playerId, seconds>
+ */
+export async function updatePlayerCourtTimes(
+  gameId: number,
+  playerCourtTimes: Record<number, number>
+) {
+  await requireAuth();
+
+  const game = await prisma.game.findUnique({ where: { id: gameId } });
+  if (!game) throw new Error("Game not found");
+
+  // Helper: Convert seconds to MM:SS format
+  const formatCourtTime = (seconds: number): string => {
+    const minutes = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${minutes}:${secs.toString().padStart(2, "0")}`;
+  };
+
+  // Batch update all BoxScores with new court times
+  const updates = Object.entries(playerCourtTimes).map(([playerIdStr, seconds]) => {
+    const playerId = parseInt(playerIdStr, 10);
+    const minutesPlayed = formatCourtTime(seconds);
+
+    return prisma.boxScore.update({
+      where: { gameId_playerId: { gameId, playerId } },
+      data: { minutesPlayed },
+    });
+  });
+
+  await prisma.$transaction(updates);
+
+  revalidatePath(`/game/${gameId}`);
+  revalidatePath(`/admin/games/${gameId}`);
+}
