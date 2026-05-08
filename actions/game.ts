@@ -194,22 +194,25 @@ export async function startGame(gameId: number) {
   if (game.homeTeam.players.length < 5) throw new Error(`Home team has only ${game.homeTeam.players.length} players, need at least 5`);
   if (game.awayTeam.players.length < 5) throw new Error(`Away team has only ${game.awayTeam.players.length} players, need at least 5`);
 
-  // Initialize GameOnCourt for starting 5 players from each team
+  // Initialize GameOnCourt for ALL players, but only mark first 5 as on-court
+  const homeStarterIds = new Set(game.homeTeam.players.slice(0, 5).map(p => p.id));
+  const awayStarterIds = new Set(game.awayTeam.players.slice(0, 5).map(p => p.id));
+
   const starterOps = [
-    // Home team starters (first 5 players by number)
-    ...game.homeTeam.players.slice(0, 5).map((p) =>
+    // Home team: all players
+    ...game.homeTeam.players.map((p) =>
       prisma.gameOnCourt.upsert({
         where: { gameId_playerId: { gameId, playerId: p.id } },
-        update: { onCourt: true },
-        create: { gameId, playerId: p.id, teamId: game.homeTeamId, onCourt: true },
+        update: { onCourt: homeStarterIds.has(p.id) },
+        create: { gameId, playerId: p.id, teamId: game.homeTeamId, onCourt: homeStarterIds.has(p.id) },
       })
     ),
-    // Away team starters (first 5 players by number)
-    ...game.awayTeam.players.slice(0, 5).map((p) =>
+    // Away team: all players
+    ...game.awayTeam.players.map((p) =>
       prisma.gameOnCourt.upsert({
         where: { gameId_playerId: { gameId, playerId: p.id } },
-        update: { onCourt: true },
-        create: { gameId, playerId: p.id, teamId: game.awayTeamId, onCourt: true },
+        update: { onCourt: awayStarterIds.has(p.id) },
+        create: { gameId, playerId: p.id, teamId: game.awayTeamId, onCourt: awayStarterIds.has(p.id) },
       })
     ),
   ];

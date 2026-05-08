@@ -11,6 +11,7 @@ type GameWithAll = Game & {
   events: (GameEvent & {
     player: Pick<Player, "firstName" | "lastName" | "number"> | null;
   })[];
+  onCourt: Array<{ gameId: number; playerId: number; teamId: number; onCourt: boolean }>;
 };
 
 const QUARTER_DURATION = 10 * 60;
@@ -274,13 +275,31 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
   const logContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (game.status === "SCHEDULED" && onCourtHome.size === 0) {
-      const homeStarters = new Set(game.homeTeam.players.slice(0, 5).map(p => p.id));
-      const awayStarters = new Set(game.awayTeam.players.slice(0, 5).map(p => p.id));
-      setOnCourtHome(homeStarters);
-      setOnCourtAway(awayStarters);
+    if (onCourtHome.size === 0 || onCourtAway.size === 0) {
+      // Load on-court state from database
+      const homeOnCourtSet = new Set(
+        game.onCourt
+          .filter(oc => oc.teamId === game.homeTeamId && oc.onCourt)
+          .map(oc => oc.playerId)
+      );
+      const awayOnCourtSet = new Set(
+        game.onCourt
+          .filter(oc => oc.teamId === game.awayTeamId && oc.onCourt)
+          .map(oc => oc.playerId)
+      );
+
+      // Fallback to first 5 if no on-court records in DB (shouldn't happen after startGame fix)
+      if (homeOnCourtSet.size === 0) {
+        game.homeTeam.players.slice(0, 5).forEach(p => homeOnCourtSet.add(p.id));
+      }
+      if (awayOnCourtSet.size === 0) {
+        game.awayTeam.players.slice(0, 5).forEach(p => awayOnCourtSet.add(p.id));
+      }
+
+      setOnCourtHome(homeOnCourtSet);
+      setOnCourtAway(awayOnCourtSet);
     }
-  }, [game.id, game.status, game.homeTeam.players, game.awayTeam.players, onCourtHome.size]);
+  }, [game.id, game.homeTeamId, game.awayTeamId, game.onCourt]);
 
   useEffect(() => {
     if (quarterRef.current !== game.quarter) {
