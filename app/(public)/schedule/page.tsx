@@ -75,6 +75,20 @@ export default async function SchedulePage({ searchParams }: { searchParams: { a
     const finals = playoffGames.filter((g) => g.stage === "final");
     const thirdPlace = playoffGames.filter((g) => g.stage === "third_place");
 
+    // Helper: Group games by tour, with fallback for games without tour
+    const getGamesByTour = (games: GameWithDetails[]) => {
+      const result: Record<number | string, GameWithDetails[]> = {};
+      games.forEach((game) => {
+        const key = game.tourId ?? "ungrouped";
+        if (!result[key]) result[key] = [];
+        result[key].push(game);
+      });
+      return result;
+    };
+
+    const groupAByTour = getGamesByTour(groupAGames);
+    const groupBByTour = getGamesByTour(groupBGames);
+
     // Загрузить плей-офф данные напрямую из БД (Server Component)
     let playoff = null;
     try {
@@ -108,22 +122,36 @@ export default async function SchedulePage({ searchParams }: { searchParams: { a
               <p className="text-gray-500">Ігор не знайдено.</p>
             ) : (
               <div className="space-y-4">
-                {tours.map((tour) => {
-                  const tourGames = groupAGames.filter(g => g.tourId === tour.id);
-                  if (tourGames.length === 0) return null;
-                  return (
-                    <div key={tour.id}>
-                      <h3 style={{ fontSize: "14px", fontWeight: "bold", marginBottom: "8px", color: "var(--color-heading)" }}>
-                        {tour.name}
-                      </h3>
-                      <div className="space-y-3">
-                        {tourGames.map((g) => (
-                          <GameCard key={g.id} game={g} />
-                        ))}
+                {tours.length > 0 ? (
+                  tours.map((tour) => {
+                    const tourGames = groupAGames.filter(g => g.tourId === tour.id);
+                    if (tourGames.length === 0) return null;
+                    return (
+                      <div key={tour.id}>
+                        <h3 style={{ fontSize: "14px", fontWeight: "bold", marginBottom: "8px", color: "var(--color-heading)" }}>
+                          {tour.name}
+                        </h3>
+                        <div className="space-y-3">
+                          {tourGames.map((g) => (
+                            <GameCard key={g.id} game={g} />
+                          ))}
+                        </div>
                       </div>
+                    );
+                  })
+                ) : null}
+                {groupAByTour["ungrouped"] && groupAByTour["ungrouped"].length > 0 && (
+                  <div>
+                    <h3 style={{ fontSize: "14px", fontWeight: "bold", marginBottom: "8px", color: "var(--color-heading)" }}>
+                      Без туру
+                    </h3>
+                    <div className="space-y-3">
+                      {groupAByTour["ungrouped"].map((g) => (
+                        <GameCard key={g.id} game={g} />
+                      ))}
                     </div>
-                  );
-                })}
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -137,22 +165,36 @@ export default async function SchedulePage({ searchParams }: { searchParams: { a
               <p className="text-gray-500">Ігор не знайдено.</p>
             ) : (
               <div className="space-y-4">
-                {tours.map((tour) => {
-                  const tourGames = groupBGames.filter(g => g.tourId === tour.id);
-                  if (tourGames.length === 0) return null;
-                  return (
-                    <div key={tour.id}>
-                      <h3 style={{ fontSize: "14px", fontWeight: "bold", marginBottom: "8px", color: "var(--color-heading)" }}>
-                        {tour.name}
-                      </h3>
-                      <div className="space-y-3">
-                        {tourGames.map((g) => (
-                          <GameCard key={g.id} game={g} />
-                        ))}
+                {tours.length > 0 ? (
+                  tours.map((tour) => {
+                    const tourGames = groupBGames.filter(g => g.tourId === tour.id);
+                    if (tourGames.length === 0) return null;
+                    return (
+                      <div key={tour.id}>
+                        <h3 style={{ fontSize: "14px", fontWeight: "bold", marginBottom: "8px", color: "var(--color-heading)" }}>
+                          {tour.name}
+                        </h3>
+                        <div className="space-y-3">
+                          {tourGames.map((g) => (
+                            <GameCard key={g.id} game={g} />
+                          ))}
+                        </div>
                       </div>
+                    );
+                  })
+                ) : null}
+                {groupBByTour["ungrouped"] && groupBByTour["ungrouped"].length > 0 && (
+                  <div>
+                    <h3 style={{ fontSize: "14px", fontWeight: "bold", marginBottom: "8px", color: "var(--color-heading)" }}>
+                      Без туру
+                    </h3>
+                    <div className="space-y-3">
+                      {groupBByTour["ungrouped"].map((g) => (
+                        <GameCard key={g.id} game={g} />
+                      ))}
                     </div>
-                  );
-                })}
+                  </div>
+                )}
               </div>
             )}
           </div>
