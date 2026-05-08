@@ -369,7 +369,7 @@ async function runCompleteAudit() {
     log('INFO', '═════ PHASE 3: NAVIGATE TO GAME PAGE ═════');
 
     await page.goto(`http://localhost:3006/game/${gameId}`, { waitUntil: 'networkidle2', timeout: AUDIT_CONFIG.timeout });
-    await page.waitForTimeout(1000);
+    await new Promise(resolve => setTimeout(resolve, 1000));
     await screenshot(page, '04-game-page-loaded.png');
 
     assert(page.url().includes(`/game/${gameId}`), 'Game page loaded', 'phase3');
@@ -395,7 +395,7 @@ async function runCompleteAudit() {
           const text = await page.evaluate(el => el.textContent, btn);
           if (text && text.includes('#') && text.length < 40 && !text.includes('×')) {
             await btn.click();
-            await page.waitForTimeout(600);
+            await new Promise(resolve => setTimeout(resolve, 600));
             playerSelected = true;
             log('DOM', `Player selected: #${text.split('#')[1]}`);
             break;
@@ -405,7 +405,7 @@ async function runCompleteAudit() {
         assert(playerSelected, `Player selected for ${stat.label}`, 'button_interaction');
 
         // Find and click stat button
-        await page.waitForTimeout(300);
+        await new Promise(resolve => setTimeout(resolve, 300));
         const freshButtons = await page.$$('button');
         let statClicked = false;
 
@@ -415,7 +415,7 @@ async function runCompleteAudit() {
             await btn.click();
 
             // Wait for Server Action to complete + revalidation
-            await page.waitForTimeout(3500);
+            await new Promise(resolve => setTimeout(resolve, 3500));
 
             statClicked = true;
             log('NET', `Stat button clicked: ${stat.label} (revalidation waiting)`);
@@ -427,7 +427,7 @@ async function runCompleteAudit() {
         auditResults.summary.buttonsSuccess++;
 
         // Verify database
-        await page.waitForTimeout(500);
+        await new Promise(resolve => setTimeout(resolve, 500));
         const dbVerification = await verifyDatabaseState(gameId, selectedPlayerId, stat);
 
         const hasDBChange = dbVerification.boxScore && dbVerification.boxScore[stat.dbCheck] > 0;
@@ -465,7 +465,7 @@ async function runCompleteAudit() {
     log('DB', `Score before reload: ${scoreBeforeReload}`);
 
     await page.reload({ waitUntil: 'networkidle2', timeout: AUDIT_CONFIG.timeout });
-    await page.waitForTimeout(1000);
+    await new Promise(resolve => setTimeout(resolve, 1000));
     await screenshot(page, '06-after-reload.png');
 
     const afterReload = await prisma.game.findUnique({ where: { id: gameId } });

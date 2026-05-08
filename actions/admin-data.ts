@@ -209,9 +209,23 @@ export async function updateGame(
 
 export async function deleteGame(id: number) {
   await requireAuth();
-  await prisma.boxScore.deleteMany({ where: { gameId: id } });
-  await prisma.gameEvent.deleteMany({ where: { gameId: id } });
-  await prisma.game.delete({ where: { id } });
+  try {
+    // Delete all child records before deleting the game to avoid FK constraints
+    await prisma.gameSubstitution.deleteMany({ where: { gameId: id } });
+    await prisma.gameOnCourt.deleteMany({ where: { gameId: id } });
+    await prisma.boxScore.deleteMany({ where: { gameId: id } });
+    await prisma.gameEvent.deleteMany({ where: { gameId: id } });
+    await prisma.protocolOverride.deleteMany({ where: { gameId: id } });
+    await prisma.protocolAuditLog.deleteMany({ where: { gameId: id } });
+    await prisma.chatGameAttendance.deleteMany({ where: { gameId: id } });
+    await prisma.matchPrediction.deleteMany({ where: { gameId: id } });
+    await prisma.gameRsvp.deleteMany({ where: { gameId: id } });
+    // Finally delete the game itself
+    await prisma.game.delete({ where: { id } });
+  } catch (err: any) {
+    console.error("[deleteGame] Prisma error:", { code: err?.code, message: err?.message, meta: err?.meta });
+    throw new Error(err?.message ?? "Не вдалося видалити матч");
+  }
   await recalcStandings();
   revalidatePath("/admin/site-editor");
   revalidatePath("/розклад");
