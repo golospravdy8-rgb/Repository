@@ -751,14 +751,9 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
               disabled={disabled}
               style={{ flex:0.7, height:"100%", background: disabled ? "#1a2e40" : "#2d0808", color: disabled ? "#4a7fa5" : "#f47a7a", fontSize:28, fontWeight:700, border:"none", borderRadius:3, cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.5 : 1 }}
             >Неспорт.</button>
-            <button
-              onClick={() => selectedPlayerId && runAction(() => addFoulTechnical(game.id, selectedTeamId, selectedPlayerId))}
-              disabled={disabled}
-              style={{ flex:0.7, height:"100%", background: disabled ? "#1a2e40" : "#2d0808", color: disabled ? "#4a7fa5" : "#f47a7a", fontSize:28, fontWeight:700, border:"none", borderRadius:3, cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.5 : 1 }}
-            >Техніч.</button>
           </div>
 
-          {/* РЯД 4 — действия + Тренеру */}
+          {/* РЯД 4 — действия + Тренеру (2 стопки) */}
           <div style={{ flex: 1.5, display: "flex", gap: 2 }}>
             <button
               onClick={() => selectedPlayerId && runAction(() => addAssist(game.id, selectedTeamId, selectedPlayerId))}
@@ -776,11 +771,19 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
               style={{ flex:1, height:"100%", background: disabled ? "#1a2e40" : "#2a1800", color: disabled ? "#4a7fa5" : "#f4a050", fontSize:36, fontWeight:700, border: disabled ? "none" : "1px solid #5a3800", borderRadius:3, cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.5 : 1 }}
             >Блокшот</button>
             <div style={{ width:1, background:"#1a2e40" }} />
-            <button
-              onClick={() => selectedPlayerId && runAction(() => addCoachFoul(game.id, selectedTeamId, selectedPlayerId))}
-              disabled={disabled}
-              style={{ flex:1, height:"100%", background: disabled ? "#1a2e40" : "#2d0808", color: disabled ? "#4a7fa5" : "#f47a7a", fontSize:30, fontWeight:700, border:"none", borderRadius:3, cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.5 : 1 }}
-            >Тренеру</button>
+            {/* Вертикальный стек: Тренеру (вверху) и Техніч. (внизу) */}
+            <div style={{ flex:1, display: "flex", flexDirection: "column", gap: 2 }}>
+              <button
+                onClick={() => selectedPlayerId && runAction(() => addCoachFoul(game.id, selectedTeamId, selectedPlayerId))}
+                disabled={disabled}
+                style={{ flex:1, height:"100%", background: disabled ? "#1a2e40" : "#2d0808", color: disabled ? "#4a7fa5" : "#f47a7a", fontSize:28, fontWeight:700, border:"none", borderRadius:3, cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.5 : 1 }}
+              >Тренеру</button>
+              <button
+                onClick={() => selectedPlayerId && runAction(() => addFoulTechnical(game.id, selectedTeamId, selectedPlayerId))}
+                disabled={disabled}
+                style={{ flex:1, height:"100%", background: disabled ? "#1a2e40" : "#2d0808", color: disabled ? "#4a7fa5" : "#f47a7a", fontSize:28, fontWeight:700, border:"none", borderRadius:3, cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.5 : 1 }}
+              >Техніч.</button>
+            </div>
           </div>
 
           {/* РЯД 5 — вузький 36px */}
