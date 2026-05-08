@@ -30,14 +30,22 @@ interface PlayoffBracketProps {
 
 export const PlayoffBracket: React.FC<PlayoffBracketProps> = ({ playoff }) => {
   const hasData = playoff && (
-    playoff.semifinal1TeamA ||
-    playoff.semifinal1TeamB ||
-    playoff.semifinal2TeamA ||
-    playoff.semifinal2TeamB ||
-    playoff.finalTeamA ||
-    playoff.finalTeamB ||
-    playoff.thirdPlaceTeamA ||
-    playoff.thirdPlaceTeamB
+    (playoff.semifinal1TeamA && playoff.semifinal1TeamA.trim()) ||
+    (playoff.semifinal1TeamB && playoff.semifinal1TeamB.trim()) ||
+    (playoff.semifinal2TeamA && playoff.semifinal2TeamA.trim()) ||
+    (playoff.semifinal2TeamB && playoff.semifinal2TeamB.trim()) ||
+    (playoff.finalTeamA && playoff.finalTeamA.trim()) ||
+    (playoff.finalTeamB && playoff.finalTeamB.trim()) ||
+    (playoff.thirdPlaceTeamA && playoff.thirdPlaceTeamA.trim()) ||
+    (playoff.thirdPlaceTeamB && playoff.thirdPlaceTeamB.trim()) ||
+    playoff.semifinal1ScoreA !== null ||
+    playoff.semifinal1ScoreB !== null ||
+    playoff.semifinal2ScoreA !== null ||
+    playoff.semifinal2ScoreB !== null ||
+    playoff.finalScoreA !== null ||
+    playoff.finalScoreB !== null ||
+    playoff.thirdPlaceScoreA !== null ||
+    playoff.thirdPlaceScoreB !== null
   );
 
   if (!hasData) {
