@@ -17,6 +17,15 @@ type GameWithAll = Game & {
 
 const QUARTER_DURATION = 10 * 60;
 
+// Преобразование "MM:SS" в секунды
+function parseMinutesSeconds(str: string): number {
+  if (!str) return 0;
+  const parts = str.split(":");
+  const minutes = parseInt(parts[0], 10) || 0;
+  const seconds = parseInt(parts[1], 10) || 0;
+  return minutes * 60 + seconds;
+}
+
 function formatTime(seconds: number) {
   const m = Math.floor(seconds / 60);
   const s = seconds % 60;
@@ -120,10 +129,15 @@ function RosterPanel({ players, teamId, team, onCourtIds, selectedId, onSelect, 
                 overflow: "hidden"
               }}
             >
-              <span style={{ width: "4px", height: "4px", borderRadius: "50%", background: isHome ? "#2ecc71" : "#059669", flexShrink: 0 }} />
+              {/* На площадці индикатор — увеличен в 2 раза и ярче */}
+              <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: isHome ? "#39d983" : "#10b981", flexShrink: 0, boxShadow: isHome ? "0 0 4px rgba(57, 217, 131, 0.6)" : "0 0 4px rgba(16, 185, 129, 0.6)" }} />
               <span style={{ minWidth: "18px", fontWeight: 700, fontSize: "16px" }}>#{p.number}</span>
               <span style={{ fontSize: "15px" }}>
                 {p.lastName}
+              </span>
+              {/* Отобразить время на площадке, если есть */}
+              <span style={{ fontSize: "10px", color: isHome ? "#5ab3f4" : "#6b7280", marginLeft: "4px" }}>
+                {formatTime(playerTimeTrackers[p.id]?.timeOnCourtSeconds || 0)}
               </span>
               {/* Foul indicators — 5 squares */}
               <div style={{ display: "flex", gap: "2px", marginLeft: "auto", flexShrink: 0 }}>
@@ -188,10 +202,15 @@ function RosterPanel({ players, teamId, team, onCourtIds, selectedId, onSelect, 
                 overflow: "hidden"
               }}
             >
-              <span style={{ width: "4px", height: "4px", borderRadius: "50%", background: isHome ? "#2a4060" : "#d1d5db", flexShrink: 0 }} />
+              {/* На лавці індикатор — збільшений, сірий */}
+              <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: isHome ? "#3a4a5a" : "#d1d5db", flexShrink: 0 }} />
               <span style={{ minWidth: "18px", fontWeight: 700, fontSize: "16px" }}>#{p.number}</span>
               <span style={{ fontSize: "15px" }}>
                 {p.lastName}
+              </span>
+              {/* Отобразить время на площадке (якщо було) */}
+              <span style={{ fontSize: "10px", color: isHome ? "#5ab3f4" : "#6b7280", marginLeft: "4px" }}>
+                {formatTime(playerTimeTrackers[p.id]?.timeOnCourtSeconds || 0)}
               </span>
               {/* Foul indicators — 5 squares */}
               <div style={{ display: "flex", gap: "2px", marginLeft: "auto", flexShrink: 0 }}>
@@ -249,6 +268,12 @@ function RosterPanel({ players, teamId, team, onCourtIds, selectedId, onSelect, 
   );
 }
 
+// Player court time tracking state
+interface PlayerTimeTracker {
+  timeOnCourtSeconds: number;    // Накопленное время на площадке
+  enteredAt: number | null;      // Момент входа (в секундах от начала четверти, или null если на лавке)
+}
+
 export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, btnRed }: {
   game: GameWithAll;
   btnBlue?: string;
@@ -270,6 +295,20 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
   const [onCourtAway, setOnCourtAway] = useState<Set<number>>(new Set());
   const [showGridView, setShowGridView] = useState(false);
   const [boxScores, setBoxScores] = useState<(BoxScore & { player: Player })[]>(() => game.boxScores || []);
+
+  // Отслеживание времени на площадке для каждого игрока
+  // Ключ: playerId, Значение: { timeOnCourtSeconds, enteredAt }
+  const [playerTimeTrackers, setPlayerTimeTrackers] = useState<Record<number, PlayerTimeTracker>>(() => {
+    const trackers: Record<number, PlayerTimeTracker> = {};
+    game.boxScores?.forEach(bs => {
+      trackers[bs.playerId] = {
+        timeOnCourtSeconds: bs.minutesPlayed ? parseMinutesSeconds(bs.minutesPlayed) : 0,
+        enteredAt: null, // Will be set when player enters court
+      };
+    });
+    return trackers;
+  });
+
   const [pending, startTransition] = useTransition();
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const quarterRef = useRef(game.quarter);
@@ -315,8 +354,24 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
 
       setOnCourtHome(homeOnCourtSet);
       setOnCourtAway(awayOnCourtSet);
+
+      // Инициализировать enteredAt для игроков, которые уже на площадке
+      setPlayerTimeTrackers(prev => {
+        const updated = { ...prev };
+        homeOnCourtSet.forEach(playerId => {
+          if (updated[playerId]) {
+            updated[playerId].enteredAt = QUARTER_DURATION - timeLeft; // Текущее время матча
+          }
+        });
+        awayOnCourtSet.forEach(playerId => {
+          if (updated[playerId]) {
+            updated[playerId].enteredAt = QUARTER_DURATION - timeLeft;
+          }
+        });
+        return updated;
+      });
     }
-  }, [game.id, game.homeTeamId, game.awayTeamId, game.onCourt]);
+  }, [game.id, game.homeTeamId, game.awayTeamId, game.onCourt, timeLeft]);
 
   useEffect(() => {
     if (quarterRef.current !== game.quarter) {
@@ -343,10 +398,27 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
           stopTimer();
           return 0;
         }
+
+        // Обновить время на площадке для всех активных игроков
+        setPlayerTimeTrackers(trackers => {
+          const updated = { ...trackers };
+          const currentGameTime = QUARTER_DURATION - (prev - 1); // Текущее время матча
+
+          // Обновить времена для игроков, которые сейчас на площадке
+          [...onCourtHome, ...onCourtAway].forEach(playerId => {
+            if (updated[playerId] && updated[playerId].enteredAt !== null) {
+              // Просто incrementируем, enteredAt нужен для замен
+              updated[playerId].timeOnCourtSeconds += 1;
+            }
+          });
+
+          return updated;
+        });
+
         return prev - 1;
       });
     }, 1000);
-  }, [stopTimer]);
+  }, [stopTimer, onCourtHome, onCourtAway]);
 
   useEffect(() => {
     return () => {
@@ -362,6 +434,34 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
 
   const isLive = game.status === "LIVE";
   const isScheduled = game.status === "SCHEDULED";
+
+  // Обработать замену с правильным подсчётом времени
+  const handleSubstitution = (playerOutId: number, playerInId: number) => {
+    const currentGameTime = QUARTER_DURATION - timeLeft;
+
+    setPlayerTimeTrackers(trackers => {
+      const updated = { ...trackers };
+
+      // Игрок, который уходит: сохранить накопленное время
+      if (updated[playerOutId] && updated[playerOutId].enteredAt !== null) {
+        const timeOnCourt = currentGameTime - (updated[playerOutId].enteredAt || 0);
+        updated[playerOutId].timeOnCourtSeconds += timeOnCourt;
+        updated[playerOutId].enteredAt = null;
+      }
+
+      // Игрок, который заходит: установить enteredAt на текущее время
+      if (updated[playerInId]) {
+        updated[playerInId].enteredAt = currentGameTime;
+      } else {
+        updated[playerInId] = {
+          timeOnCourtSeconds: 0,
+          enteredAt: currentGameTime,
+        };
+      }
+
+      return updated;
+    });
+  };
 
   const runAction = async (action: () => Promise<any>) => {
     try {
@@ -1069,6 +1169,9 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
                   disabled={!subPlayerOut || !subPlayerIn}
                   onClick={() => {
                     if (subPlayerOut && subPlayerIn) {
+                      // Обновить время на площадке перед заменой
+                      handleSubstitution(subPlayerOut, subPlayerIn);
+
                       runAction(() =>
                         addSubstitution(
                           game.id,
