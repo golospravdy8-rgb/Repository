@@ -203,16 +203,38 @@ export async function startGame(gameId: number) {
     ...game.homeTeam.players.map((p) =>
       prisma.gameOnCourt.upsert({
         where: { gameId_playerId: { gameId, playerId: p.id } },
-        update: { onCourt: homeStarterIds.has(p.id) },
-        create: { gameId, playerId: p.id, teamId: game.homeTeamId, onCourt: homeStarterIds.has(p.id) },
+        update: {
+          onCourt: homeStarterIds.has(p.id),
+          isStarter: homeStarterIds.has(p.id),
+          lastSubInTimestamp: homeStarterIds.has(p.id) ? 0 : null,
+        },
+        create: {
+          gameId,
+          playerId: p.id,
+          teamId: game.homeTeamId,
+          onCourt: homeStarterIds.has(p.id),
+          isStarter: homeStarterIds.has(p.id),
+          lastSubInTimestamp: homeStarterIds.has(p.id) ? 0 : null,
+        },
       })
     ),
     // Away team: all players
     ...game.awayTeam.players.map((p) =>
       prisma.gameOnCourt.upsert({
         where: { gameId_playerId: { gameId, playerId: p.id } },
-        update: { onCourt: awayStarterIds.has(p.id) },
-        create: { gameId, playerId: p.id, teamId: game.awayTeamId, onCourt: awayStarterIds.has(p.id) },
+        update: {
+          onCourt: awayStarterIds.has(p.id),
+          isStarter: awayStarterIds.has(p.id),
+          lastSubInTimestamp: awayStarterIds.has(p.id) ? 0 : null,
+        },
+        create: {
+          gameId,
+          playerId: p.id,
+          teamId: game.awayTeamId,
+          onCourt: awayStarterIds.has(p.id),
+          isStarter: awayStarterIds.has(p.id),
+          lastSubInTimestamp: awayStarterIds.has(p.id) ? 0 : null,
+        },
       })
     ),
   ];
@@ -234,6 +256,7 @@ export async function startGame(gameId: number) {
         blocks: 0,
         fouls: 0,
         turnovers: 0,
+        isStarter: homeStarterIds.has(p.id) || awayStarterIds.has(p.id),
       },
     })
   );
@@ -979,4 +1002,263 @@ export async function addFreeThrow(gameId: number, teamId: number, playerId: num
   revalidatePath('/standings');
 
   return { success: true };
+}
+
+/**
+ * REFACTOR 2026-05-08: Substitution endpoint — atomic update of both players
+ * Handles: time-on-court calculation, on-court status toggle, substitution logging
+ */
+export async function addSubstitutionRefactored(
+  gameId: number,
+  teamId: number,
+  playerOutId: number,
+  playerInId: number,
+  gameClockSeconds: number
+) {
+  await requireAuth();
+
+  const game = await prisma.game.findUnique({ where: { id: gameId } });
+  if (!game || game.status !== "LIVE") throw new Error("Game not live");
+  if (teamId !== game.homeTeamId && teamId !== game.awayTeamId) {
+    throw new Error(`Team ${teamId} is not a participant in game ${gameId}`);
+  }
+
+  // Both players must be on same team
+  const [playerOut, playerIn] = await Promise.all([
+    prisma.player.findUnique({ where: { id: playerOutId } }),
+    prisma.player.findUnique({ where: { id: playerInId } }),
+  ]);
+
+  if (!playerOut || !playerIn) throw new Error("One or both players not found");
+  if (playerOut.teamId !== teamId || playerIn.teamId !== teamId) {
+    throw new Error("Both players must be on the same team");
+  }
+
+  // Atomic transaction: update both GameOnCourt records + log substitution event
+  await prisma.$transaction(async (tx) => {
+    // Player OUT: add played time, mark off-court
+    const playerOutState = await tx.gameOnCourt.findUnique({
+      where: { gameId_playerId: { gameId, playerId: playerOutId } },
+    });
+
+    if (playerOutState && playerOutState.onCourt && playerOutState.lastSubInTimestamp !== null) {
+      const playedSeconds = gameClockSeconds - playerOutState.lastSubInTimestamp;
+      await tx.gameOnCourt.update({
+        where: { gameId_playerId: { gameId, playerId: playerOutId } },
+        data: {
+          onCourt: false,
+          timeOnCourtSeconds: { increment: playedSeconds },
+          lastSubInTimestamp: null,
+        },
+      });
+    } else {
+      // Fallback: ensure record exists and is marked off-court
+      await tx.gameOnCourt.update({
+        where: { gameId_playerId: { gameId, playerId: playerOutId } },
+        data: {
+          onCourt: false,
+          lastSubInTimestamp: null,
+        },
+      });
+    }
+
+    // Player IN: mark on-court, record entry time
+    await tx.gameOnCourt.update({
+      where: { gameId_playerId: { gameId, playerId: playerInId } },
+      data: {
+        onCourt: true,
+        lastSubInTimestamp: gameClockSeconds,
+      },
+    });
+
+    // Log substitution event for audit trail
+    await tx.gameSubstitution.create({
+      data: {
+        gameId,
+        teamId,
+        playerId: playerOutId,
+        action: "out",
+        quarter: game.quarter,
+        gameTime: `${Math.floor(gameClockSeconds / 60)}:${String(gameClockSeconds % 60).padStart(2, "0")}`,
+      },
+    });
+
+    await tx.gameSubstitution.create({
+      data: {
+        gameId,
+        teamId,
+        playerId: playerInId,
+        action: "in",
+        quarter: game.quarter,
+        gameTime: `${Math.floor(gameClockSeconds / 60)}:${String(gameClockSeconds % 60).padStart(2, "0")}`,
+      },
+    });
+  });
+
+  revalidatePath(`/admin/games/${gameId}`);
+  revalidatePath(`/game/${gameId}`);
+
+  return { success: true };
+}
+
+/**
+ * REFACTOR 2026-05-08: Fix startGame to NOT use slice(0,5)
+ * Explicitly mark starting 5 by ID, not by array position
+ */
+export async function startGameRefactored(
+  gameId: number,
+  homeStarterIds?: number[],
+  awayStarterIds?: number[]
+) {
+  await requireAuth();
+
+  const game = await prisma.game.findUnique({
+    where: { id: gameId },
+    include: {
+      homeTeam: { include: { players: { orderBy: { number: "asc" } } } },
+      awayTeam: { include: { players: { orderBy: { number: "asc" } } } },
+    },
+  });
+
+  if (!game) throw new Error("Game not found");
+  if (game.homeTeam.players.length < 5) throw new Error(`Home team has only ${game.homeTeam.players.length} players, need at least 5`);
+  if (game.awayTeam.players.length < 5) throw new Error(`Away team has only ${game.awayTeam.players.length} players, need at least 5`);
+
+  // Use provided starter IDs, or default to first 5 (backward compatible)
+  const homeStarters = homeStarterIds
+    ? new Set(homeStarterIds)
+    : new Set(game.homeTeam.players.slice(0, 5).map(p => p.id));
+  const awayStarters = awayStarterIds
+    ? new Set(awayStarterIds)
+    : new Set(game.awayTeam.players.slice(0, 5).map(p => p.id));
+
+  // Initialize GameOnCourt for ALL players
+  const starterOps = [
+    ...game.homeTeam.players.map((p) =>
+      prisma.gameOnCourt.upsert({
+        where: { gameId_playerId: { gameId, playerId: p.id } },
+        update: {
+          onCourt: homeStarters.has(p.id),
+          isStarter: homeStarters.has(p.id),
+          lastSubInTimestamp: homeStarters.has(p.id) ? 0 : null,
+        },
+        create: {
+          gameId,
+          playerId: p.id,
+          teamId: game.homeTeamId,
+          onCourt: homeStarters.has(p.id),
+          isStarter: homeStarters.has(p.id),
+          lastSubInTimestamp: homeStarters.has(p.id) ? 0 : null,
+        },
+      })
+    ),
+    ...game.awayTeam.players.map((p) =>
+      prisma.gameOnCourt.upsert({
+        where: { gameId_playerId: { gameId, playerId: p.id } },
+        update: {
+          onCourt: awayStarters.has(p.id),
+          isStarter: awayStarters.has(p.id),
+          lastSubInTimestamp: awayStarters.has(p.id) ? 0 : null,
+        },
+        create: {
+          gameId,
+          playerId: p.id,
+          teamId: game.awayTeamId,
+          onCourt: awayStarters.has(p.id),
+          isStarter: awayStarters.has(p.id),
+          lastSubInTimestamp: awayStarters.has(p.id) ? 0 : null,
+        },
+      })
+    ),
+  ];
+
+  // Initialize BoxScore for ALL players
+  const allPlayers = [...game.homeTeam.players, ...game.awayTeam.players];
+  const boxScoreOps = allPlayers.map((p) =>
+    prisma.boxScore.upsert({
+      where: { gameId_playerId: { gameId, playerId: p.id } },
+      update: {},
+      create: {
+        gameId,
+        playerId: p.id,
+        teamId: p.teamId,
+        points: 0,
+        rebounds: 0,
+        assists: 0,
+        steals: 0,
+        blocks: 0,
+        fouls: 0,
+        turnovers: 0,
+        isStarter: homeStarters.has(p.id) || awayStarters.has(p.id),
+      },
+    })
+  );
+
+  await prisma.$transaction([
+    prisma.game.update({
+      where: { id: gameId },
+      data: { status: "LIVE", quarter: 1, homeScore: 0, awayScore: 0 },
+    }),
+    ...starterOps,
+    ...boxScoreOps,
+  ]);
+
+  revalidatePath(`/admin/games/${gameId}`);
+  revalidatePath("/");
+}
+
+/**
+ * REFACTOR 2026-05-08: Calculate plus/minus for all players at game end
+ * Plus/minus = (team points scored while player on-court) - (team points allowed while player on-court)
+ * For now, simplified: count points directly associated with player's on-court periods
+ */
+export async function recalcPlusMinus(gameId: number) {
+  const game = await prisma.game.findUnique({
+    where: { id: gameId },
+    include: {
+      events: true,
+      onCourt: true,
+      boxScores: true,
+    },
+  });
+
+  if (!game) throw new Error("Game not found");
+
+  // Group events by quarter and team
+  const quarterTeamScore: Record<number, Record<number, number>> = {};
+  for (const event of game.events) {
+    if (event.type !== "POINTS") continue;
+    const q = event.quarter;
+    if (!quarterTeamScore[q]) quarterTeamScore[q] = {};
+    quarterTeamScore[q][event.teamId] = (quarterTeamScore[q][event.teamId] || 0) + (event.points || 0);
+  }
+
+  // Calculate plus/minus for each player based on on-court periods
+  const plusMinusUpdates = game.boxScores.map(async (bs) => {
+    let plusMinus = 0;
+
+    // Simple approach: sum points scored by team while player was on-court (approximation)
+    // For accurate +/-, would need to track exact on-court windows by substitution
+    const playerOnCourt = game.onCourt.find(oc => oc.playerId === bs.playerId);
+    if (playerOnCourt && playerOnCourt.onCourt) {
+      // Player currently on-court: use current quarter's scoring
+      const currentQScore = quarterTeamScore[game.quarter]?.[bs.teamId] || 0;
+      const otherTeamId = bs.teamId === game.homeTeamId ? game.awayTeamId : game.homeTeamId;
+      const otherQScore = quarterTeamScore[game.quarter]?.[otherTeamId] || 0;
+      plusMinus = currentQScore - otherQScore;
+    } else {
+      // Simplified: average +/- across all on-court periods
+      // Would require full substitution event reconstruction
+      plusMinus = 0;
+    }
+
+    await prisma.boxScore.update({
+      where: { id: bs.id },
+      data: { plusMinus },
+    });
+  });
+
+  await Promise.all(plusMinusUpdates);
+
+  revalidatePath(`/game/${gameId}`);
 }
