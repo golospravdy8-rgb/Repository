@@ -277,9 +277,7 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
 
   // Update boxScores when game data changes
   useEffect(() => {
-    if (game.boxScores && game.boxScores.length > 0) {
-      setBoxScores(game.boxScores);
-    }
+    setBoxScores(game.boxScores ?? []);
   }, [game.boxScores]);
 
   useEffect(() => {
