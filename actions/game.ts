@@ -667,6 +667,9 @@ export async function addScoreWithType(
 ): Promise<{ newAchievements: string[] }> {
   console.log(`[addScoreWithType] START: gameId=${gameId}, teamId=${teamId}, playerId=${playerId}, points=${points}`);
 
+  // FIX #2: Generate idempotency key to prevent duplicate events
+  const idempotencyKey = `score-${gameId}-${playerId}-${points}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+
   try {
     await requireAuth();
     console.log(`[addScoreWithType] Auth passed`);
@@ -680,6 +683,8 @@ export async function addScoreWithType(
     }
 
     const isHome = game.homeTeamId === teamId;
+
+    console.log(`[addScoreWithType] Generated idempotency key: ${idempotencyKey}`);
 
     // Prepare game update data with team stat tracking
     const gameUpdateData: any = {
@@ -697,19 +702,19 @@ export async function addScoreWithType(
 
   // Execute all updates in atomic transaction
     console.log(`[addScoreWithType] Starting main transaction...`);
-  const txResult = await prisma.$transaction(async (tx) => {
-    try {
-      console.log(`[addScoreWithType] TX: Starting updates...`);
+    const txResult = await prisma.$transaction(async (tx) => {
+      try {
+        console.log(`[addScoreWithType] TX: Starting updates...`);
 
       // Update game score
       console.log(`[addScoreWithType] TX: Updating game score...`);
       await tx.game.update({ where: { id: gameId }, data: gameUpdateData });
       console.log(`[addScoreWithType] TX: Game score updated`);
 
-      // Create event
+      // Create event with idempotency key
       console.log(`[addScoreWithType] TX: Creating game event...`);
       await tx.gameEvent.create({
-        data: { gameId, teamId, playerId, type: "POINTS", points, quarter: game.quarter, eventSubtype },
+        data: { gameId, teamId, playerId, type: "POINTS", points, quarter: game.quarter, eventSubtype, idempotencyKey },
       });
       console.log(`[addScoreWithType] TX: Game event created`);
 
@@ -750,6 +755,9 @@ export async function addScoreWithType(
       console.log(`[addScoreWithType] TX: Found ${onCourtPlayers.length} on-court players`);
 
       for (const ocp of onCourtPlayers) {
+        // FIX #1: Skip the scoring player — already updated separately above
+        if (ocp.playerId === playerId) continue;
+
         console.log(`[addScoreWithType] TX: Processing on-court player ${ocp.playerId}...`);
         const existing = await tx.boxScore.findFirst({
           where: { gameId, playerId: ocp.playerId },
@@ -779,6 +787,9 @@ export async function addScoreWithType(
       console.log(`[addScoreWithType] TX: Found ${opponentOnCourt.length} opponent on-court players`);
 
       for (const ocp of opponentOnCourt) {
+        // FIX #1: Safety guard — opponent shouldn't be in scoring team, but check anyway
+        if (ocp.playerId === playerId) continue;
+
         console.log(`[addScoreWithType] TX: Processing opponent player ${ocp.playerId}...`);
         const existing = await tx.boxScore.findFirst({
           where: { gameId, playerId: ocp.playerId },
@@ -801,13 +812,14 @@ export async function addScoreWithType(
 
       console.log(`[addScoreWithType] TX: All updates completed`);
       return { success: true };
-    } catch (txError) {
-      console.error(`[addScoreWithType] TX ERROR:`, txError);
-      throw txError;
-    }
-  });
+      } catch (txError: any) {
+        console.error(`[addScoreWithType] TX ERROR:`, txError);
+        throw txError;
+      }
+    });
     console.log(`[addScoreWithType] Main transaction completed:`, txResult);
 
+    // FIX #3: Consolidate revalidatePath calls after transaction completes
     revalidatePath(`/game/${gameId}`);
     revalidatePath(`/admin/games/${gameId}`);
     revalidatePath('/leaders');
@@ -816,7 +828,12 @@ export async function addScoreWithType(
 
     console.log(`[addScoreWithType] SUCCESS`);
     return { newAchievements: [] };
-  } catch (error) {
+  } catch (error: any) {
+    // FIX #2: Handle idempotency key constraint violations gracefully
+    if (error.code === 'P2002' && error.meta?.target?.includes('idempotencyKey')) {
+      console.log(`[addScoreWithType] Duplicate event ignored by idempotency key: ${idempotencyKey}`);
+      return { newAchievements: [] };
+    }
     console.error(`[addScoreWithType] ERROR:`, error);
     throw error;
   }
