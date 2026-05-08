@@ -97,7 +97,7 @@ interface RosterPanelProps {
   isScheduled: boolean;
   isLive: boolean;
   onToggleStarter: (playerId: number) => void;
-  onInitiateSubstitution: (playerId: number, teamId: number) => void;
+  onCompleteSubstitution: (playerInId: number) => Promise<void>;
   substitutionMode: SubstitutionMode;
 }
 
@@ -110,7 +110,7 @@ function RosterPanel({
   isScheduled,
   isLive,
   onToggleStarter,
-  onInitiateSubstitution,
+  onCompleteSubstitution,
   substitutionMode,
 }: RosterPanelProps) {
   const team = teamSide === 'home' ? gameState.homeTeam : gameState.awayTeam;
@@ -216,25 +216,6 @@ function RosterPanel({
                 </span>
               )}
 
-              {/* Кнопка "Замена" (для live, на площадці) */}
-              {isLive && p.onCourt && (
-                <button
-                  onClick={() => onInitiateSubstitution(p.playerId, team.teamId)}
-                  style={{
-                    padding: "1px 4px",
-                    fontSize: "8px",
-                    background: "#f97316",
-                    color: "#fff",
-                    border: "none",
-                    borderRadius: "2px",
-                    cursor: "pointer",
-                    flexShrink: 0,
-                    fontWeight: "600",
-                  }}
-                >
-                  Заміна
-                </button>
-              )}
 
               {/* Foul indicators — 5 квадратів */}
               <div style={{ display: "flex", gap: "2px", marginLeft: "auto", flexShrink: 0 }}>
@@ -292,7 +273,7 @@ function RosterPanel({
               }}
               onClick={() => {
                 if (isSelectableBench) {
-                  onSelectPlayer(p.playerId);
+                  onCompleteSubstitution(p.playerId);
                 }
               }}
             >
@@ -1007,7 +988,7 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
               isScheduled={isScheduled}
               isLive={isLive}
               onToggleStarter={(playerId) => handleToggleStarter('home', playerId)}
-              onInitiateSubstitution={handleInitiateSubstitution}
+              onCompleteSubstitution={handleCompleteSubstitution}
               substitutionMode={substitutionMode}
             />
           </div>
@@ -1017,44 +998,35 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
             flex: 1, display: "flex", flexDirection: "column",
             gap: 2, padding: 2, minHeight: 0
           }}>
-            {/* Заміна модаль (если в режиме выбора) */}
+            {/* Заміна в режиме выбора — просто индикатор */}
             {substitutionMode.phase === 'selecting_bench' && (
               <div style={{
-                background: "#1a2e40",
-                border: "2px solid #f97316",
-                borderRadius: 4,
-                padding: 8,
-                marginBottom: 8,
-                color: "#fff",
-                fontSize: 12,
+                background: "#2a4028",
+                border: "1px solid #4ef472",
+                borderRadius: 2,
+                padding: 6,
+                marginBottom: 4,
+                color: "#4ef472",
+                fontSize: 11,
+                fontWeight: 500,
               }}>
-                <div style={{ marginBottom: 4, fontWeight: "bold" }}>
-                  Виберіть гравця на скамейці для заміни:
-                </div>
-                <button
-                  onClick={() => setSubstitutionMode({ phase: 'idle' })}
-                  style={{
-                    padding: "4px 8px",
-                    fontSize: 11,
-                    background: "#6b7280",
-                    color: "#fff",
-                    border: "none",
-                    borderRadius: 2,
-                    cursor: "pointer",
-                  }}
-                >
-                  Скасувати
-                </button>
+                Виберіть гравця на скамейці для заміни
               </div>
             )}
 
             {/* Action Buttons Row 1 */}
             <div style={{ flex: "0 0 36px", display: "flex", gap: 2 }}>
               <button
-                onClick={() => startTransition(() => nextQuarter(game.id))}
-                disabled={!isLive}
-                style={{ flex:1, height:"100%", background: !isLive ? "#1a2e40" : "#1a2e40", color: !isLive ? "#4a7fa5" : "#8ab8d0", fontSize:26, fontWeight:600, border:"none", borderRadius:3, cursor: !isLive ? "not-allowed" : "pointer", opacity: !isLive ? 0.5 : 1 }}
-              >Наст чверть</button>
+                onClick={() => {
+                  if (!selectedPlayerId) {
+                    alert("Спочатку виберіть гравця на площадці");
+                    return;
+                  }
+                  handleInitiateSubstitution(selectedPlayerId, selectedTeamId);
+                }}
+                disabled={!isLive || !selectedPlayerId}
+                style={{ flex:1, height:"100%", background: (!isLive || !selectedPlayerId) ? "#1a2e40" : "#2a3a00", color: (!isLive || !selectedPlayerId) ? "#4a7fa5" : "#a3ff4e", fontSize:26, fontWeight:600, border:"none", borderRadius:3, cursor: (!isLive || !selectedPlayerId) ? "not-allowed" : "pointer", opacity: (!isLive || !selectedPlayerId) ? 0.5 : 1 }}
+              >Замена</button>
               <button
                 onClick={() => {
                   if (!selectedPlayerId) {
@@ -1250,7 +1222,7 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
               isScheduled={isScheduled}
               isLive={isLive}
               onToggleStarter={(playerId) => handleToggleStarter('away', playerId)}
-              onInitiateSubstitution={handleInitiateSubstitution}
+              onCompleteSubstitution={handleCompleteSubstitution}
               substitutionMode={substitutionMode}
             />
           </div>
