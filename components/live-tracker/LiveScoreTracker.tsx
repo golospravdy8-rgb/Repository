@@ -53,7 +53,7 @@ function getTeamFoulCount(events: GameEvent[], teamId: number, quarter: number, 
   ).length;
 }
 
-function RosterPanel({ players, teamId, team, onCourtIds, selectedId, onSelect, isHome, events, game }: {
+function RosterPanel({ players, teamId, team, onCourtIds, selectedId, onSelect, isHome, events, game, playerTimeTrackers }: {
   players: Player[];
   teamId: number;
   team: Team;
@@ -63,6 +63,7 @@ function RosterPanel({ players, teamId, team, onCourtIds, selectedId, onSelect, 
   isHome: boolean;
   events: GameEvent[];
   game: GameWithAll;
+  playerTimeTrackers: Record<number, PlayerTimeTracker>;
 }) {
   const onCourt = players.filter(p => onCourtIds.has(p.id));
   const bench = players.filter(p => !onCourtIds.has(p.id));
@@ -405,7 +406,7 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
           const currentGameTime = QUARTER_DURATION - (prev - 1); // Текущее время матча
 
           // Обновить времена для игроков, которые сейчас на площадке
-          [...onCourtHome, ...onCourtAway].forEach(playerId => {
+          Array.from(onCourtHome).concat(Array.from(onCourtAway)).forEach(playerId => {
             if (updated[playerId] && updated[playerId].enteredAt !== null) {
               // Просто incrementируем, enteredAt нужен для замен
               updated[playerId].timeOnCourtSeconds += 1;
@@ -729,6 +730,7 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
             isHome={true}
             events={game.events}
             game={game}
+            playerTimeTrackers={playerTimeTrackers}
           />
         </div>
 
@@ -920,6 +922,7 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
             isHome={false}
             events={game.events}
             game={game}
+            playerTimeTrackers={playerTimeTrackers}
           />
         </div>
       </div>
