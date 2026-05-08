@@ -14,17 +14,16 @@ import {
   addFoul,
 } from '@/actions/game';
 import type { Game, Team, Player, BoxScore } from '@prisma/client';
-import type { GameStateCompact, PlayerOnCourtState } from '@/types/live-tracker';
 
 interface StatEntryGridProps {
   game: Game & {
     homeTeam: Team & { players: Player[] };
     awayTeam: Team & { players: Player[] };
   };
-  gameState: GameStateCompact;
+  boxScores: (BoxScore & { player: Player })[];
 }
 
-export default function StatEntryGrid({ game, gameState }: StatEntryGridProps) {
+export default function StatEntryGrid({ game, boxScores }: StatEntryGridProps) {
   const [pending, startTransition] = useTransition();
 
   const handleAddStat = (
@@ -75,13 +74,11 @@ export default function StatEntryGrid({ game, gameState }: StatEntryGridProps) {
     });
   };
 
-  const getPlayerStats = (teamId: number, playerId: number): PlayerOnCourtState | null => {
-    const isHome = teamId === gameState.homeTeam.teamId;
-    const team = isHome ? gameState.homeTeam : gameState.awayTeam;
-    return team.players[playerId] || null;
+  const getBoxScore = (playerId: number) => {
+    return boxScores.find(bs => bs.playerId === playerId) || null;
   };
 
-  const renderTeamSection = (team: Team & { players: Player[] }, teamId: number, isHome: boolean) => {
+  const renderTeamSection = (team: Team & { players: Player[] }, isHome: boolean) => {
     const teamColor = isHome ? '#0d1520' : '#f3f4f6';
     const textColor = isHome ? '#c8d8e8' : '#374151';
 
@@ -111,14 +108,14 @@ export default function StatEntryGrid({ game, gameState }: StatEntryGridProps) {
 
         <div style={{ overflowY: 'auto', flex: 1 }}>
           {team.players.map(player => {
-            const playerStats = getPlayerStats(teamId, player.id);
+            const bs = getBoxScore(player.id);
             return (
               <PlayerStatRow
                 key={player.id}
                 player={player}
                 gameId={game.id}
-                teamId={teamId}
-                playerStats={playerStats}
+                teamId={team.id}
+                boxScore={bs}
                 onAddStat={handleAddStat}
                 isDisabled={pending || game.status !== 'LIVE'}
                 isHome={isHome}
@@ -141,8 +138,8 @@ export default function StatEntryGrid({ game, gameState }: StatEntryGridProps) {
         overflow: 'hidden',
       }}
     >
-      {renderTeamSection(game.homeTeam, gameState.homeTeam.teamId, true)}
-      {renderTeamSection(game.awayTeam, gameState.awayTeam.teamId, false)}
+      {renderTeamSection(game.homeTeam, true)}
+      {renderTeamSection(game.awayTeam, false)}
     </div>
   );
 }
@@ -151,7 +148,7 @@ interface PlayerStatRowProps {
   player: Player;
   gameId: number;
   teamId: number;
-  playerStats: PlayerOnCourtState | null;
+  boxScore: (BoxScore & { player: Player }) | null;
   onAddStat: (gameId: number, teamId: number, playerId: number, action: string) => void;
   isDisabled: boolean;
   isHome: boolean;
@@ -161,7 +158,7 @@ function PlayerStatRow({
   player,
   gameId,
   teamId,
-  playerStats,
+  boxScore,
   onAddStat,
   isDisabled,
   isHome,
@@ -171,12 +168,12 @@ function PlayerStatRow({
   const textColor = isHome ? '#c8d8e8' : '#374151';
   const borderColor = isHome ? '#2a3e52' : '#e5e7eb';
 
-  const points = playerStats?.points || 0;
-  const rebounds = playerStats?.rebounds || 0;
-  const assists = playerStats?.assists || 0;
-  const steals = playerStats?.steals || 0;
-  const blocks = playerStats?.blocks || 0;
-  const fouls = playerStats?.fouls || 0;
+  const points = boxScore?.points || 0;
+  const rebounds = (boxScore?.rebounds || 0) + (boxScore?.reboundsOff || 0) + (boxScore?.reboundsDef || 0);
+  const assists = boxScore?.assists || 0;
+  const steals = boxScore?.steals || 0;
+  const blocks = boxScore?.blocks || 0;
+  const fouls = boxScore?.fouls || 0;
 
   return (
     <div
