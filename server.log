@@ -1,6 +1,10 @@
 
-> basket-lviv@0.1.0 dev
-> next dev -p 3006
+> basket-lviv@0.1.0 start
+> node start.js
+
+🚀 Starting basket-lviv on port 3006...
+Platform: win32
+Running: D:\n8n\basket-lviv\node_modules\.bin\next.cmd dev -p 3006
 
  ⨯ Failed to start server
 Error: listen EADDRINUSE: address already in use :::3006
