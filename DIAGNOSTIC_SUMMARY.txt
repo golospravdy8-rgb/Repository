@@ -1,0 +1,203 @@
+╔════════════════════════════════════════════════════════════════════════════════╗
+║             LIVESCORETRACKER FULL DIAGNOSTIC — 2026-05-09                      ║
+╚════════════════════════════════════════════════════════════════════════════════╝
+
+CURRENT STATE: Game 241 loaded in LiveScoreTracker
+Database inspection shows:
+  ✅ Game exists (id=241)
+  ✅ Teams exist (11 home + 7 away players)
+  ✅ UI components rendered (RosterPanel, CourtIndicator)
+  ✅ Timer is counting down
+  ❌ BoxScore records: 0 (MISSING)
+  ❌ GameOnCourt records: 0 (MISSING)
+
+═══════════════════════════════════════════════════════════════════════════════════
+
+PROBLEM #1: NO BOXSCORE INITIALIZATION
+────────────────────────────────────────────────────────────────────────────────
+Impact:
+  • getDisplayTime() returns "00:00" for all players (no data)
+  • Player stats cannot be tracked
+  • isStarter field cannot be used
+  • Time accumulation impossible
+
+Affected Code:
+  LiveScoreTracker.tsx:262-265
+    const getDisplayTime = (playerId) => {
+      const boxScore = game.boxScores.find(bs => bs.playerId === playerId);
+      // boxScore is undefined → returns "00:00"
+    }
+
+Root Cause:
+  • No initialization function when game starts
+  • recordGameAction("START_GAME") only sets status, doesn't create BoxScore records
+  • recordSubstitution needs BoxScore to exist (fails silently if not)
+
+═══════════════════════════════════════════════════════════════════════════════════
+
+PROBLEM #2: NO ONCOURT INITIALIZATION
+────────────────────────────────────────────────────────────────────────────────
+Impact:
+  • ALL players appear in "Лавка" (bench) section
+  • NO green indicators (all are gray)
+  • NO visual separation between starters and bench
+  • Substitution creates events but doesn't update on-court status
+
+Affected Code:
+  LiveScoreTracker.tsx:65
+    const onCourtSet = new Set(
+      game.onCourt.filter(oc => oc.onCourt && oc.teamId === teamId)
+    );
+    // game.onCourt is empty array → onCourtSet is always empty
+
+Root Cause:
+  • GameOnCourt records never created
+  • recordSubstitution updates BoxScore but doesn't touch GameOnCourt
+  • RosterPanel only looks at game.onCourt for separation, not isStarter
+
+═══════════════════════════════════════════════════════════════════════════════════
+
+PROBLEM #3: NO STARTER/BENCH VISUAL SEPARATION
+────────────────────────────────────────────────────────────────────────────────
+Expected: Starters (5 players) shown separately, bold/different background
+Actual:   All players grouped as "Лавка" because game.onCourt is empty
+
+Root Cause:
+  • RosterPanel depends entirely on game.onCourt filtering
+  • No use of BoxScore.isStarter or GameOnCourt.isStarter fields
+  • No initialization of starter flags when game begins
+
+═══════════════════════════════════════════════════════════════════════════════════
+
+PROBLEM #4: GREEN INDICATORS DON'T LIGHT UP
+────────────────────────────────────────────────────────────────────────────────
+Component: CourtIndicator (line 41)
+  background: isOnCourt ? "#39d983" : "#3a4a5a"
+
+Current State:
+  • isOnCourt=true props passed to "На паркеті" section players
+  • isOnCourt=false props passed to "Лавка" section players
+  • BUT: All players are in "Лавка" section (because onCourtSet is empty)
+  • Result: ALL indicators are gray
+
+Solution:
+  • When GameOnCourt records exist and are properly set, indicators auto-light green
+  • (No code change needed in CourtIndicator — data problem only)
+
+═══════════════════════════════════════════════════════════════════════════════════
+
+PROBLEM #5: TIME ON COURT NOT COUNTING
+────────────────────────────────────────────────────────────────────────────────
+Display: getDisplayTime() returns "00:00"
+
+Components involved:
+  1. BoxScore.timeOnCourtSeconds (field exists, not set)
+  2. BoxScore.enteredAt (field exists, not set for initial players)
+  3. recordSubstitution calculates time (but fails silently without BoxScore)
+
+Logic problem in recordSubstitution (lines 393-394):
+  CURRENT (WRONG):
+    const enteredAtValue = playerOut.enteredAt || 0;
+    const timeAdded = gameClockSeconds - enteredAtValue;  // ← BACKWARDS!
+
+  EXAMPLE:
+    - Player enters at gameClock=600 (start)
+    - Player exits at gameClock=500 (1 min later)
+    - timeAdded = 500 - 600 = -100 ← NEGATIVE!
+
+  SHOULD BE:
+    const timeAdded = enteredAtValue - gameClockSeconds;  // ← CORRECT
+
+═══════════════════════════════════════════════════════════════════════════════════
+
+PROBLEM #6: SUBSTITUTION LOGIC INCOMPLETE
+────────────────────────────────────────────────────────────────────────────────
+recordSubstitution (lines 367-450) does:
+  ✅ Calculate exit time
+  ✅ Accumulate timeOnCourtSeconds
+  ✅ Set enteredAt for incoming player
+  ✅ Create GameEvent log entry
+  ❌ MISSING: Update GameOnCourt.onCourt (TRUE → FALSE for exiting)
+  ❌ MISSING: Update GameOnCourt.onCourt (FALSE → TRUE for entering)
+  ❌ MISSING: Update GameOnCourt.lastSubInTimestamp
+
+Result:
+  • Substitution creates event but player stays in same section
+  • UI doesn't refresh because game.onCourt array unchanged
+  • RosterPanel can't show the swap
+
+═══════════════════════════════════════════════════════════════════════════════════
+
+WHAT NEEDS FIXING (Priority Order)
+───────────────────────────────────────────────────────────────────────────────
+
+1. CREATE initializeGameBoxScores() Server Action
+   → When START_GAME clicked, create BoxScore + GameOnCourt for all 18 players
+   → Mark first 5 players of each team as starters (isStarter=true, onCourt=true)
+   → Set enteredAt=600 for all starters
+   Effort: 10 min
+
+2. FIX TIME MATH in recordSubstitution()
+   → Change: timeAdded = enteredAtValue - gameClockSeconds (reverse order)
+   Effort: 2 min
+
+3. COMPLETE recordSubstitution() with GameOnCourt updates
+   → Update exiting player: onCourt=false
+   → Update entering player: onCourt=true, lastSubInTimestamp=gameClockSeconds
+   Effort: 5 min
+
+4. ENHANCE RosterPanel for visual starter separation (OPTIONAL)
+   → Add separate "⭐ Стартерів" section with bold text
+   → Or: Add checkmark / different styling to starter rows
+   Effort: 10 min (optional)
+
+Total effort: 27 minutes (20 min critical + 7 min optional)
+
+═══════════════════════════════════════════════════════════════════════════════════
+
+WHAT WORKS ✅
+─────────────────────────────────────────────────────────────────────────────
+✅ Timer counts down properly (useEffect with isLive dependency)
+✅ START_GAME/START/PAUSE/END_GAME buttons work (status updates correctly)
+✅ RosterPanel component renders and divides players
+✅ CourtIndicator component ready (shows green/gray correctly when data exists)
+✅ getDisplayTime() function prepared (returns formatTime of timeOnCourtSeconds)
+✅ Substitution button calls recordSubstitution() correctly
+✅ GameEvent logging works
+✅ Undo button prepared
+
+═══════════════════════════════════════════════════════════════════════════════════
+
+WHAT DOESN'T WORK / NEEDS FIXING ❌
+─────────────────────────────────────────────────────────────────────────────
+❌ BoxScore records not created (0 records)
+❌ GameOnCourt records not created (0 records)
+❌ Time on court shows "00:00" for everyone
+❌ Green indicators all gray (not lighting up)
+❌ Starters not separated from bench visually
+❌ Substitution doesn't update on-court status
+❌ Time math backwards in recordSubstitution()
+
+═══════════════════════════════════════════════════════════════════════════════════
+
+VERIFICATION CHECKLIST (After Fixes)
+───────────────────────────────────────────────────────────────────────────────
+After implementation, verify:
+  ✓ START_GAME button initializes BoxScore (18 records created)
+  ✓ START_GAME button initializes GameOnCourt (18 records created)
+  ✓ 5 starters per team marked as isStarter=true, onCourt=true
+  ✓ Starters show in "На паркеті" section with green indicators
+  ✓ Substitution button works (players move between sections)
+  ✓ Time accumulates for starters (not 00:00)
+  ✓ Time accumulates after substitution (new on-court player)
+  ✓ Undo reverses time accumulation
+  ✓ Starters visually different from bench (bold/background)
+
+═══════════════════════════════════════════════════════════════════════════════════
+
+STATUS: READY FOR YOUR COMMAND
+
+Full diagnostic report: DIAGNOSTIC_REPORT_LIVESCORETRACKER_2026_05_09.md
+Diagnostic test results: diagnostic-livescoretracker.js (confirmed 0 records)
+
+Awaiting your instruction to proceed with fixes.

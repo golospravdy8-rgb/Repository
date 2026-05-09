@@ -3,6 +3,92 @@
 import { prisma } from "@/lib/prisma";
 import type { GameEvent, BoxScore } from "@prisma/client";
 
+export async function initializeGameData(gameId: number): Promise<{ success: boolean; error?: string }> {
+  try {
+    const result = await prisma.$transaction(async (tx) => {
+      const game = await tx.game.findUnique({
+        where: { id: gameId },
+        include: {
+          homeTeam: { include: { players: true } },
+          awayTeam: { include: { players: true } },
+        },
+      });
+
+      if (!game) throw new Error("Game not found");
+
+      // Отримати список гравців в межах номерів
+      const homePlayers = game.homeTeam.players.sort((a, b) => a.number - b.number);
+      const awayPlayers = game.awayTeam.players.sort((a, b) => a.number - b.number);
+
+      // Створити BoxScore для кожного гравця
+      for (const player of [...homePlayers, ...awayPlayers]) {
+        // Визначити, чи гравець стартер (перші 5 по номеру)
+        const isStarter = player.teamId === game.homeTeamId
+          ? homePlayers.indexOf(player) < 5
+          : awayPlayers.indexOf(player) < 5;
+
+        await tx.boxScore.create({
+          data: {
+            gameId,
+            playerId: player.id,
+            teamId: player.teamId,
+            isStarter,
+            enteredAt: isStarter ? 600 : null, // Стартери починають з gameClock=600
+            isOnCourt: isStarter,
+            points: 0,
+            rebounds: 0,
+            assists: 0,
+            steals: 0,
+            blocks: 0,
+            turnovers: 0,
+            minutes: 0,
+            fg2Made: 0,
+            fg2Attempted: 0,
+            fg3Made: 0,
+            fg3Attempted: 0,
+            ftMade: 0,
+            ftAttempted: 0,
+            reboundsOff: 0,
+            reboundsDef: 0,
+            foulsPersonal: 0,
+            foulsTechnical: 0,
+            foulsUnsports: 0,
+            foulsDisq: 0,
+          },
+        });
+      }
+
+      // Створити GameOnCourt для кожного гравця
+      for (const player of [...homePlayers, ...awayPlayers]) {
+        const isStarter = player.teamId === game.homeTeamId
+          ? homePlayers.indexOf(player) < 5
+          : awayPlayers.indexOf(player) < 5;
+
+        await tx.gameOnCourt.create({
+          data: {
+            gameId,
+            playerId: player.id,
+            teamId: player.teamId,
+            onCourt: isStarter, // Стартери на паркеті
+            isStarter,
+            lastSubInTimestamp: isStarter ? 600 : null,
+          },
+        });
+      }
+
+      return { success: true };
+    });
+
+    return result;
+  } catch (error) {
+    console.error("[initializeGameData]", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error",
+    };
+  }
+}
+
 export interface GameActionPayload {
   gameId: number;
   actionType: string;
@@ -35,6 +121,11 @@ export async function recordGameAction(payload: GameActionPayload): Promise<Reco
 
     // GAME CONTROL ACTIONS (no player involved)
     if (["START_GAME", "START", "PAUSE", "END_GAME", "NEXT_QUARTER"].includes(actionType)) {
+      // For START_GAME, initialize data first (outside transaction to avoid conflicts)
+      if (actionType === "START_GAME") {
+        await initializeGameData(gameId);
+      }
+
       return await prisma.$transaction(async (tx) => {
         const game = await tx.game.findUnique({ where: { id: gameId } });
         if (!game) throw new Error("Game not found");
@@ -391,11 +482,20 @@ export async function recordSubstitution({
       if (playerOut) {
         // Гравець виходить: розрахувати час на майданчику
         const enteredAtValue = playerOut.enteredAt || 0;
-        const timeAdded = gameClockSeconds - enteredAtValue;
+        const timeAdded = enteredAtValue - gameClockSeconds; // ВИПРАВЛЕНО: обратний порядок
         await tx.boxScore.update({
           where: { gameId_playerId: { gameId, playerId: playerOutId } },
           data: {
             timeOnCourtSeconds: (playerOut.timeOnCourtSeconds || 0) + Math.max(0, timeAdded),
+            isOnCourt: false,
+          },
+        });
+
+        // Оновити GameOnCourt: гравець виходить
+        await tx.gameOnCourt.update({
+          where: { gameId_playerId: { gameId, playerId: playerOutId } },
+          data: {
+            onCourt: false,
           },
         });
       }
@@ -406,6 +506,16 @@ export async function recordSubstitution({
           where: { gameId_playerId: { gameId, playerId: playerInId } },
           data: {
             enteredAt: gameClockSeconds,
+            isOnCourt: true,
+          },
+        });
+
+        // Оновити GameOnCourt: гравець входить
+        await tx.gameOnCourt.update({
+          where: { gameId_playerId: { gameId, playerId: playerInId } },
+          data: {
+            onCourt: true,
+            lastSubInTimestamp: gameClockSeconds,
           },
         });
       }
