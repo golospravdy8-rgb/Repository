@@ -159,6 +159,7 @@ export default async function GamePage({ params }: { params: Promise<{ id: strin
   const isFinal = game.status === "FINAL";
   const isScheduled = game.status === "SCHEDULED";
   const hasScore = isFinal || isLive;
+  const hasBoxScore = isFinal || isLive; // Таблиця grayцівз показується тільки для LIVE/FINAL
 
   // Quarter scores from events
   const quarterScores = [1, 2, 3, 4].map((q) => {
@@ -421,7 +422,7 @@ export default async function GamePage({ params }: { params: Promise<{ id: strin
       )}
 
       {/* LIVE / FINAL: Full Box Score */}
-      {hasScore && homeBox && awayBox && (
+      {hasBoxScore && homeBox && awayBox && (
         <div className="space-y-3 mb-3">
           {[
             { team: game.homeTeam, box: homeBox, score: game.homeScore, wins: homeWins },
@@ -466,6 +467,7 @@ export default async function GamePage({ params }: { params: Promise<{ id: strin
                   </thead>
                   <tbody>
                     {box.players.flatMap(({ bs, stats, isStarter }, i) => {
+                      console.log('[Public Game Page] Player', bs.playerId, 'minutesPlayed from DB:', bs.minutesPlayed);
                       const prevIsStarter = i > 0 ? box.players[i - 1].isStarter : true;
                       const showBench = !isStarter && prevIsStarter;
                       const rows = [];
@@ -490,7 +492,13 @@ export default async function GamePage({ params }: { params: Promise<{ id: strin
                             {bs.player.lastName} {bs.player.firstName[0]}.
                           </td>
                           <td className="px-1.5 py-1 text-center text-gray-400">{bs.player.position ?? "-"}</td>
-                          <td className="px-1.5 py-1 text-center text-gray-400">{bs.minutes || "-"}</td>
+                          <td className="px-1.5 py-1 text-center text-gray-400 font-medium">
+                            {(() => {
+                              const debug = `[DEBUG] Player ${bs.playerId}: minutesPlayed="${bs.minutesPlayed}", minutes="${bs.minutes}"`;
+                              console.log(debug);
+                              return bs.minutesPlayed ? bs.minutesPlayed : (bs.minutes || "-");
+                            })()}
+                          </td>
                           <td className="px-1.5 py-1 text-center font-black" style={{ color: "#1a2744" }}>{stats.points}</td>
                           <td className="px-1.5 py-1 text-center text-gray-600">{stats.fmtFg}</td>
                           <td className="px-1.5 py-1 text-center text-gray-400">{stats.pctFg}</td>
@@ -659,12 +667,7 @@ export default async function GamePage({ params }: { params: Promise<{ id: strin
   );
   } catch (error) {
     const gameId = typeof resolvedParams?.id === 'string' ? resolvedParams.id : 'unknown';
-    console.error(`[GamePage] Error loading game ${gameId}:`, {
-      message: error instanceof Error ? error.message : String(error),
-      code: (error as any)?.code,
-      name: error instanceof Error ? error.name : 'Unknown',
-      stack: error instanceof Error ? error.stack : null,
-    });
+    console.error(`[GamePage] Error loading game ${gameId}:`, error instanceof Error ? error.message : String(error));
     notFound();
   }
 }

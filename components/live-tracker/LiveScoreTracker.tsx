@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useTransition, useEffect, useRef, useCallback } from "react";
-import { nextQuarter, endGame, startGame, undoLastEvent, addAssist, addSteal, addReboundOff, addReboundDef, addBlock, addTurnover, addMissFt, addMissFg2, addMissFg3, addFoul, addFoulTechnical, addFoulUnsportsmanlike, addFoulDisqualifying, addCoachFoul, toggleIsStarter, addScoreWithType, addSubstitution, addTimeout, addFreeThrow, updatePlayerCourtTimes } from "@/actions/game";
+import React, { useState, useTransition, useEffect, useRef, useCallback } from "react";
+import { nextQuarter, endGame, startGame, undoLastEvent, addAssist, addSteal, addReboundOff, addReboundDef, addBlock, addTurnover, addMissFt, addMissFg2, addMissFg3, addFoul, addFoulTechnical, addFoulUnsportsmanlike, addFoulDisqualifying, addCoachFoul, toggleIsStarter, addScoreWithType, addSubstitution, addTimeout, addFreeThrow, updatePlayerCourtTimes, updateGameTimerState } from "@/actions/game";
 import type { Game, Team, Player, GameEvent, BoxScore } from "@prisma/client";
 import StatEntryGrid from "./StatEntryGrid";
 
@@ -53,7 +53,28 @@ function getTeamFoulCount(events: GameEvent[], teamId: number, quarter: number, 
   ).length;
 }
 
-function RosterPanel({ players, teamId, team, onCourtIds, selectedId, onSelect, isHome, events, game, playerTimeTrackers }: {
+// Компонент індикатора з мемоізацією - запобігає ре-рендеру
+const CourtIndicator = React.memo(({ isOnCourt, timerRunning }: {
+  isOnCourt: boolean;
+  timerRunning: boolean;
+}) => {
+  const active = isOnCourt && timerRunning;
+  return (
+    <span style={{
+      width: "8px",
+      height: "8px",
+      borderRadius: "50%",
+      background: active ? "#39d983" : "#3a4a5a",
+      flexShrink: 0,
+      boxShadow: active ? "0 0 4px rgba(57, 217, 131, 0.6)" : "none",
+      transition: "background-color 0.3s, box-shadow 0.3s"
+    }}
+    />
+  );
+});
+CourtIndicator.displayName = "CourtIndicator";
+
+function RosterPanel({ players, teamId, team, onCourtIds, selectedId, onSelect, isHome, events, game, playerTimeTrackers, timerRunning, tick, timeLeft }: {
   players: Player[];
   teamId: number;
   team: Team;
@@ -64,9 +85,29 @@ function RosterPanel({ players, teamId, team, onCourtIds, selectedId, onSelect, 
   events: GameEvent[];
   game: GameWithAll;
   playerTimeTrackers: Record<number, PlayerTimeTracker>;
+  timerRunning: boolean;
+  tick: number;
+  timeLeft: number;
 }) {
   const onCourt = players.filter(p => onCourtIds.has(p.id));
   const bench = players.filter(p => !onCourtIds.has(p.id));
+
+  // Функция для вычисления displayTime при рендере через tick
+  const getDisplayTime = (playerId: number): string => {
+    const tracker = playerTimeTrackers[playerId];
+    if (!tracker) return "00:00";
+
+    let displaySeconds = tracker.timeOnCourtSeconds;
+
+    // Если гравец сейчас на паркете и матч запущен - добавить текущий отрезок
+    if (timerRunning && tracker.enteredAt !== null) {
+      const currentGameTime = QUARTER_DURATION - timeLeft;
+      const currentSegment = Math.max(0, currentGameTime - tracker.enteredAt);
+      displaySeconds += currentSegment;
+    }
+
+    return formatTime(displaySeconds);
+  };
 
   return (
     <div style={{
@@ -130,15 +171,15 @@ function RosterPanel({ players, teamId, team, onCourtIds, selectedId, onSelect, 
                 overflow: "hidden"
               }}
             >
-              {/* На площадці индикатор — увеличен в 2 раза и ярче */}
-              <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: isHome ? "#39d983" : "#10b981", flexShrink: 0, boxShadow: isHome ? "0 0 4px rgba(57, 217, 131, 0.6)" : "0 0 4px rgba(16, 185, 129, 0.6)" }} />
+              {/* На площадці індикатор */}
+              <CourtIndicator isOnCourt={true} timerRunning={timerRunning} />
               <span style={{ minWidth: "18px", fontWeight: 700, fontSize: "16px" }}>#{p.number}</span>
               <span style={{ fontSize: "15px" }}>
                 {p.lastName}
               </span>
               {/* Отобразить время на площадке, если есть */}
               <span style={{ fontSize: "10px", color: isHome ? "#5ab3f4" : "#6b7280", marginLeft: "4px" }}>
-                {formatTime(playerTimeTrackers[p.id]?.timeOnCourtSeconds || 0)}
+                {getDisplayTime(p.id)}
               </span>
               {/* Foul indicators — 5 squares */}
               <div style={{ display: "flex", gap: "2px", marginLeft: "auto", flexShrink: 0 }}>
@@ -203,15 +244,15 @@ function RosterPanel({ players, teamId, team, onCourtIds, selectedId, onSelect, 
                 overflow: "hidden"
               }}
             >
-              {/* На лавці індикатор — збільшений, сірий */}
-              <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: isHome ? "#3a4a5a" : "#d1d5db", flexShrink: 0 }} />
+              {/* На лавці індикатор */}
+              <CourtIndicator isOnCourt={false} timerRunning={timerRunning} />
               <span style={{ minWidth: "18px", fontWeight: 700, fontSize: "16px" }}>#{p.number}</span>
               <span style={{ fontSize: "15px" }}>
                 {p.lastName}
               </span>
               {/* Отобразить время на площадке (якщо було) */}
               <span style={{ fontSize: "10px", color: isHome ? "#5ab3f4" : "#6b7280", marginLeft: "4px" }}>
-                {formatTime(playerTimeTrackers[p.id]?.timeOnCourtSeconds || 0)}
+                {getDisplayTime(p.id)}
               </span>
               {/* Foul indicators — 5 squares */}
               <div style={{ display: "flex", gap: "2px", marginLeft: "auto", flexShrink: 0 }}>
@@ -282,8 +323,9 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
   btnNavy?: string;
   btnRed?: string;
 }) {
-  const [timeLeft, setTimeLeft] = useState(QUARTER_DURATION);
-  const [timerRunning, setTimerRunning] = useState(false);
+  // Інітіалізуємо стан з БД (persist таймера)
+  const [timeLeft, setTimeLeft] = useState(() => game.currentTimeLeft ?? QUARTER_DURATION);
+  const [timerRunning, setTimerRunning] = useState(() => game.timerRunning ?? false);
   const [selectedPlayerId, setSelectedPlayerId] = useState<number | null>(null);
   const [eventType, setEventType] = useState<"normal" | "fastbreak" | "second_chance" | "off_turnover">("normal");
   const [showSubModal, setShowSubModal] = useState(false);
@@ -307,13 +349,40 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
         enteredAt: null, // Will be set when player enters court
       };
     });
+    console.log('[LiveScoreTracker] Initial playerTimeTrackers:', trackers);
     return trackers;
   });
+
+  // Простой счетчик для переиндексации UI каждую секунду (БЕЗ обновления основного состояния)
+  const [tick, setTick] = useState(0);
 
   const [pending, startTransition] = useTransition();
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const quarterRef = useRef(game.quarter);
   const logContainerRef = useRef<HTMLDivElement>(null);
+  const saveTimerTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Debounce функція для збереження стану таймера в БД (800ms затримки)
+  const saveTimerState = useCallback(async (time: number, quarter: number, running: boolean) => {
+    if (saveTimerTimeoutRef.current) {
+      clearTimeout(saveTimerTimeoutRef.current);
+    }
+
+    saveTimerTimeoutRef.current = setTimeout(async () => {
+      try {
+        console.log('[saveTimerState] Saving:', { timeLeft: time, quarter, timerRunning: running });
+        await updateGameTimerState(game.id, {
+          timeLeft: time,
+          quarter: quarter,
+          timerRunning: running,
+          status: running ? "LIVE" : "PAUSED",
+        });
+        console.log('[saveTimerState] Success');
+      } catch (error) {
+        console.error('[saveTimerState] Error:', error instanceof Error ? error.message : String(error));
+      }
+    }, 800);
+  }, [game.id]);
 
   // Update boxScores when game data changes
   // FIX: Merge new data instead of replacing, to prevent race condition data loss
@@ -393,56 +462,89 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
   // Синхронізувати час на площадці з сервером
   const syncCourtTimesToServer = useCallback(async (trackers: Record<number, PlayerTimeTracker>) => {
     try {
+      console.log('[syncCourtTimesToServer] Starting sync with trackers:', trackers);
       const playerCourtTimes: Record<number, number> = {};
       Object.entries(trackers).forEach(([playerIdStr, tracker]) => {
         playerCourtTimes[parseInt(playerIdStr, 10)] = tracker.timeOnCourtSeconds;
       });
 
+      console.log('[syncCourtTimesToServer] Calling updatePlayerCourtTimes with:', { gameId: game.id, playerCourtTimes });
       await updatePlayerCourtTimes(game.id, playerCourtTimes);
-      console.log('[syncCourtTimesToServer] Court times synced:', playerCourtTimes);
+      console.log('[syncCourtTimesToServer] Court times synced successfully');
     } catch (error) {
       console.error('[syncCourtTimesToServer] Error:', error instanceof Error ? error.message : String(error));
     }
   }, [game.id]);
 
-  const startTimer = useCallback(() => {
-    if (intervalRef.current) return;
+  const startTimer = useCallback(async () => {
+    console.log('[startTimer] Called, timerRunning:', timerRunning);
+    if (intervalRef.current) {
+      console.log('[startTimer] Timer already running, returning');
+      return;
+    }
+    console.log('[startTimer] Starting timer...');
     setTimerRunning(true);
     intervalRef.current = setInterval(() => {
       setTimeLeft((prev) => {
         if (prev <= 1) {
+          console.log('[timer tick] Time is up, stopping timer');
           stopTimer();
           return 0;
         }
-
-        // Обновить время на площадке для всех активных игроков
-        setPlayerTimeTrackers(trackers => {
-          const updated = { ...trackers };
-          const currentGameTime = QUARTER_DURATION - (prev - 1); // Текущее время матча
-
-          // Обновить времена для игроков, которые сейчас на площадке
-          Array.from(onCourtHome).concat(Array.from(onCourtAway)).forEach(playerId => {
-            if (updated[playerId] && updated[playerId].enteredAt !== null) {
-              // Просто incrementируем, enteredAt нужен для замен
-              updated[playerId].timeOnCourtSeconds += 1;
-            }
-          });
-
-          return updated;
-        });
-
         return prev - 1;
       });
+
+      // БЕЗ обновления playerTimeTrackers! Обновляем только tick для пересилення UI
+      // displayTime будет вычисляться при рендере из tick
+      setTick(t => t + 1);
     }, 1000);
-  }, [stopTimer, onCourtHome, onCourtAway]);
+  }, [stopTimer]);
+
+  const handleNextQuarter = useCallback(() => {
+    console.log('[handleNextQuarter] Called, current quarter:', game.quarter);
+    stopTimer();
+    setTimeLeft(QUARTER_DURATION);
+    startTransition(() => nextQuarter(game.id));
+  }, [game.id, stopTimer]);
+
+  const handleFinishGame = useCallback(() => {
+    console.log('[handleFinishGame] Called, game:', game.id);
+    const handleFinish = async () => {
+      try {
+        console.log('[handleFinish] Starting... Game state:', {
+          id: game.id,
+          status: game.status,
+          quarter: game.quarter,
+          timeLeft,
+          timerRunning
+        });
+
+        stopTimer();
+        console.log('[handleFinish] Timer stopped, calling endGame...');
+
+        await endGame(game.id);
+        console.log('[handleFinish] SUCCESS - endGame completed');
+      } catch (error: any) {
+        console.error('[handleFinish] FULL ERROR:', error);
+        console.error('[handleFinish] Error name:', error.name);
+        console.error('[handleFinish] Error message:', error.message);
+        console.error('[handleFinish] Error stack:', error.stack);
+        alert(`❌ Помилка завершення матчу: ${error.message || 'Невідома помилка'}`);
+      }
+    };
+
+    startTransition(handleFinish);
+  }, [game.id, game.status, game.quarter, timeLeft, timerRunning, stopTimer]);
 
   // Periodic sync of court times (every 5 seconds) while timer is running
   useEffect(() => {
     if (!timerRunning) return;
 
-    const syncInterval = setInterval(() => {
+    const syncInterval = setInterval(async () => {
       setPlayerTimeTrackers(current => {
-        syncCourtTimesToServer(current);
+        console.log('[useEffect sync] Current trackers before sync:', current);
+        // Call sync but don't block on it
+        syncCourtTimesToServer(current).catch(e => console.error('[useEffect sync] Error:', e));
         return current;
       });
     }, 5000); // Sync every 5 seconds
@@ -462,8 +564,22 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
     }
   }, [game.events]);
 
+  // Зберігати стан таймера при кожній зміні (з debounce 800ms)
+  useEffect(() => {
+    saveTimerState(timeLeft, game.quarter, timerRunning);
+  }, [timeLeft, timerRunning, game.quarter, saveTimerState]);
+
   const isLive = game.status === "LIVE";
   const isScheduled = game.status === "SCHEDULED";
+
+  console.log('[LiveScoreTracker RENDER]', {
+    gameId: game.id,
+    status: game.status,
+    isLive,
+    isScheduled,
+    quarter: game.quarter,
+    timeLeft
+  });
 
   // Обработать замену с правильным подсчётом времени
   const handleSubstitution = (playerOutId: number, playerInId: number) => {
@@ -472,10 +588,14 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
     setPlayerTimeTrackers(trackers => {
       const updated = { ...trackers };
 
-      // Игрок, который уходит: сохранить накопленное время
-      if (updated[playerOutId] && updated[playerOutId].enteredAt !== null) {
-        const timeOnCourt = currentGameTime - (updated[playerOutId].enteredAt || 0);
-        updated[playerOutId].timeOnCourtSeconds += timeOnCourt;
+      // Игрок, который уходит: ЗАФИКСИРОВАТЬ накопленное время
+      if (updated[playerOutId]) {
+        if (updated[playerOutId].enteredAt !== null) {
+          // Добавить время этого выхода к накопленному
+          const timeThisEntry = currentGameTime - (updated[playerOutId].enteredAt || 0);
+          updated[playerOutId].timeOnCourtSeconds += timeThisEntry;
+        }
+        // ВАЖНО: обнулить enteredAt, чтобы время больше не росло
         updated[playerOutId].enteredAt = null;
       }
 
@@ -633,22 +753,26 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
         </div>
       </header>
 
-      {/* CONTROLS ROW */}
+      {/* === КНОПКИ КЕРУВАННЯ ГРОЮ === */}
       <div style={{
         display: "flex",
         gap: 8,
-        padding: "4px 12px",
+        padding: "8px 12px",
         background: "#0d1520",
         borderBottom: "1px solid #1a2e40",
-        flexShrink: 0
+        flexShrink: 0,
+        alignItems: "center",
+        flexWrap: "wrap"
       }}>
-        {isScheduled ? (
+
+        {/* Почати матч (тільки коли SCHEDULED) */}
+        {isScheduled && (
           <button
             onClick={() => startTransition(() => startGame(game.id))}
             style={{
               border: "none",
               borderRadius: 5,
-              padding: "4px 12px",
+              padding: "6px 14px",
               fontSize: 11,
               fontWeight: "700",
               cursor: "pointer",
@@ -658,82 +782,83 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
           >
             ▶ Почати
           </button>
-        ) : isLive ? (
-          <>
-            <button
-              onClick={timerRunning ? stopTimer : startTimer}
-              style={{
-                border: "none",
-                borderRadius: 5,
-                padding: "4px 12px",
-                fontSize: 11,
-                fontWeight: "700",
-                cursor: "pointer",
-                background: "#3a6fa5",
-                color: "#fff"
-              }}
-            >
-              {timerRunning ? "⏸ Пауза" : "▶ Старт"}
-            </button>
-            {game.quarter < 4 && (
-              <button
-                onClick={() => {
-                  stopTimer();
-                  setTimeLeft(QUARTER_DURATION);
-                  startTransition(() => nextQuarter(game.id));
-                }}
-                style={{
-                  border: "none",
-                  borderRadius: 5,
-                  padding: "4px 12px",
-                  fontSize: 11,
-                  fontWeight: "700",
-                  cursor: "pointer",
-                  background: "#3a6fa5",
-                  color: "#fff"
-                }}
-              >
-                → Наступна
-              </button>
-            )}
-            <button
-              onClick={() => {
-                if (confirm("Завершити матч?")) {
-                  stopTimer();
-                  startTransition(() => endGame(game.id));
-                }
-              }}
-              style={{
-                border: "none",
-                borderRadius: 5,
-                padding: "4px 12px",
-                fontSize: 11,
-                fontWeight: "700",
-                cursor: "pointer",
-                background: "#dc2626",
-                color: "#fff"
-              }}
-            >
-              Завершити
-            </button>
-            <button
-              onClick={() => setShowGridView(!showGridView)}
-              style={{
-                border: "none",
-                borderRadius: 5,
-                padding: "4px 12px",
-                fontSize: 11,
-                fontWeight: "700",
-                cursor: "pointer",
-                background: showGridView ? "#3b82f6" : "#6b7280",
-                color: "#fff",
-                marginLeft: "auto"
-              }}
-            >
-              {showGridView ? "📊 Таблиця" : "👥 Список"}
-            </button>
-          </>
-        ) : null}
+        )}
+
+        {/* Старт / Пауза (завжди видна коли матч активний) */}
+        <button
+          onClick={timerRunning ? stopTimer : startTimer}
+          style={{
+            border: "none",
+            borderRadius: 5,
+            padding: "6px 14px",
+            fontSize: 11,
+            fontWeight: "700",
+            cursor: "pointer",
+            background: timerRunning ? "#f59e0b" : "#3a6fa5",
+            color: "#fff",
+            transition: "background 0.2s"
+          }}
+        >
+          {timerRunning ? "⏸ Пауза" : "▶ Старт"}
+        </button>
+
+        {/* Наступна четверть */}
+        <button
+          onClick={handleNextQuarter}
+          disabled={timerRunning || game.quarter >= 4}
+          style={{
+            border: "none",
+            borderRadius: 5,
+            padding: "6px 14px",
+            fontSize: 11,
+            fontWeight: "700",
+            cursor: (timerRunning || game.quarter >= 4) ? "not-allowed" : "pointer",
+            background: (timerRunning || game.quarter >= 4) ? "#6b7280" : "#3a6fa5",
+            color: "#fff",
+            opacity: (timerRunning || game.quarter >= 4) ? 0.6 : 1
+          }}
+        >
+          → Наступна
+        </button>
+
+        {/* Завершити матч */}
+        <button
+          onClick={() => {
+            if (confirm("Завершити матч остаточно?")) {
+              handleFinishGame();
+            }
+          }}
+          style={{
+            border: "none",
+            borderRadius: 5,
+            padding: "6px 14px",
+            fontSize: 11,
+            fontWeight: "700",
+            cursor: "pointer",
+            background: "#dc2626",
+            color: "#fff"
+          }}
+        >
+          Завершити
+        </button>
+
+        {/* Перемикання виду */}
+        <button
+          onClick={() => setShowGridView(!showGridView)}
+          style={{
+            border: "none",
+            borderRadius: 5,
+            padding: "6px 14px",
+            fontSize: 11,
+            fontWeight: "700",
+            cursor: "pointer",
+            background: showGridView ? "#3b82f6" : "#6b7280",
+            color: "#fff",
+            marginLeft: "auto"
+          }}
+        >
+          {showGridView ? "📊 Таблиця" : "👥 Список"}
+        </button>
       </div>
 
       {/* MAIN LAYOUT — 3 колонки или GRID VIEW */}
@@ -763,6 +888,9 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
             events={game.events}
             game={game}
             playerTimeTrackers={playerTimeTrackers}
+            timerRunning={timerRunning}
+            tick={tick}
+            timeLeft={timeLeft}
           />
         </div>
 
@@ -955,6 +1083,9 @@ export default function LiveScoreTracker({ game, btnBlue, btnOrange, btnNavy, bt
             events={game.events}
             game={game}
             playerTimeTrackers={playerTimeTrackers}
+            timerRunning={timerRunning}
+            tick={tick}
+            timeLeft={timeLeft}
           />
         </div>
       </div>
