@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import GamePdfButton from "@/components/public/GamePdfButton";
+import GameProtocol from "@/components/GameProtocol";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -139,19 +140,20 @@ export default async function GamePage({ params }: { params: Promise<{ id: strin
     const game = await prisma.game.findUnique({
       where: { id: gameId },
       include: {
-        homeTeam: true,
-        awayTeam: true,
+        homeTeam: { include: { players: { orderBy: { number: "asc" } } } },
+        awayTeam: { include: { players: { orderBy: { number: "asc" } } } },
         events: {
-          include: { player: true },
+          include: { player: { select: { firstName: true, lastName: true, number: true } } },
           orderBy: { createdAt: "desc" },
           take: 50,
         },
         boxScores: {
-          include: { player: true, team: true },
+          include: { player: true },
         },
+        onCourt: true,
         substitutions: true,
       },
-    }).catch(() => null);
+    });
 
     if (!game) notFound();
 
@@ -663,11 +665,17 @@ export default async function GamePage({ params }: { params: Promise<{ id: strin
         </div>
       )}
 
+      {/* FIBA Protocol */}
+      <GameProtocol game={game} />
+
     </div>
   );
   } catch (error) {
     const gameId = typeof resolvedParams?.id === 'string' ? resolvedParams.id : 'unknown';
     console.error(`[GamePage] Error loading game ${gameId}:`, error instanceof Error ? error.message : String(error));
+    if (error instanceof Error) {
+      console.error('Stack:', error.stack);
+    }
     notFound();
   }
 }

@@ -1,0 +1,10 @@
+
+> basket-lviv@0.1.0 build
+> prisma generate && tsc --noEmit && next build
+
+Environment variables loaded from .env
+Prisma schema loaded from prisma\schema.prisma
+Error: 
+EPERM: operation not permitted, rename 'D:\n8n\basket-lviv\node_modules\.prisma\client\query_engine-windows.dll.node.tmp3916' -> 'D:\n8n\basket-lviv\node_modules\.prisma\client\query_engine-windows.dll.node'
+
+

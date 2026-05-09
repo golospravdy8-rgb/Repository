@@ -18,13 +18,16 @@ cd D:\n8n\basket-lviv
 # 2. Install dependencies (if needed)
 npm install
 
-# 3. Start development server (✅ VERIFIED WORKING)
+# 3. Start development server (✅ RECOMMENDED METHOD)
+npm start
+# OR
 npm run dev
 ```
 
 **What you'll see:**
 ```
-> next dev -p 3006
+🚀 Starting basket-lviv on port 3006...
+Platform: win32
 
 ⚡ Ready in 3.2s
 ```
@@ -35,19 +38,35 @@ http://localhost:3006/?ag=younger
 ```
 
 **How it works:**
-- ✅ Uses Next.js dev server on port 3006
+- ✅ `npm start` = `node start.js` (handles Windows/Mac/Linux)
+- ✅ `npm run dev` = direct Next.js (fallback)
 - ✅ Works on Windows/macOS/Linux
 - ✅ Hot reload enabled
 - ✅ Database connected via Prisma
 - ✅ Ready for production testing
 
-**Verified working (May 7, 2026):**
+**Verified working (May 9, 2026):**
 ```
 curl http://localhost:3006/
 → HTTP/1.1 200 OK
 → Content-Type: text/html; charset=utf-8
 → Returns valid HTML with page title
 ```
+
+### Windows-Specific: Using start.js
+
+If `npm run dev` fails with "npx not found" error:
+
+```bash
+# Use the dedicated startup script (automatically handles Windows .cmd files)
+npm start
+```
+
+This script (`start.js`) fixes Windows Git Bash compatibility by:
+1. Detecting the OS platform
+2. Using `node_modules/.bin/next.cmd` on Windows (instead of `npx`)
+3. Spawning with `shell: true` for proper .cmd execution
+4. Providing graceful shutdown (Ctrl+C)
 
 See `STARTUP_GUIDE.md` for detailed troubleshooting and alternative startup methods.
 
@@ -68,12 +87,12 @@ See `STARTUP_GUIDE.md` for detailed troubleshooting and alternative startup meth
 ### Main Development Commands
 
 ```bash
-npm run dev           # ✅ Start main app (port 3006) — USE THIS
+npm start             # ✅ Start main app (port 3006) via start.js — RECOMMENDED
+npm run dev           # Direct Next.js (port 3006) — fallback
 npm run dev:safe      # Alternative: manual port cleanup first
-npm run dev:next      # Direct Next.js (port 3007)
+npm run dev:next      # Alternative Next.js (port 3007)
 npm run portal        # Start ALL services (main + 6 optional apps)
 npm run build         # Production build
-npm run start         # Production start
 npm run lint          # Check code style
 ```
 

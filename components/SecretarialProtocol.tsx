@@ -78,6 +78,34 @@ function getTeamFoulCount(events: ProtocolData["events"], teamId: number, quarte
   ).length;
 }
 
+function getActionLabel(eventType: string): string {
+  const labels: Record<string, string> = {
+    FIELD_GOAL: "2-очковий",
+    FIELD_GOAL_3PT: "3-очковий",
+    FIELD_GOAL_MISS: "Промах",
+    FREE_THROW: "Штрафний кидок",
+    REBOUND: "Підбір",
+    ASSIST: "Пас",
+    STEAL: "Перехоплення",
+    BLOCK: "Блокування",
+    TURNOVER: "Втрата",
+    FOUL: "Фол П",
+    FOUL_TECHNICAL: "Фол Т",
+    FOUL_UNSPORTSMANLIKE: "Фол Л",
+    FOUL_DISQUALIFYING: "Фол Д",
+    SUBSTITUTION: "Заміна",
+    TIMEOUT: "Таймаут",
+  };
+  return labels[eventType] || eventType;
+}
+
+function getEventPoints(eventType: string): number {
+  if (eventType === "FIELD_GOAL") return 2;
+  if (eventType === "FIELD_GOAL_3PT") return 3;
+  if (eventType === "FREE_THROW") return 1;
+  return 0;
+}
+
 interface TeamSectionProps {
   label: "A" | "B";
   teamName: string;
@@ -90,6 +118,13 @@ interface TeamSectionProps {
 
 function TeamSection({ label, teamName, coachName, assistantCoachName, players, events, currentQuarter }: TeamSectionProps) {
   const teamFoulCount = getTeamFoulCount(events, players[0]?.playerId ? 1 : 2, currentQuarter);
+
+  // Sort players: starters first, then by number
+  const sortedPlayers = [...players].sort((a, b) => {
+    if (a.isStarter && !b.isStarter) return -1;
+    if (!a.isStarter && b.isStarter) return 1;
+    return a.number - b.number;
+  });
 
   return (
     <>
@@ -158,76 +193,105 @@ function TeamSection({ label, teamName, coachName, assistantCoachName, players, 
         </tbody>
       </table>
 
-      {/* Players table */}
-      <table style={{ width: "100%", borderCollapse: "collapse" }}>
+      {/* Players table with full stats */}
+      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "7px" }}>
         <thead>
           <tr style={{ borderBottom: "1px solid black", background: "#f0f0f0" }}>
-            <th style={{ width: "30px", border: "1px solid #ccc", padding: "1px 2px", fontSize: "8px" }}>Lic.</th>
-            <th style={{ border: "1px solid #ccc", padding: "1px 4px", textAlign: "left", fontSize: "8px" }}>Players</th>
-            <th style={{ width: "25px", border: "1px solid #ccc", padding: "1px 2px", textAlign: "center", fontSize: "8px" }}>No.</th>
-            <th style={{ width: "18px", border: "1px solid #ccc", padding: "1px 2px", textAlign: "center", fontSize: "8px" }}>✓</th>
-            <th style={{ width: "95px", border: "1px solid #ccc", padding: "1px 2px", textAlign: "center", fontSize: "8px" }}>Fouls 1–2–3–4–5</th>
+            <th style={{ width: "20px", border: "1px solid #ccc", padding: "1px", textAlign: "center" }}>Lic.</th>
+            <th style={{ minWidth: "80px", border: "1px solid #ccc", padding: "1px 2px", textAlign: "left" }}>Players</th>
+            <th style={{ width: "20px", border: "1px solid #ccc", padding: "1px", textAlign: "center" }}>No.</th>
+            <th style={{ width: "16px", border: "1px solid #ccc", padding: "1px", textAlign: "center" }}>✓</th>
+            <th style={{ width: "30px", border: "1px solid #ccc", padding: "1px", textAlign: "center" }}>ВОЛ(Хв)</th>
+            <th style={{ width: "20px", border: "1px solid #ccc", padding: "1px", textAlign: "center" }}>ПТ</th>
+            <th style={{ width: "24px", border: "1px solid #ccc", padding: "1px", textAlign: "center" }}>2-очк%</th>
+            <th style={{ width: "24px", border: "1px solid #ccc", padding: "1px", textAlign: "center" }}>3-очк%</th>
+            <th style={{ width: "20px", border: "1px solid #ccc", padding: "1px", textAlign: "center" }}>ШТ%</th>
+            <th style={{ width: "20px", border: "1px solid #ccc", padding: "1px", textAlign: "center" }}>ПД(н)</th>
+            <th style={{ width: "20px", border: "1px solid #ccc", padding: "1px", textAlign: "center" }}>ПД(З)</th>
+            <th style={{ width: "20px", border: "1px solid #ccc", padding: "1px", textAlign: "center" }}>ПД</th>
+            <th style={{ width: "16px", border: "1px solid #ccc", padding: "1px", textAlign: "center" }}>ПР</th>
+            <th style={{ width: "16px", border: "1px solid #ccc", padding: "1px", textAlign: "center" }}>ПЕ</th>
+            <th style={{ width: "16px", border: "1px solid #ccc", padding: "1px", textAlign: "center" }}>БЛ</th>
+            <th style={{ width: "40px", border: "1px solid #ccc", padding: "1px", textAlign: "center" }}>Fouls</th>
+            <th style={{ width: "16px", border: "1px solid #ccc", padding: "1px", textAlign: "center" }}>+/-</th>
+            <th style={{ width: "20px", border: "1px solid #ccc", padding: "1px", textAlign: "center" }}>Еф</th>
           </tr>
         </thead>
         <tbody>
-          {players.map((p) => (
-            <tr key={p.playerId} style={{ height: "16px", borderBottom: "1px solid #ddd" }}>
-              <td style={{ border: "1px solid #ccc" }}></td>
-              <td style={{ padding: "0 4px", fontSize: "8px" }}>
-                {p.lastName} {p.firstName}
-              </td>
-              <td style={{ textAlign: "center", border: "1px solid #ccc", fontSize: "8px" }}>{p.number}</td>
-              <td style={{ textAlign: "center", border: "1px solid #ccc", fontWeight: "bold", fontSize: "8px" }}>
-                {p.isStarter ? "X" : ""}
-              </td>
-              <td style={{ padding: "1px 2px" }}>
-                <div style={{ display: "flex", gap: "1px", justifyContent: "center" }}>
-                  {[0, 1, 2, 3, 4].map((idx) => {
-                    const ft = p.foulTypes[idx];
-                    const label =
-                      idx === 4 && p.foulTypes.length >= 5
-                        ? "F"
-                        : ft === "FOUL"
-                          ? "P"
-                          : ft === "FOUL_UNSPORTSMANLIKE"
-                            ? "U"
-                            : ft === "FOUL_TECHNICAL"
-                              ? "T"
-                              : ft === "FOUL_DISQUALIFYING"
-                                ? "D"
-                                : "";
-                    return (
-                      <span
-                        key={idx}
-                        style={{
-                          display: "inline-block",
-                          width: "16px",
-                          height: "14px",
-                          border: "1px solid black",
-                          textAlign: "center",
-                          lineHeight: "14px",
-                          fontSize: idx === 4 ? "11px" : "8px",
-                          fontWeight: idx === 4 ? "bold" : "normal",
-                        }}
-                      >
-                        {label}
-                      </span>
-                    );
-                  })}
-                </div>
-              </td>
-            </tr>
-          ))}
-          {Array.from({ length: Math.max(0, 12 - players.length) }).map((_, i) => (
-            <tr key={"empty-" + i} style={{ height: "16px", borderBottom: "1px solid #eee" }}>
-              <td colSpan={5} style={{ border: "1px solid #ddd" }}>&nbsp;</td>
+          {sortedPlayers.map((p) => {
+            const fg = p.pointsByQuarter ? Object.values(p.pointsByQuarter).reduce((a, b) => a + b, 0) : p.points;
+            return (
+              <tr key={p.playerId} style={{ height: "14px", borderBottom: "1px solid #ddd" }}>
+                <td style={{ border: "1px solid #ccc", textAlign: "center" }}></td>
+                <td style={{ padding: "0 2px", border: "1px solid #ccc", fontSize: "7px", textAlign: "left" }}>
+                  {p.lastName.substring(0, 10)}
+                </td>
+                <td style={{ textAlign: "center", border: "1px solid #ccc" }}>{p.number}</td>
+                <td style={{ textAlign: "center", border: "1px solid #ccc", fontWeight: "bold" }}>
+                  {p.isStarter ? "X" : ""}
+                </td>
+                <td style={{ border: "1px solid #ccc", textAlign: "center" }}>0:00</td>
+                <td style={{ border: "1px solid #ccc", textAlign: "center", fontWeight: "bold" }}>{p.points}</td>
+                <td style={{ border: "1px solid #ccc", textAlign: "center" }}>-</td>
+                <td style={{ border: "1px solid #ccc", textAlign: "center" }}>-</td>
+                <td style={{ border: "1px solid #ccc", textAlign: "center" }}>-</td>
+                <td style={{ border: "1px solid #ccc", textAlign: "center" }}>-</td>
+                <td style={{ border: "1px solid #ccc", textAlign: "center" }}>-</td>
+                <td style={{ border: "1px solid #ccc", textAlign: "center" }}>{p.rebounds}</td>
+                <td style={{ border: "1px solid #ccc", textAlign: "center" }}>{p.assists}</td>
+                <td style={{ border: "1px solid #ccc", textAlign: "center" }}>{p.steals}</td>
+                <td style={{ border: "1px solid #ccc", textAlign: "center" }}>{p.blocks}</td>
+                <td style={{ border: "1px solid #ccc", padding: "0 1px" }}>
+                  <div style={{ display: "flex", gap: "1px", justifyContent: "center" }}>
+                    {[0, 1, 2, 3, 4].map((idx) => {
+                      const ft = p.foulTypes[idx];
+                      const label =
+                        idx === 4 && p.foulTypes.length >= 5
+                          ? "F"
+                          : ft === "FOUL"
+                            ? "P"
+                            : ft === "FOUL_UNSPORTSMANLIKE"
+                              ? "U"
+                              : ft === "FOUL_TECHNICAL"
+                                ? "T"
+                                : ft === "FOUL_DISQUALIFYING"
+                                  ? "D"
+                                  : "";
+                      return (
+                        <span
+                          key={idx}
+                          style={{
+                            display: "inline-block",
+                            width: "12px",
+                            height: "12px",
+                            border: "0.5px solid black",
+                            textAlign: "center",
+                            lineHeight: "11px",
+                            fontSize: idx === 4 ? "9px" : "7px",
+                            fontWeight: idx === 4 ? "bold" : "normal",
+                          }}
+                        >
+                          {label}
+                        </span>
+                      );
+                    })}
+                  </div>
+                </td>
+                <td style={{ border: "1px solid #ccc", textAlign: "center" }}>0</td>
+                <td style={{ border: "1px solid #ccc", textAlign: "center" }}>0</td>
+              </tr>
+            );
+          })}
+          {Array.from({ length: Math.max(0, 12 - sortedPlayers.length) }).map((_, i) => (
+            <tr key={"empty-" + i} style={{ height: "14px", borderBottom: "1px solid #eee" }}>
+              <td colSpan={18} style={{ border: "1px solid #ddd" }}>&nbsp;</td>
             </tr>
           ))}
           <tr style={{ borderTop: "1px solid black", background: "#f9f9f9" }}>
-            <td colSpan={2} style={{ padding: "2px 4px", fontSize: "8px" }}>
+            <td colSpan={8} style={{ padding: "2px 4px", fontSize: "7px" }}>
               Coach: {coachName}
             </td>
-            <td colSpan={3} style={{ padding: "2px 4px", fontSize: "8px" }}>
+            <td colSpan={10} style={{ padding: "2px 4px", fontSize: "7px" }}>
               Asst. Coach: {assistantCoachName}
             </td>
           </tr>
@@ -481,6 +545,65 @@ export default function SecretarialProtocol({ data: initialData, gameId }: Secre
                 </table>
               </td>
             </tr>
+          </tbody>
+        </table>
+
+        {/* Play-by-Play Log */}
+        <table style={{ width: "100%", borderCollapse: "collapse", borderTop: "2px solid black", marginTop: "8px" }}>
+          <thead>
+            <tr style={{ background: "#f0f0f0", borderBottom: "1px solid black" }}>
+              <th style={{ padding: "3px 4px", textAlign: "left", fontSize: "9px", fontWeight: "bold" }}>TIME</th>
+              <th style={{ padding: "3px 4px", textAlign: "left", fontSize: "9px", fontWeight: "bold" }}>PLAYER</th>
+              <th style={{ padding: "3px 4px", textAlign: "left", fontSize: "9px", fontWeight: "bold" }}>ACTION</th>
+              <th style={{ padding: "3px 4px", textAlign: "center", fontSize: "9px", fontWeight: "bold" }}>SCORE</th>
+            </tr>
+          </thead>
+          <tbody>
+            {data.events.length > 0 ? (
+              data.events.map((event, idx) => {
+                const player = [...data.homePlayers, ...data.awayPlayers].find((p) => p.playerId === event.playerId);
+                const actionType = getActionLabel(event.type);
+
+                // Calculate running score up to this event
+                let runningHomeScore = 0;
+                let runningAwayScore = 0;
+                for (let i = 0; i <= idx; i++) {
+                  const e = data.events[i];
+                  const isHome = data.homePlayers.some(p => p.playerId === e.playerId);
+                  const points = getEventPoints(e.type);
+                  if (isHome) {
+                    runningHomeScore += points;
+                  } else {
+                    runningAwayScore += points;
+                  }
+                }
+
+                const timeStr = new Date(event.createdAt).toLocaleTimeString("uk-UA", { minute: "2-digit", second: "2-digit" });
+
+                return (
+                  <tr key={idx} style={{ borderBottom: "1px solid #ddd" }}>
+                    <td style={{ padding: "2px 4px", fontSize: "8px", fontFamily: "monospace" }}>
+                      [{timeStr}]
+                    </td>
+                    <td style={{ padding: "2px 4px", fontSize: "8px" }}>
+                      #{player?.number} {player?.lastName}
+                    </td>
+                    <td style={{ padding: "2px 4px", fontSize: "8px" }}>
+                      {actionType}
+                    </td>
+                    <td style={{ padding: "2px 4px", fontSize: "8px", textAlign: "center", fontWeight: "bold" }}>
+                      {runningHomeScore}-{runningAwayScore}
+                    </td>
+                  </tr>
+                );
+              })
+            ) : (
+              <tr>
+                <td colSpan={4} style={{ padding: "8px 4px", fontSize: "8px", textAlign: "center", color: "#999" }}>
+                  No events recorded
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
 

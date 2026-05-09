@@ -44,7 +44,7 @@ export default async function AdminGamePage({ params }: { params: { id: string }
     <div style={{ height: "100vh", overflow: "hidden", padding: 0, margin: 0, display: "flex", flexDirection: "column" }}>
       <div style={{ flex: 1, overflow: "auto", display: "flex" }}>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <LiveScoreTracker game={game} btnBlue={btnBlue} btnOrange={btnOrange} btnNavy={btnNavy} btnRed={btnRed} />
+          <LiveScoreTracker game={game} />
         </div>
         <FibaPanelWrapper game={game} />
       </div>

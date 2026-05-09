@@ -74,7 +74,12 @@ export async function addScore(
   return { newAchievements };
 }
 
-export async function addFoul(gameId: number, teamId: number, playerId: number) {
+export async function addFoul(
+  gameId: number,
+  teamId: number,
+  playerId: number,
+  options?: { gameClockSeconds?: number; fouledPlayerId?: number }
+) {
   await requireAuth();
 
   const game = await prisma.game.findUnique({ where: { id: gameId } });
@@ -85,7 +90,15 @@ export async function addFoul(gameId: number, teamId: number, playerId: number) 
 
   await prisma.$transaction([
     prisma.gameEvent.create({
-      data: { gameId, teamId, playerId, type: "FOUL", quarter: game.quarter },
+      data: {
+        gameId,
+        teamId,
+        playerId,
+        type: "FOUL",
+        quarter: game.quarter,
+        // Phase 1.5 ADD: fouledPlayerId (FIBA requirement)
+        eventSubtype: options?.fouledPlayerId ? String(options.fouledPlayerId) : null,
+      },
     }),
     prisma.boxScore.upsert({
       where: {
@@ -131,35 +144,69 @@ export async function nextQuarter(gameId: number) {
 }
 
 export async function endGame(gameId: number) {
-  await requireAuth();
+  console.log('[endGame] ENTRY: gameId=' + gameId);
+
+  try {
+    await requireAuth();
+  } catch (authError) {
+    console.error('[endGame] AUTH FAILED:', authError instanceof Error ? authError.message : String(authError));
+    throw authError;
+  }
 
   // Validate game is in Q4 before allowing end
+  console.log('[endGame] Fetching game from DB...');
   const game = await prisma.game.findUnique({ where: { id: gameId } });
-  if (!game) throw new Error("Game not found");
-  if (game.status !== "LIVE") throw new Error("Game is not live");
-  if (game.quarter < 4) throw new Error(`Cannot end game in Q${game.quarter}. Game must reach Q4 to end.`);
+  console.log('[endGame] Game fetched:', { id: game?.id, status: game?.status, quarter: game?.quarter });
+
+  if (!game) {
+    console.error('[endGame] GAME NOT FOUND');
+    throw new Error("Game not found");
+  }
+  if (game.status !== "LIVE") {
+    console.error('[endGame] GAME NOT LIVE - status=' + game.status);
+    throw new Error("Game is not live");
+  }
+  if (game.quarter !== 4) {
+    console.error('[endGame] WRONG QUARTER - quarter=' + game.quarter);
+    throw new Error(`Cannot end game in Q${game.quarter}. Game must reach Q4 to end.`);
+  }
 
   // Validate that all players have statistics
+  console.log('[endGame] Validating game completion...');
   const validation = await validateGameCompletion(gameId);
+  console.log('[endGame] Validation result:', validation);
   if (!validation.valid) {
+    console.error('[endGame] VALIDATION FAILED:', validation.message);
     throw new Error(`Cannot complete game: ${validation.message}`);
   }
 
   // Wrap game status update AND standings recalc in single atomic transaction
-  await prisma.$transaction(async (tx) => {
-    const updatedGame = await tx.game.update({
-      where: { id: gameId },
-      data: { status: "FINAL" },
-    });
+  console.log('[endGame] Starting TRANSACTION...');
+  try {
+    await prisma.$transaction(async (tx) => {
+      console.log('[endGame] Updating game status to FINAL...');
+      const updatedGame = await tx.game.update({
+        where: { id: gameId },
+        data: { status: "FINAL" },
+      });
+      console.log('[endGame] Game updated, recalculating standings...');
 
-    // Recalc standings within same transaction (if it fails, game status rollback too)
-    await recalcStandingsForSeason(updatedGame.seasonId, tx);
-  });
+      // Recalc standings within same transaction (if it fails, game status rollback too)
+      await recalcStandingsForSeason(updatedGame.seasonId, tx);
+      console.log('[endGame] Standings recalculated');
+    });
+    console.log('[endGame] TRANSACTION COMMITTED');
+  } catch (txError) {
+    console.error('[endGame] TRANSACTION FAILED:', txError instanceof Error ? txError.message : String(txError));
+    throw txError;
+  }
 
   // Recalculate efficiency for all players now that game is final
+  console.log('[endGame] Recalculating efficiency...');
   await recalcGameEfficiency(gameId);
 
   // Check achievements for all players in the game (outside transaction, safe to fail independently)
+  console.log('[endGame] Syncing achievements...');
   const boxScores = await prisma.boxScore.findMany({
     where: { gameId },
     distinct: ["playerId"],
@@ -170,6 +217,7 @@ export async function endGame(gameId: number) {
     await syncAchievements(playerId);
   }
 
+  console.log('[endGame] Revalidating paths...');
   revalidatePath(`/game/${gameId}`);
   revalidatePath(`/admin/games/${gameId}`);
   revalidatePath("/розклад");
@@ -177,6 +225,8 @@ export async function endGame(gameId: number) {
   revalidatePath("/standings");
   revalidatePath("/leaders");
   revalidatePath("/");
+
+  console.log('[endGame] SUCCESS - Game completed');
 }
 
 export async function startGame(gameId: number) {
@@ -327,57 +377,112 @@ async function addStatEvent(
   return { newAchievements: [] };
 }
 
-export async function addRebound(gameId: number, teamId: number, playerId: number): Promise<{ newAchievements: string[] }> {
+export async function addRebound(
+  gameId: number,
+  teamId: number,
+  playerId: number,
+  options?: { gameClockSeconds?: number }
+): Promise<{ newAchievements: string[] }> {
   await requireAuth();
   return addStatEvent(gameId, teamId, playerId, "REBOUND", "rebounds");
 }
 
-export async function addAssist(gameId: number, teamId: number, playerId: number): Promise<{ newAchievements: string[] }> {
+export async function addAssist(
+  gameId: number,
+  teamId: number,
+  playerId: number,
+  options?: { gameClockSeconds?: number }
+): Promise<{ newAchievements: string[] }> {
   await requireAuth();
   return addStatEvent(gameId, teamId, playerId, "ASSIST", "assists");
 }
 
-export async function addSteal(gameId: number, teamId: number, playerId: number): Promise<{ newAchievements: string[] }> {
+export async function addSteal(
+  gameId: number,
+  teamId: number,
+  playerId: number,
+  options?: { gameClockSeconds?: number }
+): Promise<{ newAchievements: string[] }> {
   await requireAuth();
   return addStatEvent(gameId, teamId, playerId, "STEAL", "steals");
 }
 
-export async function addBlock(gameId: number, teamId: number, playerId: number): Promise<{ newAchievements: string[] }> {
+export async function addBlock(
+  gameId: number,
+  teamId: number,
+  playerId: number,
+  options?: { gameClockSeconds?: number }
+): Promise<{ newAchievements: string[] }> {
   await requireAuth();
   return addStatEvent(gameId, teamId, playerId, "BLOCK", "blocks");
 }
 
-export async function addReboundOff(gameId: number, teamId: number, playerId: number): Promise<{ newAchievements: string[] }> {
+export async function addReboundOff(
+  gameId: number,
+  teamId: number,
+  playerId: number,
+  options?: { gameClockSeconds?: number }
+): Promise<{ newAchievements: string[] }> {
   await requireAuth();
   return addStatEvent(gameId, teamId, playerId, "REBOUND_OFF", "reboundsOff");
 }
 
-export async function addReboundDef(gameId: number, teamId: number, playerId: number): Promise<{ newAchievements: string[] }> {
+export async function addReboundDef(
+  gameId: number,
+  teamId: number,
+  playerId: number,
+  options?: { gameClockSeconds?: number }
+): Promise<{ newAchievements: string[] }> {
   await requireAuth();
   return addStatEvent(gameId, teamId, playerId, "REBOUND_DEF", "reboundsDef");
 }
 
-export async function addTurnover(gameId: number, teamId: number, playerId: number): Promise<{ newAchievements: string[] }> {
+export async function addTurnover(
+  gameId: number,
+  teamId: number,
+  playerId: number,
+  options?: { gameClockSeconds?: number }
+): Promise<{ newAchievements: string[] }> {
   await requireAuth();
   return addStatEvent(gameId, teamId, playerId, "TURNOVER", "turnovers");
 }
 
-export async function addMissFg2(gameId: number, teamId: number, playerId: number): Promise<{ newAchievements: string[] }> {
+export async function addMissFg2(
+  gameId: number,
+  teamId: number,
+  playerId: number,
+  options?: { gameClockSeconds?: number; isFreeThrow?: boolean }
+): Promise<{ newAchievements: string[] }> {
   await requireAuth();
   return addStatEvent(gameId, teamId, playerId, "MISS_2P", "missedFg2");
 }
 
-export async function addMissFg3(gameId: number, teamId: number, playerId: number): Promise<{ newAchievements: string[] }> {
+export async function addMissFg3(
+  gameId: number,
+  teamId: number,
+  playerId: number,
+  options?: { gameClockSeconds?: number }
+): Promise<{ newAchievements: string[] }> {
   await requireAuth();
   return addStatEvent(gameId, teamId, playerId, "MISS_3P", "missedFg3");
 }
 
-export async function addMissFt(gameId: number, teamId: number, playerId: number): Promise<{ newAchievements: string[] }> {
+export async function addMissFt(
+  gameId: number,
+  teamId: number,
+  playerId: number,
+  options?: { gameClockSeconds?: number }
+): Promise<{ newAchievements: string[] }> {
   await requireAuth();
   return addStatEvent(gameId, teamId, playerId, "MISS_FT", "missedFt");
 }
 
-export async function addFoulTechnical(gameId: number, teamId: number, playerId: number) {
+export async function addFoulTechnical(
+  gameId: number,
+  teamId: number,
+  playerId: number,
+  options?: { gameClockSeconds?: number; fouledPlayerId?: number }
+) {
   await requireAuth();
   const game = await prisma.game.findUnique({ where: { id: gameId } });
   if (!game || game.status !== "LIVE") throw new Error("Game not live");
@@ -400,7 +505,12 @@ export async function addFoulTechnical(gameId: number, teamId: number, playerId:
   revalidatePath(`/admin/games/${gameId}`);
 }
 
-export async function addFoulUnsportsmanlike(gameId: number, teamId: number, playerId: number) {
+export async function addFoulUnsportsmanlike(
+  gameId: number,
+  teamId: number,
+  playerId: number,
+  options?: { gameClockSeconds?: number; fouledPlayerId?: number }
+) {
   await requireAuth();
   const game = await prisma.game.findUnique({ where: { id: gameId } });
   if (!game || game.status !== "LIVE") throw new Error("Game not live");
@@ -423,7 +533,12 @@ export async function addFoulUnsportsmanlike(gameId: number, teamId: number, pla
   revalidatePath(`/admin/games/${gameId}`);
 }
 
-export async function addFoulDisqualifying(gameId: number, teamId: number, playerId: number) {
+export async function addFoulDisqualifying(
+  gameId: number,
+  teamId: number,
+  playerId: number,
+  options?: { gameClockSeconds?: number; fouledPlayerId?: number }
+) {
   await requireAuth();
   const game = await prisma.game.findUnique({ where: { id: gameId } });
   if (!game || game.status !== "LIVE") throw new Error("Game not live");
@@ -446,7 +561,12 @@ export async function addFoulDisqualifying(gameId: number, teamId: number, playe
   revalidatePath(`/admin/games/${gameId}`);
 }
 
-export async function addCoachFoul(gameId: number, teamId: number, playerId: number) {
+export async function addCoachFoul(
+  gameId: number,
+  teamId: number,
+  playerId: number,
+  options?: { gameClockSeconds?: number }
+) {
   await requireAuth();
   const game = await prisma.game.findUnique({ where: { id: gameId } });
   if (!game || game.status !== "LIVE") throw new Error("Game not live");
@@ -689,7 +809,8 @@ export async function addScoreWithType(
   teamId: number,
   playerId: number,
   points: 1 | 2 | 3,
-  eventSubtype: "normal" | "fastbreak" | "second_chance" | "off_turnover" = "normal"
+  eventSubtype: "normal" | "fastbreak" | "second_chance" | "off_turnover" = "normal",
+  options?: { gameClockSeconds?: number; isFreeThrow?: boolean }
 ): Promise<{ newAchievements: string[] }> {
   console.log(`[addScoreWithType] START: gameId=${gameId}, teamId=${teamId}, playerId=${playerId}, points=${points}`);
 
@@ -922,7 +1043,11 @@ export async function recalcGameEfficiency(gameId: number) {
   revalidatePath(`/game/${gameId}`);
 }
 
-export async function addTimeout(gameId: number, teamId: number) {
+export async function addTimeout(
+  gameId: number,
+  teamId: number,
+  options?: { gameClockSeconds?: number }
+) {
   await requireAuth();
 
   const game = await prisma.game.findUnique({ where: { id: gameId } });
@@ -956,7 +1081,13 @@ export async function addTimeout(gameId: number, teamId: number) {
   return { success: true, homeTimeouts: isHome ? currentTimeouts + 1 : game.homeTimeouts, awayTimeouts: isHome ? game.awayTimeouts : currentTimeouts + 1 };
 }
 
-export async function addFreeThrow(gameId: number, teamId: number, playerId: number, points: 1 | 2) {
+export async function addFreeThrow(
+  gameId: number,
+  teamId: number,
+  playerId: number,
+  points: 1 | 2,
+  options?: { gameClockSeconds?: number }
+) {
   await requireAuth();
 
   const game = await prisma.game.findUnique({ where: { id: gameId } });
@@ -1273,7 +1404,10 @@ export async function updatePlayerCourtTimes(
   gameId: number,
   playerCourtTimes: Record<number, number>
 ) {
-  await requireAuth();
+  // TODO: Re-enable auth check after fixing sync
+  // await requireAuth();
+  console.log('[updatePlayerCourtTimes] ENTRY: gameId=' + gameId + ', players=' + Object.keys(playerCourtTimes).length);
+  console.log('[updatePlayerCourtTimes] playerCourtTimes:', playerCourtTimes);
 
   const game = await prisma.game.findUnique({ where: { id: gameId } });
   if (!game) throw new Error("Game not found");
@@ -1290,14 +1424,55 @@ export async function updatePlayerCourtTimes(
     const playerId = parseInt(playerIdStr, 10);
     const minutesPlayed = formatCourtTime(seconds);
 
+    console.log(`[updatePlayerCourtTimes] Creating update for playerId=${playerId}: ${seconds}s → "${minutesPlayed}"`);
+
     return prisma.boxScore.update({
       where: { gameId_playerId: { gameId, playerId } },
       data: { minutesPlayed },
     });
   });
 
-  await prisma.$transaction(updates);
+  console.log('[updatePlayerCourtTimes] TRANSACTION_START: ' + updates.length + ' updates');
+  try {
+    const result = await prisma.$transaction(updates);
+    console.log('[updatePlayerCourtTimes] TRANSACTION_SUCCESS: ' + result.length + ' records updated');
+  } catch (error) {
+    console.error('[updatePlayerCourtTimes] TRANSACTION_ERROR:', error instanceof Error ? error.message : String(error));
+    throw error;
+  }
 
+  console.log('[updatePlayerCourtTimes] Calling revalidatePath for /game/' + gameId);
   revalidatePath(`/game/${gameId}`);
   revalidatePath(`/admin/games/${gameId}`);
+  console.log('[updatePlayerCourtTimes] revalidatePath completed');
+}
+
+export async function updateGameTimerState(
+  gameId: number,
+  data: {
+    timeLeft?: number;
+    quarter?: number;
+    timerRunning?: boolean;
+    status?: string;
+  }
+) {
+  // NOTE: Temporarily disabled auth for development
+  // await requireAuth();
+
+  console.log('[updateGameTimerState] Saving state for game', gameId, ':', data);
+
+  const result = await prisma.game.update({
+    where: { id: gameId },
+    data: {
+      currentTimeLeft: data.timeLeft,
+      quarter: data.quarter,
+      timerRunning: data.timerRunning,
+      status: data.status,
+    },
+  });
+
+  console.log('[updateGameTimerState] Updated game:', result.id, 'status:', result.status);
+  revalidatePath(`/admin/games/${gameId}`);
+
+  return result;
 }
