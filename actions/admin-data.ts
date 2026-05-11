@@ -216,7 +216,6 @@ export async function deleteGame(id: number) {
   try {
     // Delete all child records before deleting the game to avoid FK constraints
     await prisma.gameSubstitution.deleteMany({ where: { gameId: id } });
-    await prisma.gameOnCourt.deleteMany({ where: { gameId: id } });
     await prisma.boxScore.deleteMany({ where: { gameId: id } });
     await prisma.gameEvent.deleteMany({ where: { gameId: id } });
     await prisma.protocolOverride.deleteMany({ where: { gameId: id } });

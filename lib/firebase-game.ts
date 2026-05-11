@@ -1,5 +1,12 @@
-// 🏀 FIREBASE ИГРОВОЙ СЕРВИС (ИСПРАВЛЕННЫЙ)
-// С throttling, cleanup и heartbeat
+/**
+ * 🏀 FIREBASE GAME SERVICE — SCOPE: Mini-games / Chat / RucheekGameCanvas ONLY
+ * DO NOT import this in main basketball game logic (LiveScoreTracker, game-events, etc.).
+ * Basketball realtime uses Supabase + Server Actions.
+ * @see lib/supabase.ts for basketball realtime
+ *
+ * This service is used only for RucheekGameCanvas (chat/canvas mini-game).
+ * Features: throttling, cleanup, heartbeat
+ */
 
 import {
   ref,

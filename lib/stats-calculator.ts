@@ -1,23 +1,9 @@
 import type { BoxScore, Game, Standing } from "@prisma/client";
-import { getRatingTier } from "@/lib/achievements";
+import { getRatingTier as getAchievementTier } from "@/lib/achievements";
+import { getRatingTier, calculateRating, calculateKKD, computeLeaderMetrics } from "@/lib/leaders/calculations";
+import type { LeaderStats } from "@/lib/leaders/types";
 
-export type LeaderStats = {
-  playerId: number;
-  firstName: string;
-  lastName: string;
-  teamName: string;
-  teamShortName: string;
-  photoUrl: string | null;
-  ppg: number;
-  rpg: number;
-  apg: number;
-  spg: number;
-  bpg: number;
-  val: number;
-  gamesPlayed: number;
-  rating: number;
-  tier: "gold" | "silver" | "bronze";
-};
+export type { LeaderStats } from "@/lib/leaders/types";
 
 export function calculateVAL(boxScore: BoxScore): number {
   return (
@@ -32,7 +18,7 @@ export function calculateVAL(boxScore: BoxScore): number {
 
 type BoxScoreWithPlayer = BoxScore & {
   player: { firstName: string; lastName: string; photoUrl: string | null };
-  team: { name: string; shortName: string };
+  team: { name: string; shortName: string; id: number };
 };
 
 export function calculateLeaderStats(boxScores: BoxScoreWithPlayer[]): LeaderStats[] {
@@ -42,12 +28,21 @@ export function calculateLeaderStats(boxScores: BoxScoreWithPlayer[]): LeaderSta
     photoUrl: string | null;
     teamName: string;
     teamShortName: string;
+    teamId: number;
     points: number;
     rebounds: number;
     assists: number;
     steals: number;
     blocks: number;
     fouls: number;
+    turnovers: number;
+    fg2Made: number;
+    fg2Attempted: number;
+    fg3Made: number;
+    fg3Attempted: number;
+    ftMade: number;
+    ftAttempted: number;
+    timeOnCourtSeconds: number;
     games: number;
   }>();
 
@@ -59,7 +54,15 @@ export function calculateLeaderStats(boxScores: BoxScoreWithPlayer[]): LeaderSta
       existing.assists += bs.assists;
       existing.steals += bs.steals;
       existing.blocks += bs.blocks;
-      existing.fouls += bs.fouls;
+      existing.fouls += bs.foulsPersonal;
+      existing.turnovers += bs.turnovers;
+      existing.fg2Made += bs.fg2Made;
+      existing.fg2Attempted += bs.fg2Attempted;
+      existing.fg3Made += bs.fg3Made;
+      existing.fg3Attempted += bs.fg3Attempted;
+      existing.ftMade += bs.ftMade;
+      existing.ftAttempted += bs.ftAttempted;
+      existing.timeOnCourtSeconds += bs.timeOnCourtSeconds;
       existing.games += 1;
     } else {
       playerMap.set(bs.playerId, {
@@ -68,12 +71,21 @@ export function calculateLeaderStats(boxScores: BoxScoreWithPlayer[]): LeaderSta
         photoUrl: bs.player.photoUrl,
         teamName: bs.team.name,
         teamShortName: bs.team.shortName,
+        teamId: bs.team.id,
         points: bs.points,
         rebounds: bs.rebounds,
         assists: bs.assists,
         steals: bs.steals,
         blocks: bs.blocks,
-        fouls: bs.fouls,
+        fouls: bs.foulsPersonal,
+        turnovers: bs.turnovers,
+        fg2Made: bs.fg2Made,
+        fg2Attempted: bs.fg2Attempted,
+        fg3Made: bs.fg3Made,
+        fg3Attempted: bs.fg3Attempted,
+        ftMade: bs.ftMade,
+        ftAttempted: bs.ftAttempted,
+        timeOnCourtSeconds: bs.timeOnCourtSeconds,
         games: 1,
       });
     }
@@ -81,20 +93,22 @@ export function calculateLeaderStats(boxScores: BoxScoreWithPlayer[]): LeaderSta
 
   const stats: LeaderStats[] = [];
   for (const [playerId, data] of Array.from(playerMap.entries())) {
-    const g = data.games || 1;
-    const ppg = data.points / g;
-    const rpg = data.rebounds / g;
-    const apg = data.assists / g;
-    const spg = data.steals / g;
-    const bpg = data.blocks / g;
-
-    // Rating formula: base 50 + weighted stats
-    // ppg: 1.8x, rpg: 1.2x, apg: 1.5x, spg: 2.0x, bpg: 1.8x
-    const rating = Math.min(99, Math.round(50 + ppg * 1.8 + rpg * 1.2 + apg * 1.5 + spg * 2.0 + bpg * 1.8));
-    const tier = getRatingTier(rating);
-
-    // VAL (Value) = PTS + REB + AST + STL + BLK - FOULS (per game)
-    const val = Math.round(((data.points + data.rebounds + data.assists + data.steals + data.blocks - data.fouls) / g) * 10) / 10;
+    const metrics = computeLeaderMetrics({
+      points: data.points,
+      rebounds: data.rebounds,
+      assists: data.assists,
+      steals: data.steals,
+      blocks: data.blocks,
+      fouls: data.fouls,
+      fg2Made: data.fg2Made,
+      fg2Attempted: data.fg2Attempted,
+      fg3Made: data.fg3Made,
+      fg3Attempted: data.fg3Attempted,
+      ftMade: data.ftMade,
+      ftAttempted: data.ftAttempted,
+      timeOnCourtSeconds: data.timeOnCourtSeconds,
+      games: data.games,
+    });
 
     stats.push({
       playerId,
@@ -102,23 +116,18 @@ export function calculateLeaderStats(boxScores: BoxScoreWithPlayer[]): LeaderSta
       lastName: data.lastName,
       teamName: data.teamName,
       teamShortName: data.teamShortName,
+      teamId: data.teamId,
       photoUrl: data.photoUrl,
-      ppg: Math.round(ppg * 10) / 10,
-      rpg: Math.round(rpg * 10) / 10,
-      apg: Math.round(apg * 10) / 10,
-      spg: Math.round(spg * 10) / 10,
-      bpg: Math.round(bpg * 10) / 10,
-      val,
+      ...metrics,
       gamesPlayed: data.games,
-      rating,
-      tier,
+      seasonId: 0, // буде заповнено на сторінці
     });
   }
 
-  // Sort by rating (descending), then by VAL (descending) for tie-breaking
+  // Sort by rating (descending), then by ККД (descending) for tie-breaking
   return stats.sort((a, b) => {
     if (b.rating !== a.rating) return b.rating - a.rating;
-    return b.val - a.val;
+    return b.kkd - a.kkd;
   });
 }
 

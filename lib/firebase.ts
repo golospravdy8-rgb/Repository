@@ -1,4 +1,9 @@
-// 🔥 FIREBASE КОНФИГУРАЦИЯ
+/**
+ * 🔥 FIREBASE — SCOPE: Mini-games / Chat / RucheekGameCanvas ONLY
+ * DO NOT import this in basketball game logic.
+ * Basketball realtime uses Supabase + Server Actions.
+ * @see lib/supabase.ts for basketball realtime
+ */
 
 import { initializeApp } from "firebase/app";
 import { getDatabase, Database } from "firebase/database";

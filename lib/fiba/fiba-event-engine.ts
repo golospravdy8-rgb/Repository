@@ -655,17 +655,6 @@ async function handleFoul(
         },
       });
 
-      // Автоматично видалити гравця з площе (sub out)
-      const onCourt = await tx.gameOnCourt.findUnique({
-        where: { gameId_playerId: { gameId, playerId } },
-      });
-
-      if (onCourt?.onCourt) {
-        await tx.gameOnCourt.update({
-          where: { gameId_playerId: { gameId, playerId } },
-          data: { onCourt: false },
-        });
-      }
     }
 
     return [gameEvent, boxScore, { isFouledOut, isDisqualified }];
@@ -706,29 +695,29 @@ async function handleSubstitution(
       },
     });
 
-    // 2. Update onCourt status
-    const onCourtRecord = await tx.gameOnCourt.findUnique({
+    // 2. Update BoxScore status
+    const boxScore = await tx.boxScore.findUnique({
       where: { gameId_playerId: { gameId, playerId } },
     });
 
-    if (onCourtRecord) {
+    if (boxScore) {
       const isSubIn = subtype === "IN";
 
-      // If IN: update timestamp and set onCourt to true
-      // If OUT: set onCourt to false, accumulate time
-      let timeOnCourtSeconds = onCourtRecord.timeOnCourtSeconds || 0;
+      // If IN: update timestamp and set isOnCourt to true
+      // If OUT: set isOnCourt to false, accumulate time
+      let timeOnCourtSeconds = boxScore.timeOnCourtSeconds || 0;
 
-      if (!isSubIn && onCourtRecord.lastSubInTimestamp !== null) {
+      if (!isSubIn && boxScore.enteredAt !== null) {
         // Player exiting: add to accumulated time
-        const segmentDuration = gameClockSeconds - onCourtRecord.lastSubInTimestamp;
+        const segmentDuration = boxScore.enteredAt - gameClockSeconds;
         timeOnCourtSeconds += Math.max(0, segmentDuration);
       }
 
-      await tx.gameOnCourt.update({
+      await tx.boxScore.update({
         where: { gameId_playerId: { gameId, playerId } },
         data: {
-          onCourt: isSubIn,
-          lastSubInTimestamp: isSubIn ? gameClockSeconds : null,
+          isOnCourt: isSubIn,
+          enteredAt: isSubIn ? gameClockSeconds : null,
           timeOnCourtSeconds,
         },
       });

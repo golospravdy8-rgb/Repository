@@ -2,7 +2,6 @@ import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import GamePdfButton from "@/components/public/GamePdfButton";
-import GameProtocol from "@/components/GameProtocol";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -150,7 +149,6 @@ export default async function GamePage({ params }: { params: Promise<{ id: strin
         boxScores: {
           include: { player: true },
         },
-        onCourt: true,
         substitutions: true,
       },
     });
@@ -631,7 +629,7 @@ export default async function GamePage({ params }: { params: Promise<{ id: strin
             {game.events.map((event) => (
               <div key={event.id} className="px-4 py-1.5 flex items-center gap-2 text-xs">
                 <span className="text-gray-400 w-6 flex-shrink-0">Q{event.quarter}</span>
-                {event.type === "POINTS" && (
+                {event.type === "POINTS" && event.points != null && (
                   <span
                     className="font-bold px-2 py-0.5 rounded text-white text-xs"
                     style={{ backgroundColor: event.points === 3 ? "#1a2744" : event.points === 2 ? "#f97316" : "#3b82f6" }}
@@ -664,9 +662,6 @@ export default async function GamePage({ params }: { params: Promise<{ id: strin
           </div>
         </div>
       )}
-
-      {/* FIBA Protocol */}
-      <GameProtocol game={game} />
 
     </div>
   );

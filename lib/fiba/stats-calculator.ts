@@ -79,7 +79,7 @@ export function formatCourtTime(seconds: number): string {
 /**
  * Get player court time in MM:SS format
  *
- * Uses GameOnCourt.timeOnCourtSeconds which is updated on each substitution.
+ * Uses BoxScore.timeOnCourtSeconds which is updated on each substitution.
  * If player is currently on court, adds time from last entry to current moment.
  *
  * @param gameId - Game ID
@@ -92,18 +92,18 @@ export async function getPlayerCourtTime(
   playerId: number,
   currentGameClockSeconds?: number
 ): Promise<string> {
-  const onCourtRecord = await prisma.gameOnCourt.findUnique({
+  const boxScore = await prisma.boxScore.findUnique({
     where: { gameId_playerId: { gameId, playerId } },
   });
 
-  if (!onCourtRecord) return "0:00";
+  if (!boxScore) return "0:00";
 
-  let totalSeconds = onCourtRecord.timeOnCourtSeconds || 0;
+  let totalSeconds = boxScore.timeOnCourtSeconds || 0;
 
   // If currently on court, add current segment
-  if (onCourtRecord.onCourt && onCourtRecord.lastSubInTimestamp !== null) {
+  if (boxScore.isOnCourt && boxScore.enteredAt !== null) {
     const gameClock = currentGameClockSeconds || 0;
-    const currentSegment = gameClock - onCourtRecord.lastSubInTimestamp;
+    const currentSegment = gameClock - boxScore.enteredAt;
     totalSeconds += Math.max(0, currentSegment);
   }
 

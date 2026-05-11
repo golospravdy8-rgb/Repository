@@ -244,50 +244,9 @@ export async function startGame(gameId: number) {
   if (game.homeTeam.players.length < 5) throw new Error(`Home team has only ${game.homeTeam.players.length} players, need at least 5`);
   if (game.awayTeam.players.length < 5) throw new Error(`Away team has only ${game.awayTeam.players.length} players, need at least 5`);
 
-  // Initialize GameOnCourt for ALL players, but only mark first 5 as on-court
+  // Initialize BoxScore for starters
   const homeStarterIds = new Set(game.homeTeam.players.slice(0, 5).map(p => p.id));
   const awayStarterIds = new Set(game.awayTeam.players.slice(0, 5).map(p => p.id));
-
-  const starterOps = [
-    // Home team: all players
-    ...game.homeTeam.players.map((p) =>
-      prisma.gameOnCourt.upsert({
-        where: { gameId_playerId: { gameId, playerId: p.id } },
-        update: {
-          onCourt: homeStarterIds.has(p.id),
-          isStarter: homeStarterIds.has(p.id),
-          lastSubInTimestamp: homeStarterIds.has(p.id) ? 0 : null,
-        },
-        create: {
-          gameId,
-          playerId: p.id,
-          teamId: game.homeTeamId,
-          onCourt: homeStarterIds.has(p.id),
-          isStarter: homeStarterIds.has(p.id),
-          lastSubInTimestamp: homeStarterIds.has(p.id) ? 0 : null,
-        },
-      })
-    ),
-    // Away team: all players
-    ...game.awayTeam.players.map((p) =>
-      prisma.gameOnCourt.upsert({
-        where: { gameId_playerId: { gameId, playerId: p.id } },
-        update: {
-          onCourt: awayStarterIds.has(p.id),
-          isStarter: awayStarterIds.has(p.id),
-          lastSubInTimestamp: awayStarterIds.has(p.id) ? 0 : null,
-        },
-        create: {
-          gameId,
-          playerId: p.id,
-          teamId: game.awayTeamId,
-          onCourt: awayStarterIds.has(p.id),
-          isStarter: awayStarterIds.has(p.id),
-          lastSubInTimestamp: awayStarterIds.has(p.id) ? 0 : null,
-        },
-      })
-    ),
-  ];
 
   // Initialize BoxScore for ALL players (home + away) with 0 values
   const allPlayers = [...game.homeTeam.players, ...game.awayTeam.players];
@@ -307,6 +266,8 @@ export async function startGame(gameId: number) {
         fouls: 0,
         turnovers: 0,
         isStarter: homeStarterIds.has(p.id) || awayStarterIds.has(p.id),
+        isOnCourt: homeStarterIds.has(p.id) || awayStarterIds.has(p.id),
+        enteredAt: (homeStarterIds.has(p.id) || awayStarterIds.has(p.id)) ? 600 : null,
       },
     })
   );
@@ -316,7 +277,6 @@ export async function startGame(gameId: number) {
       where: { id: gameId },
       data: { status: "LIVE", quarter: 1, homeScore: 0, awayScore: 0 },
     }),
-    ...starterOps,
     ...boxScoreOps,
   ]);
 
@@ -773,30 +733,30 @@ export async function addSubstitution(
     prisma.gameSubstitution.create({
       data: { gameId, teamId, playerId: playerInId, action: "in", quarter, gameTime },
     }),
-    // Update on-court status
-    prisma.gameOnCourt.update({
+    // Update on-court status via BoxScore
+    prisma.boxScore.update({
       where: { gameId_playerId: { gameId, playerId: playerOutId } },
-      data: { onCourt: false },
+      data: { isOnCourt: false },
     }),
-    prisma.gameOnCourt.upsert({
+    prisma.boxScore.upsert({
       where: { gameId_playerId: { gameId, playerId: playerInId } },
-      update: { onCourt: true },
-      create: { gameId, playerId: playerInId, teamId, onCourt: true },
+      update: { isOnCourt: true },
+      create: { gameId, playerId: playerInId, teamId, isOnCourt: true },
     }),
   ]);
 
   revalidatePath(`/admin/games/${gameId}`);
 }
 
-/** Update on-court player tracking */
+/** Update on-court player tracking via BoxScore */
 export async function updateOnCourt(gameId: number, playerId: number, teamId: number, onCourt: boolean) {
   await requireAuth();
 
   await prisma.$transaction([
-    prisma.gameOnCourt.upsert({
+    prisma.boxScore.upsert({
       where: { gameId_playerId: { gameId, playerId } },
-      update: { onCourt },
-      create: { gameId, playerId, teamId, onCourt },
+      update: { isOnCourt: onCourt },
+      create: { gameId, playerId, teamId, isOnCourt: onCourt },
     }),
   ]);
 
@@ -896,8 +856,8 @@ export async function addScoreWithType(
 
       // Update +/- for all on-court players (WITHIN TRANSACTION)
       console.log(`[addScoreWithType] TX: Finding on-court players for team ${teamId}...`);
-      const onCourtPlayers = await tx.gameOnCourt.findMany({
-        where: { gameId, teamId, onCourt: true },
+      const onCourtPlayers = await tx.boxScore.findMany({
+        where: { gameId, teamId, isOnCourt: true },
       });
       console.log(`[addScoreWithType] TX: Found ${onCourtPlayers.length} on-court players`);
 
@@ -941,8 +901,8 @@ export async function addScoreWithType(
       // Update opponent's on-court players with negative +/- (WITHIN TRANSACTION)
       console.log(`[addScoreWithType] TX: Finding opponent on-court players...`);
       const opponentTeamId = isHome ? game.awayTeamId : game.homeTeamId;
-      const opponentOnCourt = await tx.gameOnCourt.findMany({
-        where: { gameId, teamId: opponentTeamId, onCourt: true },
+      const opponentOnCourt = await tx.boxScore.findMany({
+        where: { gameId, teamId: opponentTeamId, isOnCourt: true },
       });
       console.log(`[addScoreWithType] TX: Found ${opponentOnCourt.length} opponent on-court players`);
 
@@ -1165,40 +1125,40 @@ export async function addSubstitutionRefactored(
     throw new Error("Both players must be on the same team");
   }
 
-  // Atomic transaction: update both GameOnCourt records + log substitution event
+  // Atomic transaction: update both BoxScore records + log substitution event
   await prisma.$transaction(async (tx) => {
     // Player OUT: add played time, mark off-court
-    const playerOutState = await tx.gameOnCourt.findUnique({
+    const playerOutState = await tx.boxScore.findUnique({
       where: { gameId_playerId: { gameId, playerId: playerOutId } },
     });
 
-    if (playerOutState && playerOutState.onCourt && playerOutState.lastSubInTimestamp !== null) {
-      const playedSeconds = gameClockSeconds - playerOutState.lastSubInTimestamp;
-      await tx.gameOnCourt.update({
+    if (playerOutState && playerOutState.isOnCourt && playerOutState.enteredAt !== null) {
+      const playedSeconds = playerOutState.enteredAt - gameClockSeconds;
+      await tx.boxScore.update({
         where: { gameId_playerId: { gameId, playerId: playerOutId } },
         data: {
-          onCourt: false,
+          isOnCourt: false,
           timeOnCourtSeconds: { increment: playedSeconds },
-          lastSubInTimestamp: null,
+          enteredAt: null,
         },
       });
     } else {
-      // Fallback: ensure record exists and is marked off-court
-      await tx.gameOnCourt.update({
+      // Fallback: ensure record is marked off-court
+      await tx.boxScore.update({
         where: { gameId_playerId: { gameId, playerId: playerOutId } },
         data: {
-          onCourt: false,
-          lastSubInTimestamp: null,
+          isOnCourt: false,
+          enteredAt: null,
         },
       });
     }
 
     // Player IN: mark on-court, record entry time
-    await tx.gameOnCourt.update({
+    await tx.boxScore.update({
       where: { gameId_playerId: { gameId, playerId: playerInId } },
       data: {
-        onCourt: true,
-        lastSubInTimestamp: gameClockSeconds,
+        isOnCourt: true,
+        enteredAt: gameClockSeconds,
       },
     });
 
@@ -1263,64 +1223,23 @@ export async function startGameRefactored(
     ? new Set(awayStarterIds)
     : new Set(game.awayTeam.players.slice(0, 5).map(p => p.id));
 
-  // Initialize GameOnCourt for ALL players
-  const starterOps = [
-    ...game.homeTeam.players.map((p) =>
-      prisma.gameOnCourt.upsert({
-        where: { gameId_playerId: { gameId, playerId: p.id } },
-        update: {
-          onCourt: homeStarters.has(p.id),
-          isStarter: homeStarters.has(p.id),
-          lastSubInTimestamp: homeStarters.has(p.id) ? 0 : null,
-        },
-        create: {
-          gameId,
-          playerId: p.id,
-          teamId: game.homeTeamId,
-          onCourt: homeStarters.has(p.id),
-          isStarter: homeStarters.has(p.id),
-          lastSubInTimestamp: homeStarters.has(p.id) ? 0 : null,
-        },
-      })
-    ),
-    ...game.awayTeam.players.map((p) =>
-      prisma.gameOnCourt.upsert({
-        where: { gameId_playerId: { gameId, playerId: p.id } },
-        update: {
-          onCourt: awayStarters.has(p.id),
-          isStarter: awayStarters.has(p.id),
-          lastSubInTimestamp: awayStarters.has(p.id) ? 0 : null,
-        },
-        create: {
-          gameId,
-          playerId: p.id,
-          teamId: game.awayTeamId,
-          onCourt: awayStarters.has(p.id),
-          isStarter: awayStarters.has(p.id),
-          lastSubInTimestamp: awayStarters.has(p.id) ? 0 : null,
-        },
-      })
-    ),
-  ];
-
   // Initialize BoxScore for ALL players
   const allPlayers = [...game.homeTeam.players, ...game.awayTeam.players];
   const boxScoreOps = allPlayers.map((p) =>
     prisma.boxScore.upsert({
       where: { gameId_playerId: { gameId, playerId: p.id } },
-      update: {},
+      update: {
+        isOnCourt: homeStarters.has(p.id) || awayStarters.has(p.id),
+        isStarter: homeStarters.has(p.id) || awayStarters.has(p.id),
+        enteredAt: (homeStarters.has(p.id) || awayStarters.has(p.id)) ? 600 : null,
+      },
       create: {
         gameId,
         playerId: p.id,
         teamId: p.teamId,
-        points: 0,
-        rebounds: 0,
-        assists: 0,
-        steals: 0,
-        blocks: 0,
-        fouls: 0,
-        turnovers: 0,
         isStarter: homeStarters.has(p.id) || awayStarters.has(p.id),
+        isOnCourt: homeStarters.has(p.id) || awayStarters.has(p.id),
+        enteredAt: (homeStarters.has(p.id) || awayStarters.has(p.id)) ? 600 : null,
       },
     })
   );
@@ -1330,7 +1249,6 @@ export async function startGameRefactored(
       where: { id: gameId },
       data: { status: "LIVE", quarter: 1, homeScore: 0, awayScore: 0 },
     }),
-    ...starterOps,
     ...boxScoreOps,
   ]);
 
@@ -1348,7 +1266,6 @@ export async function recalcPlusMinus(gameId: number) {
     where: { id: gameId },
     include: {
       events: true,
-      onCourt: true,
       boxScores: true,
     },
   });
@@ -1370,8 +1287,7 @@ export async function recalcPlusMinus(gameId: number) {
 
     // Simple approach: sum points scored by team while player was on-court (approximation)
     // For accurate +/-, would need to track exact on-court windows by substitution
-    const playerOnCourt = game.onCourt.find(oc => oc.playerId === bs.playerId);
-    if (playerOnCourt && playerOnCourt.onCourt) {
+    if (bs.isOnCourt) {
       // Player currently on-court: use current quarter's scoring
       const currentQScore = quarterTeamScore[game.quarter]?.[bs.teamId] || 0;
       const otherTeamId = bs.teamId === game.homeTeamId ? game.awayTeamId : game.homeTeamId;

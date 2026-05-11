@@ -1,11 +1,12 @@
 "use client";
 
-import React, { useState, useRef, useCallback, useEffect } from "react";
+import React, { useState, useRef, useCallback, useEffect, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import type { Game, Team, Player, GameEvent, BoxScore } from "@prisma/client";
 import StatEntryGrid from "./StatEntryGrid";
 import FoulPlayerModal from "@/components/modals/FoulPlayerModal";
 import FreeThrowModal from "@/components/modals/FreeThrowModal";
-import { recordGameAction, recordSubstitution, undoGameAction } from "@/app/actions/game-events";
+import { recordGameAction, recordSubstitution, undoGameAction, updateGameTime } from "@/app/actions/game-events";
 
 type GameWithAll = Game & {
   homeTeam: Team & { players: Player[] };
@@ -13,7 +14,6 @@ type GameWithAll = Game & {
   events: (GameEvent & {
     player: Pick<Player, "firstName" | "lastName" | "number"> | null;
   })[];
-  onCourt: Array<{ gameId: number; playerId: number; teamId: number; onCourt: boolean }>;
   boxScores: (BoxScore & { player: Player })[];
 };
 
@@ -38,6 +38,13 @@ function getTeamFoulCount(events: GameEvent[], teamId: number, quarter: number) 
   ).length;
 }
 
+function reorder(list: number[], from: number, to: number): number[] {
+  const result = [...list];
+  const [removed] = result.splice(from, 1);
+  result.splice(to, 0, removed);
+  return result;
+}
+
 const CourtIndicator = React.memo(({ isOnCourt }: { isOnCourt: boolean }) => (
   <span style={{
     width: "8px",
@@ -45,26 +52,45 @@ const CourtIndicator = React.memo(({ isOnCourt }: { isOnCourt: boolean }) => (
     borderRadius: "50%",
     background: isOnCourt ? "#39d983" : "#3a4a5a",
     flexShrink: 0,
-    boxShadow: isOnCourt ? "0 0 4px rgba(57, 217, 131, 0.6)" : "none",
-    transition: "background-color 0.3s, box-shadow 0.3s"
   }} />
 ));
 CourtIndicator.displayName = "CourtIndicator";
 
-function RosterPanel({ players, teamId, team, selectedId, onSelect, isHome, events, game, getDisplayTime }: {
+const DraggableRosterPanel = React.memo(function DraggableRosterPanel({
+  players,
+  order,
+  setOrder,
+  isHome,
+  team,
+}: {
   players: Player[];
-  teamId: number;
-  team: Team;
-  selectedId: number | null;
-  onSelect: (id: number) => void;
+  order: number[];
+  setOrder: (fn: (prev: number[]) => number[]) => void;
   isHome: boolean;
-  events: GameEvent[];
-  game: GameWithAll;
-  getDisplayTime: (playerId: number) => string;
+  team: Team;
 }) {
-  const onCourtSet = new Set(game.onCourt.filter(oc => oc.onCourt && oc.teamId === teamId).map(oc => oc.playerId));
-  const onCourt = players.filter(p => onCourtSet.has(p.id));
-  const bench = players.filter(p => !onCourtSet.has(p.id));
+  const dragIndexRef = useRef<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+
+  const handleDragStart = (index: number) => {
+    dragIndexRef.current = index;
+  };
+
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    setDragOverIndex(index);
+  };
+
+  const handleDrop = (toIndex: number) => {
+    if (dragIndexRef.current === null) return;
+    setOrder(prev => reorder(prev, dragIndexRef.current!, toIndex));
+    dragIndexRef.current = null;
+    setDragOverIndex(null);
+  };
+
+  const handleDragLeave = () => {
+    setDragOverIndex(null);
+  };
 
   return (
     <div style={{
@@ -90,102 +116,250 @@ function RosterPanel({ players, teamId, team, selectedId, onSelect, isHome, even
         {team.name}
       </div>
 
+      {/* Зелений заголовок: стартова п'ятірка */}
       <div style={{
         fontSize: "9px",
         color: isHome ? "#2ecc71" : "#059669",
-        padding: "1px 3px",
+        padding: "4px 3px",
         marginBottom: "0px",
         fontWeight: "bold",
-        marginTop: "1px"
+        marginTop: "0px",
+        textTransform: "uppercase",
+        letterSpacing: ".3px",
+        background: isHome ? "#0a1f30" : "#f0fdf4",
+        borderBottom: "2px solid " + (isHome ? "#2ecc71" : "#059669"),
       }}>
-        ● На паркеті ({onCourt.length})
+        🟢 СТАРТОВА П'ЯТІРКА (5)
       </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: "0px" }}>
-        {onCourt.map(p => {
-          const foulCount = getPlayerFoulCount(events, p.id);
-          return (
-            <button
-              key={p.id}
-              onClick={() => onSelect(p.id)}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "2px",
-                padding: "2px 4px",
-                borderRadius: "1px",
-                cursor: "pointer",
-                background: selectedId === p.id ? (isHome ? "#163a5c" : "#fed7aa") : "transparent",
-                width: "100%",
-                border: "none",
-                fontSize: "10px",
-                textAlign: "left",
-                color: isHome ? (selectedId === p.id ? "#5ab3f4" : "#c8d8e8") : (selectedId === p.id ? "#92400e" : "#374151"),
-                minHeight: "24px",
-                margin: 0,
-                overflow: "hidden"
-              }}
-            >
-              <CourtIndicator isOnCourt={true} />
-              <span style={{ minWidth: "18px", fontWeight: 700, fontSize: "16px" }}>#{p.number}</span>
-              <span style={{ fontSize: "15px" }}>{p.lastName}</span>
-              <span style={{ fontSize: "10px", color: isHome ? "#5ab3f4" : "#6b7280", marginLeft: "4px" }}>{getDisplayTime(p.id)}</span>
-              <div style={{ display: "flex", gap: "2px", marginLeft: "auto", flexShrink: 0 }}>
-                {[0, 1, 2, 3, 4].map(i => (
-                  <div key={i} style={{ width: "6px", height: "6px", borderRadius: "1px", background: foulCount > i ? "#ef4444" : "#3a3a3a" }} />
-                ))}
-              </div>
-            </button>
-          );
-        })}
+
+      {/* Стартери (перші 5) */}
+      <div style={{ display: "flex", flexDirection: "column", gap: "0px", marginBottom: "0px" }}>
+        {players.slice(0, 5).map((p, index) => (
+          <div
+            key={p.id}
+            draggable
+            onDragStart={() => handleDragStart(index)}
+            onDragOver={(e) => handleDragOver(e, index)}
+            onDrop={() => handleDrop(index)}
+            onDragLeave={handleDragLeave}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "2px",
+              padding: "2px 4px",
+              borderRadius: "1px",
+              background: isHome ? "#0d2030" : "#f0f0f0",
+              width: "100%",
+              border: dragOverIndex === index ? `1px dashed ${isHome ? "#2ecc71" : "#059669"}` : "1px solid transparent",
+              opacity: dragIndexRef.current === index ? 0.5 : 1,
+              cursor: "grab",
+              fontSize: "10px",
+              color: isHome ? "#2ecc71" : "#374151",
+              minHeight: "24px",
+              margin: 0,
+              overflow: "hidden",
+              fontWeight: "700",
+              backgroundColor: dragOverIndex === index ? (isHome ? "rgba(46, 204, 113, 0.1)" : "rgba(5, 150, 105, 0.1)") : (isHome ? "#0d2030" : "#f0f0f0"),
+              transition: "all 150ms ease-in-out",
+            }}
+          >
+            <span style={{ minWidth: "18px", fontWeight: 700, fontSize: "16px" }}>#{p.number}</span>
+            <span style={{ fontSize: "15px", fontWeight: "700" }}>{p.lastName}</span>
+          </div>
+        ))}
       </div>
+
+      {/* Сірий розділювач: лавка */}
+      {players.length > 5 && (
+        <div style={{
+          fontSize: "9px",
+          color: isHome ? "#6b8caa" : "#9ca3af",
+          padding: "4px 3px",
+          marginBottom: "0px",
+          fontWeight: "bold",
+          marginTop: "0px",
+          textTransform: "uppercase",
+          letterSpacing: ".3px",
+          background: isHome ? "#0d1520" : "#f9fafb",
+          borderTop: "1px solid " + (isHome ? "#1a2e40" : "#e5e7eb"),
+          borderBottom: "1px solid " + (isHome ? "#1a3a50" : "#d1d5db"),
+        }}>
+          🪑 ЛАВКА ({players.length - 5})
+        </div>
+      )}
+
+      {/* Запасні (після 5-го) */}
+      <div style={{ display: "flex", flexDirection: "column", gap: "0px", flex: 1, overflowY: "auto", background: isHome ? "#0d1520" : "#f9fafb" }}>
+        {players.slice(5).map((p, index) => (
+          <div
+            key={p.id}
+            draggable
+            onDragStart={() => handleDragStart(index + 5)}
+            onDragOver={(e) => handleDragOver(e, index + 5)}
+            onDrop={() => handleDrop(index + 5)}
+            onDragLeave={handleDragLeave}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "2px",
+              padding: "2px 4px",
+              borderRadius: "1px",
+              background: "transparent",
+              width: "100%",
+              border: dragOverIndex === index + 5 ? `1px dashed ${isHome ? "#6b8caa" : "#9ca3af"}` : "1px solid transparent",
+              opacity: dragIndexRef.current === index + 5 ? 0.5 : 1,
+              cursor: "grab",
+              fontSize: "10px",
+              color: isHome ? "#c8d8e8" : "#6b7280",
+              minHeight: "24px",
+              margin: 0,
+              overflow: "hidden",
+              fontWeight: "500",
+              backgroundColor: dragOverIndex === index + 5 ? (isHome ? "rgba(107, 140, 170, 0.1)" : "rgba(156, 163, 175, 0.1)") : "transparent",
+              transition: "all 150ms ease-in-out",
+            }}
+          >
+            <span style={{ minWidth: "18px", fontWeight: 700, fontSize: "16px" }}>#{p.number}</span>
+            <span style={{ fontSize: "15px", fontWeight: "500" }}>{p.lastName}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+});
+DraggableRosterPanel.displayName = "DraggableRosterPanel";
+
+const RosterPanel = React.memo(function RosterPanel({ players, teamId, team, selectedId, onSelect, isHome, events, game, getDisplayTime }: {
+  players: Player[];
+  teamId: number;
+  team: Team;
+  selectedId: number | null;
+  onSelect: (id: number) => void;
+  isHome: boolean;
+  events: GameEvent[];
+  game: GameWithAll;
+  getDisplayTime: (playerId: number) => string;
+}) {
+  // Single source of truth: read only from BoxScore
+  const onCourtSet = new Set(
+    game.boxScores
+      .filter(bs => bs.isOnCourt && bs.teamId === teamId)
+      .map(bs => bs.playerId)
+  );
+
+  const onCourt = players.filter(p => onCourtSet.has(p.id)).sort((a, b) => {
+    const aPosition = game.boxScores.find(bs => bs.playerId === a.id)?.lineupPosition ?? 0;
+    const bPosition = game.boxScores.find(bs => bs.playerId === b.id)?.lineupPosition ?? 0;
+    // Sort by lineupPosition: 1-5 (on court) stay in order, 0 (shouldn't happen but defensive sort)
+    return aPosition - bPosition;
+  });
+
+  const bench = players.filter(p => !onCourtSet.has(p.id));
+
+  const renderPlayerButton = (p: Player, isOnCourt: boolean) => {
+    const foulCount = getPlayerFoulCount(events, p.id);
+    const bs = game.boxScores.find(bs => bs.playerId === p.id);
+    const isStarter = bs?.isStarter ?? false;
+
+    return (
+      <button
+        key={p.id}
+        onClick={() => onSelect(p.id)}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "2px",
+          padding: "2px 4px",
+          borderRadius: "1px",
+          cursor: "pointer",
+          background: selectedId === p.id ? (isHome ? "#163a5c" : "#fed7aa") : (isOnCourt ? (isHome ? "#0d2030" : "#f0f0f0") : "transparent"),
+          width: "100%",
+          border: "none",
+          fontSize: "10px",
+          textAlign: "left",
+          color: isHome ? (selectedId === p.id ? "#5ab3f4" : isOnCourt ? "#2ecc71" : "#c8d8e8") : (selectedId === p.id ? "#92400e" : isOnCourt ? "#374151" : "#6b7280"),
+          minHeight: "24px",
+          margin: 0,
+          overflow: "hidden",
+          fontWeight: isOnCourt ? "700" : "500"
+        }}
+      >
+        <CourtIndicator isOnCourt={isOnCourt} />
+        <span style={{ minWidth: "18px", fontWeight: 700, fontSize: "16px" }}>#{p.number}</span>
+        <span style={{ fontSize: "15px", fontWeight: isOnCourt ? "700" : "500" }}>{p.lastName}</span>
+        <span style={{ fontSize: "10px", color: isHome ? (isOnCourt ? "#2ecc71" : "#5ab3f4") : "#6b7280", marginLeft: "4px" }}>{getDisplayTime(p.id)}</span>
+        <div style={{ display: "flex", gap: "2px", marginLeft: "auto", flexShrink: 0 }}>
+          {[0, 1, 2, 3, 4].map(i => (
+            <div key={i} style={{ width: "6px", height: "6px", borderRadius: "1px", background: foulCount > i ? "#ef4444" : "#3a3a3a" }} />
+          ))}
+        </div>
+      </button>
+    );
+  };
+
+  return (
+    <div style={{
+      padding: "0 2px",
+      background: isHome ? "#0d1520" : "#f3f4f6",
+      fontSize: "11px",
+      overflowY: "auto",
+      display: "flex",
+      flexDirection: "column",
+      minHeight: 0,
+      gap: "0px"
+    }}>
+      <div style={{
+        fontSize: "8px",
+        color: isHome ? "#3a6fa5" : "#4a7fa5",
+        textTransform: "uppercase",
+        letterSpacing: ".3px",
+        padding: "2px 3px",
+        marginBottom: "0px",
+        whiteSpace: "nowrap",
+        fontWeight: "600"
+      }}>
+        {team.name}
+      </div>
+
+      {onCourt.length > 0 && (
+        <>
+          <div style={{
+            fontSize: "9px",
+            color: isHome ? "#2ecc71" : "#059669",
+            padding: "4px 3px",
+            marginBottom: "0px",
+            fontWeight: "bold",
+            marginTop: "0px",
+            textTransform: "uppercase",
+            letterSpacing: ".3px",
+            background: isHome ? "#0a1f30" : "#f0fdf4",
+            borderBottom: "2px solid " + (isHome ? "#2ecc71" : "#059669"),
+          }}>
+            🟢 МАЙДАНЧИК ({onCourt.length})
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: "0px", marginBottom: "0px" }}>
+            {onCourt.map(p => renderPlayerButton(p, true))}
+          </div>
+        </>
+      )}
 
       <div style={{
         fontSize: "9px",
-        color: isHome ? "#4a7fa5" : "#6b7280",
-        padding: "1px 3px",
+        color: isHome ? "#6b8caa" : "#9ca3af",
+        padding: "4px 3px",
         marginBottom: "0px",
         fontWeight: "bold",
-        marginTop: "1px"
+        marginTop: "0px",
+        textTransform: "uppercase",
+        letterSpacing: ".3px",
+        background: isHome ? "#0d1520" : "#f9fafb",
+        borderTop: "1px solid " + (isHome ? "#1a2e40" : "#e5e7eb"),
+        borderBottom: "1px solid " + (isHome ? "#1a3a50" : "#d1d5db"),
       }}>
-        ○ Лавка ({bench.length})
+        🪑 ЛАВКА ({bench.length})
       </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: "0px", flex: 1, overflowY: "auto" }}>
-        {bench.map(p => {
-          const foulCount = getPlayerFoulCount(events, p.id);
-          return (
-            <button
-              key={p.id}
-              onClick={() => onSelect(p.id)}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "2px",
-                padding: "2px 4px",
-                borderRadius: "1px",
-                cursor: "pointer",
-                background: selectedId === p.id ? (isHome ? "#163a5c" : "#fed7aa") : "transparent",
-                width: "100%",
-                border: "none",
-                fontSize: "10px",
-                textAlign: "left",
-                color: isHome ? (selectedId === p.id ? "#5ab3f4" : "#c8d8e8") : (selectedId === p.id ? "#92400e" : "#6b7280"),
-                minHeight: "24px",
-                margin: 0,
-                overflow: "hidden"
-              }}
-            >
-              <CourtIndicator isOnCourt={false} />
-              <span style={{ minWidth: "18px", fontWeight: 700, fontSize: "16px" }}>#{p.number}</span>
-              <span style={{ fontSize: "15px" }}>{p.lastName}</span>
-              <span style={{ fontSize: "10px", color: isHome ? "#5ab3f4" : "#6b7280", marginLeft: "4px" }}>{getDisplayTime(p.id)}</span>
-              <div style={{ display: "flex", gap: "2px", marginLeft: "auto", flexShrink: 0 }}>
-                {[0, 1, 2, 3, 4].map(i => (
-                  <div key={i} style={{ width: "6px", height: "6px", borderRadius: "1px", background: foulCount > i ? "#ef4444" : "#3a3a3a" }} />
-                ))}
-              </div>
-            </button>
-          );
-        })}
+      <div style={{ display: "flex", flexDirection: "column", gap: "0px", flex: 1, overflowY: "auto", background: isHome ? "#0d1520" : "#f9fafb" }}>
+        {bench.map(p => renderPlayerButton(p, false))}
       </div>
 
       <div style={{ background: isHome ? "#0d1520" : "#f3f4f6", padding: "4px 3px", borderTop: "1px solid " + (isHome ? "#1a2e40" : "#e5e7eb"), display: "flex", gap: "4px", justifyContent: "center", fontSize: "9px", color: isHome ? "#3a6fa5" : "#6b7280" }}>
@@ -200,10 +374,13 @@ function RosterPanel({ players, teamId, team, selectedId, onSelect, isHome, even
       </div>
     </div>
   );
-}
+});
 
 export default function LiveScoreTracker({ game: initialGame }: { game: GameWithAll }) {
-  const [game, setGame] = useState<GameWithAll>(initialGame);
+  const router = useRouter();
+  // Use prop directly — no shadow state. Updates via router.refresh()
+  const game = initialGame;
+
   const [selectedPlayerId, setSelectedPlayerId] = useState<number | null>(null);
   const [showSubModal, setShowSubModal] = useState(false);
   const [subPlayerOut, setSubPlayerOut] = useState<number | null>(null);
@@ -216,30 +393,98 @@ export default function LiveScoreTracker({ game: initialGame }: { game: GameWith
   const [eventType, setEventType] = useState<"normal" | "second_chance" | "fastbreak">("normal");
   const [isLoading, setIsLoading] = useState(false);
   const [actionHistory, setActionHistory] = useState<Array<{ id: string; type: string }>>([]);
-  const [gameTimeLeft, setGameTimeLeft] = useState(600); // seconds, starts at 10:00
+  // Ініціалізуємо з currentTimeLeft з БД (за замовчуванням 600 якщо не встановлено)
+  const [gameTimeLeft, setGameTimeLeft] = useState(initialGame.currentTimeLeft || 600);
 
-  const enteredAtRef = useRef<Map<number, number>>(new Map());
-  const playerTimeTrackerRef = useRef<Map<number, number>>(new Map());
+  // Порядок гравців для drag & drop (тільки коли status === "SCHEDULED")
+  const [homeOrder, setHomeOrder] = useState<number[]>(
+    () => [...initialGame.homeTeam.players].sort((a, b) => a.number - b.number).map(p => p.id)
+  );
+  const [awayOrder, setAwayOrder] = useState<number[]>(
+    () => [...initialGame.awayTeam.players].sort((a, b) => a.number - b.number).map(p => p.id)
+  );
+
   const gameStartTimeRef = useRef<number | null>(null);
+  const pausedTimeRef = useRef<number | null>(null);
+  // NOTE: Don't initialize here — let useEffect set it on game change
+  // This prevents stale ref between games
+  const lastSyncTimeRef = useRef<number>(600);
 
   const isLive = game.status === "LIVE";
   const isScheduled = game.status === "SCHEDULED";
 
   useEffect(() => {
-    setGame(initialGame);
-  }, [initialGame]);
+    // 🔴 AGGRESSIVE STATE RESET on game change
+    // This effect fires whenever ANY of these change, ensuring clean state
+    // (game prop updates are automatic — no setGame needed)
+
+    // STEP 1: Reset ALL refs explicitly (no closure trap)
+    gameStartTimeRef.current = null;
+    pausedTimeRef.current = null;
+
+    // STEP 2: Reset ALL UI state (substitution, modals, selections)
+    setSelectedPlayerId(null);
+    setShowSubModal(false);
+    setSubPlayerOut(null);
+    setSubPlayerIn(null);
+    setShowFoulModal(false);
+    setCurrentFoulPlayerId(null);
+    setCurrentFoulType(null);
+    setShowFreeThrowModal(false);
+    setActionHistory([]);
+
+    // STEP 3: Sync timer from DB
+    const dbTime = initialGame.currentTimeLeft || 600;
+    setGameTimeLeft(dbTime);
+    lastSyncTimeRef.current = dbTime;
+
+    // STEP 4: Re-initialize timer based on game status (fresh start for new game)
+    if (initialGame.status === "LIVE") {
+      // Game is live: set ref to calculate elapsed seconds from DB time
+      gameStartTimeRef.current = Date.now() - (600 - dbTime) * 1000;
+      pausedTimeRef.current = null;
+    } else if (initialGame.status === "PAUSED") {
+      // Game is paused: set paused ref, don't start timer
+      gameStartTimeRef.current = null;
+      pausedTimeRef.current = dbTime;
+    } else {
+      // Game is scheduled: no timer yet
+      gameStartTimeRef.current = null;
+      pausedTimeRef.current = null;
+    }
+  }, [
+    initialGame.id,              // ← Game ID changed
+    initialGame.status,          // ← Status changed (SCHEDULED → LIVE → PAUSED → FINISHED)
+    initialGame.currentTimeLeft, // ← Timer synced from DB
+    initialGame.quarter,         // ← Quarter advanced
+  ]); // STRONG dependency!
 
   useEffect(() => {
+    console.log('[TIMER-DEBUG-2] useEffect triggered, isLive:', isLive, 'game.status:', game.status);
     if (!isLive) {
+      // PAUSE: save current time to pausedRef
+      if (gameStartTimeRef.current) {
+        const elapsedSeconds = Math.floor((Date.now() - gameStartTimeRef.current) / 1000);
+        pausedTimeRef.current = 600 - elapsedSeconds;
+      }
       gameStartTimeRef.current = null;
       return;
     }
 
-    if (!gameStartTimeRef.current) {
+    // START: restore timer or begin fresh
+    // Note: On new game, refs are reset by first useEffect, so this always starts fresh
+    if (!gameStartTimeRef.current && pausedTimeRef.current !== null) {
+      // Resume from pause
+      const timeToRecover = pausedTimeRef.current;
+      gameStartTimeRef.current = Date.now() - (600 - timeToRecover) * 1000;
+      pausedTimeRef.current = null;
+    } else if (!gameStartTimeRef.current) {
+      // Fresh start (new game)
       gameStartTimeRef.current = Date.now();
     }
 
     const interval = setInterval(() => {
+      console.log('[TIMER-DEBUG-3] tick, timeLeft:', gameTimeLeft);
       if (gameStartTimeRef.current) {
         const elapsedSeconds = Math.floor((Date.now() - gameStartTimeRef.current) / 1000);
         const newTimeLeft = Math.max(0, 600 - elapsedSeconds);
@@ -248,10 +493,37 @@ export default function LiveScoreTracker({ game: initialGame }: { game: GameWith
     }, 100);
 
     return () => clearInterval(interval);
-  }, [isLive]);
+  }, [isLive, game.id]); // ← ADD game.id to reset timer on game change
 
-  const homePlayers = [...game.homeTeam.players].sort((a, b) => a.number - b.number);
-  const awayPlayers = [...game.awayTeam.players].sort((a, b) => a.number - b.number);
+  // Синхронізуємо таймер в БД periодично (мінімум раз на 5 секунд) коли гра активна
+  // This prevents excessive DB writes and race conditions
+  useEffect(() => {
+    if (!isLive || !gameTimeLeft) return;
+
+    // Only sync if time changed by ≥5 seconds (reduce concurrent writes)
+    const shouldSync = Math.abs(gameTimeLeft - lastSyncTimeRef.current) >= 5;
+    if (!shouldSync) return;
+
+    lastSyncTimeRef.current = gameTimeLeft;
+
+    // Async sync — don't wait for result (fire and forget)
+    updateGameTime({
+      gameId: game.id,
+      currentTimeLeft: gameTimeLeft,
+    }).catch(err => console.error("[syncGameTime]", err));
+  }, [gameTimeLeft, isLive, game.id]);
+
+  // При SCHEDULED — порядок з drag & drop (homeOrder/awayOrder)
+  // При LIVE/PAUSED/FINAL — сортування по номеру (drag & drop неактивний)
+  const allHomePlayers = [...game.homeTeam.players];
+  const allAwayPlayers = [...game.awayTeam.players];
+
+  const homePlayers = isScheduled
+    ? homeOrder.map(id => allHomePlayers.find(p => p.id === id)!).filter(Boolean)
+    : allHomePlayers.sort((a, b) => a.number - b.number);
+  const awayPlayers = isScheduled
+    ? awayOrder.map(id => allAwayPlayers.find(p => p.id === id)!).filter(Boolean)
+    : allAwayPlayers.sort((a, b) => a.number - b.number);
 
   const selectedPlayer = selectedPlayerId ? [...homePlayers, ...awayPlayers].find(p => p.id === selectedPlayerId) : null;
   const selectedTeamId = selectedPlayer ? selectedPlayer.teamId : game.homeTeamId;
@@ -259,52 +531,85 @@ export default function LiveScoreTracker({ game: initialGame }: { game: GameWith
 
   const allPlayers = [...homePlayers, ...awayPlayers];
 
+  // Memoize boxScores reference to stabilize getDisplayTime dependency
+  // This prevents unnecessary re-creation of getDisplayTime on every boxScore change
+  const memoizedBoxScores = useMemo(
+    () => game.boxScores,
+    [game.id] // Only re-memoize on new game
+  );
+
   const getDisplayTime = useCallback((playerId: number): string => {
-    const boxScore = game.boxScores.find(bs => bs.playerId === playerId);
-    if (!boxScore || !("timeOnCourtSeconds" in boxScore)) return "00:00";
-    return formatTime((boxScore as any).timeOnCourtSeconds || 0);
-  }, [game.boxScores]);
+    const boxScore = memoizedBoxScores.find(bs => bs.playerId === playerId);
+    if (!boxScore) return "00:00";
+
+    const accumulatedTime = boxScore.timeOnCourtSeconds || 0;
+
+    if (boxScore.isOnCourt && boxScore.enteredAt !== null) {
+      const entranceGameClock = boxScore.enteredAt;
+      const currentGameClock = gameTimeLeft;
+      // Formula: time in current session = (when entered) - (now)
+      // Example: entered at 600, now at 570 → 30 seconds in session
+      const timeInCurrentSession = Math.max(0, entranceGameClock - currentGameClock);
+      const totalTime = accumulatedTime + timeInCurrentSession;
+      return formatTime(totalTime);
+    }
+
+    return formatTime(accumulatedTime);
+  }, [memoizedBoxScores, gameTimeLeft]); // Stable dependencies!
 
   const recordAction = useCallback(async (
     actionType: string,
     payload: Record<string, any> = {}
   ) => {
     if (!selectedPlayerId && !["START_GAME", "START", "PAUSE", "NEXT_QUARTER", "END_GAME", "TIMEOUT"].includes(actionType)) {
-      console.warn("No player selected");
       return;
     }
 
     setIsLoading(true);
     try {
-      const gameClockSeconds = isLive ? gameTimeLeft : 600;
+      // 🔴 CRITICAL: Read FRESH values, don't rely on closure
+      // This ensures we're always using current game state, not stale closure values
+      const currentGame = game;
+      const currentGameTimeLeft = gameTimeLeft;
+      const gameClockSeconds = isLive ? currentGameTimeLeft : 600;
 
       if (actionType === "SUBSTITUTION" && subPlayerOut && subPlayerIn) {
         const result = await recordSubstitution({
-          gameId: game.id,
-          quarter: game.quarter,
+          gameId: currentGame.id,
+          quarter: currentGame.quarter,
           gameClockSeconds,
           playerOutId: subPlayerOut,
           playerInId: subPlayerIn,
         });
 
         if (result.success && result.updatedGame) {
-          setGame(result.updatedGame);
+          // Sync with server data via router refresh
+          router.refresh();
           setActionHistory(prev => [...prev, { id: String(Date.now()), type: "SUBSTITUTION" }]);
+          setSubPlayerOut(null);
+          setSubPlayerIn(null);
         } else {
           console.error("Substitution failed:", result.error);
         }
       } else {
+        // Для START_GAME — передати порядок гравців з drag & drop
+        const actionPayload = actionType === "START_GAME"
+          ? { ...payload, homePlayerOrder: homeOrder, awayPlayerOrder: awayOrder }
+          : payload;
+
         const result = await recordGameAction({
-          gameId: game.id,
+          gameId: currentGame.id,
           actionType,
           playerId: actionType === "TIMEOUT" ? null : selectedPlayerId,
           gameClockSeconds,
-          quarter: game.quarter,
-          payload,
+          quarter: currentGame.quarter,
+          payload: actionPayload,
         });
 
         if (result.success && result.updatedGame) {
-          setGame(result.updatedGame);
+          console.log('[TIMER-DEBUG-1] Server returned status:', result.updatedGame?.status);
+          // Sync with server data via router refresh
+          router.refresh();
           setActionHistory(prev => [...prev, { id: String(result.action?.id || Date.now()), type: actionType }]);
         } else {
           console.error("Action failed:", result.error);
@@ -315,7 +620,16 @@ export default function LiveScoreTracker({ game: initialGame }: { game: GameWith
     } finally {
       setIsLoading(false);
     }
-  }, [game.id, game.quarter, selectedPlayerId, subPlayerOut, subPlayerIn, gameTimeLeft, isLive]);
+  }, [
+    game,              // ← Full game object (includes all fields)
+    gameTimeLeft,      // ← Current timer value
+    isLive,            // ← Game status (LIVE vs not)
+    selectedPlayerId,  // ← Selected player
+    subPlayerOut,      // ← Sub out player
+    subPlayerIn,       // ← Sub in player
+    homeOrder,         // ← Player order for START_GAME
+    awayOrder,         // ← Player order for START_GAME
+  ]); // COMPREHENSIVE dependencies!
 
   const undoLastAction = useCallback(async () => {
     if (actionHistory.length === 0 || !game.events.length) return;
@@ -329,7 +643,8 @@ export default function LiveScoreTracker({ game: initialGame }: { game: GameWith
       });
 
       if (result.success && result.updatedGame) {
-        setGame(result.updatedGame);
+        // Sync with server data via router refresh
+        router.refresh();
         setActionHistory(prev => prev.slice(1));
       }
     } catch (error) {
@@ -383,7 +698,17 @@ export default function LiveScoreTracker({ game: initialGame }: { game: GameWith
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "200px 1fr 200px", flex: 1, overflow: "hidden", gap: 6, padding: 6, minHeight: 0, height: "100%" }}>
-        <RosterPanel players={homePlayers} teamId={game.homeTeamId} team={game.homeTeam} selectedId={selectedPlayerId} onSelect={setSelectedPlayerId} isHome={true} events={game.events} game={game} getDisplayTime={getDisplayTime} />
+        {isScheduled ? (
+          <DraggableRosterPanel
+            players={homePlayers}
+            order={homeOrder}
+            setOrder={setHomeOrder}
+            isHome={true}
+            team={game.homeTeam}
+          />
+        ) : (
+          <RosterPanel players={homePlayers} teamId={game.homeTeamId} team={game.homeTeam} selectedId={selectedPlayerId} onSelect={setSelectedPlayerId} isHome={true} events={game.events} game={game} getDisplayTime={getDisplayTime} />
+        )}
 
         <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 2, padding: 2, minHeight: 0 }}>
           <div style={{ flex: "0 0 36px", display: "flex", gap: 2 }}>
@@ -432,7 +757,17 @@ export default function LiveScoreTracker({ game: initialGame }: { game: GameWith
           </div>
         </div>
 
-        <RosterPanel players={awayPlayers} teamId={game.awayTeamId} team={game.awayTeam} selectedId={selectedPlayerId} onSelect={setSelectedPlayerId} isHome={false} events={game.events} game={game} getDisplayTime={getDisplayTime} />
+        {isScheduled ? (
+          <DraggableRosterPanel
+            players={awayPlayers}
+            order={awayOrder}
+            setOrder={setAwayOrder}
+            isHome={false}
+            team={game.awayTeam}
+          />
+        ) : (
+          <RosterPanel players={awayPlayers} teamId={game.awayTeamId} team={game.awayTeam} selectedId={selectedPlayerId} onSelect={setSelectedPlayerId} isHome={false} events={game.events} game={game} getDisplayTime={getDisplayTime} />
+        )}
       </div>
 
       <div style={{ background: "#080f18", borderTop: "1px solid #1a2e40", padding: "4px 8px", flex: "0 0 120px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "0px" }}>
@@ -519,21 +854,33 @@ export default function LiveScoreTracker({ game: initialGame }: { game: GameWith
               <div>
                 <label style={{ fontSize: 13, color: "#4a7fa5", marginBottom: 4, display: "block" }}>Хто ВИХОДИТЬ:</label>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 3, maxHeight: 80, overflow: "auto" }}>
-                  {isHomeTeam ? homePlayers.map(p => (
-                    <button key={p.id} onClick={() => setSubPlayerOut(p.id)} style={{ border: "1px solid", borderRadius: 4, padding: "3px 7px", fontSize: 13, cursor: "pointer", background: subPlayerOut === p.id ? "#1e4a22" : "#12202e", borderColor: subPlayerOut === p.id ? "#2ecc71" : "#2a4060", color: subPlayerOut === p.id ? "#4ef472" : "#7aaccc", fontWeight: "600" }}>#{p.number} {p.lastName}</button>
-                  )) : awayPlayers.map(p => (
-                    <button key={p.id} onClick={() => setSubPlayerOut(p.id)} style={{ border: "1px solid", borderRadius: 4, padding: "3px 7px", fontSize: 13, cursor: "pointer", background: subPlayerOut === p.id ? "#1e4a22" : "#12202e", borderColor: subPlayerOut === p.id ? "#2ecc71" : "#2a4060", color: subPlayerOut === p.id ? "#4ef472" : "#7aaccc", fontWeight: "600" }}>#{p.number} {p.lastName}</button>
-                  ))}
+                  {isHomeTeam
+                    ? homePlayers
+                        .filter(p => game.boxScores.find(bs => bs.playerId === p.id && bs.isOnCourt))
+                        .map(p => (
+                          <button key={p.id} onClick={() => setSubPlayerOut(p.id)} style={{ border: "1px solid", borderRadius: 4, padding: "3px 7px", fontSize: 13, cursor: "pointer", background: subPlayerOut === p.id ? "#1e4a22" : "#12202e", borderColor: subPlayerOut === p.id ? "#2ecc71" : "#2a4060", color: subPlayerOut === p.id ? "#4ef472" : "#7aaccc", fontWeight: "600" }}>#{p.number} {p.lastName}</button>
+                        ))
+                    : awayPlayers
+                        .filter(p => game.boxScores.find(bs => bs.playerId === p.id && bs.isOnCourt))
+                        .map(p => (
+                          <button key={p.id} onClick={() => setSubPlayerOut(p.id)} style={{ border: "1px solid", borderRadius: 4, padding: "3px 7px", fontSize: 13, cursor: "pointer", background: subPlayerOut === p.id ? "#1e4a22" : "#12202e", borderColor: subPlayerOut === p.id ? "#2ecc71" : "#2a4060", color: subPlayerOut === p.id ? "#4ef472" : "#7aaccc", fontWeight: "600" }}>#{p.number} {p.lastName}</button>
+                        ))}
                 </div>
               </div>
               <div>
                 <label style={{ fontSize: 13, color: "#4a7fa5", marginBottom: 4, display: "block" }}>Хто ЗАХОДИТЬ:</label>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 3, maxHeight: 80, overflow: "auto" }}>
-                  {isHomeTeam ? homePlayers.map(p => (
-                    <button key={p.id} onClick={() => setSubPlayerIn(p.id)} style={{ border: "1px solid", borderRadius: 4, padding: "3px 7px", fontSize: 13, cursor: "pointer", background: subPlayerIn === p.id ? "#1a3a5c" : "#12202e", borderColor: subPlayerIn === p.id ? "#5ab3f4" : "#2a4060", color: subPlayerIn === p.id ? "#5ab3f4" : "#7aaccc", fontWeight: "600" }}>#{p.number} {p.lastName}</button>
-                  )) : awayPlayers.map(p => (
-                    <button key={p.id} onClick={() => setSubPlayerIn(p.id)} style={{ border: "1px solid", borderRadius: 4, padding: "3px 7px", fontSize: 13, cursor: "pointer", background: subPlayerIn === p.id ? "#1a3a5c" : "#12202e", borderColor: subPlayerIn === p.id ? "#5ab3f4" : "#2a4060", color: subPlayerIn === p.id ? "#5ab3f4" : "#7aaccc", fontWeight: "600" }}>#{p.number} {p.lastName}</button>
-                  ))}
+                  {isHomeTeam
+                    ? homePlayers
+                        .filter(p => game.boxScores.find(bs => bs.playerId === p.id && !bs.isOnCourt))
+                        .map(p => (
+                          <button key={p.id} onClick={() => setSubPlayerIn(p.id)} style={{ border: "1px solid", borderRadius: 4, padding: "3px 7px", fontSize: 13, cursor: "pointer", background: subPlayerIn === p.id ? "#1a3a5c" : "#12202e", borderColor: subPlayerIn === p.id ? "#5ab3f4" : "#2a4060", color: subPlayerIn === p.id ? "#5ab3f4" : "#7aaccc", fontWeight: "600" }}>#{p.number} {p.lastName}</button>
+                        ))
+                    : awayPlayers
+                        .filter(p => game.boxScores.find(bs => bs.playerId === p.id && !bs.isOnCourt))
+                        .map(p => (
+                          <button key={p.id} onClick={() => setSubPlayerIn(p.id)} style={{ border: "1px solid", borderRadius: 4, padding: "3px 7px", fontSize: 13, cursor: "pointer", background: subPlayerIn === p.id ? "#1a3a5c" : "#12202e", borderColor: subPlayerIn === p.id ? "#5ab3f4" : "#2a4060", color: subPlayerIn === p.id ? "#5ab3f4" : "#7aaccc", fontWeight: "600" }}>#{p.number} {p.lastName}</button>
+                        ))}
                 </div>
               </div>
               <div style={{ display: "flex", gap: 6, marginTop: 8 }}>

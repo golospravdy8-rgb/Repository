@@ -1,18 +1,7 @@
 'use client';
 
 import { useTransition } from 'react';
-import {
-  addScoreWithType,
-  addReboundDef,
-  addReboundOff,
-  addAssist,
-  addSteal,
-  addBlock,
-  addTurnover,
-  addMissFg2,
-  addMissFg3,
-  addFoul,
-} from '@/actions/game';
+import { recordGameAction } from '@/app/actions/game-events';
 import type { Game, Team, Player, BoxScore } from '@prisma/client';
 
 interface StatEntryGridProps {
@@ -33,43 +22,79 @@ export default function StatEntryGrid({ game, boxScores }: StatEntryGridProps) {
     action: string
   ) => {
     startTransition(async () => {
+      const gameClockSeconds = game.currentTimeLeft || 0;
+      const quarter = game.quarter || 1;
+
+      let actionType = '';
+      let payload: Record<string, any> = {};
+
       switch (action) {
         case '1pt':
-          await addScoreWithType(gameId, teamId, playerId, 1, 'normal');
+          actionType = 'POINTS';
+          payload = { points: 1, shotType: 'FT' };
           break;
         case '2pt':
-          await addScoreWithType(gameId, teamId, playerId, 2, 'normal');
+          actionType = 'POINTS';
+          payload = { points: 2, shotType: '2PT' };
           break;
         case '3pt':
-          await addScoreWithType(gameId, teamId, playerId, 3, 'normal');
+          actionType = 'POINTS';
+          payload = { points: 3, shotType: '3PT' };
           break;
         case 'defRebound':
-          await addReboundDef(gameId, teamId, playerId);
+          actionType = 'REBOUND_DEF';
           break;
         case 'offRebound':
-          await addReboundOff(gameId, teamId, playerId);
+          actionType = 'REBOUND_OFF';
           break;
         case 'assist':
-          await addAssist(gameId, teamId, playerId);
+          actionType = 'ASSIST';
           break;
         case 'steal':
-          await addSteal(gameId, teamId, playerId);
+          actionType = 'STEAL';
           break;
         case 'block':
-          await addBlock(gameId, teamId, playerId);
+          actionType = 'BLOCK';
           break;
         case 'turnover':
-          await addTurnover(gameId, teamId, playerId);
+          actionType = 'TURNOVER';
           break;
         case 'miss2':
-          await addMissFg2(gameId, teamId, playerId);
+          actionType = 'MISS_2P';
+          payload = { shotType: '2PT' };
           break;
         case 'miss3':
-          await addMissFg3(gameId, teamId, playerId);
+          actionType = 'MISS_3P';
+          payload = { shotType: '3PT' };
+          break;
+        case 'miss1':
+          actionType = 'MISS_1P';
+          payload = { shotType: 'FT' };
           break;
         case 'foul':
-          await addFoul(gameId, teamId, playerId);
+          actionType = 'FOUL';
+          payload = { foulType: 'PERSONAL' };
           break;
+        case 'miss1ft':
+          actionType = 'MISS_FT';
+          break;
+        case 'techFoul':
+          actionType = 'FOUL_TECHNICAL';
+          break;
+        case 'unsportsFoul':
+          actionType = 'FOUL_UNSPORTSMANLIKE';
+          break;
+      }
+
+      if (actionType) {
+        await recordGameAction({
+          gameId,
+          playerId,
+          actionType,
+          gameClockSeconds,
+          quarter,
+          payload,
+        });
       }
     });
   };
@@ -245,6 +270,13 @@ function PlayerStatRow({
           disabled={isDisabled}
         />
         <QuickStatButton
+          label="M1"
+          onClick={() => onAddStat(gameId, teamId, player.id, 'miss1ft')}
+          disabled={isDisabled}
+          color="#a0a0a0"
+          title="Промах ШТ"
+        />
+        <QuickStatButton
           label="R"
           onClick={() => onAddStat(gameId, teamId, player.id, 'defRebound')}
           disabled={isDisabled}
@@ -259,6 +291,21 @@ function PlayerStatRow({
           onClick={() => onAddStat(gameId, teamId, player.id, 'foul')}
           disabled={isDisabled}
           color="#f47a7a"
+          title="Персональний фол"
+        />
+        <QuickStatButton
+          label="T"
+          onClick={() => onAddStat(gameId, teamId, player.id, 'techFoul')}
+          disabled={isDisabled}
+          color="#ff6347"
+          title="Технічний фол"
+        />
+        <QuickStatButton
+          label="U"
+          onClick={() => onAddStat(gameId, teamId, player.id, 'unsportsFoul')}
+          disabled={isDisabled}
+          color="#ff1744"
+          title="Неспортивний фол"
         />
       </div>
     </div>
@@ -270,9 +317,10 @@ interface QuickStatButtonProps {
   onClick: () => void;
   disabled: boolean;
   color?: string;
+  title?: string;
 }
 
-function QuickStatButton({ label, onClick, disabled, color = '#4ef472' }: QuickStatButtonProps) {
+function QuickStatButton({ label, onClick, disabled, color = '#4ef472', title }: QuickStatButtonProps) {
   return (
     <button
       onClick={onClick}
@@ -291,7 +339,7 @@ function QuickStatButton({ label, onClick, disabled, color = '#4ef472' }: QuickS
         opacity: disabled ? 0.5 : 1,
         transition: 'opacity 0.2s',
       }}
-      title={label}
+      title={title || label}
     >
       {label}
     </button>

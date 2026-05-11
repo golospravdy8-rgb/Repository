@@ -23,7 +23,6 @@ export default async function AdminGamePage({ params }: { params: { id: string }
           orderBy: { createdAt: "desc" },
           take: 50,
         },
-        onCourt: true,
         boxScores: {
           include: { player: true },
         },

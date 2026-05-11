@@ -23,6 +23,7 @@ export default async function PlayerProfilePage({ params }: { params: { id: stri
         team: { include: { season: true } },
         achievements: { select: { badgeId: true, unlockedAt: true }, orderBy: { unlockedAt: "asc" } },
         boxScores: {
+          where: { game: { status: "FINISHED" } },
           include: { game: { select: { id: true, scheduledAt: true, homeTeam: { select: { name: true } }, awayTeam: { select: { name: true } }, homeScore: true, awayScore: true, homeTeamId: true } } },
           orderBy: { game: { scheduledAt: "asc" } },
         },
@@ -51,7 +52,10 @@ export default async function PlayerProfilePage({ params }: { params: { id: stri
     const seasonPlayers = await prisma.player.findMany({
       where: { team: { seasonId: player.team.seasonId } },
       include: {
-        boxScores: { select: { points: true, rebounds: true, assists: true, steals: true, blocks: true } },
+        boxScores: {
+          where: { game: { status: "FINISHED" } },
+          select: { points: true, rebounds: true, assists: true, steals: true, blocks: true },
+        },
       },
     });
     const rated = seasonPlayers.map((p) => ({ id: p.id, rating: calculateRating(p.boxScores) }));

@@ -2,12 +2,24 @@
 
 import React from "react";
 import type { Game, Team, Player, BoxScore } from "@prisma/client";
+import { calculateEFF } from "@/lib/efficiency";
 
 type GameWithAll = Game & {
   homeTeam: Team & { players: Player[] };
   awayTeam: Team & { players: Player[] };
   boxScores: (BoxScore & { player: Player })[];
 };
+
+function getDisplayTime(bs: BoxScore, gameTimeLeft: number | undefined): string {
+  const seconds = bs.timeOnCourtSeconds ?? 0;
+  const sessionSeconds = (bs.isOnCourt && bs.enteredAt && gameTimeLeft !== undefined)
+    ? Math.max(0, bs.enteredAt - gameTimeLeft)
+    : 0;
+  const total = seconds + sessionSeconds;
+  const m = Math.floor(total / 60);
+  const s = total % 60;
+  return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+}
 
 function getBoxScoreForPlayer(boxScores: (BoxScore & { player: Player })[], playerId: number): BoxScore | null {
   return boxScores.find(bs => bs.playerId === playerId) || null;
@@ -24,11 +36,13 @@ function TeamProtocolTable({
   boxScores,
   isHome,
   game,
+  gameTimeLeft,
 }: {
   team: Team & { players: Player[] };
   boxScores: (BoxScore & { player: Player })[];
   isHome: boolean;
   game: GameWithAll;
+  gameTimeLeft?: number;
 }) {
   const headerBg = isHome ? "#1e3a8a" : "#7f1d1d";
   const starterBg = isHome ? "#1e3a8a" : "#7f1d1d";
@@ -116,7 +130,7 @@ function TeamProtocolTable({
         </td>
         <td style={{ padding: "2px 3px", textAlign: "center", fontSize: "12px" }}>—</td>
         <td style={{ padding: "2px 3px", textAlign: "center", fontSize: "12px" }}>
-          {bs?.minutesPlayed || "—"}
+          {bs ? getDisplayTime(bs, gameTimeLeft) : "00:00"}
         </td>
         <td style={{
           padding: "2px 3px",
@@ -176,8 +190,10 @@ function TeamProtocolTable({
         <td style={{ padding: "2px 3px", textAlign: "center", fontSize: "12px" }}>
           {bs?.foulsPersonal || 0}
         </td>
-        <td style={{ padding: "2px 3px", textAlign: "center", fontSize: "12px" }}>—</td>
-        <td style={{ padding: "2px 3px", textAlign: "center", fontSize: "12px" }}>—</td>
+        <td style={{ padding: "2px 3px", textAlign: "center", fontSize: "12px" }}>{bs?.plusMinus || 0}</td>
+        <td style={{ padding: "2px 3px", textAlign: "center", fontSize: "12px" }}>
+          {bs ? calculateEFF(bs) : 0}
+        </td>
       </tr>
     );
   };
@@ -419,7 +435,7 @@ function TeamProtocolTable({
   );
 }
 
-export default function GameProtocol({ game }: { game: GameWithAll }) {
+export default function GameProtocol({ game, gameTimeLeft }: { game: GameWithAll; gameTimeLeft?: number }) {
   const homeBoxScores = game.boxScores.filter(bs => bs.teamId === game.homeTeamId);
   const awayBoxScores = game.boxScores.filter(bs => bs.teamId === game.awayTeamId);
 
@@ -442,6 +458,7 @@ export default function GameProtocol({ game }: { game: GameWithAll }) {
         boxScores={homeBoxScores}
         isHome={true}
         game={game}
+        gameTimeLeft={gameTimeLeft}
       />
 
       {/* Away Team */}
@@ -450,6 +467,7 @@ export default function GameProtocol({ game }: { game: GameWithAll }) {
         boxScores={awayBoxScores}
         isHome={false}
         game={game}
+        gameTimeLeft={gameTimeLeft}
       />
 
       {/* Officials and Legend Section */}

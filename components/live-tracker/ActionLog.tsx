@@ -35,7 +35,7 @@ export default function ActionLog({ events, homeTeam, awayTeam }: Props) {
             <div key={event.id} className="px-4 py-2.5 flex items-center gap-3 text-sm hover:bg-gray-50">
               <span className="text-xs text-gray-400 w-6 flex-shrink-0">Q{event.quarter}</span>
 
-              {event.type === "POINTS" && (
+              {event.type === "POINTS" && event.points != null && (
                 <span
                   className="font-bold text-white text-xs px-1.5 py-0.5 rounded flex-shrink-0"
                   style={{

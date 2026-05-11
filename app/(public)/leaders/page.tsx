@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { calculateLeaderStats } from "@/lib/stats-calculator";
-import LeadersSection from "@/components/public/LeadersSection";
+import { LeadersContainer } from "@/components/public/leaders/LeadersContainer";
+import { LeadersAutoRefresh } from "./LeadersAutoRefresh";
 
 export const metadata = { title: "Лідери — Ліга ESCULAB" };
 export const dynamic = "force-dynamic";
@@ -15,60 +16,63 @@ export default async function LeadersPage({ searchParams }: { searchParams: { ag
 
   const boxScores = season
     ? await prisma.boxScore.findMany({
-        where: { game: { seasonId: season.id, status: { in: ["FINAL", "LIVE"] } } },
+        where: { game: { seasonId: season.id, status: { in: ["FINISHED", "LIVE"] } } },
         include: {
           player: { select: { firstName: true, lastName: true, photoUrl: true } },
-          team: { select: { name: true, shortName: true } },
+          team: { select: { id: true, name: true, shortName: true } },
         },
       }).catch(() => [])
     : [];
   console.log(`[Leaders] boxScores count:`, boxScores.length);
 
-  const leaders = calculateLeaderStats(boxScores);
+  const leaders = calculateLeaderStats(boxScores).map(l => ({ ...l, seasonId: season?.id || 0 }));
 
   return (
-    <div className="scale-125">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-2">
-      <h1 className="text-sm font-black mb-0.5" style={{ color: "var(--color-heading)" }}>
-        Лідери сезону
-      </h1>
+    <div className="w-full bg-gray-50 min-h-screen py-8">
+      <LeadersAutoRefresh />
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Заголовок */}
+        <div className="mb-6">
+          <h1 className="text-4xl font-black mb-2" style={{ color: "var(--color-heading)" }}>
+            Лідери сезону
+          </h1>
+          <p className="hidden md:block text-gray-600 text-sm">
+            Вікова група: <span className="font-bold" style={{ color: "var(--color-accent)" }}>{label}</span>
+          </p>
 
-      {/* DESKTOP: Text display */}
-      <p className="hidden md:block text-gray-500 mb-2 text-xs">Вікова група: <span className="font-bold" style={{ color: "var(--color-accent)" }}>{label}</span></p>
-
-      {/* MOBILE: Age group toggle buttons */}
-      <div className="md:hidden flex gap-2 mb-3">
-        <Link
-          href="/leaders?ag=younger"
-          className={`flex-1 px-3 py-2 text-xs font-semibold rounded-lg transition-all ${
-            ag === 'younger'
-              ? 'text-white'
-              : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-          }`}
-          style={ag === 'younger' ? { backgroundColor: "#1a2744" } : {}}
-        >
-          🏀 U-14
-        </Link>
-        <Link
-          href="/leaders?ag=older"
-          className={`flex-1 px-3 py-2 text-xs font-semibold rounded-lg transition-all ${
-            ag === 'older'
-              ? 'text-white'
-              : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-          }`}
-          style={ag === 'older' ? { backgroundColor: "#1a2744" } : {}}
-        >
-          🏀 U-16
-        </Link>
-      </div>
-
-      {leaders.length === 0 ? (
-        <div className="bg-white rounded-xl shadow p-12 text-center text-gray-400">
-          Статистика з&apos;явиться після перших ігор групи &quot;{label}&quot;
+          {/* MOBILE: Age group toggle buttons */}
+          <div className="md:hidden flex gap-2 mt-3">
+            <Link
+              href="/leaders?ag=younger"
+              className={`flex-1 px-3 py-2 text-xs font-semibold rounded-lg transition-all ${
+                ag === 'younger'
+                  ? 'text-white'
+                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              }`}
+              style={ag === 'younger' ? { backgroundColor: "#1a2744" } : {}}
+            >
+              🏀 U-14
+            </Link>
+            <Link
+              href="/leaders?ag=older"
+              className={`flex-1 px-3 py-2 text-xs font-semibold rounded-lg transition-all ${
+                ag === 'older'
+                  ? 'text-white'
+                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              }`}
+              style={ag === 'older' ? { backgroundColor: "#1a2744" } : {}}
+            >
+              🏀 U-16
+            </Link>
+          </div>
         </div>
-      ) : (
-        <LeadersSection leaders={leaders} />
-      )}
+
+        {/* Основний контент */}
+        <LeadersContainer
+          initialLeaders={leaders}
+          seasonName={season?.name || "Сезон"}
+          ageGroupLabel={label}
+        />
       </div>
     </div>
   );

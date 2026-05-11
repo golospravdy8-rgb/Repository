@@ -35,14 +35,12 @@ export function calculateRating(
     avgSteals * 2.0 +
     avgBlocks * 1.8;
 
-  return Math.round(Math.min(99, rating));
+  // NaN protection + clamp to [0, 99]
+  return Math.max(0, Math.min(99, Math.round(rating)));
 }
 
-export function getRatingTier(rating: number): "gold" | "silver" | "bronze" {
-  if (rating >= 85) return "gold";
-  if (rating >= 75) return "silver";
-  return "bronze";
-}
+// Re-export from leaders/calculations for consistency
+export { getRatingTier } from "@/lib/leaders/calculations";
 
 export function checkNewAchievements(
   boxScores: (

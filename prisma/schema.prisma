@@ -32,7 +32,6 @@ model Team {
   homeGames      Game[]                @relation("HomeTeam")
   players        Player[]
   substitutions  GameSubstitution[]
-  onCourt        GameOnCourt[]
   standing       Standing?
   groupTeams     GroupTeam[]
   season         Season                @relation(fields: [seasonId], references: [id])
@@ -49,8 +48,8 @@ model Player {
   hp               Int                   @default(0)  // 🏀 RUCHEEK: Health points from game wins
   boxScores        BoxScore[]
   gameEvents       GameEvent[]
+  secondaryGameEvents GameEvent[]         @relation("SecondaryPlayer")
   substitutions    GameSubstitution[]
-  onCourt          GameOnCourt[]
   team             Team                  @relation(fields: [teamId], references: [id])
   achievements     PlayerAchievement[]
 }
@@ -160,7 +159,6 @@ model Game {
   tour                  Tour?                 @relation(fields: [tourId], references: [id], onDelete: SetNull)
   events                GameEvent[]
   substitutions         GameSubstitution[]
-  onCourt               GameOnCourt[]
   protocolOverrides     ProtocolOverride[]
   protocolAuditLogs     ProtocolAuditLog[]
 }
@@ -178,18 +176,22 @@ model GameEvent {
 
   // PHASE 1 ADDITIONS (FIBA compliance)
   gameClockSeconds    Int?     // Seconds elapsed in quarter (0-600)
-  fouledPlayerId      Int?     // FIBA: Which player was fouled
+  fouledPlayerId      Int?     // FIBA: Which player was fouled (FOUL events only)
   foulType            String?  // FIBA enum: PERSONAL, TECHNICAL, UNSPORTSMANLIKE, DISQUALIFYING, COACH
   isFreeThrow         Boolean  @default(false) // Is this a free throw?
   wasShooting         Boolean  @default(false) // Was fouled player shooting?
   runningHomeScore    Int?     // Running score after this event
   runningAwayScore    Int?     // Running score after this event
 
+  // Secondary player tracking (SUBSTITUTION: playerOut; ASSIST: assister; etc.)
+  secondaryPlayerId   Int?     // For SUBSTITUTION: player who went OUT
+
   idempotencyKey      String?  @unique // Prevent duplicate events on double-click
   createdAt           DateTime @default(now())
 
   game                Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
   player              Player?  @relation(fields: [playerId], references: [id])
+  secondaryPlayer     Player?  @relation("SecondaryPlayer", fields: [secondaryPlayerId], references: [id])
 
   @@index([gameId, quarter])
   @@index([gameClockSeconds])
@@ -216,22 +218,6 @@ model GameSubstitution {
 
   @@index([gameId])
 }
-
-model GameOnCourt {
-  gameId                Int
-  playerId              Int
-  teamId                Int
-  onCourt               Boolean   @default(false)
-  timeOnCourtSeconds    Int       @default(0)    // Cumulative seconds on court
-  lastSubInTimestamp    Int?                     // Game clock (seconds) when player last entered
-  isStarter             Boolean   @default(false) // Mark if player is a starter
-  game                  Game      @relation(fields: [gameId], references: [id], onDelete: Cascade)
-  player                Player    @relation(fields: [playerId], references: [id])
-  team                  Team      @relation(fields: [teamId], references: [id])
-
-  @@id([gameId, playerId])
-}
-
 model BoxScore {
   id                      Int     @id @default(autoincrement())
   gameId                  Int
@@ -253,6 +239,7 @@ model BoxScore {
   timeOnCourtSeconds      Int     @default(0) // Накопичений час на майданчику (секунди)
   enteredAt               Int?                 // gameClockSeconds коли гравець вийшов на майданчик
   isOnCourt               Boolean @default(false) // Поточний статус на/не на майданчику
+  lineupPosition          Int     @default(0) // 1-5 = позиція в активній п'ятірці, 0 = запасний на лаві
 
   // Field goal stats (aggregated)
   fgMade                  Int     @default(0)
@@ -291,6 +278,8 @@ model BoxScore {
   // Advanced stats
   plusMinus               Int     @default(0)
   efficiency              Float   @default(0.0)
+  shiftStartHomeScore     Int     @default(0)  // Рахунок своїх коли гравець вийшов на майданчик
+  shiftStartAwayScore     Int     @default(0)  // Рахунок суперника коли гравець вийшов на майданчик
 
   // Relations
   game                    Game    @relation(fields: [gameId], references: [id], onDelete: Cascade)
