@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import GamePdfButton from "@/components/public/GamePdfButton";
+import GameProtocol from "@/components/GameProtocol";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -421,142 +422,9 @@ export default async function GamePage({ params }: { params: Promise<{ id: strin
         </div>
       )}
 
-      {/* LIVE / FINAL: Full Box Score */}
+      {/* Team Advanced Statistics Section */}
       {hasBoxScore && homeBox && awayBox && (
         <div className="space-y-3 mb-3">
-          {[
-            { team: game.homeTeam, box: homeBox, score: game.homeScore, wins: homeWins },
-            { team: game.awayTeam, box: awayBox, score: game.awayScore, wins: awayWins },
-          ].map(({ team, box, wins }) => (
-            <div key={team.id} className="bg-white rounded-xl shadow overflow-hidden">
-              <div
-                className="px-3 py-1.5 font-bold text-white text-xs flex items-center gap-2"
-                style={{ backgroundColor: "#1a2744" }}
-              >
-                <span>{team.name}</span>
-                {wins && <span className="ml-auto text-xs bg-orange-500 px-1.5 py-0.5 rounded-full">Переможець</span>}
-              </div>
-              <div className="overflow-x-auto">
-                <table className="w-full" style={{ fontSize: "11px" }}>
-                  <thead className="bg-gray-50 border-b">
-                    <tr className="text-gray-500 uppercase" style={{ fontSize: "10px" }}>
-                      <th className="px-1.5 py-1 text-left w-6">№</th>
-                      <th className="px-1.5 py-1 text-left">Гравець</th>
-                      <th className="px-1.5 py-1 text-center">Поз</th>
-                      <th className="px-1.5 py-1 text-center">Хв</th>
-                      <th className="px-1.5 py-1 text-center font-black text-gray-700">Оч</th>
-                      <th className="px-1.5 py-1 text-center">КП</th>
-                      <th className="px-1.5 py-1 text-center text-gray-400">%</th>
-                      <th className="px-1.5 py-1 text-center">2О</th>
-                      <th className="px-1.5 py-1 text-center text-gray-400">%</th>
-                      <th className="px-1.5 py-1 text-center">3О</th>
-                      <th className="px-1.5 py-1 text-center text-gray-400">%</th>
-                      <th className="px-1.5 py-1 text-center">ШТ</th>
-                      <th className="px-1.5 py-1 text-center text-gray-400">%</th>
-                      <th className="px-1.5 py-1 text-center">НПД</th>
-                      <th className="px-1.5 py-1 text-center">ЗПД</th>
-                      <th className="px-1.5 py-1 text-center">ПДБ</th>
-                      <th className="px-1.5 py-1 text-center">ПЕР</th>
-                      <th className="px-1.5 py-1 text-center">ПРХ</th>
-                      <th className="px-1.5 py-1 text-center">ВТ</th>
-                      <th className="px-1.5 py-1 text-center">БЛК</th>
-                      <th className="px-1.5 py-1 text-center">ФОЛ</th>
-                      <th className="px-1.5 py-1 text-center font-bold text-blue-600">ЕФК</th>
-                      <th className="px-1.5 py-1 text-center font-bold text-orange-600">+/-</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {box.players.flatMap(({ bs, stats, isStarter }, i) => {
-                      console.log('[Public Game Page] Player', bs.playerId, 'minutesPlayed from DB:', bs.minutesPlayed);
-                      const prevIsStarter = i > 0 ? box.players[i - 1].isStarter : true;
-                      const showBench = !isStarter && prevIsStarter;
-                      const rows = [];
-
-                      if (showBench) {
-                        rows.push(
-                          <tr key={`bench-${bs.id}`} className="bg-gray-50">
-                            <td colSpan={20} className="px-2 py-0.5 text-gray-400 font-semibold uppercase tracking-wider" style={{ fontSize: "9px" }}>
-                              Лавка
-                            </td>
-                          </tr>
-                        );
-                      }
-
-                      rows.push(
-                        <tr key={bs.id} className="border-b last:border-0 hover:bg-gray-50">
-                          <td className="px-1.5 py-1 text-gray-400 font-medium">
-                            {isStarter && <span className="text-orange-400 mr-0.5">*</span>}
-                            {bs.player.number}
-                          </td>
-                          <td className="px-1.5 py-1 font-semibold text-gray-800 whitespace-nowrap">
-                            {bs.player.lastName} {bs.player.firstName[0]}.
-                          </td>
-                          <td className="px-1.5 py-1 text-center text-gray-400">{bs.player.position ?? "-"}</td>
-                          <td className="px-1.5 py-1 text-center text-gray-400 font-medium">
-                            {(() => {
-                              const debug = `[DEBUG] Player ${bs.playerId}: minutesPlayed="${bs.minutesPlayed}", minutes="${bs.minutes}"`;
-                              console.log(debug);
-                              return bs.minutesPlayed ? bs.minutesPlayed : (bs.minutes || "-");
-                            })()}
-                          </td>
-                          <td className="px-1.5 py-1 text-center font-black" style={{ color: "#1a2744" }}>{stats.points}</td>
-                          <td className="px-1.5 py-1 text-center text-gray-600">{stats.fmtFg}</td>
-                          <td className="px-1.5 py-1 text-center text-gray-400">{stats.pctFg}</td>
-                          <td className="px-1.5 py-1 text-center text-gray-600">{stats.fmtFg2}</td>
-                          <td className="px-1.5 py-1 text-center text-gray-400">{stats.pctFg2}</td>
-                          <td className="px-1.5 py-1 text-center text-gray-600">{stats.fmtFg3}</td>
-                          <td className="px-1.5 py-1 text-center text-gray-400">{stats.pctFg3}</td>
-                          <td className="px-1.5 py-1 text-center text-gray-600">{stats.fmtFt}</td>
-                          <td className="px-1.5 py-1 text-center text-gray-400">{stats.pctFt}</td>
-                          <td className="px-1.5 py-1 text-center text-gray-600">{stats.reboundsOff || "-"}</td>
-                          <td className="px-1.5 py-1 text-center text-gray-600">{stats.reboundsDef || "-"}</td>
-                          <td className="px-1.5 py-1 text-center text-gray-600">{stats.rebounds || "-"}</td>
-                          <td className="px-1.5 py-1 text-center text-gray-600">{stats.assists || "-"}</td>
-                          <td className="px-1.5 py-1 text-center text-gray-600">{stats.steals || "-"}</td>
-                          <td className="px-1.5 py-1 text-center text-gray-600">{stats.turnovers || "-"}</td>
-                          <td className="px-1.5 py-1 text-center text-gray-600">{stats.blocks || "-"}</td>
-                          <td className="px-1.5 py-1 text-center text-red-500">{stats.fouls || "-"}</td>
-                          <td className="px-1.5 py-1 text-center font-bold text-blue-600">{stats.efficiency || "0"}</td>
-                          <td className="px-1.5 py-1 text-center font-bold text-orange-600">{bs.plusMinus >= 0 ? "+" : ""}{bs.plusMinus || "0"}</td>
-                        </tr>
-                      );
-
-                      return rows;
-                    })}
-                    {/* Totals row */}
-                    <tr className="bg-slate-50 font-bold border-t border-gray-200">
-                      <td className="px-1.5 py-1 text-gray-500">Σ</td>
-                      <td className="px-1.5 py-1 text-gray-700 uppercase">Разом</td>
-                      <td></td>
-                      <td></td>
-                      <td className="px-1.5 py-1 text-center font-black" style={{ color: "#1a2744" }}>{box.totals.points}</td>
-                      <td className="px-1.5 py-1 text-center text-gray-600">{box.totals.fmtFg}</td>
-                      <td className="px-1.5 py-1 text-center text-gray-500">{box.totals.pctFg}</td>
-                      <td className="px-1.5 py-1 text-center text-gray-600">{box.totals.fmtFg2}</td>
-                      <td className="px-1.5 py-1 text-center text-gray-500">{box.totals.pctFg2}</td>
-                      <td className="px-1.5 py-1 text-center text-gray-600">{box.totals.fmtFg3}</td>
-                      <td className="px-1.5 py-1 text-center text-gray-500">{box.totals.pctFg3}</td>
-                      <td className="px-1.5 py-1 text-center text-gray-600">{box.totals.fmtFt}</td>
-                      <td className="px-1.5 py-1 text-center text-gray-500">{box.totals.pctFt}</td>
-                      <td className="px-1.5 py-1 text-center text-gray-700">{box.totals.reboundsOff}</td>
-                      <td className="px-1.5 py-1 text-center text-gray-700">{box.totals.reboundsDef}</td>
-                      <td className="px-1.5 py-1 text-center text-gray-700">{box.totals.rebounds}</td>
-                      <td className="px-1.5 py-1 text-center text-gray-700">{box.totals.assists}</td>
-                      <td className="px-1.5 py-1 text-center text-gray-700">{box.totals.steals}</td>
-                      <td className="px-1.5 py-1 text-center text-gray-700">{box.totals.turnovers}</td>
-                      <td className="px-1.5 py-1 text-center text-gray-700">{box.totals.blocks}</td>
-                      <td className="px-1.5 py-1 text-center text-red-500">{box.totals.fouls}</td>
-                      <td className="px-1.5 py-1 text-center text-gray-600">—</td>
-                      <td className="px-1.5 py-1 text-center text-gray-600">—</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          ))}
-
-          {/* Team Advanced Statistics Section */}
-          <div className="space-y-3 mb-3">
             {[
               { team: game.homeTeam, stats: game, isHome: true },
               { team: game.awayTeam, stats: game, isHome: false },
@@ -608,14 +476,6 @@ export default async function GamePage({ params }: { params: Promise<{ id: strin
                 </div>
               </div>
             ))}
-          </div>
-
-          {/* Legend */}
-          <div className="text-gray-400 px-1 leading-relaxed" style={{ fontSize: "10px" }}>
-            КП — кидки з поля | 2О — двоочкові | 3О — триочкові |
-            ШТ — штрафні | НПД — підбір напад | ЗПД — підбір захист |
-            ПДБ — підбори | ПЕР — передачі | ВТ — втрати | БЛК — блоки | ФОЛ — фоли | ЕФК — ефективність | +/- — плюс/мінус | * — стартовий
-          </div>
         </div>
       )}
 
@@ -662,6 +522,9 @@ export default async function GamePage({ params }: { params: Promise<{ id: strin
           </div>
         </div>
       )}
+
+      {/* FIBA Official Protocol */}
+      <GameProtocol game={game} gameTimeLeft={game.currentTimeLeft} />
 
     </div>
   );

@@ -6,8 +6,9 @@ import FibaPanelWrapper from "@/components/admin/FibaPanelWrapper";
 
 export const dynamic = "force-dynamic";
 
-export default async function AdminGamePage({ params }: { params: { id: string } }) {
-  const gameId = parseInt(params.id);
+export default async function AdminGamePage({ params }: { params: Promise<{ id: string }> }) {
+  const { id: rawId } = await params;
+  const gameId = parseInt(rawId);
   if (isNaN(gameId)) notFound();
 
   const [game, settings] = await Promise.all([

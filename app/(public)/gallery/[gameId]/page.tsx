@@ -4,14 +4,15 @@ import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
-export default async function GameGalleryPage({ params }: { params: { gameId: string } }) {
+export default async function GameGalleryPage({ params }: { params: Promise<{ gameId: string }> }) {
+  const { gameId: rawGameId } = await params;
   let galleryData: any = { albums: [] };
   try {
     galleryData = JSON.parse(require('fs').readFileSync(require('path').join(process.cwd(), 'lib', 'gallery.data.json'), 'utf-8'));
   } catch {
     notFound();
   }
-  const gameId = parseInt(params.gameId);
+  const gameId = parseInt(rawGameId);
   if (isNaN(gameId)) notFound();
 
   const album = galleryData.albums.find((a: any) => a.gameId === gameId);

@@ -6,8 +6,9 @@ import ProtocolPdfButton from "@/components/ProtocolPdfButton";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-export default async function SecretarialProtocolPage({ params }: { params: { id: string } }) {
-  const gameId = parseInt(params.id);
+export default async function SecretarialProtocolPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id: rawId } = await params;
+  const gameId = parseInt(rawId);
   if (isNaN(gameId)) notFound();
 
   const game = await prisma.game.findUnique({

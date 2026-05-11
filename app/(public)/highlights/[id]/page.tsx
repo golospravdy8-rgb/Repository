@@ -9,14 +9,15 @@ function getYouTubeId(url: string) {
   return match ? match[1] : null;
 }
 
-export default async function VideoPage({ params }: { params: { id: string } }) {
+export default async function VideoPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id: rawId } = await params;
   let highlightsData: any = { videos: [] };
   try {
     highlightsData = JSON.parse(require('fs').readFileSync(require('path').join(process.cwd(), 'lib', 'highlights.data.json'), 'utf-8'));
   } catch {
     notFound();
   }
-  const videoId = parseInt(params.id);
+  const videoId = parseInt(rawId);
   if (isNaN(videoId)) notFound();
 
   const video = highlightsData.videos.find((v: any) => v.id === videoId);
