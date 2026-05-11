@@ -158,10 +158,39 @@ export async function recordGameAction(payload: GameActionPayload): Promise<Reco
           case "START":
             if (game.status === "PAUSED" || game.status === "SCHEDULED") {
               gameUpdates.status = "LIVE";
+              // Thaw all active players' timers: restore enteredAt to current gameClockSeconds
+              const activePlayersToThaw = await tx.boxScore.findMany({
+                where: { gameId, isOnCourt: true },
+              });
+              for (const bs of activePlayersToThaw) {
+                await tx.boxScore.update({
+                  where: { id: bs.id },
+                  data: { enteredAt: gameClockSeconds },
+                });
+              }
             }
             break;
           case "PAUSE":
             gameUpdates.status = "PAUSED";
+            // Freeze all active players' timers: accumulate time + clear enteredAt
+            const activePlayersToFreeze = await tx.boxScore.findMany({
+              where: { gameId, isOnCourt: true },
+              include: { player: true },
+            });
+            for (const bs of activePlayersToFreeze) {
+              if (bs.enteredAt !== null) {
+                // Calculate session time: (when entered) - (now)
+                const sessionTimeSeconds = Math.max(0, bs.enteredAt - gameClockSeconds);
+                const newAccumulatedTime = (bs.timeOnCourtSeconds || 0) + sessionTimeSeconds;
+                await tx.boxScore.update({
+                  where: { id: bs.id },
+                  data: {
+                    timeOnCourtSeconds: newAccumulatedTime,
+                    enteredAt: null, // Clear enteredAt to freeze timer
+                  },
+                });
+              }
+            }
             break;
           case "END_GAME":
             gameUpdates.status = "FINISHED";
@@ -290,6 +319,17 @@ export async function recordGameAction(payload: GameActionPayload): Promise<Reco
           case "NEXT_QUARTER":
             gameUpdates.quarter = (game.quarter || 1) + 1;
             gameUpdates.currentTimeLeft = 600; // Reset timer for new quarter
+            gameUpdates.status = "LIVE"; // Resume play after quarter break
+            // All active players restart timing at 600 seconds
+            const activePlayersNextQuarter = await tx.boxScore.findMany({
+              where: { gameId, isOnCourt: true },
+            });
+            for (const bs of activePlayersNextQuarter) {
+              await tx.boxScore.update({
+                where: { id: bs.id },
+                data: { enteredAt: 600 }, // Restart at beginning of new quarter
+              });
+            }
             break;
         }
 

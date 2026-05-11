@@ -378,8 +378,13 @@ const RosterPanel = React.memo(function RosterPanel({ players, teamId, team, sel
 
 export default function LiveScoreTracker({ game: initialGame }: { game: GameWithAll }) {
   const router = useRouter();
-  // Use prop directly — no shadow state. Updates via router.refresh()
-  const game = initialGame;
+  // Keep local game state synchronized with prop updates
+  const [game, setGame] = useState<GameWithAll>(initialGame);
+
+  // Sync local game state whenever initialGame prop changes (e.g., after router.refresh())
+  useEffect(() => {
+    setGame(initialGame);
+  }, [initialGame.id, initialGame.status, initialGame.quarter, initialGame.currentTimeLeft]);
 
   const [selectedPlayerId, setSelectedPlayerId] = useState<number | null>(null);
   const [showSubModal, setShowSubModal] = useState(false);
@@ -403,6 +408,16 @@ export default function LiveScoreTracker({ game: initialGame }: { game: GameWith
   const [awayOrder, setAwayOrder] = useState<number[]>(
     () => [...initialGame.awayTeam.players].sort((a, b) => a.number - b.number).map(p => p.id)
   );
+
+  // Sync player order when game prop changes (e.g., after team composition updates)
+  useEffect(() => {
+    setHomeOrder(
+      [...game.homeTeam.players].sort((a, b) => a.number - b.number).map(p => p.id)
+    );
+    setAwayOrder(
+      [...game.awayTeam.players].sort((a, b) => a.number - b.number).map(p => p.id)
+    );
+  }, [game.homeTeam.players.length, game.awayTeam.players.length, game.id]);
 
   const gameStartTimeRef = useRef<number | null>(null);
   const pausedTimeRef = useRef<number | null>(null);
@@ -434,16 +449,16 @@ export default function LiveScoreTracker({ game: initialGame }: { game: GameWith
     setActionHistory([]);
 
     // STEP 3: Sync timer from DB
-    const dbTime = initialGame.currentTimeLeft || 600;
+    const dbTime = game.currentTimeLeft || 600;
     setGameTimeLeft(dbTime);
     lastSyncTimeRef.current = dbTime;
 
     // STEP 4: Re-initialize timer based on game status (fresh start for new game)
-    if (initialGame.status === "LIVE") {
+    if (game.status === "LIVE") {
       // Game is live: set ref to calculate elapsed seconds from DB time
       gameStartTimeRef.current = Date.now() - (600 - dbTime) * 1000;
       pausedTimeRef.current = null;
-    } else if (initialGame.status === "PAUSED") {
+    } else if (game.status === "PAUSED") {
       // Game is paused: set paused ref, don't start timer
       gameStartTimeRef.current = null;
       pausedTimeRef.current = dbTime;
@@ -453,14 +468,13 @@ export default function LiveScoreTracker({ game: initialGame }: { game: GameWith
       pausedTimeRef.current = null;
     }
   }, [
-    initialGame.id,              // ← Game ID changed
-    initialGame.status,          // ← Status changed (SCHEDULED → LIVE → PAUSED → FINISHED)
-    initialGame.currentTimeLeft, // ← Timer synced from DB
-    initialGame.quarter,         // ← Quarter advanced
+    game.id,              // ← Game ID changed
+    game.status,          // ← Status changed (SCHEDULED → LIVE → PAUSED → FINISHED)
+    game.currentTimeLeft, // ← Timer synced from DB
+    game.quarter,         // ← Quarter advanced
   ]); // STRONG dependency!
 
   useEffect(() => {
-    console.log('[TIMER-DEBUG-2] useEffect triggered, isLive:', isLive, 'game.status:', game.status);
     if (!isLive) {
       // PAUSE: save current time to pausedRef
       if (gameStartTimeRef.current) {
@@ -484,7 +498,6 @@ export default function LiveScoreTracker({ game: initialGame }: { game: GameWith
     }
 
     const interval = setInterval(() => {
-      console.log('[TIMER-DEBUG-3] tick, timeLeft:', gameTimeLeft);
       if (gameStartTimeRef.current) {
         const elapsedSeconds = Math.floor((Date.now() - gameStartTimeRef.current) / 1000);
         const newTimeLeft = Math.max(0, 600 - elapsedSeconds);
@@ -531,20 +544,15 @@ export default function LiveScoreTracker({ game: initialGame }: { game: GameWith
 
   const allPlayers = [...homePlayers, ...awayPlayers];
 
-  // Memoize boxScores reference to stabilize getDisplayTime dependency
-  // This prevents unnecessary re-creation of getDisplayTime on every boxScore change
-  const memoizedBoxScores = useMemo(
-    () => game.boxScores,
-    [game.id] // Only re-memoize on new game
-  );
-
   const getDisplayTime = useCallback((playerId: number): string => {
-    const boxScore = memoizedBoxScores.find(bs => bs.playerId === playerId);
+    const boxScore = game.boxScores.find(bs => bs.playerId === playerId);
     if (!boxScore) return "00:00";
 
     const accumulatedTime = boxScore.timeOnCourtSeconds || 0;
 
-    if (boxScore.isOnCourt && boxScore.enteredAt !== null) {
+    // CRITICAL: Only show accumulated + session time if ACTIVELY on court during LIVE game
+    // When game is PAUSED, show ONLY accumulated time (session delta is frozen)
+    if (boxScore.isOnCourt && boxScore.enteredAt !== null && isLive) {
       const entranceGameClock = boxScore.enteredAt;
       const currentGameClock = gameTimeLeft;
       // Formula: time in current session = (when entered) - (now)
@@ -554,8 +562,9 @@ export default function LiveScoreTracker({ game: initialGame }: { game: GameWith
       return formatTime(totalTime);
     }
 
+    // Player is on bench, or game is paused → show only accumulated time
     return formatTime(accumulatedTime);
-  }, [memoizedBoxScores, gameTimeLeft]); // Stable dependencies!
+  }, [game.boxScores, gameTimeLeft, isLive]); // Include game.boxScores to update on pause/resume/substitution
 
   const recordAction = useCallback(async (
     actionType: string,
@@ -607,8 +616,8 @@ export default function LiveScoreTracker({ game: initialGame }: { game: GameWith
         });
 
         if (result.success && result.updatedGame) {
-          console.log('[TIMER-DEBUG-1] Server returned status:', result.updatedGame?.status);
-          // Sync with server data via router refresh
+          // Update local game state immediately (optimistic update) + revalidate from server
+          setGame(result.updatedGame);
           router.refresh();
           setActionHistory(prev => [...prev, { id: String(result.action?.id || Date.now()), type: actionType }]);
         } else {
