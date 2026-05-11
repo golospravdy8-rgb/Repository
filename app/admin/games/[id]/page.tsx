@@ -28,7 +28,10 @@ export default async function AdminGamePage({ params }: { params: Promise<{ id: 
           include: { player: true },
         },
       },
-    }).catch(() => null),
+    }).catch((err) => {
+      console.error(`[AdminGamePage] Query failed for game ${gameId}:`, err.message);
+      return null;
+    }),
     getSettings(["colors.btnBlue", "colors.btnOrange", "colors.btnNavy", "colors.btnRed",
                  "colors.navy", "colors.orange", "colors.blue", "colors.red"]),
   ]);
