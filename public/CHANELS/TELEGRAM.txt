@@ -1,0 +1,3 @@
+Telegram Bot Token (від @BotFather): 7685937167:AAFfSNWb98RIshlHtOn9sId6M5DvH0FoV54
+Telegram Admin Personal Chat ID: 7685937167
+Telegram channel chat id: -1003522476963
