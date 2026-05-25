@@ -1,0 +1,1123 @@
+{
+  "meta": {
+    "created": "2026-05-25",
+    "project": "ДЮБЛ — Баскетбол Львів",
+    "restore_note": "Дай Claude Code цей файл і скажи: відновити редактор сайту з EDITOR_BACKUP.json"
+  },
+  "restore_order": [
+    "1. curl всі файли з github/logos → public/logos/",
+    "2. curl всі файли з github/players_logos → public/players_logos/",
+    "3. curl HeroBanner.jpg → public/hero_banner.jpg",
+    "4. Записати all_settings → data/site-settings.json",
+    "5. Записати teams_data → data/teams.json",
+    "6. npm run dev"
+  ],
+  "admin_login": {
+    "url": "http://localhost:3006/admin/login",
+    "email": "admin@basket.lviv.ua",
+    "password": "admin2026"
+  },
+  "github": {
+    "repo": "https://github.com/golospravdy8-rgb/Repository",
+    "token": "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",
+    "logos": "https://github.com/golospravdy8-rgb/Repository/tree/main/public/logos",
+    "players_logos": "https://github.com/golospravdy8-rgb/Repository/tree/main/public/players_logos",
+    "hero_banner": "https://raw.githubusercontent.com/golospravdy8-rgb/Repository/main/public/hero_banner/HeroBanner.jpg",
+    "players_list": "https://raw.githubusercontent.com/golospravdy8-rgb/Repository/main/public/players/PLAYERS.txt"
+  },
+  "supabase": {
+    "url": "https://dzsvgyetmdgykmujmxuu.supabase.co",
+    "anon_key": "sb_publishable_086iusJsMoX5QOr6FxqKFA_WBM1LMdB"
+  },
+  "editor_tabs": {
+    "Тексти": {
+      "site.name": "Федерація Баскетболу Львова",
+      "site.shortName": "ДЮБЛ",
+      "site.tagline": "Офіційний сайт баскетбольної спільноти міста",
+      "site.season": "Сезон 2025-2026",
+      "site.logoText": "ДЮБЛ",
+      "site.description": "Офіційний сайт баскетбольної ліги Львова. Матчі, статистика та новини сезону 2025-2026."
+    },
+    "Кольори": {
+      "colors.orange": "#f97316",
+      "colors.navy": "#1e2a4a",
+      "colors.blue": "#2563eb",
+      "colors.red": "#dc2626",
+      "colors.primary": "#f97316",
+      "colors.background": "#0f172a"
+    },
+    "Контакти": {
+      "contacts.address": "м. Львів, вул. Мазепи 1А",
+      "contacts.email": "basketlvivinfo@gmail.com",
+      "contacts.website": "bclvivbasketball@gmail.com",
+      "social.facebook": "https://www.facebook.com/basketballclublviv",
+      "social.instagram": "https://www.instagram.com/basketball_bk_lviv/",
+      "social.telegram": "https://t.me/bclvivbasketball",
+      "social.youtube": "https://www.youtube.com/@bclvivbasketball",
+      "donate.buttonText": "Допомогти клубу Donate",
+      "donate.cardNumber": "4441114408776167",
+      "donate.bankName": "Монобанк",
+      "donate.cardHolder": "Христина Полякова"
+    },
+    "Трансляція": {
+      "stream.enabled": "true",
+      "stream.showOnHome": "true",
+      "stream.youtubeChannelId": "UCHYVro8DRttoaFo4LI9eTIg",
+      "stream.pollIntervalSeconds": "30",
+      "stream.countdownThresholdMinutes": "60"
+    },
+    "Магазин": {
+      "shop.telegramBotToken": "7685937167:AAFfSNWb98RIshlHtOn9sId6M5DvH0FoV54",
+      "shop.telegramChatId": "7685937167",
+      "shop.telegramChannelId": "-1003522476963",
+      "shop.email": "bclvivbasketball@gmail.com"
+    }
+  },
+  "teams_data": {
+    "u14": [
+      {
+        "id": 1,
+        "name": "Індійські Леопарди",
+        "shortName": "ІЛ",
+        "school": "Ліцей № 81",
+        "ageGroup": "younger",
+        "logoUrl": "/logos/indian-leopards.jpg",
+        "players": [
+          {
+            "id": 101,
+            "firstName": "Максим",
+            "lastName": "Бережницький",
+            "number": 1,
+            "position": "PG",
+            "photoUrl": "/players_logos/maksym-berezhnytskyi.jpg"
+          },
+          {
+            "id": 102,
+            "firstName": "Микола",
+            "lastName": "Хлян",
+            "number": 2,
+            "position": "SG",
+            "photoUrl": null
+          },
+          {
+            "id": 103,
+            "firstName": "Остап",
+            "lastName": "Одинець",
+            "number": 3,
+            "position": "SF",
+            "photoUrl": "/players_logos/ostap-odynets.jpg"
+          },
+          {
+            "id": 104,
+            "firstName": "Захар",
+            "lastName": "Одинець",
+            "number": 4,
+            "position": "PF",
+            "photoUrl": "/players_logos/ostap-odynets.jpg"
+          },
+          {
+            "id": 105,
+            "firstName": "Тимур",
+            "lastName": "Георгадзе",
+            "number": 5,
+            "position": "SG",
+            "photoUrl": null
+          },
+          {
+            "id": 106,
+            "firstName": "Василь",
+            "lastName": "Борисов",
+            "number": 6,
+            "position": "SF",
+            "photoUrl": null
+          },
+          {
+            "id": 107,
+            "firstName": "Максим",
+            "lastName": "Сидор",
+            "number": 7,
+            "position": "C",
+            "photoUrl": "/players_logos/maksym-berezhnytskyi.jpg"
+          },
+          {
+            "id": 108,
+            "firstName": "Ян",
+            "lastName": "Приходько",
+            "number": 8,
+            "position": "PF",
+            "photoUrl": null
+          },
+          {
+            "id": 109,
+            "firstName": "Максим",
+            "lastName": "Паславський",
+            "number": 9,
+            "position": "SF",
+            "photoUrl": "/players_logos/maksym-berezhnytskyi.jpg"
+          },
+          {
+            "id": 110,
+            "firstName": "Максим",
+            "lastName": "Тарануха",
+            "number": 10,
+            "position": "SF",
+            "photoUrl": "/players_logos/maksym-berezhnytskyi.jpg"
+          },
+          {
+            "id": 111,
+            "firstName": "Артур",
+            "lastName": "Гадзінський",
+            "number": 11,
+            "position": "PF",
+            "photoUrl": null
+          },
+          {
+            "id": 112,
+            "firstName": "Кирило",
+            "lastName": "Осмуха",
+            "number": 12,
+            "position": "PF",
+            "photoUrl": "/players_logos/kyrylo-osmukha.jpg"
+          }
+        ]
+      },
+      {
+        "id": 2,
+        "name": "Димчасті Леопарди",
+        "shortName": "ДЛ",
+        "school": "Школа № 91",
+        "ageGroup": "younger",
+        "logoUrl": "/logos/smoky-leopards.jpg",
+        "players": [
+          {
+            "id": 201,
+            "firstName": "Гнат",
+            "lastName": "Музика",
+            "number": 1,
+            "position": "PF",
+            "photoUrl": null
+          },
+          {
+            "id": 202,
+            "firstName": "Марк",
+            "lastName": "Брушнівський",
+            "number": 2,
+            "position": "SF",
+            "photoUrl": "/players_logos/markiyan-kholonyuk.jpg"
+          },
+          {
+            "id": 203,
+            "firstName": "Сергій",
+            "lastName": "Олійник",
+            "number": 3,
+            "position": "SG",
+            "photoUrl": null
+          },
+          {
+            "id": 204,
+            "firstName": "Олександр",
+            "lastName": "Косенко",
+            "number": 4,
+            "position": "C",
+            "photoUrl": null
+          },
+          {
+            "id": 205,
+            "firstName": "Артем",
+            "lastName": "Гуляєв",
+            "number": 5,
+            "position": "SF",
+            "photoUrl": null
+          },
+          {
+            "id": 206,
+            "firstName": "Єлесей",
+            "lastName": "Шуміха",
+            "number": 6,
+            "position": "PG",
+            "photoUrl": null
+          },
+          {
+            "id": 207,
+            "firstName": "Володимир",
+            "lastName": "Кукурік",
+            "number": 7,
+            "position": "SG",
+            "photoUrl": null
+          }
+        ]
+      },
+      {
+        "id": 3,
+        "name": "Бізони",
+        "shortName": "БЗ",
+        "school": "Школа № 17",
+        "ageGroup": "younger",
+        "logoUrl": "/logos/bisons.jpg",
+        "players": [
+          {
+            "id": 301,
+            "firstName": "Дмитро",
+            "lastName": "Вареха",
+            "number": 1,
+            "position": "SF",
+            "photoUrl": "/players_logos/dmytro-manko.jpg"
+          },
+          {
+            "id": 302,
+            "firstName": "Олексій",
+            "lastName": "Малюга",
+            "number": 2,
+            "position": "C",
+            "photoUrl": null
+          },
+          {
+            "id": 303,
+            "firstName": "Михайло",
+            "lastName": "Ярошенко",
+            "number": 3,
+            "position": "PG",
+            "photoUrl": null
+          },
+          {
+            "id": 304,
+            "firstName": "Федір",
+            "lastName": "Бордаченко",
+            "number": 4,
+            "position": "SF",
+            "photoUrl": null
+          },
+          {
+            "id": 305,
+            "firstName": "Макар",
+            "lastName": "Пасічнюк",
+            "number": 5,
+            "position": "SG",
+            "photoUrl": null
+          },
+          {
+            "id": 306,
+            "firstName": "Марко",
+            "lastName": "Пруць",
+            "number": 6,
+            "position": "PF",
+            "photoUrl": null
+          },
+          {
+            "id": 307,
+            "firstName": "Юрій",
+            "lastName": "Іванченко",
+            "number": 7,
+            "position": "PF",
+            "photoUrl": "/players_logos/yuriy-pygytyag.jpg"
+          }
+        ]
+      },
+      {
+        "id": 4,
+        "name": "Коали",
+        "shortName": "КЛ",
+        "school": "Школа № 7",
+        "ageGroup": "younger",
+        "logoUrl": "/logos/koalas.jpg",
+        "players": [
+          {
+            "id": 401,
+            "firstName": "Злата",
+            "lastName": "Кочмар",
+            "number": 0,
+            "position": "PF",
+            "photoUrl": null
+          },
+          {
+            "id": 402,
+            "firstName": "Віталій",
+            "lastName": "Буць",
+            "number": 1,
+            "position": "PG",
+            "photoUrl": null
+          },
+          {
+            "id": 403,
+            "firstName": "Денис",
+            "lastName": "Бенько",
+            "number": 2,
+            "position": "SG",
+            "photoUrl": null
+          },
+          {
+            "id": 404,
+            "firstName": "Марко",
+            "lastName": "Левицький",
+            "number": 3,
+            "position": "SF",
+            "photoUrl": null
+          },
+          {
+            "id": 405,
+            "firstName": "Влад",
+            "lastName": "Бартошик",
+            "number": 4,
+            "position": "PF",
+            "photoUrl": null
+          },
+          {
+            "id": 406,
+            "firstName": "Єгор",
+            "lastName": "Головко",
+            "number": 5,
+            "position": "C",
+            "photoUrl": null
+          },
+          {
+            "id": 407,
+            "firstName": "Софія",
+            "lastName": "Полюга",
+            "number": 4,
+            "position": "PF",
+            "photoUrl": null
+          },
+          {
+            "id": 408,
+            "firstName": "Танчин",
+            "lastName": "Софія",
+            "number": 2,
+            "position": "SG",
+            "photoUrl": null
+          }
+        ]
+      },
+      {
+        "id": 5,
+        "name": "Mighty Ducks",
+        "shortName": "MD",
+        "school": "Ліцей № 81",
+        "ageGroup": "younger",
+        "logoUrl": "/logos/mighty-ducks.png",
+        "players": [
+          {
+            "id": 501,
+            "firstName": "Дарій",
+            "lastName": "Яремчук",
+            "number": 1,
+            "position": "PG",
+            "photoUrl": "/players_logos/dariy-yaremchuk.jpg"
+          },
+          {
+            "id": 502,
+            "firstName": "Мирослав",
+            "lastName": "Кияшко",
+            "number": 2,
+            "position": "SG",
+            "photoUrl": "/players_logos/myroslav-kyyashko.jpg"
+          },
+          {
+            "id": 503,
+            "firstName": "Вадим",
+            "lastName": "Кривохиж",
+            "number": 3,
+            "position": "SF",
+            "photoUrl": "/players_logos/vadym-kryvokhyzh.jpg"
+          },
+          {
+            "id": 504,
+            "firstName": "Максим",
+            "lastName": "Манзяк",
+            "number": 4,
+            "position": "SG",
+            "photoUrl": "/players_logos/maksym-berezhnytskyi.jpg"
+          },
+          {
+            "id": 505,
+            "firstName": "Роман",
+            "lastName": "Маркевич",
+            "number": 5,
+            "position": "SF",
+            "photoUrl": "/players_logos/roman-markevych.jpg"
+          },
+          {
+            "id": 506,
+            "firstName": "Андрій",
+            "lastName": "Жестоков",
+            "number": 6,
+            "position": "C",
+            "photoUrl": "/players_logos/andriy-zhestokov.jpg"
+          },
+          {
+            "id": 507,
+            "firstName": "Данило",
+            "lastName": "Деревицький",
+            "number": 7,
+            "position": "PF",
+            "photoUrl": "/players_logos/danylo-derevytskyi.jpg"
+          },
+          {
+            "id": 508,
+            "firstName": "Михайло",
+            "lastName": "Тропак",
+            "number": 8,
+            "position": "C",
+            "photoUrl": null
+          },
+          {
+            "id": 509,
+            "firstName": "Захар",
+            "lastName": "Коновалюк",
+            "number": 9,
+            "position": "PF",
+            "photoUrl": "/players_logos/zakhar-odynets.jpg"
+          },
+          {
+            "id": 510,
+            "firstName": "Макар",
+            "lastName": "Шермолович",
+            "number": 10,
+            "position": "PF",
+            "photoUrl": null
+          },
+          {
+            "id": 511,
+            "firstName": "Юрій",
+            "lastName": "Пигитяг",
+            "number": 11,
+            "position": "C",
+            "photoUrl": "/players_logos/yuriy-pygytyag.jpg"
+          }
+        ]
+      }
+    ],
+    "u16": [
+      {
+        "id": 6,
+        "name": "Ведмеді",
+        "shortName": "ВД",
+        "school": "Ліцей № 17",
+        "ageGroup": "older",
+        "logoUrl": "/logos/bears.jpg",
+        "players": [
+          {
+            "id": 601,
+            "firstName": "Ярослав",
+            "lastName": "Нікітенко",
+            "number": 0,
+            "position": "PF",
+            "photoUrl": null
+          },
+          {
+            "id": 602,
+            "firstName": "Олександр",
+            "lastName": "Рябов",
+            "number": 0,
+            "position": "C",
+            "photoUrl": null
+          },
+          {
+            "id": 603,
+            "firstName": "Данило",
+            "lastName": "Шершньов",
+            "number": 0,
+            "position": "PG",
+            "photoUrl": "/players_logos/danylo-derevytskyi.jpg"
+          },
+          {
+            "id": 604,
+            "firstName": "Данило",
+            "lastName": "Капій",
+            "number": 1,
+            "position": "SG",
+            "photoUrl": "/players_logos/danylo-derevytskyi.jpg"
+          },
+          {
+            "id": 605,
+            "firstName": "Дмитро",
+            "lastName": "Стасевич",
+            "number": 2,
+            "position": "SF",
+            "photoUrl": "/players_logos/dmytro-manko.jpg"
+          },
+          {
+            "id": 606,
+            "firstName": "Роман",
+            "lastName": "Мудрик",
+            "number": 3,
+            "position": "PF",
+            "photoUrl": "/players_logos/roman-markevych.jpg"
+          },
+          {
+            "id": 607,
+            "firstName": "Максим",
+            "lastName": "Вудвуд",
+            "number": 4,
+            "position": "PG",
+            "photoUrl": "/players_logos/maksym-berezhnytskyi.jpg"
+          },
+          {
+            "id": 608,
+            "firstName": "Данило",
+            "lastName": "Степась",
+            "number": 4,
+            "position": "SF",
+            "photoUrl": "/players_logos/danylo-derevytskyi.jpg"
+          }
+        ]
+      },
+      {
+        "id": 7,
+        "name": "Black Hawks",
+        "shortName": "BH",
+        "school": "Ліцей № 81",
+        "ageGroup": "older",
+        "logoUrl": "/logos/black-hawks.jpg",
+        "players": [
+          {
+            "id": 701,
+            "firstName": "Іван",
+            "lastName": "Бердніков",
+            "number": 0,
+            "position": "SF",
+            "photoUrl": "/players_logos/ivan-berdnikov.jpg"
+          },
+          {
+            "id": 702,
+            "firstName": "Максим",
+            "lastName": "Бережницький",
+            "number": 0,
+            "position": "PG",
+            "photoUrl": "/players_logos/maksym-berezhnytskyi.jpg"
+          },
+          {
+            "id": 703,
+            "firstName": "Максим",
+            "lastName": "Дудок",
+            "number": 0,
+            "position": "C",
+            "photoUrl": "/players_logos/maksym-berezhnytskyi.jpg"
+          },
+          {
+            "id": 704,
+            "firstName": "Артур",
+            "lastName": "Кабан",
+            "number": 0,
+            "position": "C",
+            "photoUrl": null
+          },
+          {
+            "id": 705,
+            "firstName": "Давид",
+            "lastName": "Овчаренко",
+            "number": 0,
+            "position": "PF",
+            "photoUrl": null
+          },
+          {
+            "id": 706,
+            "firstName": "Олег",
+            "lastName": "Перегінець",
+            "number": 0,
+            "position": "SG",
+            "photoUrl": "/players_logos/oleh-perehinets.jpg"
+          },
+          {
+            "id": 707,
+            "firstName": "Олег",
+            "lastName": "Петрик",
+            "number": 0,
+            "position": "PF",
+            "photoUrl": "/players_logos/oleh-perehinets.jpg"
+          },
+          {
+            "id": 708,
+            "firstName": "Маркіян",
+            "lastName": "Холонюк",
+            "number": 0,
+            "position": "SF",
+            "photoUrl": "/players_logos/markiyan-kholonyuk.jpg"
+          }
+        ]
+      },
+      {
+        "id": 8,
+        "name": "Golden Eagles",
+        "shortName": "GE",
+        "school": "Ліцей № 81",
+        "ageGroup": "older",
+        "logoUrl": "/logos/golden-eagles.jpg",
+        "players": [
+          {
+            "id": 801,
+            "firstName": "Кирило",
+            "lastName": "Бабіш",
+            "number": 0,
+            "position": "SG",
+            "photoUrl": "/players_logos/kyrylo-osmukha.jpg"
+          },
+          {
+            "id": 802,
+            "firstName": "Роман",
+            "lastName": "Гериан",
+            "number": 0,
+            "position": "PF",
+            "photoUrl": "/players_logos/roman-markevych.jpg"
+          },
+          {
+            "id": 803,
+            "firstName": "Остап",
+            "lastName": "Павлюх",
+            "number": 0,
+            "position": "PF",
+            "photoUrl": "/players_logos/ostap-odynets.jpg"
+          },
+          {
+            "id": 804,
+            "firstName": "Максим",
+            "lastName": "Струж",
+            "number": 0,
+            "position": "SF",
+            "photoUrl": "/players_logos/maksym-berezhnytskyi.jpg"
+          },
+          {
+            "id": 805,
+            "firstName": "Крістіан",
+            "lastName": "Хакеборд",
+            "number": 0,
+            "position": "C",
+            "photoUrl": "/players_logos/kristian-khakibord.jpg"
+          },
+          {
+            "id": 806,
+            "firstName": "Данило",
+            "lastName": "Цалик",
+            "number": 0,
+            "position": "C",
+            "photoUrl": "/players_logos/danylo-derevytskyi.jpg"
+          },
+          {
+            "id": 807,
+            "firstName": "Максим",
+            "lastName": "Якимець",
+            "number": 0,
+            "position": "SF",
+            "photoUrl": "/players_logos/maksym-berezhnytskyi.jpg"
+          },
+          {
+            "id": 808,
+            "firstName": "Дарій",
+            "lastName": "Яремчук",
+            "number": 0,
+            "position": "PG",
+            "photoUrl": "/players_logos/dariy-yaremchuk.jpg"
+          }
+        ]
+      },
+      {
+        "id": 9,
+        "name": "Wild Cats",
+        "shortName": "WC",
+        "school": "Школа № 30",
+        "ageGroup": "older",
+        "logoUrl": "/logos/wild-cats.jpg",
+        "players": [
+          {
+            "id": 901,
+            "firstName": "Роман",
+            "lastName": "Бас",
+            "number": 0,
+            "position": "PG",
+            "photoUrl": "/players_logos/roman-markevych.jpg"
+          },
+          {
+            "id": 902,
+            "firstName": "Роман",
+            "lastName": "Бутлер",
+            "number": 0,
+            "position": "SF",
+            "photoUrl": "/players_logos/roman-markevych.jpg"
+          },
+          {
+            "id": 903,
+            "firstName": "Роман",
+            "lastName": "Кордос",
+            "number": 0,
+            "position": "SG",
+            "photoUrl": "/players_logos/roman-markevych.jpg"
+          },
+          {
+            "id": 904,
+            "firstName": "Володимир",
+            "lastName": "Макар",
+            "number": 0,
+            "position": "C",
+            "photoUrl": null
+          },
+          {
+            "id": 905,
+            "firstName": "Назар",
+            "lastName": "Онущак",
+            "number": 0,
+            "position": "PF",
+            "photoUrl": null
+          },
+          {
+            "id": 906,
+            "firstName": "Дмитро",
+            "lastName": "Онущак",
+            "number": 0,
+            "position": "PF",
+            "photoUrl": "/players_logos/dmytro-manko.jpg"
+          }
+        ]
+      },
+      {
+        "id": 10,
+        "name": "Street Kings",
+        "shortName": "SK",
+        "school": "Школа № 91",
+        "ageGroup": "older",
+        "logoUrl": "/logos/street-kings.png",
+        "players": [
+          {
+            "id": 1001,
+            "firstName": "Олександр",
+            "lastName": "Дума",
+            "number": 0,
+            "position": "SF",
+            "photoUrl": null
+          },
+          {
+            "id": 1002,
+            "firstName": "Софія",
+            "lastName": "Карнаушенко",
+            "number": 0,
+            "position": "SG",
+            "photoUrl": null
+          },
+          {
+            "id": 1003,
+            "firstName": "Юрій",
+            "lastName": "Котенко",
+            "number": 0,
+            "position": "C",
+            "photoUrl": "/players_logos/yuriy-pygytyag.jpg"
+          },
+          {
+            "id": 1004,
+            "firstName": "Денис",
+            "lastName": "Осташевський",
+            "number": 0,
+            "position": "PF",
+            "photoUrl": null
+          },
+          {
+            "id": 1005,
+            "firstName": "Олександр",
+            "lastName": "Погуляєв",
+            "number": 0,
+            "position": "PG",
+            "photoUrl": null
+          }
+        ]
+      },
+      {
+        "id": 11,
+        "name": "Dream Team",
+        "shortName": "DT",
+        "school": "Школа № 7",
+        "ageGroup": "older",
+        "logoUrl": "/logos/dream-team.jpg",
+        "players": [
+          {
+            "id": 1101,
+            "firstName": "Віталій",
+            "lastName": "Буць",
+            "number": 0,
+            "position": "PG",
+            "photoUrl": null
+          },
+          {
+            "id": 1102,
+            "firstName": "Маркіян",
+            "lastName": "Гавкер",
+            "number": 0,
+            "position": "PF",
+            "photoUrl": "/players_logos/markiyan-kholonyuk.jpg"
+          },
+          {
+            "id": 1103,
+            "firstName": "Олександр",
+            "lastName": "Гуренко",
+            "number": 0,
+            "position": "SF",
+            "photoUrl": null
+          },
+          {
+            "id": 1104,
+            "firstName": "Марко",
+            "lastName": "Ждан",
+            "number": 0,
+            "position": "SF",
+            "photoUrl": null
+          },
+          {
+            "id": 1105,
+            "firstName": "Максим",
+            "lastName": "Ждан",
+            "number": 0,
+            "position": "PF",
+            "photoUrl": "/players_logos/maksym-berezhnytskyi.jpg"
+          },
+          {
+            "id": 1106,
+            "firstName": "Степан",
+            "lastName": "Курманов",
+            "number": 0,
+            "position": "SF",
+            "photoUrl": null
+          },
+          {
+            "id": 1107,
+            "firstName": "Макар",
+            "lastName": "Куць",
+            "number": 0,
+            "position": "SF",
+            "photoUrl": null
+          },
+          {
+            "id": 1108,
+            "firstName": "Богдан",
+            "lastName": "Лещук",
+            "number": 0,
+            "position": "C",
+            "photoUrl": null
+          },
+          {
+            "id": 1109,
+            "firstName": "Максим",
+            "lastName": "Мордига",
+            "number": 0,
+            "position": "SG",
+            "photoUrl": "/players_logos/maksym-berezhnytskyi.jpg"
+          },
+          {
+            "id": 1110,
+            "firstName": "Олександр",
+            "lastName": "Муравський",
+            "number": 0,
+            "position": "C",
+            "photoUrl": null
+          },
+          {
+            "id": 1111,
+            "firstName": "Софія",
+            "lastName": "Танчин",
+            "number": 0,
+            "position": "PG",
+            "photoUrl": null
+          },
+          {
+            "id": 1112,
+            "firstName": "Анастасія",
+            "lastName": "Федина",
+            "number": 0,
+            "position": "SG",
+            "photoUrl": null
+          }
+        ]
+      }
+    ]
+  },
+  "all_settings": {
+    "site.name": "Федерація Баскетболу Львова",
+    "site.shortName": "ДЮБЛ",
+    "site.tagline": "Офіційний сайт баскетбольної спільноти міста",
+    "site.season": "Сезон 2025-2026",
+    "site.logoText": "ДЮБЛ",
+    "site.description": "Офіційний сайт баскетбольної ліги Львова. Матчі, статистика та новини сезону 2025-2026.",
+    "site.zoom": "100",
+    "contact.address": "м. Львів, вул. Спортивна",
+    "contact.email": "basketlvivinfo@gmail.com",
+    "contact.website": "basketball.lviv.ua",
+    "contact.websiteUrl": "basketlvivua@gmail.com",
+    "contact.phone": "+380 637845836",
+    "contacts.title": "Баскетбол у Львові — Ліга ESCULAB",
+    "contacts.subtitle": "Офіційна баскетбольна ліга міста Львова",
+    "contacts.address": "м. Львів, вул. Мазепи 1А",
+    "contacts.email": "basketlvivinfo@gmail.com",
+    "contacts.website": "bclvivbasketball@gmail.com",
+    "contacts.facebook": "https://facebook.com/basketlviv",
+    "contacts.instagram": "https://instagram.com/basketlviv",
+    "contacts.youtube": "https://youtube.com/@basketlviv",
+    "social.facebook": "https://www.facebook.com/basketballclublviv",
+    "social.instagram": "https://www.instagram.com/basketball_bk_lviv/",
+    "social.youtube": "https://www.youtube.com/@bclvivbasketball",
+    "social.telegram": "https://t.me/bclvivbasketball",
+    "hero.badge": "Сезон 2025-2026",
+    "hero.title": "Львівська Дитяча Баскетбольна Ліга",
+    "hero.subtitle": "Офіційний сайт баскетбольної ліги Львова. Матчі, статистика та новини сезону 2025-2026.",
+    "hero.ctaPrimary": "Переглянути розклад",
+    "hero.ctaSecondary": "Барахолка",
+    "footer.about": "Львівська дитяча баскетбольна ліга — офіційна ліга міста Львова",
+    "footer.copyright": "© 2025-2026 ДЮБЛ. Всі права захищені.",
+    "footer.col1.visible": "true",
+    "footer.col2.visible": "true",
+    "footer.col3.visible": "true",
+    "footer.textColor": "#9ca3af",
+    "nav.items": "[{\"href\":\"/news\",\"label\":\"Новини\",\"visible\":true},{\"href\":\"/schedule\",\"label\":\"Розклад\",\"visible\":true},{\"href\":\"/standings\",\"label\":\"Змагання\",\"visible\":true},{\"href\":\"/leaders\",\"label\":\"Лідери\",\"visible\":true},{\"href\":\"/teams\",\"label\":\"Команди\",\"visible\":true},{\"href\":\"/players\",\"label\":\"Гравці\",\"visible\":true},{\"href\":\"/contacts\",\"label\":\"Контакти\",\"visible\":true}]",
+    "colors.text.heading": "#1a2744",
+    "colors.text.accent": "#f97316",
+    "colors.text.body": "#1f2937",
+    "colors.text.muted": "#6b7280",
+    "colors.headerBg": "#0f172a",
+    "colors.headerText": "#f8fafc",
+    "colors.heroBg": "#0f172a",
+    "colors.heroTitle": "#ffffff",
+    "colors.heroSubtitle": "#94a3b8",
+    "colors.pageBg": "#f8fafc",
+    "colors.cardBg": "#ffffff",
+    "colors.cardBorder": "#e2e8f0",
+    "colors.tableBg": "#0f172a",
+    "colors.tableHeaderText": "#ffffff",
+    "colors.tableRowOdd": "#f1f5f9",
+    "colors.tableRowEven": "#ffffff",
+    "colors.newsBg": "#f1f5f9",
+    "colors.footerBg": "#0f172a",
+    "colors.footerText": "#94a3b8",
+    "colors.footerLink": "#f97316",
+    "colors.footerCopyright": "#475569",
+    "colors.btnBlue": "#2563eb",
+    "colors.btnOrange": "#f97316",
+    "colors.btnNavy": "#0f172a",
+    "colors.btnRed": "#dc2626",
+    "colors.btnSchedule": "#2563eb",
+    "colors.btnHero": "#f97316",
+    "colors.btnDonate": "#ea580c",
+    "colors.btnChat": "#1e293b",
+    "colors.navy": "#1e2a4a",
+    "colors.orange": "#f97316",
+    "colors.blue": "#2563eb",
+    "colors.red": "#dc2626",
+    "colors.bg": "#f8fafc",
+    "colors.primary": "#f97316",
+    "colors.background": "#0f172a",
+    "fonts.heading": "Montserrat",
+    "fonts.body": "Inter",
+    "fonts.headingSize": "36",
+    "fonts.bodySize": "16",
+    "header.height": "64",
+    "header.fontSizeNav": "14",
+    "header.activeStyle": "underline",
+    "header.logoPosition": "left",
+    "images.logo": "/header/header-logo.png",
+    "images.ogImage": "",
+    "images.heroBg": "/hero_banner.jpg",
+    "images.headerBg": "",
+    "images.footerBg": "",
+    "images.pageBg": "",
+    "banner.top.img": "",
+    "banner.top.url": "",
+    "banner.top.active": "false",
+    "banner.bottom.img": "",
+    "banner.bottom.url": "",
+    "banner.bottom.active": "false",
+    "home.showLive": "true",
+    "home.showStandings": "true",
+    "home.showNews": "true",
+    "home.liveLimit": "4",
+    "home.standingsLimit": "6",
+    "home.newsLimit": "3",
+    "home.liveTitle": "Найближчі матчі",
+    "home.standingsTitle": "Таблиця сезону",
+    "home.newsTitle": "Останні новини",
+    "stream.enabled": "true",
+    "stream.showOnHome": "true",
+    "stream.youtubeChannelId": "UCHYVro8DRttoaFo4LI9eTIg",
+    "stream.youtubeApiKey": "",
+    "stream.title": "",
+    "stream.description": "",
+    "stream.scheduledAt": "",
+    "stream.pollIntervalSeconds": "30",
+    "stream.countdownThresholdMinutes": "60",
+    "donate.cardNumber": "4441114408776167",
+    "donate.cardName": "Христина Полякова",
+    "donate.cardBank": "Монобанк",
+    "donate.label": "Допомогти клубу Donate",
+    "shop.tgBotToken": "7685937167:AAFfSNWb98RIshlHtOn9sId6M5DvH0FoV54",
+    "shop.tgChatId": "7685937167",
+    "shop.telegramChannelId": "-1003522476963",
+    "shop.notifyEmail": "bclvivbasketball@gmail.com",
+    "shop.gmailUser": "",
+    "shop.gmailPass": "",
+    "widget.enabled": "true",
+    "widget.interval": "20",
+    "widget.mode": "sequential"
+  },
+  "logos_list": [
+    "Black Hawks Ліцей № 81.jpg",
+    "Dream Team Школа № 7.jpg",
+    "Golden Eagles Ліцей № 81.jpg",
+    "Mighty Ducks Ліцей № 81.png",
+    "Street Kings Школа № 91.png",
+    "Wild Cats Школа № 30.jpg",
+    "bears.jpg",
+    "bisons.jpg",
+    "black-hawks.jpg",
+    "dream-team.jpg",
+    "golden-eagles.jpg",
+    "header-logo.png",
+    "indian-leopards.jpg",
+    "koalas.jpg",
+    "mighty-ducks.png",
+    "smoky-leopards.jpg",
+    "street-kings.png",
+    "wild-cats.jpg",
+    "Індійські Леопарди Ліцей № 81.jpg",
+    "Бізони Школа № 17.jpg",
+    "Ведмеді Ліцей № 17.jpg",
+    "Димчасті Леопарди Школа № 91.jpg",
+    "Коали Школа № 7.jpg"
+  ],
+  "players_logos_list": [
+    "andriy-zhestokov.jpg",
+    "danylo-derevytskyi.jpg",
+    "dariy-yaremchuk.jpg",
+    "dmytro-manko.jpg",
+    "ivan-berdnikov.jpg",
+    "kristian-khakibord.jpg",
+    "kyrylo-osmukha.jpg",
+    "maksym-berezhnytskyi.jpg",
+    "maksym-dudok.jpg",
+    "maksym-struzh.jpg",
+    "markiyan-kholonyuk.jpg",
+    "myroslav-kyyashko.jpg",
+    "nikita-melnyk-stelmakh.jpg",
+    "oleh-perehinets.jpg",
+    "oleh-petryk.jpg",
+    "ostap-odynets.jpg",
+    "roman-markevych.jpg",
+    "tsalyk-danylo.jpg",
+    "vadym-kryvokhyzh.jpg",
+    "yuriy-pygytyag.jpg",
+    "zakhar-odynets.jpg",
+    "zsdsd",
+    "Іван Бердніков.jpg",
+    "Андрій Жестоков.jpg",
+    "Вадим Кривохиж.jpg",
+    "Данило Деревицький.jpg",
+    "Дарій Яремчук.jpg",
+    "Дмитро Манько.jpg",
+    "Захар Одинець.jpg",
+    "Кирило Осмуха.jpg",
+    "Крістіан Хакіборд.jpg",
+    "Максим Бережницький.jpg",
+    "Максим Дудок.jpg",
+    "Максим Струж.jpg",
+    "Маркіян Холонюк.jpg",
+    "Мирослав Кияшко.jpg",
+    "Нікіта Мельник-Стельмах.jpg",
+    "Олег Перегінець.jpg",
+    "Олег Петрик.jpg",
+    "Остап Одинець.jpg",
+    "Роман Маркевич.jpg",
+    "Цалик Данило.jpg",
+    "Юрій Пигитяг.jpg"
+  ]
+}
